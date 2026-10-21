@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Maestro - Quiosco Morisco</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #343a40; color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header a { color: #ffc107; text-decoration: none; font-weight: bold; margin-left: 15px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h3 { margin-top: 0; color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        input, select, textarea { width: 100%; padding: 8px; margin: 5px 0 15px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+        .btn-pin { background: #007bff; width: 100%; font-size: 16px; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .flash-msg { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; }
+        .etiqueta-categoria { background: #13423b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>⚙️ Panel Maestro - Quiosco Morisco</h2>
+    <div>
+        <a href="/" target="_blank">Ver Menú Público</a>
+        <a href="/logout">Cerrar Sesión</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash-msg">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="grid">
+    <!-- Configurar Premios -->
+    <div class="card">
+        <h3>🎁 Configurar Metas y Premios</h3>
+        <form action="/admin/configurar_premio" method="POST">
+            <div style="background: #fdfaf6; border: 1px solid #c98246; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                <h4 style="margin-top: 0; color: #13423b;">Nivel 1 (Premio Intermedio)</h4>
+                <label style="font-size: 12px; color: #666;">Visitas para Nivel 1:</label>
+                <input type="number" name="meta_1" value="{{ meta_1 }}" min="1" required>
+                <label style="font-size: 12px; color: #666;">Premio a entregar:</label>
+                <input type="text" name="premio_1" value="{{ premio_1 }}" required>
+            </div>
+            
+            <div style="background: #fdfaf6; border: 1px solid #13423b; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                <h4 style="margin-top: 0; color: #c98246;">Nivel 2 (Premio Mayor)</h4>
+                <label style="font-size: 12px; color: #666;">Visitas para Nivel 2:</label>
+                <input type="number" name="meta_2" value="{{ meta_2 }}" min="2" required>
+                <label style="font-size: 12px; color: #666;">Premio a entregar:</label>
+                <input type="text" name="premio_2" value="{{ premio_2 }}" required>
+            </div>
+            <button type="submit" style="background: #e67e22; width: 100%;">Guardar Configuración</button>
+        </form>
+    </div>
+
+    <!-- Control de PINs -->
+    <div class="card">
+        <h3>🔑 Control de PINs</h3>
+        <form action="/caja/generar_pin" method="POST">
+            <button type="submit" class="btn-pin">Generar Nuevo PIN</button>
+        </form>
+        <ul style="max-height: 150px; overflow-y: auto;">
+            {% for pin in pins %}
+                <li style="font-size: 16px; margin-bottom: 5px;">
+                    <strong style="font-family: monospace; font-size: 20px;">{{ pin.codigo }}</strong> 
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Historial Antifraude -->
+    <div class="card">
+        <h3>🛡️ Historial Antifraude (PINs Cobrados)</h3>
+        <ul style="max-height: 200px; overflow-y: auto; font-size: 13px; color: #555;">
+            {% for h in historial %}
+                <li style="margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    PIN <strong>{{ h.codigo }}</strong> cobrado. <br>
+                    <em>Generado por {{ h.creado_por }} el {{ h.fecha_creacion }}</em>
+                </li>
+            {% else %}
+                <li>Aún no se han cobrado PINs.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Clientes Registrados -->
+    <div class="card">
+        <h3>👥 Clientes Registrados</h3>
+        <table style="font-size: 14px;">
+            <tr>
+                <th>Nombre / Teléfono</th>
+                <th>Consumos Totales</th>
+                <th>Acción</th>
+            </tr>
+            {% for cliente in clientes %}
+            <tr>
+                <td><strong>{{ cliente.nombre }}</strong><br>{{ cliente.telefono }}</td>
+                <td><strong>{{ cliente.consumos }}</strong></td>
+                <td>
+                    <form action="/admin/cliente/eliminar/{{ cliente.id }}" method="POST" style="margin: 0;">
+                        <button type="submit" style="background: #dc3545; padding: 5px 10px; font-size: 12px;" onclick="return confirm('¿Seguro de borrar a este cliente?');">Borrar</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">Aún no hay clientes registrados.</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <!-- Agregar Producto -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <h3>🍔 Agregar Producto al Menú</h3>
+        <form action="/admin/producto/nuevo" method="POST" enctype="multipart/form-data">
+            <label>Nombre:</label>
+            <input type="text" name="nombre" required placeholder="Ej. Huevos Motuleños">
+            
+            <label>Categoría:</label>
+            <select name="categoria" required style="padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; margin-bottom: 15px;">
+                <option value="Desayunos">Desayunos</option>
+                <option value="Entradas">Entradas</option>
+                <option value="Sándwiches Bistró">Sándwiches Bistró</option>
+                <option value="Hamburguesas">Hamburguesas</option>
+                <option value="Antojitos">Antojitos</option>
+                <option value="Platillos Bistró">Platillos Bistró</option>
+                <option value="Postres">Postres</option>
+                <option value="Bebidas Calientes">Bebidas Calientes</option>
+                <option value="Bebidas Frías y Frappes">Bebidas Frías y Frappes</option>
+                <option value="Infusiones">Infusiones</option>
+                <option value="Jugos y Aguas Naturales">Jugos y Aguas Naturales</option>
+                <option value="Refrescos">Refrescos</option>
+                <option value="Cervezas">Cervezas</option>
+                <option value="Cócteles">Cócteles</option>
+            </select>
+            
+            <label>Precio ($):</label>
+            <input type="number" step="0.50" name="precio" required placeholder="Ej. 175">
+            
+            <label>Descripción corta:</label>
+            <textarea name="descripcion" rows="2" placeholder="Ej. Estrellados sobre tortilla frita..."></textarea>
+
+            <label>Foto (Opcional):</label>
+            <input type="file" name="foto" accept="image/*" style="background: #fff;">
+            
+            <button type="submit">Guardar Producto</button>
+        </form>
+    </div>
+
+    <!-- Modificar Menú -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <h3>📦 Administrar Menú Guardado</h3>
+        {% for p in productos %}
+        <div style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; background-color: #fafafa;">
+            
+            <span class="etiqueta-categoria">📁 {{ p.categoria }}</span>
+            
+            <form action="/admin/producto/editar/{{ p.id }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                
+                <div style="display: flex; flex-direction: column;">
+                    <label style="font-size: 12px; color: #666;">Nombre:</label>
+                    <input type="text" name="nombre" value="{{ p.nombre }}" required style="margin:0; width: 160px;">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                    <label style="font-size: 12px; color: #666;">Cambiar Categoría:</label>
+                    <select name="categoria" required style="margin:0; width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="Desayunos" {% if p.categoria == 'Desayunos' %}selected{% endif %}>Desayunos</option>
+                        <option value="Entradas" {% if p.categoria == 'Entradas' %}selected{% endif %}>Entradas</option>
+                        <option value="Sándwiches Bistró" {% if p.categoria == 'Sándwiches Bistró' %}selected{% endif %}>Sándwiches Bistró</option>
+                        <option value="Hamburguesas" {% if p.categoria == 'Hamburguesas' %}selected{% endif %}>Hamburguesas</option>
+                        <option value="Antojitos" {% if p.categoria == 'Antojitos' %}selected{% endif %}>Antojitos</option>
+                        <option value="Platillos Bistró" {% if p.categoria == 'Platillos Bistró' %}selected{% endif %}>Platillos Bistró</option>
+                        <option value="Postres" {% if p.categoria == 'Postres' %}selected{% endif %}>Postres</option>
+                        <option value="Bebidas Calientes" {% if p.categoria == 'Bebidas Calientes' %}selected{% endif %}>Bebidas Calientes</option>
+                        <option value="Bebidas Frías y Frappes" {% if p.categoria == 'Bebidas Frías y Frappes' %}selected{% endif %}>Bebidas Frías y Frappes</option>
+                        <option value="Infusiones" {% if p.categoria == 'Infusiones' %}selected{% endif %}>Infusiones</option>
+                        <option value="Jugos y Aguas Naturales" {% if p.categoria == 'Jugos y Aguas Naturales' %}selected{% endif %}>Jugos y Aguas Naturales</option>
+                        <option value="Refrescos" {% if p.categoria == 'Refrescos' %}selected{% endif %}>Refrescos</option>
+                        <option value="Cervezas" {% if p.categoria == 'Cervezas' %}selected{% endif %}>Cervezas</option>
+                        <option value="Cócteles" {% if p.categoria == 'Cócteles' %}selected{% endif %}>Cócteles</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column;">
+                    <label style="font-size: 12px; color: #666;">Precio ($):</label>
+                    <input type="number" step="0.50" name="precio" value="{{ p.precio }}" required style="margin:0; width: 80px;">
+                </div>
+                
+                <div style="display: flex; flex-direction: column;">
+                    <label style="font-size: 12px; color: #666;">Foto:</label>
+                    <input type="file" name="foto" accept="image/*" style="margin:0; width: 170px;">
+                </div>
+                
+                <button type="submit" style="background: #007bff; height: 35px; padding: 0 15px;">Actualizar</button>
+            </form>
+
+            <form action="/admin/producto/eliminar/{{ p.id }}" method="POST" style="margin-top: 10px;">
+                <button type="submit" style="background: #dc3545; padding: 5px 10px; font-size: 13px;" onclick="return confirm('¿Seguro de borrar {{ p.nombre }}?');">🗑️ Borrar este platillo</button>
+            </form>
+        </div>
+        {% else %}
+        <p>No hay productos en el menú.</p>
+        {% endfor %}
+    </div>
+</div>
+
+</body>
+</html>
