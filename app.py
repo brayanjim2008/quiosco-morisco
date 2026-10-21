@@ -242,13 +242,31 @@ def logout():
     logout_user()
     return redirect(url_for('admin_login'))
 
-# Inicialización automática de base de datos y usuario admin por defecto en la nube
+# Inicialización automática de base de datos y usuarios
 with app.app_context():
     db.create_all()
+    
+    # 1. Tu cuenta de Programador (Master)
+    if not User.query.filter_by(username='brayan').first():
+        brayan_user = User(username='brayan', password=generate_password_hash('brayanmaster'))
+        db.session.add(brayan_user)
+
+    # 2. Cuenta de Admin General (Gerente)
     if not User.query.filter_by(username='admin').first():
         admin_user = User(username='admin', password=generate_password_hash('quiosco123'))
         db.session.add(admin_user)
-        db.session.commit()
+        
+    # 3. Cuenta de Caja 1
+    if not User.query.filter_by(username='caja1').first():
+        caja1_user = User(username='caja1', password=generate_password_hash('caja1234'))
+        db.session.add(caja1_user)
+        
+    # 4. Cuenta de Caja 2
+    if not User.query.filter_by(username='caja2').first():
+        caja2_user = User(username='caja2', password=generate_password_hash('caja5678'))
+        db.session.add(caja2_user)
+
+    db.session.commit()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000, debug=True)
