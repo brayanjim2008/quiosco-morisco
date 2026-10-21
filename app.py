@@ -119,7 +119,7 @@ def registrar_consumo():
     return redirect(url_for('index'))
 
 # --- RUTAS DE ADMINISTRACIÓN ---
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/admin_login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -249,4 +249,4 @@ with app.app_context():
         db.session.commit()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=10000, debug=True)
