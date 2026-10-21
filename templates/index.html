@@ -8,7 +8,12 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root { --verde-quiosco: #13423b; --cobre: #c98246; --fondo-hueso: #fdfaf6; --texto-oscuro: #2c2c2c; --texto-claro: #5a5a5a; }
-        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 15px; color: var(--texto-oscuro); padding-bottom: 80px; }
+        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 15px 80px 15px; color: var(--texto-oscuro); }
+        
+        /* Barra de Administrador Integrada */
+        .navbar-top { display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px; }
+        .btn-admin { background-color: var(--cobre); color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(201, 130, 70, 0.3); }
+        
         .container { max-width: 500px; margin: auto; }
         h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 600; }
         .logo-container { text-align: center; margin-bottom: 20px; }
@@ -68,8 +73,14 @@
 <div class="btn-flotante-mesero" onclick="llamarMesero()">🛎️ Llamar Mesero</div>
 
 <div class="container">
+    
+    <!-- Barra superior para el administrador -->
+    <div class="navbar-top">
+        <a href="/admin_login" class="btn-admin">Iniciar Caja / Admin</a>
+    </div>
+
     <div class="logo-container">
-        <img src="/static/logo.jpg" alt="Logo Quiosco Morisco" onerror="this.style.display='none'">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" onerror="this.style.display='none'">
     </div>
     <h1>Quiosco Morisco</h1>
 
@@ -105,7 +116,7 @@
         
         {% if progreso == meta_1 %}
             <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
-        {% elif progreso == meta_2 %}
+        {% elif progreso >= meta_2 %}
             <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
             
             <!-- IMPULSOR DE RESEÑAS GOOGLE -->
@@ -146,7 +157,7 @@
         <h2>Nuestro Menú</h2>
         
         <!-- Botones de Filtro Dinámicos -->
-        {% if categorias %}
+        {% if categorias and categorias is mapping %}
         <div class="filtros-wrapper">
             <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)">Todos</button>
             {% for categoria in categorias.keys() %}
@@ -173,7 +184,7 @@
             {% endfor %}
         </div>
         {% else %}
-            <p style="text-align: center; color: var(--texto-claro); font-style: italic;">Preparando los platillos...</p>
+            <p style="text-align: center; color: var(--texto-claro); font-style: italic;">Pronto verás nuestros platillos aquí...</p>
         {% endif %}
     </div>
 </div>
