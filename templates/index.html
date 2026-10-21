@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menú - Quiosco Morisco</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { --verde-quiosco: #13423b; --cobre: #c98246; --fondo-hueso: #fdfaf6; --texto-oscuro: #2c2c2c; --texto-claro: #5a5a5a; }
+        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 15px; color: var(--texto-oscuro); padding-bottom: 80px; }
+        .container { max-width: 500px; margin: auto; }
+        h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 600; }
+        .logo-container { text-align: center; margin-bottom: 20px; }
+        .logo-container img { width: 120px; border-radius: 50%; box-shadow: 0 4px 15px rgba(19, 66, 59, 0.2); border: 3px solid var(--cobre); }
+        h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 25px; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        .card { background: #ffffff; padding: 25px 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; }
+        
+        /* Barra de Progreso */
+        .progress-container { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; text-align: center; }
+        .progress-bar { display: flex; align-items: center; justify-content: center; margin: 20px 0; flex-wrap: wrap; gap: 4px; }
+        .circle { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--cobre); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--cobre); background: var(--fondo-hueso); z-index: 2; font-size: 14px; }
+        .circle.filled { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); }
+        .circle.premio-intermedio { background: #e8f5e9; border-color: var(--cobre); color: var(--cobre); }
+        .circle.premio-intermedio.filled { background: var(--cobre); color: #fff; }
+        .circle.premio-mayor { background: #fff3e0; border-color: var(--verde-quiosco); color: var(--verde-quiosco); }
+        .circle.premio-mayor.filled { background: var(--verde-quiosco); color: #fff; border-color: var(--cobre); }
+        .line { height: 3px; background: var(--cobre); flex-grow: 1; min-width: 10px; max-width: 25px; z-index: 1; }
+        .line.filled { background: var(--verde-quiosco); }
+
+        /* Botones */
+        .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; text-transform: uppercase; }
+        .btn-wifi { background: #ffffff; color: var(--verde-quiosco); border: 2px solid var(--verde-quiosco); }
+        .btn-insta { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; }
+        .btn-tiktok { background: #000000; color: white; border: none; }
+        .btn-google { background: #4285F4; color: white; border: none; border-radius: 30px; font-size: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.4); }
+
+        /* Filtros Flotantes Deslizables */
+        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid #efebe4; scrollbar-width: none; }
+        .filtros-wrapper::-webkit-scrollbar { display: none; }
+        .filtro-btn { display: inline-block; background: #faf8f5; border: 1px solid var(--cobre); color: var(--cobre); padding: 8px 16px; margin-right: 8px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; }
+        .filtro-btn.activo, .filtro-btn:hover { background: var(--cobre); color: #fff; }
+
+        /* Botón Llamar Mesero */
+        .btn-flotante-mesero { position: fixed; bottom: 20px; right: 20px; background: #25D366; color: white; padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 16px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: transform 0.2s; border: 2px solid #ffffff; }
+        .btn-flotante-mesero:hover { transform: scale(1.05); }
+
+        /* Alertas y Menú */
+        .flash { padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; }
+        .flash.exito { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .flash.premio_interactivo { background: var(--verde-quiosco); color: var(--cobre); border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
+        @keyframes latido { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        input { width: 100%; padding: 12px; margin: 8px 0 20px 0; background: #faf8f5; border: 1px solid #dcd7ce; border-radius: 6px; box-sizing: border-box; }
+        label { color: var(--texto-claro); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        .categoria-bloque { margin-bottom: 30px; }
+        .categoria-titulo { color: var(--cobre); padding: 10px 0; border-bottom: 1px solid var(--cobre); margin-bottom: 15px; font-family: 'Lora', serif; font-size: 20px; font-weight: 600; }
+        .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #f0ece1; padding: 15px 0; }
+        .foto-platillo { width: 85px; height: 85px; object-fit: cover; border-radius: 8px; }
+        .info-platillo { flex-grow: 1; }
+        .nombre-platillo { font-family: 'Lora', serif; font-size: 1.15em; color: var(--verde-quiosco); font-weight: 600; display: block; }
+        .precio { font-weight: bold; color: var(--cobre); font-size: 1.25em; font-family: 'Lora', serif; }
+    </style>
+</head>
+<body>
+
+<!-- Botón Flotante Llamar Mesero -->
+<div class="btn-flotante-mesero" onclick="llamarMesero()">🛎️ Llamar Mesero</div>
+
+<div class="container">
+    <div class="logo-container">
+        <img src="/static/logo.jpg" alt="Logo Quiosco Morisco" onerror="this.style.display='none'">
+    </div>
+    <h1>Quiosco Morisco</h1>
+
+    <div id="notificaciones">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash {{ category }}" id="mensaje-flash" data-categoria="{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- SECCIÓN INTERACTIVA DE PROGRESO -->
+    {% if cliente %}
+    <div class="progress-container">
+        <h3 style="margin-top: 0;">Tu Avance, {{ cliente.nombre }}</h3>
+        <p style="font-size: 13px; color: var(--texto-claro); margin-top: -10px;">Llevas <strong>{{ progreso }}</strong> consumos.</p>
+        <div class="progress-bar">
+            {% for i in range(1, meta_2 + 1) %}
+                <div class="circle 
+                    {% if progreso >= i %}filled{% endif %} 
+                    {% if i == meta_1 %}premio-intermedio{% endif %} 
+                    {% if i == meta_2 %}premio-mayor{% endif %}"
+                    {% if i == meta_1 or i == meta_2 %}style="transform: scale(1.15); border-width: 3px;"{% endif %}>
+                    {% if i == meta_1 or i == meta_2 %}🎁{% else %}{{ i }}{% endif %}
+                </div>
+                {% if i < meta_2 %}
+                    <div class="line {% if progreso >= i %}filled{% endif %}"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        
+        {% if progreso == meta_1 %}
+            <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
+        {% elif progreso == meta_2 %}
+            <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
+            
+            <!-- IMPULSOR DE RESEÑAS GOOGLE -->
+            <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google">
+                ⭐ ¿Nos regalas 5 estrellas en Google?
+            </a>
+            
+        {% else %}
+            <p style="color: var(--texto-claro); font-size: 14px;">¡Ya casi! Sigue acumulando para ganar premios.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Redes y WiFi -->
+    <div class="card">
+        <h3>📱 Conéctate</h3>
+        <button class="btn btn-wifi" onclick="copiarWifi()">📶 Copiar Contraseña Wi-Fi</button>
+        <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" class="btn btn-insta" target="_blank">📸 Síguenos en Instagram</a>
+        <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" class="btn btn-tiktok" target="_blank">🎵 Síguenos en TikTok</a>
+    </div>
+
+    <!-- Registro de Fidelidad -->
+    <div class="card">
+        <h3>Fidelidad Morisco</h3>
+        <form action="/registrar_consumo" method="POST">
+            <label>Tu Nombre</label>
+            <input type="text" name="nombre" required placeholder="Ej. Brayan">
+            <label>Tu Teléfono (10 dígitos)</label>
+            <input type="tel" name="telefono" required placeholder="Para llevar tu conteo">
+            <label>PIN de Consumo</label>
+            <input type="text" name="pin" required style="font-family: monospace; letter-spacing: 3px; font-size: 18px; text-align: center; color: var(--verde-quiosco); font-weight: bold;">
+            <button type="submit" class="btn">Sellar Visita</button>
+        </form>
+    </div>
+
+    <!-- Menú Digital con Filtros -->
+    <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none;">
+        <h2>Nuestro Menú</h2>
+        
+        <!-- Botones de Filtro Dinámicos -->
+        {% if categorias %}
+        <div class="filtros-wrapper">
+            <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)">Todos</button>
+            {% for categoria in categorias.keys() %}
+                <button class="filtro-btn" data-categoria="{{ categoria|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this)">{{ categoria }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- Lista de Platillos -->
+        <div id="contenedor-menu">
+            {% for categoria, lista in categorias.items() %}
+                <div class="categoria-bloque" data-categoria="{{ categoria|replace(' ', '-') }}">
+                    <div class="categoria-titulo">{{ categoria }}</div>
+                    {% for producto in lista %}
+                        <div class="menu-item card" style="margin-bottom: 10px;">
+                            {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo">{% endif %}
+                            <div class="info-platillo">
+                                <span class="nombre-platillo">{{ producto.nombre }}</span>
+                                <span style="color: var(--texto-claro); font-size: 13px;">{{ producto.descripcion }}</span>
+                            </div>
+                            <div class="precio">${{ producto.precio }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+        {% else %}
+            <p style="text-align: center; color: var(--texto-claro); font-style: italic;">Preparando los platillos...</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Función para el Botón de Llamar Mesero
+    function llamarMesero() {
+        let mesa = prompt("🛎️ Para atenderte rápido, ¿en qué número de mesa te encuentras?");
+        if (mesa && mesa.trim() !== "") {
+            let numeroWhatsapp = "5219671364781"; 
+            let mensaje = `Hola, estoy en la Mesa ${mesa}, ¿me pueden atender por favor?`;
+            let url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+    }
+
+    // Función para Copiar Wi-Fi
+    function copiarWifi() {
+        navigator.clipboard.writeText('Corazonsc31'); 
+        alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
+    }
+
+    // Función para Filtrar el Menú
+    function filtrarMenu(categoria, boton) {
+        // Cambiar color del botón activo
+        let botones = document.querySelectorAll('.filtro-btn');
+        botones.forEach(btn => btn.classList.remove('activo'));
+        boton.classList.add('activo');
+
+        // Mostrar/Ocultar categorías
+        let bloques = document.querySelectorAll('.categoria-bloque');
+        bloques.forEach(bloque => {
+            if (categoria === 'Todos') {
+                bloque.style.display = 'block';
+            } else {
+                if (bloque.getAttribute('data-categoria') === categoria) {
+                    bloque.style.display = 'block';
+                } else {
+                    bloque.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // Animación de Confeti para Premios
+    document.addEventListener("DOMContentLoaded", function() {
+        var flashElement = document.getElementById("mensaje-flash");
+        if (flashElement && flashElement.getAttribute("data-categoria") === "premio_interactivo") {
+            var duration = 3 * 1000; var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0, colors: ['#13423b', '#c98246', '#ffffff'] };
+            var interval = setInterval(function() {
+                if (Date.now() > animationEnd) return clearInterval(interval);
+                confetti(Object.assign({}, defaults, { particleCount: 50, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount: 50, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+    });
+</script>
+</body>
+</html>
