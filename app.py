@@ -7,6 +7,7 @@ import random
 from datetime import datetime
 import cloudinary
 import cloudinary.uploader
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'quiosco_morisco_secret_key_2026'
@@ -255,6 +256,13 @@ def logout():
 # Inicialización automática de base de datos y usuarios
 with app.app_context():
     db.create_all()
+    
+    # Forzar a PostgreSQL a expandir la columna a 255 caracteres
+    try:
+        db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(255);'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     
     if not User.query.filter_by(username='brayan').first():
         brayan_user = User(username='brayan', password=generate_password_hash('brayanmaster'))
