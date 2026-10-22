@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Etiquetas para que se comporte como App Nativa -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <title>Menú - Quiosco Morisco</title>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -39,6 +43,7 @@
         .btn-insta { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; }
         .btn-tiktok { background: #000000; color: white; border: none; }
         .btn-google { background: #4285F4; color: white; border: none; border-radius: 30px; font-size: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.4); }
+        .btn-mostrar-eval { background: #ff9800; border-radius: 30px; font-size: 15px; margin-top: 20px; box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3); }
 
         /* Filtros Flotantes Deslizables */
         .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid #efebe4; scrollbar-width: none; }
@@ -50,14 +55,26 @@
         .btn-flotante-mesero { position: fixed; bottom: 20px; right: 20px; background: #25D366; color: white; padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 16px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: transform 0.2s; border: 2px solid #ffffff; }
         .btn-flotante-mesero:hover { transform: scale(1.05); }
 
+        /* Estilos del Nuevo Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-content h3 { color: var(--verde-quiosco); margin-top: 0; font-size: 20px; }
+        .modal-content p { color: var(--texto-claro); font-size: 14px; margin-bottom: 20px; }
+        .modal-content input { width: 100%; padding: 12px; font-size: 18px; text-align: center; border: 2px solid var(--cobre); border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; font-weight: bold; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-cancelar { flex: 1; background: #eee; color: #555; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-llamar { flex: 1; background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
         /* Alertas y Menú */
         .flash { padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; }
         .flash.exito { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
         .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
         .flash.premio_interactivo { background: var(--verde-quiosco); color: var(--cobre); border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
         @keyframes latido { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        input { width: 100%; padding: 12px; margin: 8px 0 20px 0; background: #faf8f5; border: 1px solid #dcd7ce; border-radius: 6px; box-sizing: border-box; }
-        label { color: var(--texto-claro); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        
+        .formulario-normal input { width: 100%; padding: 12px; margin: 8px 0 20px 0; background: #faf8f5; border: 1px solid #dcd7ce; border-radius: 6px; box-sizing: border-box; }
+        .formulario-normal label { color: var(--texto-claro); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        
         .categoria-bloque { margin-bottom: 30px; }
         .categoria-titulo { color: var(--cobre); padding: 10px 0; border-bottom: 1px solid var(--cobre); margin-bottom: 15px; font-family: 'Lora', serif; font-size: 20px; font-weight: 600; }
         .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #f0ece1; padding: 15px 0; }
@@ -66,8 +83,9 @@
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.15em; color: var(--verde-quiosco); font-weight: 600; display: block; }
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.25em; font-family: 'Lora', serif; }
 
-        /* SECCIÓN DE CALIFICACIÓN POR ESTRELLAS AMPLIADA */
-        .eval-container { background: #fff; padding: 25px; margin: 30px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; border: 1px solid #efebe4; }
+        /* SECCIÓN DE CALIFICACIÓN POR ESTRELLAS */
+        .eval-container { background: #fff; padding: 25px; margin: 15px auto 30px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; border: 1px solid #efebe4; display: none; /* Oculto por defecto */ transition: all 0.3s ease; }
+        .eval-container.activo { display: block; }
         .eval-container h3 { margin-top: 0; color: #333; font-size: 22px; }
         .star-rating { direction: rtl; display: flex; justify-content: center; font-size: 2.5rem; line-height: 1; }
         .star-rating input { display: none; }
@@ -80,8 +98,21 @@
 </head>
 <body>
 
-<!-- Botón Flotante Llamar Mesero -->
-<div class="btn-flotante-mesero" onclick="llamarMesero()">🛎️ Llamar Mesero</div>
+<!-- Nuevo Modal Elegante para Llamar Mesero -->
+<div id="modal-mesero" class="modal-overlay">
+    <div class="modal-content">
+        <h3>🛎️ Llamar al Mesero</h3>
+        <p>Para atenderte rápido, ¿en qué número de mesa te encuentras?</p>
+        <input type="number" id="input-mesa" placeholder="Ej. 4">
+        <div class="modal-buttons">
+            <button onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+            <button onclick="enviarMensajeWhatsapp()" class="btn-llamar">Llamar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Botón Flotante Llamar Mesero (Ahora abre el modal) -->
+<div class="btn-flotante-mesero" onclick="abrirModal()">🛎️ Llamar Mesero</div>
 
 <div class="container">
     
@@ -91,7 +122,8 @@
     </div>
 
     <div class="logo-container">
-        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" onerror="this.style.display='none'">
+        <!-- Lazy Loading en el logo -->
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" loading="lazy" onerror="this.style.display='none'">
     </div>
     <h1>Quiosco Morisco</h1>
 
@@ -128,12 +160,10 @@
             <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
         {% elif progreso >= meta_2 %}
             <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
-            
             <!-- IMPULSOR DE RESEÑAS GOOGLE -->
             <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google">
                 ⭐ ¿Nos regalas 5 estrellas en Google?
             </a>
-            
         {% else %}
             <p style="color: var(--texto-claro); font-size: 14px;">¡Ya casi! Sigue acumulando para ganar premios.</p>
         {% endif %}
@@ -149,7 +179,7 @@
     </div>
 
     <!-- Registro de Fidelidad -->
-    <div class="card">
+    <div class="card formulario-normal">
         <h3>Fidelidad Morisco</h3>
         <form action="/registrar_consumo" method="POST">
             <label>Tu Nombre</label>
@@ -182,7 +212,8 @@
                     <div class="categoria-titulo">{{ categoria }}</div>
                     {% for producto in lista %}
                         <div class="menu-item card" style="margin-bottom: 10px;">
-                            {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo">{% endif %}
+                            <!-- Lazy Loading aplicado a la imagen del platillo -->
+                            {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
                             <div class="info-platillo">
                                 <span class="nombre-platillo">{{ producto.nombre }}</span>
                                 <span style="color: var(--texto-claro); font-size: 13px;">{{ producto.descripcion }}</span>
@@ -198,8 +229,11 @@
         {% endif %}
     </div>
 
-    <!-- FORMULARIO DE EVALUACIÓN (ÚNICO) -->
-    <div class="eval-container">
+    <!-- Botón para Mostrar Formulario de Evaluación -->
+    <button class="btn btn-mostrar-eval" onclick="toggleEvaluacion()">⭐ Déjanos tu opinión</button>
+
+    <!-- FORMULARIO DE EVALUACIÓN (Oculto por defecto) -->
+    <div class="eval-container" id="seccion-evaluacion">
         <h3>¡Califica tu Experiencia!</h3>
         <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
             
@@ -255,17 +289,42 @@
 </div>
 
 <script>
-    // Función para el Botón de Llamar Mesero
-    function llamarMesero() {
-        let mesa = prompt("🛎️ Para atenderte rápido, ¿en qué número de mesa te encuentras?");
+    // --- Funciones para el Nuevo Modal del Mesero ---
+    function abrirModal() {
+        document.getElementById('modal-mesero').style.display = 'flex';
+        document.getElementById('input-mesa').focus(); // Pone el cursor directo en el campo
+    }
+
+    function cerrarModal() {
+        document.getElementById('modal-mesero').style.display = 'none';
+        document.getElementById('input-mesa').value = ''; // Limpia el input
+    }
+
+    function enviarMensajeWhatsapp() {
+        let mesa = document.getElementById('input-mesa').value;
         if (mesa && mesa.trim() !== "") {
             let numeroWhatsapp = "5219671364781"; 
             let mensaje = `Hola, estoy en la Mesa ${mesa}, ¿me pueden atender por favor?`;
             let url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
+            cerrarModal(); // Cierra el modal antes de abrir WhatsApp
             window.open(url, '_blank');
+        } else {
+            alert("Por favor, ingresa tu número de mesa.");
         }
     }
-  // Función para Copiar Wi-Fi
+
+    // --- Función para Mostrar/Ocultar la Evaluación ---
+    function toggleEvaluacion() {
+        let seccionEval = document.getElementById('seccion-evaluacion');
+        seccionEval.classList.toggle('activo');
+        
+        // Hace un pequeño scroll hacia abajo para que el usuario vea que se abrió
+        if (seccionEval.classList.contains('activo')) {
+            seccionEval.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Función para Copiar Wi-Fi
     function copiarWifi() {
         navigator.clipboard.writeText('Corazonsc31'); 
         alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
@@ -273,12 +332,10 @@
 
     // Función para Filtrar el Menú
     function filtrarMenu(categoria, boton) {
-        // Cambiar color del botón activo
         let botones = document.querySelectorAll('.filtro-btn');
         botones.forEach(btn => btn.classList.remove('activo'));
         boton.classList.add('activo');
 
-        // Mostrar/Ocultar categorías
         let bloques = document.querySelectorAll('.categoria-bloque');
         bloques.forEach(bloque => {
             if (categoria === 'Todos') {
