@@ -36,7 +36,7 @@ login_manager.login_view = 'admin_login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
+    password = db.Column(db.String(255), nullable=False)  # <-- Ampliado a 255 para soportar el hash moderno
 
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -264,7 +264,7 @@ with app.app_context():
         admin_user = User(username='admin', password=generate_password_hash('quiosco123'))
         db.session.add(admin_user)
         
-    if not User.query.filter_by(username='caja1').first():
+    if not User.query.filter_`by(username='caja1').first():
         caja1_user = User(username='caja1', password=generate_password_hash('caja1234'))
         db.session.add(caja1_user)
         
