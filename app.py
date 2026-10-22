@@ -24,7 +24,7 @@ cloudinary.config(
 # ==========================================
 # CONFIGURACIÓN DE LA BASE DE DATOS RENDER
 # ==========================================
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3ks728c73fbkv3g-a/quiosco_bd'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3ks728c73fbkv3g-a/quiosco_bd'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
