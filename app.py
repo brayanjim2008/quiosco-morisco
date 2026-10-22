@@ -250,27 +250,33 @@ def nuevo_producto():
     if foto and foto.filename != '':
         respuesta = cloudinary.uploader.upload(foto)
         imagen_url = respuesta.get('secure_url')
-
+        
     prod = Producto(nombre=nombre, categoria=categoria, precio=precio, descripcion=descripcion, imagen_url=imagen_url)
     db.session.add(prod)
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/producto/editar/<int:id>', methods=['POST'])
+@app.route('/admin/producto/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar_producto(id):
     p = Producto.query.get_or_404(id)
-    p.nombre = request.form.get('nombre')
-    p.categoria = request.form.get('categoria')
-    p.precio = float(request.form.get('precio'))
     
-    foto = request.files.get('foto')
-    if foto and foto.filename != '':
-        respuesta = cloudinary.uploader.upload(foto)
-        p.imagen_url = respuesta.get('secure_url')
+    if request.method == 'POST':
+        p.nombre = request.form.get('nombre')
+        p.categoria = request.form.get('categoria')
+        p.precio = float(request.form.get('precio'))
+        p.descripcion = request.form.get('descripcion')
         
-    db.session.commit()
-    return redirect(url_for('admin_dashboard'))
+        foto = request.files.get('foto')
+        if foto and foto.filename != '':
+            respuesta = cloudinary.uploader.upload(foto)
+            p.imagen_url = respuesta.get('secure_url')
+            
+        db.session.commit()
+        flash("Platillo actualizado correctamente", "exito")
+        return redirect(url_for('admin_dashboard'))
+        
+    return render_template('editar_producto.html', producto=p)
 
 @app.route('/admin/producto/eliminar/<int:id>', methods=['POST'])
 @login_required
