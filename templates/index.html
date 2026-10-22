@@ -65,6 +65,17 @@
         .info-platillo { flex-grow: 1; }
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.15em; color: var(--verde-quiosco); font-weight: 600; display: block; }
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.25em; font-family: 'Lora', serif; }
+
+        /* SECCIÓN DE CALIFICACIÓN POR ESTRELLAS AMPLIADA */
+        .eval-container { background: #fff; padding: 25px; margin: 30px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; border: 1px solid #efebe4; }
+        .eval-container h3 { margin-top: 0; color: #333; font-size: 22px; }
+        .star-rating { direction: rtl; display: flex; justify-content: center; font-size: 2.5rem; line-height: 1; }
+        .star-rating input { display: none; }
+        .star-rating label { color: #e4e4e4; cursor: pointer; padding: 0 5px; transition: color 0.2s; }
+        .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: #ffc107; }
+        .eval-select, .eval-textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; background: #fafafa; font-family: inherit; }
+        .btn-eval { background: #ff9800; color: white; border: none; padding: 12px; width: 100%; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .eval-label { margin-bottom: 5px; font-weight: bold; color: #555; text-align: left; display: block; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -107,8 +118,7 @@
                     {% if i == meta_2 %}premio-mayor{% endif %}"
                     {% if i == meta_1 or i == meta_2 %}style="transform: scale(1.15); border-width: 3px;"{% endif %}>
                     {% if i == meta_1 or i == meta_2 %}🎁{% else %}{{ i }}{% endif %}
-                </div>
-                {% if i < meta_2 %}
+                </div> {% if i < meta_2 %}
                     <div class="line {% if progreso >= i %}filled{% endif %}"></div>
                 {% endif %}
             {% endfor %}
@@ -187,6 +197,61 @@
             <p style="text-align: center; color: var(--texto-claro); font-style: italic;">Pronto verás nuestros platillos aquí...</p>
         {% endif %}
     </div>
+
+    <!-- FORMULARIO DE EVALUACIÓN (ÚNICO) -->
+    <div class="eval-container">
+        <h3>¡Califica tu Experiencia!</h3>
+        <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
+            
+            <span class="eval-label">1. Limpieza del local:</span>
+            <div class="star-rating">
+                <input type="radio" id="l5" name="limpieza" value="5" required><label for="l5">★</label>
+                <input type="radio" id="l4" name="limpieza" value="4"><label for="l4">★</label>
+                <input type="radio" id="l3" name="limpieza" value="3"><label for="l3">★</label>
+                <input type="radio" id="l2" name="limpieza" value="2"><label for="l2">★</label>
+                <input type="radio" id="l1" name="limpieza" value="1"><label for="l1">★</label>
+            </div>
+
+            <span class="eval-label">2. Calidad de la comida/bebida:</span>
+            <div class="star-rating">
+                <input type="radio" id="c5" name="calidad_comida" value="5" required><label for="c5">★</label>
+                <input type="radio" id="c4" name="calidad_comida" value="4"><label for="c4">★</label>
+                <input type="radio" id="c3" name="calidad_comida" value="3"><label for="c3">★</label>
+                <input type="radio" id="c2" name="calidad_comida" value="2"><label for="c2">★</label>
+                <input type="radio" id="c1" name="calidad_comida" value="1"><label for="c1">★</label>
+            </div>
+
+            <span class="eval-label">3. Tiempo de espera:</span>
+            <select name="tiempo_espera" class="eval-select" required>
+                <option value="" disabled selected>¿Qué tan rápido te servimos?</option>
+                <option value="Muy rápido">Muy rápido ⚡</option>
+                <option value="Adecuado">Adecuado 👍</option>
+                <option value="Lento">Lento 🐢</option>
+            </select>
+            
+            <span class="eval-label">4. ¿Quién te atendió?</span>
+            <select name="mesero_nombre" class="eval-select" required>
+                <option value="" disabled selected>Selecciona a tu mesero...</option>
+                <option value="Paola">Paola</option>
+                <option value="Daniel">Daniel</option>
+            </select>
+            
+            <span class="eval-label">5. Calificación del mesero:</span>
+            <div class="star-rating">
+                <input type="radio" id="m5" name="mesero_calificacion" value="5" required><label for="m5">★</label>
+                <input type="radio" id="m4" name="mesero_calificacion" value="4"><label for="m4">★</label>
+                <input type="radio" id="m3" name="mesero_calificacion" value="3"><label for="m3">★</label>
+                <input type="radio" id="m2" name="mesero_calificacion" value="2"><label for="m2">★</label>
+                <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
+            </div>
+
+            <span class="eval-label">6. ¿Algún comentario adicional? (Opcional):</span>
+            <textarea name="comentarios" class="eval-textarea" rows="3" placeholder="Déjanos tu opinión, sugerencia o felicitación..."></textarea>
+            
+            <button type="submit" class="btn-eval">Enviar Evaluación</button>
+        </form>
+    </div>
+
 </div>
 
 <script>
@@ -200,8 +265,7 @@
             window.open(url, '_blank');
         }
     }
-
-    // Función para Copiar Wi-Fi
+  // Función para Copiar Wi-Fi
     function copiarWifi() {
         navigator.clipboard.writeText('Corazonsc31'); 
         alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
@@ -244,102 +308,4 @@
     });
 </script>
 </body>
-<!-- SECCIÓN DE CALIFICACIÓN POR ESTRELLAS AMPLIADA -->
-<style>
-    .eval-container { background: #fff; padding: 25px; margin: 30px auto; border-radius: 12px; max-width: 450px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
-    .eval-container h3 { margin-top: 0; color: #333; font-size: 22px; }
-    .star-rating { direction: rtl; display: flex; justify-content: center; font-size: 2.5rem; line-height: 1; }
-    .star-rating input { display: none; }
-    .star-rating label { color: #e4e4e4; cursor: pointer; padding: 0 5px; transition: color 0.2s; }
-    .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: #ffc107; }
-    .eval-select, .eval-textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; background: #fafafa; font-family: inherit; }
-    .btn-eval { background: #ff9800; color: white; border: none; padding: 12px; width: 100%; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    .eval-label { margin-bottom: 5px; font-weight: bold; color: #555; text-align: left; display: block; margin-top: 15px; }
-</style>
-
-<div class="eval-container">
-    <h3>¡Califica tu Experiencia!</h3>
-    <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
-        
-        <span class="eval-label">1. Limpieza del local:</span>
-        <div class="star-rating">
-            <input type="radio" id="l5" name="limpieza" value="5" required><label for="l5">★</label>
-            <input type="radio" id="l4" name="limpieza" value="4"><label for="l4">★</label>
-            <input type="radio" id="l3" name="limpieza" value="3"><label for="l3">★</label>
-            <input type="radio" id="l2" name="limpieza" value="2"><label for="l2">★</label>
-            <input type="radio" id="l1" name="limpieza" value="1"><label for="l1">★</label>
-        </div>
-
-        <span class="eval-label">2. Calidad de la comida/bebida:</span>
-        <div class="star-rating">
-            <input type="radio" id="c5" name="calidad_comida" value="5" required><label for="c5">★</label>
-            <input type="radio" id="c4" name="calidad_comida" value="4"><label for="c4">★</label>
-            <input type="radio" id="c3" name="calidad_comida" value="3"><label for="c3">★</label>
-            <input type="radio" id="c2" name="calidad_comida" value="2"><label for="c2">★</label>
-            <input type="radio" id="c1" name="calidad_comida" value="1"><label for="c1">★</label>
-        </div>
-
-        <span class="eval-label">3. Tiempo de espera:</span>
-        <select name="tiempo_espera" class="eval-select" required>
-            <option value="" disabled selected>¿Qué tan rápido te servimos?</option>
-            <option value="Muy rápido">Muy rápido ⚡</option>
-            <option value="Adecuado">Adecuado 👍</option>
-            <option value="Lento">Lento 🐢</option>
-        </select>
-        
-        <span class="eval-label">4. ¿Quién te atendió?</span>
-        <select name="mesero_nombre" class="eval-select" required>
-            <option value="" disabled selected>Selecciona a tu mesero...</option>
-            <option value="Paola">Paola</option>
-            <option value="Daniel">Daniel</option>
-        </select>
-        
-        <span class="eval-label">5. Calificación del mesero:</span>
-        <div class="star-rating">
-            <input type="radio" id="m5" name="mesero_calificacion" value="5" required><label for="m5">★</label>
-            <input type="radio" id="m4" name="mesero_calificacion" value="4"><label for="m4">★</label>
-            <input type="radio" id="m3" name="mesero_calificacion" value="3"><label for="m3">★</label>
-            <input type="radio" id="m2" name="mesero_calificacion" value="2"><label for="m2">★</label>
-            <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
-        </div>
-
-        <span class="eval-label">6. ¿Algún comentario adicional? (Opcional):</span>
-        <textarea name="comentarios" class="eval-textarea" rows="3" placeholder="Déjanos tu opinión, sugerencia o felicitación..."></textarea>
-        
-        <button type="submit" class="btn-eval">Enviar Evaluación</button>
-    </form>
-</div>
-
-<div class="eval-container">
-    <h3>¡Califica tu Experiencia!</h3>
-    <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
-        
-        <span class="eval-label">Limpieza del local:</span>
-        <div class="star-rating">
-            <input type="radio" id="l5" name="limpieza" value="5" required><label for="l5">★</label>
-            <input type="radio" id="l4" name="limpieza" value="4"><label for="l4">★</label>
-            <input type="radio" id="l3" name="limpieza" value="3"><label for="l3">★</label>
-            <input type="radio" id="l2" name="limpieza" value="2"><label for="l2">★</label>
-            <input type="radio" id="l1" name="limpieza" value="1"><label for="l1">★</label>
-        </div>
-        
-        <span class="eval-label">Selecciona tu mesero:</span>
-        <select name="mesero_nombre" class="eval-select" required>
-            <option value="" disabled selected>Elige quién te atendió...</option>
-            <option value="Paola">Paola</option>
-            <option value="Daniel">Daniel</option>
-        </select>
-        
-        <span class="eval-label">Calificación del mesero:</span>
-        <div class="star-rating">
-            <input type="radio" id="m5" name="mesero_calificacion" value="5" required><label for="m5">★</label>
-            <input type="radio" id="m4" name="mesero_calificacion" value="4"><label for="m4">★</label>
-            <input type="radio" id="m3" name="mesero_calificacion" value="3"><label for="m3">★</label>
-            <input type="radio" id="m2" name="mesero_calificacion" value="2"><label for="m2">★</label>
-            <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
-        </div>
-        
-        <button type="submit" class="btn-eval">Enviar Opinión</button>
-    </form>
-</div>
 </html>
