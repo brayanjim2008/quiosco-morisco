@@ -5,9 +5,21 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
 from datetime import datetime
+import cloudinary
+import cloudinary.uploader
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'quiosco_morisco_secret_key_2026'
+
+# ==========================================
+# CONFIGURACIÓN DE CLOUDINARY (FOTOS)
+# ==========================================
+cloudinary.config(
+    cloud_name = "sgz4qrxq",
+    api_key = "881332363648736",
+    api_secret = "I7go-7PnNv1DQLJiGdkMB5wtXkc",
+    secure = True
+)
 
 # ==========================================
 # CONFIGURACIÓN DE LA BASE DE DATOS RENDER
@@ -32,7 +44,7 @@ class Producto(db.Model):
     categoria = db.Column(db.String(50), nullable=False)
     precio = db.Column(db.Float, nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
-    imagen_url = db.Column(db.String(200), nullable=True)
+    imagen_url = db.Column(db.String(250), nullable=True)
 
 class Cliente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -194,9 +206,8 @@ def nuevo_producto():
     imagen_url = ""
     foto = request.files.get('foto')
     if foto and foto.filename != '':
-        ruta_foto = os.path.join('static', foto.filename)
-        foto.save(os.path.join(app.root_path, ruta_foto))
-        imagen_url = f"/{ruta_foto}"
+        respuesta = cloudinary.uploader.upload(foto)
+        imagen_url = respuesta.get('secure_url')
 
     prod = Producto(nombre=nombre, categoria=categoria, precio=precio, descripcion=descripcion, imagen_url=imagen_url)
     db.session.add(prod)
@@ -213,9 +224,8 @@ def editar_producto(id):
     
     foto = request.files.get('foto')
     if foto and foto.filename != '':
-        ruta_foto = os.path.join('static', foto.filename)
-        foto.save(os.path.join(app.root_path, ruta_foto))
-        p.imagen_url = f"/{ruta_foto}"
+        respuesta = cloudinary.uploader.upload(foto)
+        p.imagen_url = respuesta.get('secure_url')
         
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
@@ -246,22 +256,18 @@ def logout():
 with app.app_context():
     db.create_all()
     
-    # 1. Tu cuenta de Programador (Master)
     if not User.query.filter_by(username='brayan').first():
         brayan_user = User(username='brayan', password=generate_password_hash('brayanmaster'))
         db.session.add(brayan_user)
 
-    # 2. Cuenta de Admin General (Gerente)
     if not User.query.filter_by(username='admin').first():
         admin_user = User(username='admin', password=generate_password_hash('quiosco123'))
         db.session.add(admin_user)
         
-    # 3. Cuenta de Caja 1
     if not User.query.filter_by(username='caja1').first():
         caja1_user = User(username='caja1', password=generate_password_hash('caja1234'))
         db.session.add(caja1_user)
         
-    # 4. Cuenta de Caja 2
     if not User.query.filter_by(username='caja2').first():
         caja2_user = User(username='caja2', password=generate_password_hash('caja5678'))
         db.session.add(caja2_user)
