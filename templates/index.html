@@ -43,17 +43,51 @@
         .btn-insta { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; }
         .btn-tiktok { background: #000000; color: white; border: none; }
         .btn-google { background: #4285F4; color: white; border: none; border-radius: 30px; font-size: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.4); }
-        .btn-mostrar-eval { background: #ff9800; border-radius: 30px; font-size: 15px; margin-top: 20px; box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3); }
+
+        /* Contenedor Flotante Inferior (Dos botones juntos) */
+        .botones-flotantes { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            z-index: 1000; 
+            align-items: flex-end; 
+        }
+        .btn-flotante-mesero { 
+            background: #25D366; 
+            color: white; 
+            padding: 12px 18px; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+            border: 2px solid #ffffff; 
+            text-align: center; 
+        }
+        .btn-flotante-eval { 
+            background: #ff9800; 
+            color: white; 
+            padding: 12px 18px; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+            border: 2px solid #ffffff; 
+            text-align: center; 
+        }
+        .btn-flotante-mesero:hover, .btn-flotante-eval:hover { transform: scale(1.05); }
 
         /* Filtros Flotantes Deslizables */
         .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid #efebe4; scrollbar-width: none; }
         .filtros-wrapper::-webkit-scrollbar { display: none; }
         .filtro-btn { display: inline-block; background: #faf8f5; border: 1px solid var(--cobre); color: var(--cobre); padding: 8px 16px; margin-right: 8px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; }
         .filtro-btn.activo, .filtro-btn:hover { background: var(--cobre); color: #fff; }
-
-        /* Botón Llamar Mesero */
-        .btn-flotante-mesero { position: fixed; bottom: 20px; right: 20px; background: #25D366; color: white; padding: 15px 20px; border-radius: 50px; font-weight: bold; font-size: 16px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: transform 0.2s; border: 2px solid #ffffff; }
-        .btn-flotante-mesero:hover { transform: scale(1.05); }
 
         /* Estilos del Nuevo Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
@@ -111,8 +145,11 @@
     </div>
 </div>
 
-<!-- Botón Flotante Llamar Mesero (Ahora abre el modal) -->
-<div class="btn-flotante-mesero" onclick="abrirModal()">🛎️ Llamar Mesero</div>
+<!-- Botones Flotantes Inferiores (Llamar Mesero + Déjanos tu opinión) -->
+<div class="botones-flotantes">
+    <div class="btn-flotante-mesero" onclick="abrirModal()">🛎️ Llamar Mesero</div>
+    <div class="btn-flotante-eval" onclick="toggleEvaluacion()">⭐ Opinión</div>
+</div>
 
 <div class="container">
     
@@ -173,7 +210,7 @@
     <!-- Redes y WiFi -->
     <div class="card">
         <h3>📱 Conéctate</h3>
-        <button class="btn btn-wifi" onclick="copiarWifi()">📶 Copiar Contraseña Wi-Fi</button>
+        <button class="btn btn-wifi" onclick="copiarWifi()">📶 Contraseña Wi-Fi</button>
         <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" class="btn btn-insta" target="_blank">📸 Síguenos en Instagram</a>
         <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" class="btn btn-tiktok" target="_blank">🎵 Síguenos en TikTok</a>
     </div>
@@ -229,9 +266,6 @@
         {% endif %}
     </div>
 
-    <!-- Botón para Mostrar Formulario de Evaluación -->
-    <button class="btn btn-mostrar-eval" onclick="toggleEvaluacion()">⭐ Déjanos tu opinión</button>
-
     <!-- FORMULARIO DE EVALUACIÓN (Oculto por defecto) -->
     <div class="eval-container" id="seccion-evaluacion">
         <h3>¡Califica tu Experiencia!</h3>
@@ -279,10 +313,12 @@
                 <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
             </div>
 
-            <span class="eval-label">6. ¿Algún comentario adicional? (Opcional):</span>
+            <!-- Botón colocado justo debajo de calificar mesero -->
+            <button type="submit" class="btn-eval">Enviar Evaluación</button>
+
+            <span class="eval-label" style="margin-top: 20px;">6. ¿Algún comentario adicional? (Opcional):</span>
             <textarea name="comentarios" class="eval-textarea" rows="3" placeholder="Déjanos tu opinión, sugerencia o felicitación..."></textarea>
             
-            <button type="submit" class="btn-eval">Enviar Evaluación</button>
         </form>
     </div>
 
@@ -330,7 +366,7 @@
         alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
     }
 
-    // Función para Filtrar el Menú
+    // Funktion para Filtrar el Menú
     function filtrarMenu(categoria, boton) {
         let botones = document.querySelectorAll('.filtro-btn');
         botones.forEach(btn => btn.classList.remove('activo'));
