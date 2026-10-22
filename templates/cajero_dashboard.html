@@ -2,85 +2,61 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja - Quiosco Morisco</title>
+    <title>Panel de Caja - Quiosco Morisco</title>
     <style>
-        body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: #007bff; color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
-        .header a { color: #fff; text-decoration: underline; font-weight: bold; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h3 { margin-top: 0; color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        button { background: #28a745; color: white; border: none; padding: 15px; border-radius: 5px; cursor: pointer; font-size: 18px; width: 100%; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f8f9fa; }
-        .flash-msg { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; }
-        .premio-alerta { background-color: #ffc107; color: #000; font-weight: bold; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; max-width: 600px; margin: auto; }
+        .btn { background: #28a745; color: white; border: none; padding: 15px 30px; font-size: 20px; cursor: pointer; border-radius: 5px; font-weight: bold; width: 100%; margin-bottom: 20px; }
+        .pin-box { background: #f4f4f4; padding: 15px; margin: 10px; font-size: 28px; font-weight: bold; border-radius: 5px; display: inline-block; border: 2px solid #ccc; letter-spacing: 2px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logout { color: #dc3545; text-decoration: none; font-weight: bold; padding: 10px; border: 1px solid #dc3545; border-radius: 5px; }
     </style>
 </head>
 <body>
-
-<div class="header">
-    <h2>💵 Caja - Quiosco Morisco</h2>
+    <div class="header">
+        <h2>Panel de Caja</h2>
+        <a href="{{ url_for('logout') }}" class="logout">Cerrar Sesión</a>
+    </div>
+    <hr>
+    
+    <h3>Generar PIN de Consumo</h3>
+    <form action="{{ url_for('generar_pin') }}" method="POST">
+        <button type="submit" class="btn">G E N E R A R &nbsp; P I N</button>
+    </form>
+    
+    <h3>PINs Activos (Listos para entregar al cliente)</h3>
     <div>
-        <a href="/logout">Cerrar Sesión</a>
+        {% for pin in pins %}
+            <div class="pin-box">{{ pin.codigo }}</div>
+        {% else %}
+            <p>No hay PINs generados actualmente.</p>
+        {% endfor %}
     </div>
-</div>
-
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="flash-msg">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-
-<div class="grid">
-    <!-- Solo pueden Generar PIN -->
-    <div class="card">
-        <h3>🔑 Generar PIN para Cliente</h3>
-        <p>Genera un PIN único para entregarlo al cliente en su ticket de compra.</p>
-        <form action="/caja/generar_pin" method="POST">
-            <button type="submit">Generar Nuevo PIN</button>
-        </form>
-        <br>
-        <p><strong>PINs válidos sin usar:</strong></p>
-        <ul>
-            {% for pin in pins %}
-                <li style="font-size: 24px; font-family: monospace; letter-spacing: 2px; color: #d32f2f;"><strong>{{ pin.codigo }}</strong></li>
-            {% else %}
-                <li>No hay PINs disponibles. Genera uno para tu próximo cliente.</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- Ver si el cliente ganó premio -->
-    <div class="card">
-        <h3>👥 Consulta de Fidelidad</h3>
-        <p>Verifica si un cliente ya alcanzó sus 5 visitas para entregarle su premio hoy.</p>
-        <table>
-            <tr>
-                <th>Nombre / Teléfono</th>
-                <th>Visitas</th>
-            </tr>
-            {% for cliente in clientes %}
-            <tr>
-                <td><strong>{{ cliente.nombre }}</strong><br><small>{{ cliente.telefono }}</small></td>
-                <td>
-                    <span style="font-size: 18px;"><strong>{{ cliente.consumos }}</strong> / 5</span>
-                    {% if cliente.consumos > 0 and cliente.consumos % 5 == 0 %}
-                        <br><span class="premio-alerta">¡ENTREGAR PREMIO!</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="2">Aún no hay clientes registrados.</td></tr>
-            {% endfor %}
-        </table>
-    </div>
-</div>
-
 </body>
+<!-- SECCIÓN DE REPORTE DE ESTRELLAS -->
+<hr style="margin-top: 40px;">
+<h2>Reporte de Calificaciones de Clientes</h2>
+<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; margin-bottom: 50px; text-align: center; border-collapse: collapse; background: #fff;">
+    <thead style="background: #333; color: white;">
+        <tr>
+            <th>Fecha y Hora</th>
+            <th>Estrellas (Limpieza)</th>
+            <th>Mesero Atendió</th>
+            <th>Estrellas (Mesero)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ev in evaluaciones %}
+        <tr>
+            <td>{{ ev.fecha }}</td>
+            <td style="color: #ff9800; font-size: 20px;">{{ "★" * ev.limpieza }}</td>
+            <td style="font-weight: bold;">{{ ev.mesero_nombre }}</td>
+            <td style="color: #ff9800; font-size: 20px;">{{ "★" * ev.mesero_calificacion }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4" style="padding: 20px;">No hay calificaciones de clientes registradas todavía.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 </html>

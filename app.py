@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
 from datetime import datetime
@@ -70,6 +70,13 @@ class HistorialPin(db.Model):
     creado_por = db.Column(db.String(100), default="Caja / Maestro")
     fecha_creacion = db.Column(db.String(50), nullable=False)
 
+class Evaluacion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    limpieza = db.Column(db.Integer, nullable=False)
+    mesero_nombre = db.Column(db.String(50), nullable=False)
+    mesero_calificacion = db.Column(db.Integer, nullable=False)
+    fecha = db.Column(db.String(50), nullable=False)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -133,6 +140,23 @@ def registrar_consumo():
 
     return redirect(url_for('index'))
 
+@app.route('/enviar_evaluacion', methods=['POST'])
+def enviar_evaluacion():
+    limpieza = int(request.form.get('limpieza'))
+    mesero_nombre = request.form.get('mesero_nombre')
+    mesero_calificacion = int(request.form.get('mesero_calificacion'))
+
+    nueva_evaluacion = Evaluacion(
+        limpieza=limpieza,
+        mesero_nombre=mesero_nombre,
+        mesero_calificacion=mesero_calificacion,
+        fecha=datetime.now().strftime("%d/%m/%Y %H:%M")
+    )
+    db.session.add(nueva_evaluacion)
+    db.session.commit()
+    flash("¡Gracias por calificar tu experiencia!", "exito")
+    return redirect(url_for('index'))
+
 # --- RUTAS DE ADMINISTRACIÓN ---
 @app.route('/admin_login', methods=['GET', 'POST'])
 def admin_login():
@@ -149,10 +173,17 @@ def admin_login():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
+    # Desviar a los cajeros a su propia pantalla restringida
+    if current_user.username in ['caja1', 'caja2']:
+        pins = PinCaja.query.all()
+        return render_template('cajero_dashboard.html', pins=pins)
+
+    # Cargar toda la información para el administrador
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     pins = PinCaja.query.all()
     historial = HistorialPin.query.all()
+    evaluaciones = Evaluacion.query.order_by(Evaluacion.id.desc()).all()
     config = Configuracion.query.first()
     
     meta_1 = config.meta_1 if config else 5
@@ -165,6 +196,7 @@ def admin_dashboard():
                            clientes=clientes, 
                            pins=pins, 
                            historial=historial,
+                           evaluaciones=evaluaciones,
                            meta_1=meta_1, premio_1=premio_1, 
                            meta_2=meta_2, premio_2=premio_2)
 
@@ -178,6 +210,7 @@ def generar_pin():
     pin = PinCaja(codigo=nuevo_codigo)
     db.session.add(pin)
     db.session.commit()
+    # Si es cajero recarga la vista de cajero, si es admin recarga la de admin
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/configurar_premio', methods=['POST'])
@@ -257,7 +290,6 @@ def logout():
 with app.app_context():
     db.create_all()
     
-    # Forzar a PostgreSQL a expandir la columna a 255 caracteres
     try:
         db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(255);'))
         db.session.commit()
