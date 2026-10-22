@@ -75,6 +75,9 @@ class Evaluacion(db.Model):
     limpieza = db.Column(db.Integer, nullable=False)
     mesero_nombre = db.Column(db.String(50), nullable=False)
     mesero_calificacion = db.Column(db.Integer, nullable=False)
+    calidad_comida = db.Column(db.Integer, nullable=False, default=5)
+    tiempo_espera = db.Column(db.String(50), nullable=False, default='Adecuado')
+    comentarios = db.Column(db.Text, nullable=True)
     fecha = db.Column(db.String(50), nullable=False)
 
 @login_manager.user_loader
@@ -145,11 +148,17 @@ def enviar_evaluacion():
     limpieza = int(request.form.get('limpieza'))
     mesero_nombre = request.form.get('mesero_nombre')
     mesero_calificacion = int(request.form.get('mesero_calificacion'))
+    calidad_comida = int(request.form.get('calidad_comida'))
+    tiempo_espera = request.form.get('tiempo_espera')
+    comentarios = request.form.get('comentarios', '')
 
     nueva_evaluacion = Evaluacion(
         limpieza=limpieza,
         mesero_nombre=mesero_nombre,
         mesero_calificacion=mesero_calificacion,
+        calidad_comida=calidad_comida,
+        tiempo_espera=tiempo_espera,
+        comentarios=comentarios,
         fecha=datetime.now().strftime("%d/%m/%Y %H:%M")
     )
     db.session.add(nueva_evaluacion)
@@ -210,7 +219,6 @@ def generar_pin():
     pin = PinCaja(codigo=nuevo_codigo)
     db.session.add(pin)
     db.session.commit()
-    # Si es cajero recarga la vista de cajero, si es admin recarga la de admin
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/configurar_premio', methods=['POST'])
@@ -290,8 +298,12 @@ def logout():
 with app.app_context():
     db.create_all()
     
+    # Forzar la actualización de tablas en PostgreSQL
     try:
         db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(255);'))
+        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS calidad_comida INTEGER DEFAULT 5;'))
+        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS tiempo_espera VARCHAR(50) DEFAULT \'Adecuado\';'))
+        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS comentarios TEXT;'))
         db.session.commit()
     except Exception:
         db.session.rollback()
