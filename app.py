@@ -25,9 +25,13 @@ cloudinary.config(
 # ==========================================
 # CONFIGURACIÓN DE LA BASE DE DATOS RENDER
 # ==========================================
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3k...' # Asegúrate de que esta URL esté completa en tu archivo real
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://...'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+# Añade estas dos líneas clave:
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
