@@ -53,7 +53,7 @@ class Producto(db.Model):
     categoria = db.Column(db.String(50), nullable=False)
     imagen_url = db.Column(db.String(255), nullable=True)
     destacado = db.Column(db.Boolean, default=False)
-    agotado = db.Column(db.Boolean, default=False) # NUEVA COLUMNA DE INVENTARIO
+    agotado = db.Column(db.Boolean, default=False)
 
 class Premio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,6 +64,8 @@ class Premio(db.Model):
 class Galeria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     imagen_url = db.Column(db.String(255), nullable=False)
+    titulo = db.Column(db.String(100), nullable=True) # MEJORA: Titulo para Galeria
+    descripcion = db.Column(db.String(250), nullable=True) # MEJORA: Descripcion para Galeria
     fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Publicacion(db.Model):
@@ -97,6 +99,12 @@ class Evaluacion(db.Model):
     comentarios = db.Column(db.Text, nullable=True)
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Anuncio(db.Model): # MEJORA: Tabla para el Banner de Anuncios
+    id = db.Column(db.Integer, primary_key=True)
+    mensaje = db.Column(db.String(250), nullable=False)
+    color = db.Column(db.String(50), default="bg-warning")
+    activo = db.Column(db.Boolean, default=False)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -107,7 +115,6 @@ def actualizar_db():
     db.drop_all()
     db.create_all()
     
-    # Usuarios por defecto
     db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
     db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
     
@@ -125,7 +132,6 @@ def index():
     categorias_bd = CategoriaMenu.query.all()
     categorias_dict = {}
     for cat in categorias_bd:
-        # Ordenamos: Primero los destacados, luego ID ascendente
         productos = Producto.query.filter_by(categoria=cat.nombre).order_by(Producto.destacado.desc(), Producto.id.asc()).all()
         if productos: categorias_dict[cat.nombre] = productos
             
@@ -134,10 +140,11 @@ def index():
     premios_bd = Premio.query.order_by(Premio.visitas_necesarias.asc()).all()
     max_visitas = premios_bd[-1].visitas_necesarias if premios_bd else 10
     metas_list = [p.visitas_necesarias for p in premios_bd]
+    anuncio = Anuncio.query.filter_by(activo=True).first() # MEJORA: Obtener anuncio activo
     
     return render_template('index.html', categorias=categorias_dict, galeria=galeria, 
                            publicaciones=publicaciones, premios=premios_bd, 
-                           max_visitas=max_visitas, metas_list=metas_list)
+                           max_visitas=max_visitas, metas_list=metas_list, anuncio=anuncio)
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
@@ -203,7 +210,6 @@ def admin_login():
         user = User.query.filter_by(username=request.form['username']).first()
         if user and check_password_hash(user.password, request.form['password']):
             login_user(user)
-            # Redirección inteligente basada en permisos
             if user.role == 'admin':
                 return redirect(url_for('admin_dashboard'))
             else:
@@ -220,7 +226,6 @@ def logout():
 @app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
-    # Bloquear a cajeros
     if current_user.role != 'admin':
         return redirect(url_for('cajero_dashboard'))
         
@@ -236,13 +241,12 @@ def admin_dashboard():
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(50).all(),
                            galeria=Galeria.query.order_by(Galeria.fecha_subida.desc()).all(),
                            publicaciones=Publicacion.query.order_by(Publicacion.fecha_publicacion.desc()).all(),
+                           anuncios=Anuncio.query.all(), # MEJORA: Mandar anuncios a la vista admin
                            total_clientes=total_clientes, total_visitas=total_visitas, promedio_est=round(promedio_est, 1))
 
-# --- NUEVO: PANEL SIMPLIFICADO PARA CAJEROS ---
 @app.route('/cajero_dashboard')
 @login_required
 def cajero_dashboard():
-    # Si eres admin, te manda a tu panel completo
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
         
@@ -268,6 +272,28 @@ def exportar_clientes():
             data.truncate(0)
     response = Response(generate(), mimetype='text/csv')
     response.headers.set("Content-Disposition", "attachment", filename="Base_Clientes_Quiosco.csv")
+    return response
+
+# MEJORA: Exportar Evaluaciones
+@app.route('/admin/exportar_evaluaciones')
+@login_required
+def exportar_evaluaciones():
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    evaluaciones = Evaluacion.query.all()
+    def generate():
+        data = StringIO()
+        writer = csv.writer(data)
+        writer.writerow(('ID', 'Mesero', 'Calificacion', 'Limpieza', 'Comida', 'Comentarios', 'Fecha'))
+        yield data.getvalue()
+        data.seek(0)
+        data.truncate(0)
+        for e in evaluaciones:
+            writer.writerow((e.id, e.mesero_nombre, e.mesero_calificacion, e.limpieza, e.calidad_comida, e.comentarios, e.fecha.strftime('%Y-%m-%d')))
+            yield data.getvalue()
+            data.seek(0)
+            data.truncate(0)
+    response = Response(generate(), mimetype='text/csv')
+    response.headers.set("Content-Disposition", "attachment", filename="Evaluaciones_Meseros.csv")
     return response
 
 # --- RUTAS DE PREMIOS ---
@@ -384,13 +410,30 @@ def eliminar_publicacion(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
+# MEJORA: Modificar Galeria para aceptar Título y Descripción
 @app.route('/agregar_galeria', methods=['POST'])
 @login_required
 def agregar_galeria():
     if current_user.role != 'admin': return redirect(url_for('index'))
     if 'foto' in request.files and request.files['foto'].filename != '':
-        db.session.add(Galeria(imagen_url=cloudinary.uploader.upload(request.files['foto']).get('secure_url')))
+        nueva_foto = Galeria(
+            imagen_url=cloudinary.uploader.upload(request.files['foto']).get('secure_url'),
+            titulo=request.form.get('titulo', ''),
+            descripcion=request.form.get('descripcion', '')
+        )
+        db.session.add(nueva_foto)
         db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+# MEJORA: Editar Galería
+@app.route('/editar_galeria/<int:id>', methods=['POST'])
+@login_required
+def editar_galeria(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    g = Galeria.query.get_or_404(id)
+    g.titulo = request.form.get('titulo', '')
+    g.descripcion = request.form.get('descripcion', '')
+    db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/eliminar_galeria/<int:id>')
@@ -401,17 +444,40 @@ def eliminar_galeria(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
+# MEJORA: CRUD para Anuncios (Banner)
+@app.route('/admin/anuncio/nuevo', methods=['POST'])
+@login_required
+def nuevo_anuncio():
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    # Desactivar todos los demás para solo tener uno activo
+    if request.form.get('activo') == 'on':
+        Anuncio.query.update({Anuncio.activo: False})
+    
+    db.session.add(Anuncio(
+        mensaje=request.form['mensaje'],
+        color=request.form.get('color', 'bg-warning'),
+        activo=True if request.form.get('activo') == 'on' else False
+    ))
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/anuncio/eliminar/<int:id>', methods=['POST'])
+@login_required
+def eliminar_anuncio(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    db.session.delete(Anuncio.query.get_or_404(id))
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
 # --- CAJA ---
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
 def generar_pin():
-    # Cajeros y Admin pueden generar PINs
     codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     db.session.add(PinCaja(codigo=codigo))
     db.session.commit()
     flash(f'NUEVO PIN: {codigo}', 'success')
     
-    # Redirigir al panel correspondiente según quién generó el PIN
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
     return redirect(url_for('cajero_dashboard'))
