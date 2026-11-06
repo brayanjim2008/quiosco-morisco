@@ -49,24 +49,30 @@
     </div>
 
     <div class="row">
-        <!-- COLUMNA IZQUIERDA -->
-        <div class="col-lg-4">
-            
+        <!-- PIN DE CONSUMO (GRID MÚLTIPLE) -->
             <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold"><i class="fas fa-key"></i> PIN de Consumo</div>
-                <div class="card-body text-center">
-                    <form action="{{ url_for('generar_pin') }}" method="POST">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-key"></i> PINs de Consumo</span>
+                    <span class="badge bg-dark">{{ pins|length }} Activos</span>
+                </div>
+                <div class="card-body text-center bg-light">
+                    <form action="{{ url_for('generar_pin') }}" method="POST" class="mb-3">
                         <button type="submit" class="btn btn-warning w-100 fw-bold py-2 shadow-sm"><i class="fas fa-plus-circle"></i> Generar PIN</button>
                     </form>
-                    {% if pins %}
-                        <div class="mt-3 p-3 bg-light rounded border border-warning shadow-inner">
-                            <h2 class="text-dark fw-bold mb-0" style="letter-spacing: 5px;">{{ pins[-1].codigo }}</h2>
+                    
+                    <div class="row g-2" style="max-height: 400px; overflow-y: auto;">
+                        {% for pin in pins|reverse %}
+                        <div class="col-6">
+                            <div class="p-2 bg-white rounded border border-warning shadow-sm">
+                                <h4 class="text-dark fw-bold mb-1" style="letter-spacing: 2px;">{{ pin.codigo }}</h4>
+                                <!-- Recuerda cambiar la IP por tu dominio -->
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=http://127.0.0.1:10000/?pin={{ pin.codigo }}" class="img-fluid border" style="max-width: 80px;">
+                            </div>
                         </div>
-                        <div class="mt-3">
-                            <p class="small text-muted mb-1 fw-bold"><i class="fas fa-qrcode"></i> QR Directo:</p>
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://127.0.0.1:10000/?pin={{ pins[-1].codigo }}" class="img-thumbnail shadow-sm">
-                        </div>
-                    {% endif %}
+                        {% else %}
+                        <p class="text-muted small w-100 mt-2">No hay PINs pendientes.</p>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
