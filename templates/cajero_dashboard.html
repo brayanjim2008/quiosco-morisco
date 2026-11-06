@@ -2,61 +2,55 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Caja - Quiosco Morisco</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; max-width: 600px; margin: auto; }
-        .btn { background: #28a745; color: white; border: none; padding: 15px 30px; font-size: 20px; cursor: pointer; border-radius: 5px; font-weight: bold; width: 100%; margin-bottom: 20px; }
-        .pin-box { background: #f4f4f4; padding: 15px; margin: 10px; font-size: 28px; font-weight: bold; border-radius: 5px; display: inline-block; border: 2px solid #ccc; letter-spacing: 2px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .logout { color: #dc3545; text-decoration: none; font-weight: bold; padding: 10px; border: 1px solid #dc3545; border-radius: 5px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caja | Quiosco Morisco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body>
-    <div class="header">
-        <h2>Panel de Caja</h2>
-        <a href="{{ url_for('logout') }}" class="logout">Cerrar Sesión</a>
+<body style="background-color: #f4f6f9; display: flex; align-items: center; justify-content: center; height: 100vh;">
+
+<div class="container text-center" style="max-width: 400px;">
+    
+    <div class="mb-4">
+        <h2 class="fw-bold" style="color: #13423b;"><i class="fas fa-cash-register"></i> Panel de Caja</h2>
+        <p class="text-muted">Hola Cajero. Genera PINs de consumo para tus clientes.</p>
     </div>
-    <hr>
-    
-    <h3>Generar PIN de Consumo</h3>
-    <form action="{{ url_for('generar_pin') }}" method="POST">
-        <button type="submit" class="btn">G E N E R A R &nbsp; P I N</button>
-    </form>
-    
-    <h3>PINs Activos (Listos para entregar al cliente)</h3>
-    <div>
-        {% for pin in pins %}
-            <div class="pin-box">{{ pin.codigo }}</div>
-        {% else %}
-            <p>No hay PINs generados actualmente.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show shadow-sm">
+            {{ message }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
         {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card shadow border-warning mb-4">
+        <div class="card-header bg-warning text-dark fw-bold py-3"><i class="fas fa-key"></i> Generador de PIN</div>
+        <div class="card-body">
+            <form action="{{ url_for('generar_pin') }}" method="POST">
+                <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold shadow-sm"><i class="fas fa-plus-circle"></i> Nuevo PIN</button>
+            </form>
+            
+            {% if pins %}
+                <div class="mt-4 p-3 bg-light rounded border border-warning">
+                    <p class="text-muted small mb-1 text-uppercase fw-bold">PIN Activo:</p>
+                    <h1 class="text-dark fw-bold mb-0" style="letter-spacing: 5px;">{{ pins[-1].codigo }}</h1>
+                </div>
+                
+                <div class="mt-4">
+                    <p class="small text-muted mb-2 fw-bold"><i class="fas fa-qrcode"></i> Escanear con cámara (Opcional):</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=http://127.0.0.1:10000/?pin={{ pins[-1].codigo }}" class="img-thumbnail shadow">
+                </div>
+            {% endif %}
+        </div>
     </div>
+    
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger w-100 fw-bold"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<!-- SECCIÓN DE REPORTE DE ESTRELLAS -->
-<hr style="margin-top: 40px;">
-<h2>Reporte de Calificaciones de Clientes</h2>
-<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; margin-bottom: 50px; text-align: center; border-collapse: collapse; background: #fff;">
-    <thead style="background: #333; color: white;">
-        <tr>
-            <th>Fecha y Hora</th>
-            <th>Estrellas (Limpieza)</th>
-            <th>Mesero Atendió</th>
-            <th>Estrellas (Mesero)</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for ev in evaluaciones %}
-        <tr>
-            <td>{{ ev.fecha }}</td>
-            <td style="color: #ff9800; font-size: 20px;">{{ "★" * ev.limpieza }}</td>
-            <td style="font-weight: bold;">{{ ev.mesero_nombre }}</td>
-            <td style="color: #ff9800; font-size: 20px;">{{ "★" * ev.mesero_calificacion }}</td>
-        </tr>
-        {% else %}
-        <tr>
-            <td colspan="4" style="padding: 20px;">No hay calificaciones de clientes registradas todavía.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 </html>
