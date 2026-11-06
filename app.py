@@ -25,7 +25,7 @@ cloudinary.config(
 # ==========================================
 # CONFIGURACIÓN DE LA BASE DE DATOS RENDER
 # ==========================================
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3ks728c73fbkv3g-a/quiosco_bd'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3k...' # Asegúrate de que esta URL esté completa en tu archivo real
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -42,9 +42,11 @@ class User(UserMixin, db.Model):
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
+    nombre_en = db.Column(db.String(100), nullable=True) # NUEVO INGLÉS
     categoria = db.Column(db.String(50), nullable=False)
     precio = db.Column(db.Float, nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
+    descripcion_en = db.Column(db.Text, nullable=True) # NUEVO INGLÉS
     imagen_url = db.Column(db.String(250), nullable=True)
 
 class Cliente(db.Model):
@@ -57,8 +59,10 @@ class Configuracion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     meta_1 = db.Column(db.Integer, default=5)
     premio_1 = db.Column(db.String(150), default="Bebida Gratis")
+    premio_1_en = db.Column(db.String(150), default="Free Drink") # NUEVO INGLÉS
     meta_2 = db.Column(db.Integer, default=10)
     premio_2 = db.Column(db.String(150), default="Platillo Gratis")
+    premio_2_en = db.Column(db.String(150), default="Free Dish") # NUEVO INGLÉS
 
 class PinCaja(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -80,9 +84,31 @@ class Evaluacion(db.Model):
     comentarios = db.Column(db.Text, nullable=True)
     fecha = db.Column(db.String(50), nullable=False)
 
+# NUEVA TABLA PARA GALERÍA
+class Galeria(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    imagen_url = db.Column(db.String(255), nullable=False)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# ==========================================
+# RUTA MÁGICA DE ACTUALIZACIÓN
+# ==========================================
+@app.route('/actualizar_db')
+def actualizar_db():
+    try:
+        db.session.execute(text('ALTER TABLE producto ADD COLUMN nombre_en VARCHAR(100);'))
+        db.session.execute(text('ALTER TABLE producto ADD COLUMN descripcion_en TEXT;'))
+        db.session.execute(text('ALTER TABLE configuracion ADD COLUMN premio_1_en VARCHAR(150);'))
+        db.session.execute(text('ALTER TABLE configuracion ADD COLUMN premio_2_en VARCHAR(150);'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback() 
+    
+    db.create_all() 
+    return "¡Base de datos actualizada con éxito para Inglés y Galería!"
 
 # --- RUTAS PÚBLICAS ---
 @app.route('/')
@@ -94,6 +120,12 @@ def index():
     config = Configuracion.query.first()
     meta_1 = config.meta_1 if config else 5
     meta_2 = config.meta_2 if config else 10
+    
+    # Extraer textos en inglés (con validación por si están vacíos)
+    premio_1 = config.premio_1 if config else "Bebida Gratis"
+    premio_1_en = config.premio_1_en if config and config.premio_1_en else premio_1
+    premio_2 = config.premio_2 if config else "Platillo Gratis"
+    premio_2_en = config.premio_2_en if config and config.premio_2_en else premio_2
 
     productos = Producto.query.all()
     categorias = {}
@@ -101,8 +133,13 @@ def index():
         if p.categoria not in categorias:
             categorias[p.categoria] = []
         categorias[p.categoria].append(p)
+        
+    galeria = Galeria.query.all()
 
-    return render_template('index.html', cliente=cliente, progreso=progreso, meta_1=meta_1, meta_2=meta_2, categorias=categorias)
+    return render_template('index.html', cliente=cliente, progreso=progreso, 
+                           meta_1=meta_1, meta_2=meta_2, categorias=categorias, 
+                           premio_1=premio_1, premio_1_en=premio_1_en, 
+                           premio_2=premio_2, premio_2_en=premio_2_en, galeria=galeria)
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
@@ -182,32 +219,34 @@ def admin_login():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    # Desviar a los cajeros a su propia pantalla restringida
+    # Desviar a los cajeros
     if current_user.username in ['caja1', 'caja2']:
         pins = PinCaja.query.all()
         return render_template('cajero_dashboard.html', pins=pins)
 
-    # Cargar toda la información para el administrador
+    # Cargar información para el administrador
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     pins = PinCaja.query.all()
     historial = HistorialPin.query.all()
     evaluaciones = Evaluacion.query.order_by(Evaluacion.id.desc()).all()
     config = Configuracion.query.first()
+    galeria = Galeria.query.all()
     
     meta_1 = config.meta_1 if config else 5
     premio_1 = config.premio_1 if config else "Bebida Gratis"
     meta_2 = config.meta_2 if config else 10
     premio_2 = config.premio_2 if config else "Platillo Gratis"
 
-    return render_template('admin_dashboard.html', 
-                           productos=productos, 
-                           clientes=clientes, 
-                           pins=pins, 
+    return render_template('admin_dashboard.html',
+                           productos=productos,
+                           clientes=clientes,
+                           pins=pins,
                            historial=historial,
                            evaluaciones=evaluaciones,
-                           meta_1=meta_1, premio_1=premio_1, 
-                           meta_2=meta_2, premio_2=premio_2)
+                           meta_1=meta_1, premio_1=premio_1,
+                           meta_2=meta_2, premio_2=premio_2,
+                           config=config, galeria=galeria)
 
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
@@ -215,7 +254,7 @@ def generar_pin():
     nuevo_codigo = str(random.randint(1000, 9999))
     while PinCaja.query.filter_by(codigo=nuevo_codigo).first():
         nuevo_codigo = str(random.randint(1000, 9999))
-    
+
     pin = PinCaja(codigo=nuevo_codigo)
     db.session.add(pin)
     db.session.commit()
@@ -228,11 +267,14 @@ def configurar_premio():
     if not config:
         config = Configuracion()
         db.session.add(config)
+
+    config.meta_1 = int(request.form.get('meta_1', 5))
+    config.premio_1 = request.form.get('premio_1', 'Bebida Gratis')
+    config.premio_1_en = request.form.get('premio_1_en', config.premio_1) # INGLÉS
+    config.meta_2 = int(request.form.get('meta_2', 10))
+    config.premio_2 = request.form.get('premio_2', 'Platillo Gratis')
+    config.premio_2_en = request.form.get('premio_2_en', config.premio_2) # INGLÉS
     
-    config.meta_1 = int(request.form.get('meta_1'))
-    config.premio_1 = request.form.get('premio_1')
-    config.meta_2 = int(request.form.get('meta_2'))
-    config.premio_2 = request.form.get('premio_2')
     db.session.commit()
     flash("Configuración de premios actualizada", "exito")
     return redirect(url_for('admin_dashboard'))
@@ -241,17 +283,20 @@ def configurar_premio():
 @login_required
 def nuevo_producto():
     nombre = request.form.get('nombre')
+    nombre_en = request.form.get('nombre_en', '')
     categoria = request.form.get('categoria')
     precio = float(request.form.get('precio'))
     descripcion = request.form.get('descripcion')
+    descripcion_en = request.form.get('descripcion_en', '')
     
     imagen_url = ""
     foto = request.files.get('foto')
     if foto and foto.filename != '':
         respuesta = cloudinary.uploader.upload(foto)
         imagen_url = respuesta.get('secure_url')
-        
-    prod = Producto(nombre=nombre, categoria=categoria, precio=precio, descripcion=descripcion, imagen_url=imagen_url)
+
+    prod = Producto(nombre=nombre, nombre_en=nombre_en, categoria=categoria, 
+                    precio=precio, descripcion=descripcion, descripcion_en=descripcion_en, imagen_url=imagen_url)
     db.session.add(prod)
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
@@ -260,12 +305,13 @@ def nuevo_producto():
 @login_required
 def editar_producto(id):
     p = Producto.query.get_or_404(id)
-    
     if request.method == 'POST':
         p.nombre = request.form.get('nombre')
+        p.nombre_en = request.form.get('nombre_en', p.nombre_en)
         p.categoria = request.form.get('categoria')
         p.precio = float(request.form.get('precio'))
         p.descripcion = request.form.get('descripcion')
+        p.descripcion_en = request.form.get('descripcion_en', p.descripcion_en)
         
         foto = request.files.get('foto')
         if foto and foto.filename != '':
@@ -275,7 +321,6 @@ def editar_producto(id):
         db.session.commit()
         flash("Platillo actualizado correctamente", "exito")
         return redirect(url_for('admin_dashboard'))
-        
     return render_template('editar_producto.html', producto=p)
 
 @app.route('/admin/producto/eliminar/<int:id>', methods=['POST'])
@@ -294,43 +339,33 @@ def eliminar_cliente(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
+# NUEVAS RUTAS DE GALERÍA
+@app.route('/agregar_galeria', methods=['POST'])
+@login_required
+def agregar_galeria():
+    foto = request.files.get('foto')
+    if foto and foto.filename != '':
+        upload_result = cloudinary.uploader.upload(foto)
+        nueva_foto = Galeria(imagen_url=upload_result.get('secure_url'))
+        db.session.add(nueva_foto)
+        db.session.commit()
+        flash('Foto agregada a la galería', 'exito')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/eliminar_galeria/<int:id>')
+@login_required
+def eliminar_galeria(id):
+    foto = Galeria.query.get_or_404(id)
+    db.session.delete(foto)
+    db.session.commit()
+    flash('Foto de galería eliminada', 'exito')
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('admin_login'))
 
-# Inicialización automática de base de datos y usuarios
-with app.app_context():
-    db.create_all()
-    
-    # Forzar la actualización de tablas en PostgreSQL
-    try:
-        db.session.execute(text('ALTER TABLE "user" ALTER COLUMN password TYPE VARCHAR(255);'))
-        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS calidad_comida INTEGER DEFAULT 5;'))
-        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS tiempo_espera VARCHAR(50) DEFAULT \'Adecuado\';'))
-        db.session.execute(text('ALTER TABLE evaluacion ADD COLUMN IF NOT EXISTS comentarios TEXT;'))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-    
-    if not User.query.filter_by(username='brayan').first():
-        brayan_user = User(username='brayan', password=generate_password_hash('brayanmaster'))
-        db.session.add(brayan_user)
-
-    if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin', password=generate_password_hash('quiosco123'))
-        db.session.add(admin_user)
-        
-    if not User.query.filter_by(username='caja1').first():
-        caja1_user = User(username='caja1', password=generate_password_hash('caja1234'))
-        db.session.add(caja1_user)
-        
-    if not User.query.filter_by(username='caja2').first():
-        caja2_user = User(username='caja2', password=generate_password_hash('caja5678'))
-        db.session.add(caja2_user)
-
-    db.session.commit()
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    app.run(debug=True, port=10000)

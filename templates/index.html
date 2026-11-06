@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Etiquetas para que se comporte como App Nativa -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     
@@ -14,7 +13,6 @@
         :root { --verde-quiosco: #13423b; --cobre: #c98246; --fondo-hueso: #fdfaf6; --texto-oscuro: #2c2c2c; --texto-claro: #5a5a5a; }
         body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 15px 80px 15px; color: var(--texto-oscuro); }
         
-        /* Barra superior con Selector de Idioma y Menú Hamburguesa */
         .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; margin-bottom: 5px; }
         .lang-selector { display: flex; gap: 5px; background: white; padding: 5px; border-radius: 20px; border: 1px solid #efebe4; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .lang-btn { background: transparent; border: none; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
@@ -23,24 +21,20 @@
         .hamburger { font-size: 28px; cursor: pointer; color: var(--verde-quiosco); background: white; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #efebe4; transition: 0.2s; }
         .hamburger:hover { transform: scale(1.05); color: var(--cobre); }
         
-        /* Menú Lateral (Sidebar) VIP */
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 2999; backdrop-filter: blur(5px); animation: fadeIn 0.3s; }
         .sidebar { height: 100%; width: 0; position: fixed; z-index: 3000; top: 0; right: 0; background-color: #fff; overflow-x: hidden; transition: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; }
         
-        /* Encabezado del Menú */
         .sidebar-header { background: var(--verde-quiosco); padding: 40px 20px 20px; text-align: center; position: relative; }
         .sidebar-header img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--cobre); margin-bottom: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); object-fit: cover; background: white; }
         .sidebar-header h2 { color: white; margin: 0; font-size: 18px; font-family: 'Lora', serif; letter-spacing: 1px; }
         .sidebar .close-btn { position: absolute; top: 10px; right: 20px; font-size: 36px; border: none; background: none; color: white; opacity: 0.8; transition: 0.2s; text-decoration: none; }
         .sidebar .close-btn:hover { opacity: 1; transform: scale(1.1); }
         
-        /* Links del Menú */
         .sidebar-links { flex-grow: 1; padding: 20px 0; }
         .sidebar-links a { padding: 15px 25px; font-size: 15px; color: var(--texto-oscuro); display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: all 0.3s ease; border-left: 4px solid transparent; }
         .sidebar-links a .icon { font-size: 20px; margin-right: 15px; width: 25px; text-align: center; }
         .sidebar-links a:hover, .sidebar-links a.activo { background-color: #fdfaf6; padding-left: 32px; color: var(--verde-quiosco); border-left: 4px solid var(--cobre); }
         
-        /* Pie del Menú (Caja / Admin) */
         .sidebar-footer { padding: 20px; border-top: 1px solid #f0ece1; background: #fafafa; }
         .btn-admin-sidebar { background: var(--texto-oscuro); color: white !important; border-radius: 8px; justify-content: center; text-transform: uppercase; font-size: 13px !important; letter-spacing: 1px; padding: 15px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border-left: none !important; }
         .btn-admin-sidebar:hover { background: var(--cobre); padding-left: 15px !important; }
@@ -54,7 +48,6 @@
         
         .vista-app { animation: fadeIn 0.4s; }
 
-        /* Estilos para la Vista "Nosotros" */
         .nosotros-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 15px; }
         .nosotros-bloque { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #efebe4; }
         .nosotros-img { width: 100%; height: 200px; object-fit: cover; }
@@ -62,16 +55,13 @@
         .nosotros-texto h3 { color: var(--cobre); text-align: left; margin-top: 0; font-size: 20px; margin-bottom: 10px; }
         .nosotros-texto p { color: var(--texto-claro); font-size: 14px; line-height: 1.6; margin: 0; }
 
-        /* Estilos para la Vista "Galería" */
         .galeria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
         .galeria-img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #efebe4; transition: transform 0.3s; }
         .galeria-img:hover { transform: scale(1.03); }
 
-        /* Estilos para la Vista "Ubicación" */
         .mapa-card { text-align: center; padding: 30px 20px; }
         .btn-mapa { background: #4285F4; color: white; display: inline-block; padding: 15px 25px; border-radius: 30px; font-weight: bold; text-decoration: none; margin-top: 15px; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4); }
 
-        /* Barra de Progreso */
         .progress-container { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; text-align: center; }
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 20px 0; flex-wrap: wrap; gap: 4px; }
         .circle { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--cobre); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--cobre); background: var(--fondo-hueso); z-index: 2; font-size: 14px; }
@@ -83,7 +73,6 @@
         .line { height: 3px; background: var(--cobre); flex-grow: 1; min-width: 10px; max-width: 25px; z-index: 1; }
         .line.filled { background: var(--verde-quiosco); }
 
-        /* Botones */
         .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
         .btn:hover { background: var(--cobre); }
         .btn-wifi { background: #ffffff; color: var(--verde-quiosco); border: 2px solid var(--verde-quiosco); }
@@ -91,20 +80,17 @@
         .btn-tiktok { background: #000000; color: white; border: none; }
         .btn-google { background: #4285F4; color: white; border: none; border-radius: 30px; font-size: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.4); }
 
-        /* Contenedor Flotante Inferior */
         .botones-flotantes { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; box-shadow: 0 6px 16px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 2px solid #ffffff; text-align: center; display: flex; align-items: center; gap: 8px; }
         .btn-flotante-mesero { background: #25D366; }
         .btn-flotante-eval { background: #ff9800; }
         .btn-flotante-mesero:hover, .btn-flotante-eval:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
 
-        /* Filtros Flotantes Deslizables */
         .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid #efebe4; scrollbar-width: none; }
         .filtros-wrapper::-webkit-scrollbar { display: none; }
         .filtro-btn { display: inline-block; background: #faf8f5; border: 1px solid var(--cobre); color: var(--cobre); padding: 8px 16px; margin-right: 8px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; }
         .filtro-btn.activo, .filtro-btn:hover { background: var(--cobre); color: #fff; box-shadow: 0 4px 8px rgba(201, 130, 70, 0.3); }
 
-        /* Estilos Generales de Modales PRO */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 4000; align-items: center; justify-content: center; backdrop-filter: blur(5px); animation: fadeIn 0.3s; }
         .modal-content { background: white; padding: 30px 25px; border-radius: 16px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto; animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .modal-content h3 { color: var(--verde-quiosco); margin-top: 0; font-size: 22px; border-bottom: 2px solid var(--cobre); padding-bottom: 15px; margin-bottom: 20px; }
@@ -120,7 +106,6 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Alertas y Menú */
         .flash { padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; }
         .flash.exito { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
         .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
@@ -140,7 +125,6 @@
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.2em; color: var(--verde-quiosco); font-weight: 600; display: block; margin-bottom: 4px; }
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.3em; font-family: 'Lora', serif; }
 
-        /* SECCIÓN DE CALIFICACIÓN POR ESTRELLAS */
         .eval-container { background: #fff; padding: 30px 25px; margin: 15px auto 30px auto; border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); text-align: center; border: 1px solid #efebe4; display: none; }
         .eval-container.activo { display: block; animation: slideUp 0.4s ease; }
         .eval-container h3 { margin-top: 0; color: #333; font-size: 22px; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
@@ -157,7 +141,7 @@
 </head>
 <body>
 
-<!-- Menú Lateral Desplegable (Sidebar) PRO -->
+<!-- Menú Lateral Desplegable -->
 <div id="sidebar-overlay" class="sidebar-overlay" onclick="cerrarSidebar()"></div>
 <div id="miSidebar" class="sidebar">
     <div class="sidebar-header">
@@ -185,27 +169,23 @@
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="mod_como_usar_titulo">❓ ¿Cómo usar esta web?</h3>
-        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Abre el menú lateral y selecciona "Ver Menú" para ver nuestros platillos.</p>
-        <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha para pedir desde tu mesa rápidamente.</p>
-        <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio" y acumula consumos.</p>
+        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Abre el menú lateral y selecciona "Ver Menú".</p>
+        <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha.</p>
+        <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio".</p>
         <p data-i18n="mod_como_usar_4"><strong>4. Gana premios:</strong> ¡Completa tu tarjeta y disfruta de platillos o bebidas gratis!</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar')" data-i18n="btn_entendido">Entendido</button>
     </div>
 </div>
 
+<!-- MODAL COMENSAL (Créditos removidos) -->
 <div id="modal-comensal" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="mod_comensal_titulo">📱 Comensal Conectado</h3>
         <p data-i18n="mod_comensal_desc">Estás utilizando el sistema <strong>Comensal Conectado</strong>, una plataforma digital Premium de menús inteligentes y fidelización operada mediante tecnología NFC.</p>
-        <div style="background: #fdfaf6; padding: 15px; border-radius: 8px; border: 1px solid var(--cobre); text-align: center; margin-top: 15px; margin-bottom: 15px;">
-            <span style="display: block; font-size: 12px; color: #777; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;" data-i18n="desarrollado_por">Desarrollado por</span>
-            <span style="display: block; font-size: 18px; color: var(--verde-quiosco); font-weight: bold; margin-top: 5px; font-family: 'Lora', serif;">Brayan Jiménez</span>
-        </div>
-        <button class="btn" onclick="cerrarModalInfo('modal-comensal')" data-i18n="btn_cerrar">Cerrar</button>
+        <button class="btn" onclick="cerrarModalInfo('modal-comensal')" data-i18n="btn_cerrar" style="margin-top: 20px;">Cerrar</button>
     </div>
 </div>
 
-<!-- Modal Elegante para Llamar Mesero -->
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="modal_mesero_titulo">🛎️ Llamar al Mesero</h3>
@@ -218,7 +198,7 @@
     </div>
 </div>
 
-<!-- Botones Flotantes Inferiores GLOBALES -->
+<!-- Botones Flotantes -->
 <div class="botones-flotantes">
     <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><span>🛎️</span> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
     <div class="btn-flotante-eval" onclick="toggleEvaluacion()"><span>⭐</span> <span data-i18n="btn_flotante_opinion">Opinión</span></div>
@@ -226,7 +206,6 @@
 
 <div class="container">
     
-    <!-- Barra superior con Selector de Idioma y Menú Hamburguesa -->
     <div class="navbar-top">
         <div class="lang-selector">
             <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es')">ES</button>
@@ -273,20 +252,26 @@
                 {% endfor %}
             </div>
             
+            <!-- SECCIÓN DE PREMIOS DINÁMICOS -->
             {% if progreso == meta_1 %}
-                <p style="color: var(--cobre); font-weight: bold; font-size: 16px;" data-i18n="nivel_1">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
+                <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">
+                    <span data-i18n="nivel_1">¡Llegaste al Nivel 1! Muestra esto en caja:</span><br>
+                    <!-- Aquí se inyecta el premio que escriba el admin -->
+                    <span style="font-size: 20px; color: var(--verde-quiosco); display:block; margin-top:5px;" data-es="{{ premio_1 | default('Premio Sorpresa') }}" data-en="{{ premio_1_en | default(premio_1 | default('Premio Sorpresa')) }}">{{ premio_1 | default('Premio Sorpresa') }}</span>
+                </p>
             {% elif progreso >= meta_2 %}
-                <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;" data-i18n="nivel_2">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
-                <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google" data-i18n="btn_google_resena">
-                    ⭐ ¿Nos regalas 5 estrellas en Google?
-                </a>
+                <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">
+                    <span data-i18n="nivel_2">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja:</span><br>
+                    <!-- Aquí se inyecta el premio mayor -->
+                    <span style="font-size: 22px; color: var(--cobre); display:block; margin-top:5px;" data-es="{{ premio_2 | default('Premio Mayor') }}" data-en="{{ premio_2_en | default(premio_2 | default('Premio Mayor')) }}">{{ premio_2 | default('Premio Mayor') }}</span>
+                </p>
+                <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google" data-i18n="btn_google_resena">⭐ ¿Nos regalas 5 estrellas en Google?</a>
             {% else %}
                 <p style="color: var(--texto-claro); font-size: 14px;" data-i18n="nivel_casi">¡Ya casi! Sigue acumulando para ganar premios.</p>
             {% endif %}
         </div>
         {% endif %}
 
-        <!-- Redes y WiFi -->
         <div class="card">
             <h3 data-i18n="conectate_titulo">📱 Conéctate</h3>
             <button class="btn btn-wifi" onclick="copiarWifi()"><span data-i18n="btn_wifi">📶 Contraseña Wi-Fi</span></button>
@@ -294,7 +279,6 @@
             <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" class="btn btn-tiktok" target="_blank" data-i18n="btn_tiktok">🎵 Síguenos en TikTok</a>
         </div>
 
-        <!-- Registro de Fidelidad -->
         <div class="card formulario-normal">
             <h3 data-i18n="fidelidad_titulo">Fidelidad Morisco</h3>
             <form action="/registrar_consumo" method="POST">
@@ -334,8 +318,9 @@
                             <div class="menu-item card" style="margin-bottom: 12px; border: 1px solid #f0ece1; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
                                 {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
                                 <div class="info-platillo">
-                                    <span class="nombre-platillo">{{ producto.nombre }}</span>
-                                    <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.4;">{{ producto.descripcion }}</span>
+                                    <!-- AQUI ESTÁ LA TRADUCCIÓN DINÁMICA DE LA BASE DE DATOS -->
+                                    <span class="nombre-platillo" data-es="{{ producto.nombre }}" data-en="{{ producto.nombre_en | default(producto.nombre) }}">{{ producto.nombre }}</span>
+                                    <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.4;" data-es="{{ producto.descripcion }}" data-en="{{ producto.descripcion_en | default(producto.descripcion) }}">{{ producto.descripcion }}</span>
                                 </div>
                                 <div class="precio">${{ producto.precio }}</div>
                             </div>
@@ -365,7 +350,7 @@
                     <img src="{{ url_for('static', filename='logo.jpg') }}" class="nosotros-img" alt="Quiosco Morisco Misión" loading="lazy">
                     <div class="nosotros-texto">
                         <h3 data-i18n="mision_titulo">MISIÓN</h3>
-                        <p data-i18n="mision_texto">Ofrecer una experiencia de café chiapaneco auténtico, combinando calidad, sabor y calidez en cada visita, creando momentos inolvidables en el corazón de la ciudad.</p>
+                        <p data-i18n="mision_texto">Ofrecer una experiencia de café chiapaneco auténtico, combinando calidad, sabor y calidez en cada visita.</p>
                     </div>
                 </div>
 
@@ -373,7 +358,7 @@
                     <img src="{{ url_for('static', filename='logo.jpg') }}" class="nosotros-img" alt="Quiosco Morisco Visión" loading="lazy">
                     <div class="nosotros-texto">
                         <h3 data-i18n="vision_titulo">VISIÓN</h3>
-                        <p data-i18n="vision_texto">Consolidarnos como el espacio bistró favorito de locales y visitantes, destacando por nuestra excelencia culinaria, innovación digital y un ambiente inigualable.</p>
+                        <p data-i18n="vision_texto">Consolidarnos como el espacio bistró favorito de locales y visitantes, destacando por nuestra excelencia culinaria.</p>
                     </div>
                 </div>
             </div>
@@ -381,7 +366,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- VISTA 4: GALERÍA DE FOTOS -->
+    <!-- VISTA 4: GALERÍA DE FOTOS (DINÁMICA DESDE ADMIN) -->
     <!-- ========================================== -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
@@ -391,38 +376,33 @@
             </p>
 
             <div class="galeria-grid">
-                <!-- Puedes cambiar 'logo.jpg' por las fotos que guardes en tu carpeta static -->
-                <img src="{{ url_for('static', filename='logo.jpg') }}" class="galeria-img" alt="Foto 1" loading="lazy">
-                <img src="{{ url_for('static', filename='logo.jpg') }}" class="galeria-img" alt="Foto 2" loading="lazy">
-                <img src="{{ url_for('static', filename='logo.jpg') }}" class="galeria-img" alt="Foto 3" loading="lazy">
-                <img src="{{ url_for('static', filename='logo.jpg') }}" class="galeria-img" alt="Foto 4" loading="lazy">
+                <!-- Bucle para cargar fotos de la Base de Datos -->
+                {% if galeria %}
+                    {% for foto in galeria %}
+                        <img src="{{ foto.imagen_url }}" class="galeria-img" alt="Galería Quiosco" loading="lazy">
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align: center; grid-column: span 2; color: var(--texto-claro);" data-i18n="galeria_vacia">Pronto subiremos fotos de nuestro espacio...</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- VISTA 5: UBICACIÓN (Google Maps) -->
+    <!-- VISTA 5: UBICACIÓN -->
     <!-- ========================================== -->
     <div id="vista-ubicacion" class="vista-app" style="display: none;">
         <div class="card mapa-card">
             <h2 data-i18n="menu_ubicacion">Nuestra Ubicación</h2>
-            <p style="color: var(--texto-claro); font-size: 14px; margin-top: 10px;" data-i18n="ubicacion_desc">
-                Encuéntranos en el corazón de San Cristóbal de Las Casas, Chiapas. ¡Ven a disfrutar de un buen café!
-            </p>
-            <!-- Enlace directo a Google Maps (puedes cambiar las coordenadas exactas si lo deseas) -->
-            <a href="https://maps.app.goo.gl/yNpbfJaEbFvjjeCh9" target="_blank" class="btn-mapa" data-i18n="btn_abrir_maps">
-                🗺️ Abrir en Google Maps
-            </a>
+            <p style="color: var(--texto-claro); font-size: 14px; margin-top: 10px;" data-i18n="ubicacion_desc">Encuéntranos en el corazón de San Cristóbal de Las Casas, Chiapas.</p>
+            <a href="https://maps.app.goo.gl/tu_enlace_real_aqui" target="_blank" class="btn-mapa" data-i18n="btn_abrir_maps">🗺️ Abrir en Google Maps</a>
         </div>
     </div>
 
-    <!-- ========================================== -->
     <!-- FORMULARIO DE EVALUACIÓN -->
-    <!-- ========================================== -->
     <div class="eval-container" id="seccion-evaluacion">
         <h3 data-i18n="eval_titulo">¡Califica tu Experiencia!</h3>
         <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
-            
             <span class="eval-label" data-i18n="eval_l1">1. Limpieza del local:</span>
             <div class="star-rating">
                 <input type="radio" id="l5" name="limpieza" value="5" required><label for="l5">★</label>
@@ -431,8 +411,7 @@
                 <input type="radio" id="l2" name="limpieza" value="2"><label for="l2">★</label>
                 <input type="radio" id="l1" name="limpieza" value="1"><label for="l1">★</label>
             </div>
-
-            <span class="eval-label" data-i18n="eval_l2">2. Calidad de la comida/bebida:</span>
+            <span class="eval-label" data-i18n="eval_l2">2. Calidad de la comida:</span>
             <div class="star-rating">
                 <input type="radio" id="c5" name="calidad_comida" value="5" required><label for="c5">★</label>
                 <input type="radio" id="c4" name="calidad_comida" value="4"><label for="c4">★</label>
@@ -440,7 +419,6 @@
                 <input type="radio" id="c2" name="calidad_comida" value="2"><label for="c2">★</label>
                 <input type="radio" id="c1" name="calidad_comida" value="1"><label for="c1">★</label>
             </div>
-
             <span class="eval-label" data-i18n="eval_l3">3. Tiempo de espera:</span>
             <select name="tiempo_espera" class="eval-select" required>
                 <option value="" disabled selected data-i18n="eval_tiempo_sel">¿Qué tan rápido te servimos?</option>
@@ -448,14 +426,12 @@
                 <option value="Adecuado" data-i18n="eval_tiempo_2">Adecuado 👍</option>
                 <option value="Lento" data-i18n="eval_tiempo_3">Lento 🐢</option>
             </select>
-            
             <span class="eval-label" data-i18n="eval_l4">4. ¿Quién te atendió?</span>
             <select name="mesero_nombre" class="eval-select" required>
                 <option value="" disabled selected data-i18n="eval_mesero_sel">Selecciona a tu mesero...</option>
                 <option value="Paola">Paola</option>
                 <option value="Daniel">Daniel</option>
             </select>
-            
             <span class="eval-label" data-i18n="eval_l5">5. Calificación del mesero:</span>
             <div class="star-rating">
                 <input type="radio" id="m5" name="mesero_calificacion" value="5" required><label for="m5">★</label>
@@ -464,151 +440,65 @@
                 <input type="radio" id="m2" name="mesero_calificacion" value="2"><label for="m2">★</label>
                 <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
             </div>
-
             <button type="submit" class="btn-eval" data-i18n="btn_enviar_eval">Enviar Evaluación</button>
-
             <span class="eval-label" style="margin-top: 20px;" data-i18n="eval_l6">6. ¿Algún comentario adicional? (Opcional):</span>
-            <textarea name="comentarios" class="eval-textarea" rows="3" placeholder="Déjanos tu opinión, sugerencia o felicitación..."></textarea>
-            
+            <textarea name="comentarios" class="eval-textarea" rows="3" placeholder="Déjanos tu opinión..."></textarea>
         </form>
     </div>
 
 </div>
 
 <script>
-    // --- Diccionario de Traducciones Actualizado (ES / EN) ---
     const traducciones = {
         es: {
-            menu_inicio: "Inicio",
-            menu_ver_menu: "Ver Menú",
-            menu_nosotros: "Acerca de nosotros",
-            menu_galeria: "Galería",
-            menu_ubicacion: "Ubicación",
-            menu_como_usar: "¿Cómo usar esta web?",
-            menu_comensal: "Comensal Conectado",
-            menu_admin: "Iniciar Caja / Admin",
-            galeria_sub: "Conoce un poco de nuestro ambiente y especialidades.",
-            ubicacion_desc: "Encuéntranos en el corazón de San Cristóbal de Las Casas, Chiapas. ¡Ven a disfrutar de un buen café!",
-            btn_abrir_maps: "🗺️ Abrir en Google Maps",
-            mod_como_usar_titulo: "❓ ¿Cómo usar esta web?",
-            mod_como_usar_1: "<strong>1. Explora el menú:</strong> Abre el menú lateral y selecciona \"Ver Menú\" para ver nuestros platillos.",
-            mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha para pedir desde tu mesa rápidamente.",
-            mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de \"Inicio\" y acumula consumos.",
-            mod_como_usar_4: "<strong>4. Gana premios:</strong> ¡Completa tu tarjeta y disfruta de platillos o bebidas gratis!",
-            btn_entendido: "Entendido",
-            mod_comensal_titulo: "📱 Comensal Conectado",
-            mod_comensal_desc: "Estás utilizando el sistema <strong>Comensal Conectado</strong>, una plataforma digital Premium de menús inteligentes y fidelización operada mediante tecnología NFC.",
-            desarrollado_por: "Desarrollado por",
-            btn_cerrar: "Cerrar",
-            modal_mesero_titulo: "🛎️ Llamar al Mesero",
-            modal_mesero_sub: "Para atenderte súper rápido, ¿en qué número de mesa te encuentras?",
-            btn_cancelar: "Cancelar",
-            btn_llamar: "Llamar",
-            btn_flotante_mesero: "Llamar Mesero",
-            btn_flotante_opinion: "Opinión",
-            progreso_titulo: "Tu Avance",
-            progreso_llevas: "Llevas",
-            progreso_consumos: "consumos",
-            nivel_1: "¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.",
-            nivel_2: "¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.",
-            btn_google_resena: "⭐ ¿Nos regalas 5 estrellas en Google?",
-            nivel_casi: "¡Ya casi! Sigue acumulando para ganar premios.",
-            conectate_titulo: "📱 Conéctate",
-            btn_wifi: "📶 Contraseña Wi-Fi",
-            btn_insta: "📸 Síguenos en Instagram",
-            btn_tiktok: "🎵 Síguenos en TikTok",
-            fidelidad_titulo: "Fidelidad Morisco",
-            lbl_nombre: "Tu Nombre",
-            lbl_telefono: "Tu Teléfono (10 dígitos)",
-            lbl_pin: "PIN de Consumo",
-            btn_sellar: "Sellar Visita",
-            menu_titulo_seccion: "Nuestro Menú",
-            filtro_todos: "Todos",
-            menu_pronto: "Pronto verás nuestros platillos aquí...",
-            nosotros_lema: "El Café y la Vida se disfrutan más en San Cristóbal de las Casas.",
-            mision_titulo: "MISIÓN",
-            mision_texto: "Ofrecer una experiencia de café chiapaneco auténtico, combinando calidad, sabor y calidez en cada visita, creando momentos inolvidables en el corazón de la ciudad.",
-            vision_titulo: "VISIÓN",
-            vision_texto: "Consolidarnos como el espacio bistró favorito de locales y visitantes, destacando por nuestra excelencia culinaria, innovación digital y un ambiente inigualable.",
-            eval_titulo: "¡Califica tu Experiencia!",
-            eval_l1: "1. Limpieza del local:",
-            eval_l2: "2. Calidad de la comida/bebida:",
-            eval_l3: "3. Tiempo de espera:",
-            eval_tiempo_sel: "¿Qué tan rápido te servimos?",
-            eval_tiempo_1: "Muy rápido ⚡",
-            eval_tiempo_2: "Adecuado 👍",
-            eval_tiempo_3: "Lento 🐢",
-            eval_l4: "4. ¿Quién te atendió?",
-            eval_mesero_sel: "Selecciona a tu mesero...",
-            eval_l5: "5. Calificación del mesero:",
-            btn_enviar_eval: "Enviar Evaluación",
-            eval_l6: "6. ¿Algún comentario adicional? (Opcional):"
+            menu_inicio: "Inicio", menu_ver_menu: "Ver Menú", menu_nosotros: "Acerca de nosotros", menu_galeria: "Galería",
+            menu_ubicacion: "Ubicación", menu_como_usar: "¿Cómo usar esta web?", menu_comensal: "Comensal Conectado",
+            menu_admin: "Iniciar Caja / Admin", galeria_sub: "Conoce un poco de nuestro ambiente.",
+            ubicacion_desc: "Encuéntranos en el corazón de San Cristóbal de Las Casas.", btn_abrir_maps: "🗺️ Abrir en Google Maps",
+            mod_como_usar_titulo: "❓ ¿Cómo usar esta web?", mod_como_usar_1: "<strong>1. Explora el menú:</strong> Abre el menú lateral.",
+            mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante.", mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Pide tu PIN en caja.",
+            mod_como_usar_4: "<strong>4. Gana premios:</strong> ¡Completa tu tarjeta!", btn_entendido: "Entendido",
+            mod_comensal_titulo: "📱 Comensal Conectado", mod_comensal_desc: "Estás utilizando <strong>Comensal Conectado</strong>, menús inteligentes NFC.",
+            btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Llamar al Mesero", modal_mesero_sub: "¿En qué número de mesa te encuentras?",
+            btn_cancelar: "Cancelar", btn_llamar: "Llamar", btn_flotante_mesero: "Llamar Mesero", btn_flotante_opinion: "Opinión",
+            progreso_titulo: "Tu Avance", progreso_llevas: "Llevas", progreso_consumos: "consumos",
+            nivel_1: "¡Llegaste al Nivel 1! Muestra esto en caja:", nivel_2: "¡Llenaste tu tarjeta! 🏆 Muestra esto en caja:",
+            btn_google_resena: "⭐ ¿Nos regalas 5 estrellas en Google?", nivel_casi: "¡Ya casi! Sigue acumulando.",
+            conectate_titulo: "📱 Conéctate", btn_wifi: "📶 Contraseña Wi-Fi", btn_insta: "📸 Síguenos en Instagram", btn_tiktok: "🎵 Síguenos en TikTok",
+            fidelidad_titulo: "Fidelidad Morisco", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono", lbl_pin: "PIN de Consumo",
+            btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
+            nosotros_lema: "El Café y la Vida se disfrutan más en San Cristóbal de las Casas.", mision_titulo: "MISIÓN",
+            mision_texto: "Ofrecer una experiencia de café chiapaneco auténtico.", vision_titulo: "VISIÓN",
+            vision_texto: "Consolidarnos como el espacio bistró favorito de locales y visitantes.", eval_titulo: "¡Califica tu Experiencia!",
+            eval_l1: "1. Limpieza:", eval_l2: "2. Calidad de la comida:", eval_l3: "3. Tiempo de espera:",
+            eval_tiempo_sel: "¿Qué tan rápido te servimos?", eval_tiempo_1: "Muy rápido ⚡", eval_tiempo_2: "Adecuado 👍", eval_tiempo_3: "Lento 🐢",
+            eval_l4: "4. ¿Quién te atendió?", eval_mesero_sel: "Selecciona a tu mesero...", eval_l5: "5. Calificación del mesero:",
+            btn_enviar_eval: "Enviar Evaluación", eval_l6: "6. Comentario (Opcional):", galeria_vacia: "Pronto subiremos fotos..."
         },
         en: {
-            menu_inicio: "Home",
-            menu_ver_menu: "View Menu",
-            menu_nosotros: "About Us",
-            menu_galeria: "Gallery",
-            menu_ubicacion: "Location",
-            menu_como_usar: "How to use this web?",
-            menu_comensal: "Comensal Conectado",
-            menu_admin: "Cashier / Admin Login",
-            galeria_sub: "Discover a bit of our atmosphere and specialties.",
-            ubicacion_desc: "Find us in the heart of San Cristóbal de Las Casas, Chiapas. Come enjoy a great coffee!",
-            btn_abrir_maps: "🗺️ Open in Google Maps",
-            mod_como_usar_titulo: "❓ How to use this web?",
-            mod_como_usar_1: "<strong>1. Explore the menu:</strong> Open the side menu and select \"View Menu\" to see our dishes.",
-            mod_como_usar_2: "<strong>2. Call the waiter:</strong> Use the green floating button at the bottom right to order from your table quickly.",
-            mod_como_usar_3: "<strong>3. Stamp your visit:</strong> When paying at the cashier, ask for your PIN, enter it on the \"Home\" screen and accumulate visits.",
-            mod_como_usar_4: "<strong>4. Earn rewards:</strong> Complete your card and enjoy free dishes or drinks!",
-            btn_entendido: "Got it",
-            mod_comensal_titulo: "📱 Comensal Conectado",
-            mod_comensal_desc: "You are using <strong>Comensal Conectado</strong>, a Premium digital platform for smart menus and loyalty operated via NFC technology.",
-            desarrollado_por: "Developed by",
-            btn_cerrar: "Close",
-            modal_mesero_titulo: "🛎️ Call Waiter",
-            modal_mesero_sub: "To assist you super fast, what table number are you at?",
-            btn_cancelar: "Cancel",
-            btn_llamar: "Call",
-            btn_flotante_mesero: "Call Waiter",
-            btn_flotante_opinion: "Feedback",
-            progreso_titulo: "Your Progress",
-            progreso_llevas: "You have",
-            progreso_consumos: "visits",
-            nivel_1: "You reached Level 1! 🎁 Show this at the cashier.",
-            nivel_2: "You filled your card! 🏆 Show this at the cashier.",
-            btn_google_resena: "⭐ Will you give us 5 stars on Google?",
-            nivel_casi: "Almost there! Keep accumulating to earn rewards.",
-            conectate_titulo: "📱 Connect",
-            btn_wifi: "📶 Wi-Fi Password",
-            btn_insta: "📸 Follow us on Instagram",
-            btn_tiktok: "🎵 Follow us on TikTok",
-            fidelidad_titulo: "Morisco Loyalty",
-            lbl_nombre: "Your Name",
-            lbl_telefono: "Your Phone (10 digits)",
-            lbl_pin: "Consumption PIN",
-            btn_sellar: "Stamp Visit",
-            menu_titulo_seccion: "Our Menu",
-            filtro_todos: "All",
-            menu_pronto: "Soon you will see our dishes here...",
-            nosotros_lema: "Coffee and Life are enjoyed better in San Cristóbal de las Casas.",
-            mision_titulo: "MISSION",
-            mision_texto: "To offer an authentic Chiapas coffee experience, combining quality, flavor, and warmth in every visit, creating unforgettable moments in the heart of the city.",
-            vision_titulo: "VISION",
-            vision_texto: "To consolidate ourselves as the favorite bistro space for locals and visitors, standing out for our culinary excellence, digital innovation, and an unbeatable atmosphere.",
-            eval_titulo: "Rate Your Experience!",
-            eval_l1: "1. Local cleanliness:",
-            eval_l2: "2. Food/drink quality:",
-            eval_l3: "3. Waiting time:",
-            eval_tiempo_sel: "How fast did we serve you?",
-            eval_tiempo_1: "Very fast ⚡",
-            eval_tiempo_2: "Adequate 👍",
-            eval_tiempo_3: "Slow 🐢",
-            eval_l4: "4. Who served you?",
-            eval_mesero_sel: "Select your waiter...",
-            eval_l5: "5. Waiter rating:",
-            btn_enviar_eval: "Send Evaluation",
-            eval_l6: "6. Any additional comments? (Optional):"
+            menu_inicio: "Home", menu_ver_menu: "Menu", menu_nosotros: "About Us", menu_galeria: "Gallery",
+            menu_ubicacion: "Location", menu_como_usar: "How to use?", menu_comensal: "Comensal Conectado",
+            menu_admin: "Admin Login", galeria_sub: "Discover our atmosphere.",
+            ubicacion_desc: "Find us in the heart of San Cristóbal de Las Casas.", btn_abrir_maps: "🗺️ Open in Google Maps",
+            mod_como_usar_titulo: "❓ How to use this web?", mod_como_usar_1: "<strong>1. Explore menu:</strong> Open the sidebar.",
+            mod_como_usar_2: "<strong>2. Call waiter:</strong> Use the green floating button.", mod_como_usar_3: "<strong>3. Stamp visit:</strong> Ask for PIN at cashier.",
+            mod_como_usar_4: "<strong>4. Earn rewards:</strong> Complete your card!", btn_entendido: "Got it",
+            mod_comensal_titulo: "📱 Comensal Conectado", mod_comensal_desc: "You are using <strong>Comensal Conectado</strong>, NFC smart menus.",
+            btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Call Waiter", modal_mesero_sub: "What table number are you at?",
+            btn_cancelar: "Cancel", btn_llamar: "Call", btn_flotante_mesero: "Call Waiter", btn_flotante_opinion: "Feedback",
+            progreso_titulo: "Your Progress", progreso_llevas: "You have", progreso_consumos: "visits",
+            nivel_1: "You reached Level 1! Show this to claim:", nivel_2: "Card Full! 🏆 Show this to claim:",
+            btn_google_resena: "⭐ Rate us on Google?", nivel_casi: "Almost there! Keep going.",
+            conectate_titulo: "📱 Connect", btn_wifi: "📶 Wi-Fi Password", btn_insta: "📸 Instagram", btn_tiktok: "🎵 TikTok",
+            fidelidad_titulo: "Morisco Loyalty", lbl_nombre: "Your Name", lbl_telefono: "Your Phone", lbl_pin: "PIN Code",
+            btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
+            nosotros_lema: "Coffee and Life are enjoyed better in San Cristóbal.", mision_titulo: "MISSION",
+            mision_texto: "To offer an authentic Chiapas coffee experience.", vision_titulo: "VISION",
+            vision_texto: "To consolidate ourselves as the favorite bistro space.", eval_titulo: "Rate Your Experience!",
+            eval_l1: "1. Cleanliness:", eval_l2: "2. Food quality:", eval_l3: "3. Waiting time:",
+            eval_tiempo_sel: "How fast did we serve you?", eval_tiempo_1: "Very fast ⚡", eval_tiempo_2: "Adequate 👍", eval_tiempo_3: "Slow 🐢",
+            eval_l4: "4. Who served you?", eval_mesero_sel: "Select waiter...", eval_l5: "5. Waiter rating:",
+            btn_enviar_eval: "Send Feedback", eval_l6: "6. Comment (Optional):", galeria_vacia: "Photos coming soon..."
         }
     };
 
@@ -617,52 +507,33 @@
         document.getElementById('btn-en').classList.remove('activo');
         document.getElementById('btn-' + lang).classList.add('activo');
 
-        const elementos = document.querySelectorAll('[data-i18n]');
-        elementos.forEach(el => {
+        // Traducir interfaz
+        document.querySelectorAll('[data-i18n]').forEach(el => {
             const clave = el.getAttribute('data-i18n');
-            if (traducciones[lang][clave]) {
-                el.innerHTML = traducciones[lang][clave];
+            if (traducciones[lang][clave]) el.innerHTML = traducciones[lang][clave];
+        });
+
+        // Traducir dinámicamente Base de Datos (Platillos y Premios)
+        document.querySelectorAll('[data-es]').forEach(el => {
+            const textoTraducido = el.getAttribute('data-' + lang);
+            if(textoTraducido && textoTraducido.trim() !== "" && textoTraducido !== "None") {
+                el.innerHTML = textoTraducido;
+            } else {
+                el.innerHTML = el.getAttribute('data-es');
             }
         });
     }
 
-    // --- Lógica de Vistas SPA (Single Page Application) ---
     function cambiarVista(vista) {
         cerrarSidebar();
+        document.querySelectorAll('.vista-app').forEach(v => v.style.display = 'none');
+        document.querySelectorAll('.sidebar-links a').forEach(a => a.classList.remove('activo'));
         
-        document.getElementById('vista-inicio').style.display = 'none';
-        document.getElementById('vista-menu').style.display = 'none';
-        document.getElementById('vista-nosotros').style.display = 'none';
-        document.getElementById('vista-galeria').style.display = 'none';
-        document.getElementById('vista-ubicacion').style.display = 'none';
-
-        document.getElementById('link-inicio').classList.remove('activo');
-        document.getElementById('link-menu').classList.remove('activo');
-        document.getElementById('link-nosotros').classList.remove('activo');
-        document.getElementById('link-galeria').classList.remove('activo');
-        document.getElementById('link-ubicacion').classList.remove('activo');
-
-        if (vista === 'inicio') {
-            document.getElementById('vista-inicio').style.display = 'block';
-            document.getElementById('link-inicio').classList.add('activo');
-        } else if (vista === 'menu') {
-            document.getElementById('vista-menu').style.display = 'block';
-            document.getElementById('link-menu').classList.add('activo');
-        } else if (vista === 'nosotros') {
-            document.getElementById('vista-nosotros').style.display = 'block';
-            document.getElementById('link-nosotros').classList.add('activo');
-        } else if (vista === 'galeria') {
-            document.getElementById('vista-galeria').style.display = 'block';
-            document.getElementById('link-galeria').classList.add('activo');
-        } else if (vista === 'ubicacion') {
-            document.getElementById('vista-ubicacion').style.display = 'block';
-            document.getElementById('link-ubicacion').classList.add('activo');
-        }
-        
+        document.getElementById('vista-' + vista).style.display = 'block';
+        document.getElementById('link-' + vista).classList.add('activo');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // --- Funciones del Menú Lateral (Sidebar) ---
     function abrirSidebar() {
         document.getElementById("miSidebar").style.width = "300px";
         document.getElementById("sidebar-overlay").style.display = "block";
@@ -679,63 +550,40 @@
         cerrarSidebar(); 
         document.getElementById(modalId).style.display = 'flex';
         document.body.style.overflow = "hidden";
-        
-        if (modalId === 'modal-mesero') {
-            setTimeout(() => document.getElementById('input-mesa').focus(), 100);
-        }
+        if (modalId === 'modal-mesero') setTimeout(() => document.getElementById('input-mesa').focus(), 100);
     }
 
     function cerrarModalInfo(modalId) {
         document.getElementById(modalId).style.display = 'none';
         document.body.style.overflow = "auto";
-        if (modalId === 'modal-mesero') {
-            document.getElementById('input-mesa').value = '';
-        }
+        if (modalId === 'modal-mesero') document.getElementById('input-mesa').value = '';
     }
 
     function enviarMensajeWhatsapp() {
         let mesa = document.getElementById('input-mesa').value;
         if (mesa && mesa.trim() !== "") {
             let numeroWhatsapp = "5219671364781"; 
-            let mensaje = `Hola, estoy en la Mesa ${mesa}, ¿me pueden atender por favor?`;
-            let url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
+            window.open(`https://wa.me/${numeroWhatsapp}?text=Hola, estoy en la Mesa ${mesa}, ¿me pueden atender por favor?`, '_blank');
             cerrarModalInfo('modal-mesero'); 
-            window.open(url, '_blank');
-        } else {
-            alert("Por favor, ingresa tu número de mesa.");
-        }
+        } else alert("Por favor, ingresa tu número de mesa.");
     }
 
     function toggleEvaluacion() {
         let seccionEval = document.getElementById('seccion-evaluacion');
         seccionEval.classList.toggle('activo');
-        
-        if (seccionEval.classList.contains('activo')) {
-            seccionEval.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (seccionEval.classList.contains('activo')) seccionEval.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function copiarWifi() {
         navigator.clipboard.writeText('Corazonsc31'); 
-        alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
+        alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles!');
     }
 
     function filtrarMenu(categoria, boton) {
-        let botones = document.querySelectorAll('.filtro-btn');
-        botones.forEach(btn => btn.classList.remove('activo'));
+        document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('activo'));
         boton.classList.add('activo');
-
-        let bloques = document.querySelectorAll('.categoria-bloque');
-        bloques.forEach(bloque => {
-            if (categoria === 'Todos') {
-                bloque.style.display = 'block';
-            } else {
-                if (bloque.getAttribute('data-categoria') === categoria) {
-                    bloque.style.display = 'block';
-                } else {
-                    bloque.style.display = 'none';
-                }
-            }
+        document.querySelectorAll('.categoria-bloque').forEach(bloque => {
+            bloque.style.display = (categoria === 'Todos' || bloque.getAttribute('data-categoria') === categoria) ? 'block' : 'none';
         });
     }
 
