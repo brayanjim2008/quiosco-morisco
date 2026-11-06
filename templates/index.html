@@ -34,7 +34,7 @@
         .sidebar-links { flex-grow: 1; padding: 20px 0; }
         .sidebar-links a { padding: 15px 25px; font-size: 15px; color: var(--texto-oscuro); display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: all 0.3s ease; border-left: 4px solid transparent; }
         .sidebar-links a .icon { font-size: 20px; margin-right: 15px; width: 25px; text-align: center; }
-        .sidebar-links a:hover { background-color: #fdfaf6; padding-left: 32px; color: var(--verde-quiosco); border-left: 4px solid var(--cobre); }
+        .sidebar-links a:hover, .sidebar-links a.activo { background-color: #fdfaf6; padding-left: 32px; color: var(--verde-quiosco); border-left: 4px solid var(--cobre); }
         
         /* Botón de Admin al fondo */
         .sidebar-footer { padding: 20px; border-top: 1px solid #f0ece1; background: #fafafa; }
@@ -48,6 +48,9 @@
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 25px; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: #ffffff; padding: 25px 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; }
         
+        /* Animaciones para cambio de vista */
+        .vista-app { animation: fadeIn 0.4s; }
+
         /* Barra de Progreso */
         .progress-container { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; text-align: center; }
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 20px 0; flex-wrap: wrap; gap: 4px; }
@@ -68,7 +71,7 @@
         .btn-tiktok { background: #000000; color: white; border: none; }
         .btn-google { background: #4285F4; color: white; border: none; border-radius: 30px; font-size: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.4); }
 
-        /* Contenedor Flotante Inferior (Dos botones juntos) */
+        /* Contenedor Flotante Inferior */
         .botones-flotantes { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; box-shadow: 0 6px 16px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 2px solid #ffffff; text-align: center; display: flex; align-items: center; gap: 8px; }
         .btn-flotante-mesero { background: #25D366; }
@@ -144,12 +147,13 @@
         <a href="javascript:void(0)" class="close-btn" onclick="cerrarSidebar()">&times;</a>
     </div>
     
-    <!-- Opciones del Menú -->
+    <!-- Opciones del Menú (Controlan las vistas) -->
     <div class="sidebar-links">
-        <a href="#" onclick="cerrarSidebar()"><span class="icon">🍔</span> Menú Digital</a>
-        <a href="#" onclick="abrirModalInfo('modal-como-usar')"><span class="icon">❓</span> ¿Cómo usar esta web?</a>
-        <a href="#" onclick="abrirModalInfo('modal-acerca')"><span class="icon">🏛️</span> Acerca de nosotros</a>
-        <a href="#" onclick="abrirModalInfo('modal-comensal')"><span class="icon">📱</span> Comensal Conectado</a>
+        <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo"><span class="icon">🏠</span> Inicio</a>
+        <a href="javascript:void(0)" onclick="cambiarVista('menu')" id="link-menu"><span class="icon">🍔</span> Ver Menú</a>
+        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')"><span class="icon">❓</span> ¿Cómo usar esta web?</a>
+        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-acerca')"><span class="icon">🏛️</span> Acerca de nosotros</a>
+        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-comensal')"><span class="icon">📱</span> Comensal Conectado</a>
     </div>
 
     <!-- Pie del Menú (Caja / Admin) -->
@@ -162,9 +166,9 @@
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3>❓ ¿Cómo usar esta web?</h3>
-        <p><strong>1. Explora el menú:</strong> Desliza para ver nuestros platillos y usa los filtros superiores por categorías.</p>
+        <p><strong>1. Explora el menú:</strong> Abre el menú lateral y selecciona "Ver Menú" para ver nuestros platillos.</p>
         <p><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha para pedir desde tu mesa rápidamente.</p>
-        <p><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la sección de Fidelidad y acumula consumos.</p>
+        <p><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio" y acumula consumos.</p>
         <p><strong>4. Gana premios:</strong> ¡Completa tu tarjeta y disfruta de platillos o bebidas gratis!</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar')">Entendido</button>
     </div>
@@ -204,7 +208,7 @@
     </div>
 </div>
 
-<!-- Botones Flotantes Inferiores -->
+<!-- Botones Flotantes Inferiores GLOBALES -->
 <div class="botones-flotantes">
     <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><span>🛎️</span> Llamar Mesero</div>
     <div class="btn-flotante-eval" onclick="toggleEvaluacion()"><span>⭐</span> Opinión</div>
@@ -233,98 +237,112 @@
         {% endwith %}
     </div>
 
-    <!-- SECCIÓN INTERACTIVA DE PROGRESO -->
-    {% if cliente %}
-    <div class="progress-container">
-        <h3 style="margin-top: 0;">Tu Avance, {{ cliente.nombre }}</h3>
-        <p style="font-size: 13px; color: var(--texto-claro); margin-top: -10px;">Llevas <strong>{{ progreso }}</strong> consumos.</p>
-        <div class="progress-bar">
-            {% for i in range(1, meta_2 + 1) %}
-                <div class="circle 
-                    {% if progreso >= i %}filled{% endif %} 
-                    {% if i == meta_1 %}premio-intermedio{% endif %} 
-                    {% if i == meta_2 %}premio-mayor{% endif %}"
-                    {% if i == meta_1 or i == meta_2 %}style="transform: scale(1.15); border-width: 3px;"{% endif %}>
-                    {% if i == meta_1 or i == meta_2 %}🎁{% else %}{{ i }}{% endif %}
-                </div> {% if i < meta_2 %}
-                    <div class="line {% if progreso >= i %}filled{% endif %}"></div>
-                {% endif %}
-            {% endfor %}
-        </div>
+    <!-- ========================================== -->
+    <!-- VISTA 1: INICIO (Visible por defecto) -->
+    <!-- ========================================== -->
+    <div id="vista-inicio" class="vista-app">
         
-        {% if progreso == meta_1 %}
-            <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
-        {% elif progreso >= meta_2 %}
-            <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
-            <!-- IMPULSOR DE RESEÑAS GOOGLE -->
-            <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google">
-                ⭐ ¿Nos regalas 5 estrellas en Google?
-            </a>
-        {% else %}
-            <p style="color: var(--texto-claro); font-size: 14px;">¡Ya casi! Sigue acumulando para ganar premios.</p>
+        <!-- SECCIÓN INTERACTIVA DE PROGRESO -->
+        {% if cliente %}
+        <div class="progress-container">
+            <h3 style="margin-top: 0;">Tu Avance, {{ cliente.nombre }}</h3>
+            <p style="font-size: 13px; color: var(--texto-claro); margin-top: -10px;">Llevas <strong>{{ progreso }}</strong> consumos.</p>
+            <div class="progress-bar">
+                {% for i in range(1, meta_2 + 1) %}
+                    <div class="circle 
+                        {% if progreso >= i %}filled{% endif %} 
+                        {% if i == meta_1 %}premio-intermedio{% endif %} 
+                        {% if i == meta_2 %}premio-mayor{% endif %}"
+                        {% if i == meta_1 or i == meta_2 %}style="transform: scale(1.15); border-width: 3px;"{% endif %}>
+                        {% if i == meta_1 or i == meta_2 %}🎁{% else %}{{ i }}{% endif %}
+                    </div> {% if i < meta_2 %}
+                        <div class="line {% if progreso >= i %}filled{% endif %}"></div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {% if progreso == meta_1 %}
+                <p style="color: var(--cobre); font-weight: bold; font-size: 16px;">¡Llegaste al Nivel 1! 🎁 Muestra esto en caja.</p>
+            {% elif progreso >= meta_2 %}
+                <p style="color: var(--verde-quiosco); font-weight: bold; font-size: 18px;">¡Llenaste tu tarjeta! 🏆 Muestra esto en caja.</p>
+                <a href="TU_ENLACE_AQUI_PEGADO" target="_blank" class="btn btn-google">
+                    ⭐ ¿Nos regalas 5 estrellas en Google?
+                </a>
+            {% else %}
+                <p style="color: var(--texto-claro); font-size: 14px;">¡Ya casi! Sigue acumulando para ganar premios.</p>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
-    {% endif %}
 
-    <!-- Redes y WiFi -->
-    <div class="card">
-        <h3>📱 Conéctate</h3>
-        <button class="btn btn-wifi" onclick="copiarWifi()">📶 Contraseña Wi-Fi</button>
-        <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" class="btn btn-insta" target="_blank">📸 Síguenos en Instagram</a>
-        <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" class="btn btn-tiktok" target="_blank">🎵 Síguenos en TikTok</a>
-    </div>
-
-    <!-- Registro de Fidelidad -->
-    <div class="card formulario-normal">
-        <h3>Fidelidad Morisco</h3>
-        <form action="/registrar_consumo" method="POST">
-            <label>Tu Nombre</label>
-            <input type="text" name="nombre" required placeholder="Ej. Brayan">
-            <label>Tu Teléfono (10 dígitos)</label>
-            <input type="tel" name="telefono" required placeholder="Para llevar tu conteo">
-            <label>PIN de Consumo</label>
-            <input type="text" name="pin" required style="font-family: monospace; letter-spacing: 5px; font-size: 20px; text-align: center; color: var(--verde-quiosco); font-weight: bold;">
-            <button type="submit" class="btn">Sellar Visita</button>
-        </form>
-    </div>
-
-    <!-- Menú Digital con Filtros -->
-    <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none;">
-        <h2>Nuestro Menú</h2>
-        
-        <!-- Botones de Filtro Dinámicos -->
-        {% if categorias and categorias is mapping %}
-        <div class="filtros-wrapper">
-            <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)">Todos</button>
-            {% for categoria in categorias.keys() %}
-                <button class="filtro-btn" data-categoria="{{ categoria|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this)">{{ categoria }}</button>
-            {% endfor %}
+        <!-- Redes y WiFi -->
+        <div class="card">
+            <h3>📱 Conéctate</h3>
+            <button class="btn btn-wifi" onclick="copiarWifi()">📶 Contraseña Wi-Fi</button>
+            <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" class="btn btn-insta" target="_blank">📸 Síguenos en Instagram</a>
+            <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" class="btn btn-tiktok" target="_blank">🎵 Síguenos en TikTok</a>
         </div>
 
-        <!-- Lista de Platillos -->
-        <div id="contenedor-menu">
-            {% for categoria, lista in categorias.items() %}
-                <div class="categoria-bloque" data-categoria="{{ categoria|replace(' ', '-') }}">
-                    <div class="categoria-titulo">{{ categoria }}</div>
-                    {% for producto in lista %}
-                        <div class="menu-item card" style="margin-bottom: 12px; border: 1px solid #f0ece1; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
-                            {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
-                            <div class="info-platillo">
-                                <span class="nombre-platillo">{{ producto.nombre }}</span>
-                                <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.4;">{{ producto.descripcion }}</span>
+        <!-- Registro de Fidelidad -->
+        <div class="card formulario-normal">
+            <h3>Fidelidad Morisco</h3>
+            <form action="/registrar_consumo" method="POST">
+                <label>Tu Nombre</label>
+                <input type="text" name="nombre" required placeholder="Ej. Brayan">
+                <label>Tu Teléfono (10 dígitos)</label>
+                <input type="tel" name="telefono" required placeholder="Para llevar tu conteo">
+                <label>PIN de Consumo</label>
+                <input type="text" name="pin" required style="font-family: monospace; letter-spacing: 5px; font-size: 20px; text-align: center; color: var(--verde-quiosco); font-weight: bold;">
+                <button type="submit" class="btn">Sellar Visita</button>
+            </form>
+        </div>
+        
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VISTA 2: MENÚ DIGITAL (Oculto por defecto) -->
+    <!-- ========================================== -->
+    <div id="vista-menu" class="vista-app" style="display: none;">
+        
+        <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
+            <h2>Nuestro Menú</h2>
+            
+            <!-- Botones de Filtro Dinámicos -->
+            {% if categorias and categorias is mapping %}
+            <div class="filtros-wrapper">
+                <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)">Todos</button>
+                {% for categoria in categorias.keys() %}
+                    <button class="filtro-btn" data-categoria="{{ categoria|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this)">{{ categoria }}</button>
+                {% endfor %}
+            </div>
+
+            <!-- Lista de Platillos -->
+            <div id="contenedor-menu">
+                {% for categoria, lista in categorias.items() %}
+                    <div class="categoria-bloque" data-categoria="{{ categoria|replace(' ', '-') }}">
+                        <div class="categoria-titulo">{{ categoria }}</div>
+                        {% for producto in lista %}
+                            <div class="menu-item card" style="margin-bottom: 12px; border: 1px solid #f0ece1; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                                {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
+                                <div class="info-platillo">
+                                    <span class="nombre-platillo">{{ producto.nombre }}</span>
+                                    <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.4;">{{ producto.descripcion }}</span>
+                                </div>
+                                <div class="precio">${{ producto.precio }}</div>
                             </div>
-                            <div class="precio">${{ producto.precio }}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% else %}
+                <p style="text-align: center; color: var(--texto-claro); font-style: italic; margin-top: 30px;">Pronto verás nuestros platillos aquí...</p>
+            {% endif %}
         </div>
-        {% else %}
-            <p style="text-align: center; color: var(--texto-claro); font-style: italic; margin-top: 30px;">Pronto verás nuestros platillos aquí...</p>
-        {% endif %}
+
     </div>
 
-    <!-- FORMULARIO DE EVALUACIÓN -->
+    <!-- ========================================== -->
+    <!-- FORMULARIO DE EVALUACIÓN (Global) -->
+    <!-- ========================================== -->
     <div class="eval-container" id="seccion-evaluacion">
         <h3>¡Califica tu Experiencia!</h3>
         <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
@@ -382,6 +400,27 @@
 </div>
 
 <script>
+    // --- Lógica de Vistas SPA (Single Page Application) ---
+    function cambiarVista(vista) {
+        cerrarSidebar();
+        
+        // Quitar clase activo de los links
+        document.getElementById('link-inicio').classList.remove('activo');
+        document.getElementById('link-menu').classList.remove('activo');
+
+        if (vista === 'inicio') {
+            document.getElementById('vista-inicio').style.display = 'block';
+            document.getElementById('vista-menu').style.display = 'none';
+            document.getElementById('link-inicio').classList.add('activo');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (vista === 'menu') {
+            document.getElementById('vista-inicio').style.display = 'none';
+            document.getElementById('vista-menu').style.display = 'block';
+            document.getElementById('link-menu').classList.add('activo');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
     // --- Funciones del Menú Lateral (Sidebar) ---
     function abrirSidebar() {
         document.getElementById("miSidebar").style.width = "300px";
