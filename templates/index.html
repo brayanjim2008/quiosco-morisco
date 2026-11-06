@@ -68,7 +68,7 @@
         .btn:hover { background: var(--cobre); }
         .btn-wifi { background: transparent; color: var(--verde-quiosco); border: 2px solid var(--verde-quiosco); }
         .botones-flotantes { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
-        .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; }
+        .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
 
         .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); scrollbar-width: none; }
@@ -97,7 +97,6 @@
         .menu-item.platillo-estrella { border: 2px solid var(--cobre); background: linear-gradient(to right, rgba(201,130,70,0.05), transparent); padding: 15px 10px; margin-bottom: 20px;}
         .badge-estrella { position: absolute; top: -12px; left: 15px; background: var(--cobre); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
 
-        /* NUEVO: ESTILOS PARA PLATILLO AGOTADO */
         .platillo-agotado { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
         .overlay-agotado { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; z-index: 10; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
 
@@ -106,15 +105,10 @@
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.2em; color: var(--verde-quiosco); font-weight: 600; display: block; margin-bottom: 4px; }
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.3em; font-family: 'Lora', serif; }
 
-        .eval-container { background: var(--fondo-tarjeta); padding: 30px 25px; margin: 15px auto 30px auto; border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); text-align: center; border: 1px solid var(--border-color); display: none; }
-        .eval-container.activo { display: block; animation: slideUp 0.4s ease; }
-        .star-rating { direction: rtl; display: flex; justify-content: center; font-size: 3rem; line-height: 1; margin-bottom: 10px; }
-        .star-rating input { display: none; }
-        .star-rating label { color: #e4e4e4; cursor: pointer; padding: 0 5px; transition: color 0.2s, transform 0.2s; }
-        .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: #ffc107; transform: scale(1.1); }
-        .eval-select, .eval-textarea { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border-color); font-size: 16px; background: var(--fondo-hueso); font-family: inherit; outline: none; }
-        .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 15px rgba(255,152,0,0.3); }
-        .eval-label { margin-bottom: 8px; font-weight: bold; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 20px; font-size: 15px; }
+        /* Estilos Evaluaciones */
+        .eval-select, .eval-textarea { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; }
+        .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 20px; flex: 1; }
+        .eval-label { margin-bottom: 0px; font-weight: bold; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 15px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -130,7 +124,6 @@
     <div class="sidebar-links">
         <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo"><span class="icon">🏠</span> <span data-i18n="menu_inicio">Inicio</span></a>
         <a href="javascript:void(0)" onclick="cambiarVista('menu')" id="link-menu"><span class="icon">🍔</span> <span data-i18n="menu_ver_menu">Ver Menú</span></a>
-        <a href="javascript:void(0)" onclick="cambiarVista('nosotros')" id="link-nosotros"><span class="icon">🏛️</span> <span data-i18n="menu_nosotros">Acerca de nosotros</span></a>
         <a href="javascript:void(0)" onclick="cambiarVista('galeria')" id="link-galeria"><span class="icon">📸</span> <span data-i18n="menu_galeria">Galería</span></a>
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')"><span class="icon">❓</span> <span data-i18n="menu_como_usar">¿Cómo usar esta web?</span></a>
     </div>
@@ -161,7 +154,54 @@
     </div>
 </div>
 
+<!-- NUEVO: MODAL DE EVALUACIÓN CON IDIOMAS -->
+<div id="modal-evaluacion" class="modal-overlay">
+    <div class="modal-content" style="padding: 20px; text-align: left; overflow-y: auto; max-height: 90vh;">
+        <h3 style="color: #ff9800; text-align: center; margin-top: 0;">⭐ <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
+        <p style="text-align: center; font-size: 13px; color: var(--texto-claro);" data-i18n="eval_desc">Ayúdanos a mejorar el servicio de Quiosco Morisco.</p>
+        
+        <form action="/enviar_evaluacion" method="POST">
+            <input type="text" name="mesero_nombre" class="eval-select" placeholder="Nombre de quien te atendió" data-i18n-placeholder="eval_ph_mesero" required>
+            
+            <label class="eval-label" data-i18n="eval_lbl_atencion">Atención del mesero:</label>
+            <select name="mesero_calificacion" class="eval-select" required>
+                <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
+                <option value="4">⭐⭐⭐⭐ - Muy Bueno</option>
+                <option value="3">⭐⭐⭐ - Regular</option>
+                <option value="2">⭐⭐ - Malo</option>
+                <option value="1">⭐ - Pésimo</option>
+            </select>
+            
+            <label class="eval-label" data-i18n="eval_lbl_limpieza">Limpieza:</label>
+            <select name="limpieza" class="eval-select" required>
+                <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
+                <option value="4">⭐⭐⭐⭐ - Muy Bueno</option>
+                <option value="3">⭐⭐⭐ - Regular</option>
+                <option value="2">⭐⭐ - Malo</option>
+                <option value="1">⭐ - Pésimo</option>
+            </select>
+
+            <label class="eval-label" data-i18n="eval_lbl_comida">Calidad de la comida:</label>
+            <select name="calidad_comida" class="eval-select" required>
+                <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
+                <option value="4">⭐⭐⭐⭐ - Muy Bueno</option>
+                <option value="3">⭐⭐⭐ - Regular</option>
+                <option value="2">⭐⭐ - Malo</option>
+                <option value="1">⭐ - Pésimo</option>
+            </select>
+
+            <textarea name="comentarios" class="eval-textarea" placeholder="¿Algún comentario adicional?" data-i18n-placeholder="eval_ph_comentarios" rows="2"></textarea>
+            
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <button type="button" class="btn-cancelar" onclick="cerrarModalInfo('modal-evaluacion')" data-i18n="btn_cancelar">Cancelar</button>
+                <button type="submit" class="btn-eval" style="margin-top: 0;" data-i18n="btn_enviar">Enviar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="botones-flotantes">
+    <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion')"><span>⭐</span> <span data-i18n="btn_flotante_eval">Calificanos</span></div>
     <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><span>🛎️</span> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
 </div>
 
@@ -271,7 +311,6 @@
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}">
                         <div class="categoria-titulo">{{ cat_nombre }}</div>
                         {% for producto in lista %}
-                            <!-- MAGIA DE AGOTADO Y ESTRELLA -->
                             <div class="menu-item card {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}">
                                 {% if producto.agotado %}<div class="overlay-agotado" data-i18n="badge_agotado">Agotado</div>{% endif %}
                                 {% if producto.destacado and not producto.agotado %}<span class="badge-estrella" data-i18n="badge_estrella">⭐ Recomendación</span>{% endif %}
@@ -293,29 +332,15 @@
         </div>
     </div>
 
-    <!-- VISTA 3: ACERCA DE NOSOTROS -->
-    <div id="vista-nosotros" class="vista-app" style="display: none;">
-        <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
-            <h2 data-i18n="menu_nosotros">Acerca de Nosotros</h2>
-            <div class="nosotros-grid">
-                <div class="nosotros-bloque">
-                    <img src="{{ url_for('static', filename='logo.jpg') }}" class="nosotros-img">
-                    <div class="nosotros-texto">
-                        <h3 data-i18n="mision_titulo">MISIÓN</h3>
-                        <p data-i18n="mision_texto">Ofrecer una experiencia de café chiapaneco auténtico, combinando calidad, sabor y calidez en cada visita.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- VISTA 4: GALERÍA -->
+    <!-- VISTA 3: GALERÍA -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
             <h2 data-i18n="menu_galeria">Galería</h2>
             <div class="galeria-grid">
                 {% if galeria %}
-                    {% for foto in galeria %}<img src="{{ foto.imagen_url }}" class="galeria-img">{% endfor %}
+                    {% for foto in galeria %}
+                    <div style="margin-bottom: 15px;"><img src="{{ foto.imagen_url }}" style="width: 100%; border-radius: 10px;"></div>
+                    {% endfor %}
                 {% else %}
                     <p style="text-align: center; grid-column: span 2;" data-i18n="galeria_vacia">Pronto subiremos fotos...</p>
                 {% endif %}
@@ -327,26 +352,28 @@
 <script>
     const traducciones = {
         es: {
-            menu_inicio: "Inicio", menu_ver_menu: "Ver Menú", menu_nosotros: "Acerca de nosotros", menu_galeria: "Galería",
+            menu_inicio: "Inicio", menu_ver_menu: "Ver Menú", menu_galeria: "Galería",
             menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta web?", mod_como_usar_1: "<strong>1. Explora el menú:</strong> Abre el menú lateral.",
             mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante.", mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Pide tu PIN en caja.",
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Llamar al Mesero", modal_mesero_sub: "¿En qué número de mesa te encuentras?",
             btn_cancelar: "Cancelar", btn_llamar: "Llamar", btn_flotante_mesero: "Llamar Mesero", 
             fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Pide tu PIN en caja al realizar tu consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo",
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
-            mision_titulo: "MISIÓN", mision_texto: "Ofrecer una experiencia de café chiapaneco auténtico.", btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
-            progreso_titulo: "Tu Avance", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Alcanzaste una meta! Muestra esto en caja:", nivel_casi: "¡Sigue acumulando visitas para destapar premios!", titulo_lista_premios: "Metas Activas"
+            btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
+            progreso_titulo: "Tu Avance", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Alcanzaste una meta! Muestra esto en caja:", nivel_casi: "¡Sigue acumulando visitas para destapar premios!", titulo_lista_premios: "Metas Activas",
+            eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos..."
         },
         en: {
-            menu_inicio: "Home", menu_ver_menu: "Menu", menu_nosotros: "About Us", menu_galeria: "Gallery",
+            menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery",
             menu_admin: "Admin Login", mod_como_usar_titulo: "❓ How to use this web?", mod_como_usar_1: "<strong>1. Explore menu:</strong> Open the sidebar.",
             mod_como_usar_2: "<strong>2. Call waiter:</strong> Use the green floating button.", mod_como_usar_3: "<strong>3. Stamp visit:</strong> Ask for PIN at cashier.",
             btn_entendido: "Got it", btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Call Waiter", modal_mesero_sub: "What table number are you at?",
             btn_cancelar: "Cancel", btn_llamar: "Call", btn_flotante_mesero: "Call Waiter",
             fidelidad_titulo: "Morisco Loyalty", fidelidad_desc: "Ask your cashier for a PIN to stamp your visit.", lbl_nombre: "Your Name", lbl_telefono: "Your Phone (10 digits)", lbl_pin: "PIN Code",
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
-            mision_titulo: "MISSION", mision_texto: "To offer an authentic Chiapas coffee experience.", btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
-            progreso_titulo: "Your Progress", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals"
+            btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
+            progreso_titulo: "Your Progress", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
+            eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon..."
         }
     };
 
@@ -354,7 +381,7 @@
         document.getElementById('btn-es').classList.remove('activo');
         document.getElementById('btn-en').classList.remove('activo');
         document.getElementById('btn-' + lang).classList.add('activo');
-        localStorage.setItem('idioma_quiosco', lang); // Guarda la preferencia
+        localStorage.setItem('idioma_quiosco', lang);
 
         document.querySelectorAll('[data-i18n]').forEach(el => {
             if (traducciones[lang][el.getAttribute('data-i18n')]) el.innerHTML = traducciones[lang][el.getAttribute('data-i18n')];
@@ -362,6 +389,9 @@
         document.querySelectorAll('[data-es]').forEach(el => {
             const textoTraducido = el.getAttribute('data-' + lang);
             el.innerHTML = (textoTraducido && textoTraducido.trim() !== "" && textoTraducido !== "None") ? textoTraducido : el.getAttribute('data-es');
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            if (traducciones[lang][el.getAttribute('data-i18n-placeholder')]) el.placeholder = traducciones[lang][el.getAttribute('data-i18n-placeholder')];
         });
     }
 
@@ -403,10 +433,8 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. CARGAR MODO OSCURO
         if (localStorage.getItem('darkMode') === 'yes') toggleDarkMode();
 
-        // 2. AUTO-DETECCIÓN INTELIGENTE DE IDIOMA
         let savedLang = localStorage.getItem('idioma_quiosco');
         if (savedLang) {
             cambiarIdioma(savedLang);
@@ -419,11 +447,9 @@
             }
         }
 
-        // 3. QR PIN AUTORELLENO
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
 
-        // 4. CONFETI DE PREMIO
         var flashElement = document.getElementById("mensaje-flash");
         if (flashElement && flashElement.getAttribute("data-categoria") === "premio_interactivo") {
             var duration = 3 * 1000; var animationEnd = Date.now() + duration;

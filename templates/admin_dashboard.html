@@ -49,7 +49,10 @@
     </div>
 
     <div class="row">
-        <!-- PIN DE CONSUMO (GRID MÚLTIPLE) -->
+        <!-- COLUMNA IZQUIERDA -->
+        <div class="col-lg-4">
+            
+            <!-- PIN DE CONSUMO (GRID MÚLTIPLE) -->
             <div class="card mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-key"></i> PINs de Consumo</span>
@@ -65,8 +68,8 @@
                         <div class="col-6">
                             <div class="p-2 bg-white rounded border border-warning shadow-sm">
                                 <h4 class="text-dark fw-bold mb-1" style="letter-spacing: 2px;">{{ pin.codigo }}</h4>
-                                <!-- Recuerda cambiar la IP por tu dominio -->
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=http://127.0.0.1:10000/?pin={{ pin.codigo }}" class="img-fluid border" style="max-width: 80px;">
+                                <!-- ¡CORRECCIÓN VITAL AQUÍ (Se quitó el 127.0.0.1)! -->
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid border" style="max-width: 80px;">
                             </div>
                         </div>
                         {% else %}
@@ -224,36 +227,6 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-
-            <!-- PUBLICACIONES -->
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white"><i class="fas fa-newspaper"></i> Novedades y Publicaciones</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nueva_publicacion') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-                        <div class="row">
-                            <div class="col-md-6 mb-2"><input type="text" name="titulo" class="form-control" placeholder="Título (ES)" required></div>
-                            <div class="col-md-6 mb-2"><input type="text" name="titulo_en" class="form-control" placeholder="Título (EN)"></div>
-                            <div class="col-md-6 mb-2"><textarea name="descripcion" class="form-control" placeholder="Descripción (ES)" required></textarea></div>
-                            <div class="col-md-6 mb-2"><textarea name="descripcion_en" class="form-control" placeholder="Descripción (EN)"></textarea></div>
-                            <div class="col-md-6 mb-2">
-                                <select name="categoria" class="form-select" required>
-                                    <option value="Historia">Historia / Nosotros</option><option value="Evento">Evento</option><option value="Aviso">Aviso</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-2"><input type="file" name="foto" class="form-control" accept="image/*"></div>
-                        </div>
-                        <button type="submit" class="btn btn-info text-white w-100">Publicar</button>
-                    </form>
-                    <ul class="list-group">
-                        {% for pub in publicaciones %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div><strong>{{ pub.titulo }}</strong> <span class="badge bg-info text-dark">{{ pub.categoria }}</span></div>
-                            <form action="{{ url_for('eliminar_publicacion', id=pub.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Borrar?');"><button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></form>
-                        </li>
-                        {% endfor %}
-                    </ul>
                 </div>
             </div>
 
