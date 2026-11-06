@@ -22,7 +22,7 @@ cloudinary.config(
 )
 
 # --- CONFIGURACIÓN DE BASE DE DATOS ---
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://quiosco_bd_user:7AFl5Li1wKm3VsFipWpTSLm9Z9BGFjUE@dpg-dbcki3ks728c73fbkv3g-a.oregon-postgres.render.com/quiosco_bd'
+app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_MdstoSpT2lu8@ep-blue-butterfly-befvzhn4-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True, "pool_recycle": 300}
 
