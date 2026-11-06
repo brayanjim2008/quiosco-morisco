@@ -332,14 +332,29 @@
         </div>
     </div>
 
-    <!-- VISTA 3: GALERÍA -->
+    <!-- VISTA 3: GALERÍA CORREGIDA -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
             <h2 data-i18n="menu_galeria">Galería</h2>
             <div class="galeria-grid">
                 {% if galeria %}
                     {% for foto in galeria %}
-                    <div style="margin-bottom: 15px;"><img src="{{ foto.imagen_url }}" style="width: 100%; border-radius: 10px;"></div>
+                    <div class="card mb-4 shadow-sm border-0" style="background: transparent;">
+                        <img src="{{ foto.imagen_url }}" class="card-img-top" style="width: 100%; border-radius: 10px 10px 0 0;">
+                        
+                        <!-- Textos de la foto -->
+                        {% if foto.titulo or foto.descripcion %}
+                        <div class="card-body text-center" style="background: var(--fondo-hueso); border-radius: 0 0 10px 10px; border: 1px solid var(--border-color); border-top: none;">
+                            {% if foto.titulo %}
+                                <h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco);">{{ foto.titulo }}</h5>
+                            {% endif %}
+                            {% if foto.descripcion %}
+                                <p class="card-text small mb-0" style="color: var(--texto-claro);">{{ foto.descripcion }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                    </div>
                     {% endfor %}
                 {% else %}
                     <p style="text-align: center; grid-column: span 2;" data-i18n="galeria_vacia">Pronto subiremos fotos...</p>

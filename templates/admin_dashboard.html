@@ -3,122 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración</title>
+    <title>Panel de Administrador - Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        input, select, textarea { font-size: 16px !important; }
-        body { background-color: #f4f6f9; }
-        .card { border-radius: 15px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .card-header { border-top-left-radius: 15px !important; border-top-right-radius: 15px !important; }
-        .table-responsive { white-space: nowrap; }
-    </style>
 </head>
-<body>
+<body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow sticky-top">
+<nav class="navbar navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#"><i class="fas fa-cogs"></i> Panel Admin</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-eye"></i> Menú Público</a></li>
-                <li class="nav-item"><a class="nav-link text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Salir</a></li>
-            </ul>
-        </div>
+        <span class="navbar-brand mb-0 h1">Quiosco Morisco - Panel Admin</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Cerrar Sesión</a>
     </div>
 </nav>
 
-<div class="container">
+<div class="container pb-5">
+    <!-- MENSAGES FLASH -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
-            {{ message }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
+    <!-- ESTADÍSTICAS Y EXPORTACIONES -->
     <div class="row mb-4">
-        <div class="col-md-4 mb-2"><div class="card bg-primary text-white h-100 shadow-sm"><div class="card-body py-4"><h6 class="text-uppercase fw-bold text-white-50">Clientes Leales</h6><h2 class="display-5 fw-bold mb-0"><i class="fas fa-users me-2"></i>{{ total_clientes }}</h2></div></div></div>
-        <div class="col-md-4 mb-2"><div class="card bg-success text-white h-100 shadow-sm"><div class="card-body py-4"><h6 class="text-uppercase fw-bold text-white-50">Consumos Sellados</h6><h2 class="display-5 fw-bold mb-0"><i class="fas fa-check-circle me-2"></i>{{ total_visitas }}</h2></div></div></div>
-        <div class="col-md-4 mb-2"><div class="card bg-warning text-dark h-100 shadow-sm"><div class="card-body py-4"><h6 class="text-uppercase fw-bold text-black-50">Calificación Promedio</h6><h2 class="display-5 fw-bold mb-0"><i class="fas fa-star text-dark me-2"></i>{{ promedio_est }}</h2></div></div></div>
+        <div class="col-md-4">
+            <div class="card text-center text-white bg-primary mb-3 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Clientes Registrados</h5>
+                    <h2 class="display-4">{{ total_clientes }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center text-white bg-success mb-3 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Visitas Totales</h5>
+                    <h2 class="display-4">{{ total_visitas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center text-white bg-warning text-dark mb-3 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Calif. Meseros (Promedio)</h5>
+                    <h2 class="display-4">⭐ {{ promedio_est }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">
+            📊 Exportar Clientes (Excel)
+        </a>
+        <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">
+            📝 Exportar Evaluaciones (Excel)
+        </a>
+        <form action="{{ url_for('generar_pin') }}" method="POST" class="ms-auto">
+            <button type="submit" class="btn btn-dark shadow-sm">🔑 Generar PIN de Caja</button>
+        </form>
     </div>
 
     <div class="row">
         <!-- COLUMNA IZQUIERDA -->
-        <div class="col-lg-4">
+        <div class="col-md-6">
             
-            <!-- PIN DE CONSUMO (GRID MÚLTIPLE) -->
-            <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-key"></i> PINs de Consumo</span>
-                    <span class="badge bg-dark">{{ pins|length }} Activos</span>
-                </div>
-                <div class="card-body text-center bg-light">
-                    <form action="{{ url_for('generar_pin') }}" method="POST" class="mb-3">
-                        <button type="submit" class="btn btn-warning w-100 fw-bold py-2 shadow-sm"><i class="fas fa-plus-circle"></i> Generar PIN</button>
+            <!-- NUEVO: BANNER DE ANUNCIOS -->
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">📢 Banner de Anuncios (Menú Principal)</div>
+                <div class="card-body">
+                    <form action="{{ url_for('nuevo_anuncio') }}" method="POST" class="mb-3">
+                        <input type="text" name="mensaje" class="form-control mb-2" placeholder="Ej. Hoy 2x1 en Frappés" required>
+                        <select name="color" class="form-select mb-2">
+                            <option value="bg-warning text-dark">Amarillo (Avisos / Promociones)</option>
+                            <option value="bg-danger text-white">Rojo (Cerrado / Urgente)</option>
+                            <option value="bg-info text-white">Azul (Informativo)</option>
+                        </select>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" name="activo" class="form-check-input" id="activoBanner">
+                            <label class="form-check-label" for="activoBanner">Activar y mostrar a los clientes</label>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary w-100">Publicar Anuncio</button>
                     </form>
                     
-                    <div class="row g-2" style="max-height: 400px; overflow-y: auto;">
-                        {% for pin in pins|reverse %}
-                        <div class="col-6">
-                            <div class="p-2 bg-white rounded border border-warning shadow-sm">
-                                <h4 class="text-dark fw-bold mb-1" style="letter-spacing: 2px;">{{ pin.codigo }}</h4>
-                                <!-- ¡CORRECCIÓN VITAL AQUÍ (Se quitó el 127.0.0.1)! -->
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid border" style="max-width: 80px;">
+                    {% if anuncios %}
+                    <h6>Anuncios Guardados:</h6>
+                    <ul class="list-group">
+                    {% for an in anuncios %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'ACTIVO' if an.activo else 'INACTIVO' }}</span> 
+                                <small class="ms-1">{{ an.mensaje }}</small>
+                            </div>
+                            <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- GALERÍA MEJORADA -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
+                <div class="card-body">
+                    <form action="{{ url_for('agregar_galeria') }}" method="POST" enctype="multipart/form-data" class="mb-4">
+                        <input type="file" name="foto" class="form-control mb-2" required>
+                        <input type="text" name="titulo" class="form-control mb-2" placeholder="Título (Ej. Noche de Muertos)">
+                        <input type="text" name="descripcion" class="form-control mb-2" placeholder="Descripción breve">
+                        <button type="submit" class="btn btn-sm btn-success w-100">Subir a Galería</button>
+                    </form>
+
+                    <div class="row">
+                        {% for foto in galeria %}
+                        <div class="col-6 mb-3">
+                            <div class="card h-100 shadow-sm border-0">
+                                <img src="{{ foto.imagen_url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
+                                <div class="card-body p-2 text-center bg-light">
+                                    {% if foto.titulo %}<h6 class="card-title fw-bold text-dark mb-1" style="font-size: 0.9rem;">{{ foto.titulo }}</h6>{% endif %}
+                                    {% if foto.descripcion %}<p class="card-text text-muted mb-2" style="font-size: 0.75rem; line-height: 1.2;">{{ foto.descripcion }}</p>{% endif %}
+                                    <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET" class="mt-2">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100">Eliminar</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                        {% else %}
-                        <p class="text-muted small w-100 mt-2">No hay PINs pendientes.</p>
                         {% endfor %}
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4 border-dark">
-                <div class="card-body text-center p-3">
-                    <p class="text-muted small fw-bold mb-2">Exporta tus clientes para WhatsApp Marketing</p>
-                    <a href="{{ url_for('exportar_clientes') }}" class="btn btn-dark w-100 fw-bold"><i class="fas fa-file-excel text-success me-1"></i> Descargar Excel</a>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-secondary">
-                <div class="card-header bg-secondary text-white"><i class="fas fa-gift"></i> Metas de Fidelidad</div>
+            <!-- CATEGORÍAS -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú</div>
                 <div class="card-body">
-                    <form action="{{ url_for('nuevo_premio') }}" method="POST" class="mb-3">
-                        <input type="number" name="visitas" class="form-control mb-1" placeholder="Visitas necesarias (Ej: 15)" required>
-                        <input type="text" name="premio_es" class="form-control mb-1" placeholder="Premio (ES)" required>
-                        <input type="text" name="premio_en" class="form-control mb-2" placeholder="Premio (EN - Opcional)">
-                        <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-plus"></i> Agregar Meta</button>
+                    <form action="{{ url_for('nueva_categoria') }}" method="POST" class="d-flex gap-2 mb-3">
+                        <input type="text" name="nombre" class="form-control" placeholder="Nueva categoría" required>
+                        <button type="submit" class="btn btn-success">Agregar</button>
                     </form>
-                    <ul class="list-group list-group-flush mt-3">
-                        {% for p in premios %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div><span class="badge bg-secondary rounded-pill me-2">{{ p.visitas_necesarias }} Visitas</span><br><strong>{{ p.premio_es }}</strong></div>
-                            <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Borrar?');"><i class="fas fa-trash"></i></button></form>
+                    <ul class="list-group">
+                        {% for cat in categorias %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ cat.nombre }}
+                            <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-danger">X</button>
+                            </form>
                         </li>
                         {% endfor %}
                     </ul>
                 </div>
             </div>
-
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white"><i class="fas fa-list"></i> Categorías del Menú</div>
+            
+            <!-- PREMIOS Y FIDELIDAD -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
                 <div class="card-body">
-                    <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
-                        <input type="text" name="nombre" class="form-control mb-1" placeholder="Nueva Categoría (ES)" required>
-                        <input type="text" name="nombre_en" class="form-control mb-2" placeholder="Traducción (EN)">
-                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus"></i> Agregar</button>
+                    <form action="{{ url_for('nuevo_premio') }}" method="POST" class="mb-3">
+                        <div class="input-group">
+                            <input type="number" name="visitas" class="form-control" placeholder="No. Visitas" required>
+                            <input type="text" name="premio_es" class="form-control w-50" placeholder="Premio (Ej. Frappé Gratis)" required>
+                            <button type="submit" class="btn btn-success">Crear</button>
+                        </div>
                     </form>
-                    <ul class="list-group list-group-flush">
-                        {% for cat in categorias %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span>{{ cat.nombre }}</span>
-                            <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Borrar?');"><i class="fas fa-trash"></i></button></form>
+                    <ul class="list-group">
+                        {% for p in premios %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }}</span>
+                            <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-danger">X</button>
+                            </form>
                         </li>
                         {% endfor %}
                     </ul>
@@ -128,132 +187,69 @@
         </div>
 
         <!-- COLUMNA DERECHA -->
-        <div class="col-lg-8">
-            <!-- Gestión de Platillos -->
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white"><i class="fas fa-hamburger"></i> Gestión de Platillos</div>
+        <div class="col-md-6">
+            
+            <!-- PRODUCTOS (PLATILLOS) -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data" class="mb-4 bg-light p-3 rounded border">
+                        <h6>Agregar Nuevo Platillo</h6>
+                        <input type="text" name="nombre" class="form-control mb-2" placeholder="Nombre del platillo" required>
+                        <textarea name="descripcion" class="form-control mb-2" placeholder="Descripción de los ingredientes..." rows="2"></textarea>
                         <div class="row">
-                            <div class="col-md-6 mb-2"><input type="text" name="nombre" class="form-control" placeholder="Nombre (ES)" required></div>
-                            <div class="col-md-6 mb-2"><input type="text" name="nombre_en" class="form-control" placeholder="Nombre (EN)"></div>
-                            <div class="col-md-6 mb-2"><textarea name="descripcion" class="form-control" rows="2" placeholder="Descripción (ES)" required></textarea></div>
-                            <div class="col-md-6 mb-2"><textarea name="descripcion_en" class="form-control" rows="2" placeholder="Descripción (EN)"></textarea></div>
-                            <div class="col-md-4 mb-2"><input type="number" step="0.01" name="precio" class="form-control" placeholder="Precio $" required></div>
-                            <div class="col-md-4 mb-2">
-                                <select name="categoria" class="form-select" required>
-                                    <option value="" disabled selected>Categoría...</option>
-                                    {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
+                            <div class="col-6">
+                                <input type="number" step="0.01" name="precio" class="form-control mb-2" placeholder="Precio ($)" required>
+                            </div>
+                            <div class="col-6">
+                                <select name="categoria" class="form-select mb-2" required>
+                                    <option value="">Selecciona Categoría</option>
+                                    {% for cat in categorias %}
+                                    <option value="{{ cat.nombre }}">{{ cat.nombre }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-4 mb-2"><input type="file" name="foto" class="form-control" accept="image/*"></div>
-                            <div class="col-md-6 mt-2">
-                                <div class="form-check form-switch">
-                                  <input class="form-check-input" type="checkbox" name="destacado" id="destacadoCheck">
-                                  <label class="form-check-label text-warning fw-bold" for="destacadoCheck"><i class="fas fa-star"></i> Platillo Estrella</label>
-                                </div>
+                        </div>
+                        <input type="file" name="foto" class="form-control mb-2">
+                        <div class="d-flex gap-3 mb-3 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
+                                <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Destacar</label>
                             </div>
-                            <div class="col-md-6 mt-2">
-                                <div class="form-check form-switch">
-                                  <input class="form-check-input" type="checkbox" name="agotado" id="agotadoCheck">
-                                  <label class="form-check-label text-danger fw-bold" for="agotadoCheck"><i class="fas fa-ban"></i> Marcar como Agotado</label>
-                                </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="agotado" id="agotado">
+                                <label class="form-check-label text-danger fw-bold" for="agotado">❌ Agotado</label>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 fw-bold mt-3">Añadir Platillo</button>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Platillo</button>
                     </form>
 
-                    <div class="table-responsive">
-                        <table class="table align-middle table-hover">
-                            <thead class="table-light"><tr><th>Img</th><th>Platillo</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
-                            <tbody>
-                                {% for p in productos %}
-                                <tr>
-                                    <td>{% if p.imagen_url %}<img src="{{ p.imagen_url }}" width="50" class="rounded shadow-sm">{% endif %}</td>
-                                    <td>
-                                        <strong>{{ p.nombre }}</strong> 
-                                        {% if p.destacado %}<i class="fas fa-star text-warning"></i>{% endif %}
-                                        <br><small class="text-muted">{{ p.categoria }}</small>
-                                    </td>
-                                    <td>${{ p.precio }}</td>
-                                    <td>
-                                        {% if p.agotado %}
-                                            <span class="badge bg-danger">Agotado</span>
-                                        {% else %}
-                                            <span class="badge bg-success">Disponible</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group">
-                                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ p.id }}"><i class="fas fa-edit"></i></button>
-                                            <form action="{{ url_for('eliminar_producto', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
-                                                <button type="submit" class="btn btn-outline-danger"><i class="fas fa-trash"></i></button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
-                                  <div class="modal-dialog">
-                                    <div class="modal-content">
-                                      <div class="modal-header bg-primary text-white"><h5 class="modal-title">Editar Platillo</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                                      <form action="{{ url_for('editar_producto', id=p.id) }}" method="POST" enctype="multipart/form-data">
-                                          <div class="modal-body">
-                                              <input type="text" name="nombre" class="form-control mb-1" value="{{ p.nombre }}" required>
-                                              <input type="text" name="nombre_en" class="form-control mb-2" value="{{ p.nombre_en }}">
-                                              <textarea name="descripcion" class="form-control mb-1">{{ p.descripcion }}</textarea>
-                                              <textarea name="descripcion_en" class="form-control mb-2">{{ p.descripcion_en }}</textarea>
-                                              <input type="number" step="0.01" name="precio" class="form-control mb-2" value="{{ p.precio }}" required>
-                                              <select name="categoria" class="form-select mb-2" required>
-                                                  <option value="{{ p.categoria }}">{{ p.categoria }} (Actual)</option>
-                                                  {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
-                                              </select>
-                                              <input type="file" name="foto" class="form-control mb-3" accept="image/*">
-                                              
-                                              <div class="form-check form-switch mb-2">
-                                                  <input class="form-check-input" type="checkbox" name="destacado" id="editDestacado{{ p.id }}" {% if p.destacado %}checked{% endif %}>
-                                                  <label class="form-check-label text-warning fw-bold" for="editDestacado{{ p.id }}"><i class="fas fa-star"></i> Platillo Estrella</label>
-                                              </div>
-                                              <div class="form-check form-switch">
-                                                  <input class="form-check-input" type="checkbox" name="agotado" id="editAgotado{{ p.id }}" {% if p.agotado %}checked{% endif %}>
-                                                  <label class="form-check-label text-danger fw-bold" for="editAgotado{{ p.id }}"><i class="fas fa-ban"></i> Marcar como Agotado</label>
-                                              </div>
-                                          </div>
-                                          <div class="modal-footer"><button type="submit" class="btn btn-primary w-100">Guardar</button></div>
-                                      </form>
-                                    </div>
-                                  </div>
+                    <div class="list-group" style="max-height: 500px; overflow-y: auto;">
+                        {% for prod in productos %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">
+                                        {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
+                                        <span class="badge bg-success">${{ prod.precio }}</span>
+                                        {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ prod.categoria }}</small>
                                 </div>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- GALERÍA -->
-            <div class="card mb-4 border-dark">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-images"></i> Galería</h5>
-                    <form action="{{ url_for('agregar_galeria') }}" method="POST" enctype="multipart/form-data" class="d-flex">
-                        <input type="file" name="foto" class="form-control form-control-sm me-2" required>
-                        <button type="submit" class="btn btn-light btn-sm fw-bold">Subir</button>
-                    </form>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for foto in galeria %}
-                        <div class="col-4 mb-3 position-relative">
-                            <img src="{{ foto.imagen_url }}" class="img-fluid rounded shadow-sm w-100" style="height: 120px; object-fit: cover;">
-                            <a href="{{ url_for('eliminar_galeria', id=foto.id) }}" class="btn btn-danger position-absolute top-0 end-0 m-1" onclick="return confirm('¿Borrar?');"><i class="fas fa-times"></i></a>
+                                <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                                </form>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
-            
+
         </div>
     </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
