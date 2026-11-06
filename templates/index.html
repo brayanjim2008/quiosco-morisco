@@ -51,6 +51,14 @@
         /* Animaciones para cambio de vista */
         .vista-app { animation: fadeIn 0.4s; }
 
+        /* Estilos Pro para la Vista "Nosotros" (Texto al lado de imagen fija) */
+        .nosotros-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 15px; }
+        .nosotros-bloque { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #efebe4; }
+        .nosotros-img { width: 100%; height: 200px; object-fit: cover; }
+        .nosotros-texto { padding: 20px; }
+        .nosotros-texto h3 { color: var(--cobre); text-align: left; margin-top: 0; font-size: 20px; margin-bottom: 10px; }
+        .nosotros-texto p { color: var(--texto-claro); font-size: 14px; line-height: 1.6; margin: 0; }
+
         /* Barra de Progreso */
         .progress-container { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid #efebe4; text-align: center; }
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 20px 0; flex-wrap: wrap; gap: 4px; }
@@ -151,8 +159,8 @@
     <div class="sidebar-links">
         <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo"><span class="icon">🏠</span> Inicio</a>
         <a href="javascript:void(0)" onclick="cambiarVista('menu')" id="link-menu"><span class="icon">🍔</span> Ver Menú</a>
+        <a href="javascript:void(0)" onclick="cambiarVista('nosotros')" id="link-nosotros"><span class="icon">🏛️</span> Acerca de nosotros</a>
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')"><span class="icon">❓</span> ¿Cómo usar esta web?</a>
-        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-acerca')"><span class="icon">🏛️</span> Acerca de nosotros</a>
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-comensal')"><span class="icon">📱</span> Comensal Conectado</a>
     </div>
 
@@ -162,7 +170,7 @@
     </div>
 </div>
 
-<!-- Modales Informativos -->
+<!-- Modales Informativos menores -->
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3>❓ ¿Cómo usar esta web?</h3>
@@ -171,15 +179,6 @@
         <p><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio" y acumula consumos.</p>
         <p><strong>4. Gana premios:</strong> ¡Completa tu tarjeta y disfruta de platillos o bebidas gratis!</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar')">Entendido</button>
-    </div>
-</div>
-
-<div id="modal-acerca" class="modal-overlay">
-    <div class="modal-content">
-        <h3>🏛️ Quiosco Morisco</h3>
-        <p style="text-align: center; font-style: italic; color: var(--cobre); font-weight: bold; font-size: 16px;">El Café y la Vida se disfrutan más en San Cristóbal de las Casas.</p>
-        <p style="text-align: center;">Somos un espacio bistró dedicado a ofrecerte los mejores desayunos, comidas, bebidas y postres, creando momentos inolvidables en el corazón de la ciudad.</p>
-        <button class="btn" onclick="cerrarModalInfo('modal-acerca')">Cerrar</button>
     </div>
 </div>
 
@@ -341,6 +340,38 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- VISTA 3: ACERCA DE NOSOTROS (Con estilo de foto fija y texto al lado) -->
+    <!-- ========================================== -->
+    <div id="vista-nosotros" class="vista-app" style="display: none;">
+        <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
+            <h2>Acerca de Nosotros</h2>
+            <p style="text-align: center; color: var(--texto-claro); font-style: italic; margin-top: -10px; margin-bottom: 25px;">
+                El Café y la Vida se disfrutan más en San Cristóbal de las Casas.
+            </p>
+
+            <div class="nosotros-grid">
+                <!-- Bloque Misión -->
+                <div class="nosotros-bloque">
+                    <img src="{{ url_for('static', filename='logo.jpg') }}" class="nosotros-img" alt="Quiosco Morisco Misión" loading="lazy">
+                    <div class="nosotros-texto">
+                        <h3>MISIÓN</h3>
+                        <p>Ofrecer una experiencia de café chiapaneco auténtico, combinando calidad, sabor y calidez en cada visita, creando momentos inolvidables en el corazón de la ciudad.</p>
+                    </div>
+                </div>
+
+                <!-- Bloque Visión -->
+                <div class="nosotros-bloque">
+                    <img src="{{ url_for('static', filename='logo.jpg') }}" class="nosotros-img" alt="Quiosco Morisco Visión" loading="lazy">
+                    <div class="nosotros-texto">
+                        <h3>VISIÓN</h3>
+                        <p>Consolidarnos como el espacio bistró favorito de locales y visitantes, destacando por nuestra excelencia culinaria, innovación digital y un ambiente inigualable.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- FORMULARIO DE EVALUACIÓN (Global) -->
     <!-- ========================================== -->
     <div class="eval-container" id="seccion-evaluacion">
@@ -404,28 +435,36 @@
     function cambiarVista(vista) {
         cerrarSidebar();
         
-        // Quitar clase activo de los links
+        // Ocultar todas las vistas
+        document.getElementById('vista-inicio').style.display = 'none';
+        document.getElementById('vista-menu').style.display = 'none';
+        document.getElementById('vista-nosotros').style.display = 'none';
+
+        // Quitar clase activo de todos los links
         document.getElementById('link-inicio').classList.remove('activo');
         document.getElementById('link-menu').classList.remove('activo');
+        document.getElementById('link-nosotros').classList.remove('activo');
 
+        // Mostrar la vista seleccionada
         if (vista === 'inicio') {
             document.getElementById('vista-inicio').style.display = 'block';
-            document.getElementById('vista-menu').style.display = 'none';
             document.getElementById('link-inicio').classList.add('activo');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         } else if (vista === 'menu') {
-            document.getElementById('vista-inicio').style.display = 'none';
             document.getElementById('vista-menu').style.display = 'block';
             document.getElementById('link-menu').classList.add('activo');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (vista === 'nosotros') {
+            document.getElementById('vista-nosotros').style.display = 'block';
+            document.getElementById('link-nosotros').classList.add('activo');
         }
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     // --- Funciones del Menú Lateral (Sidebar) ---
     function abrirSidebar() {
         document.getElementById("miSidebar").style.width = "300px";
         document.getElementById("sidebar-overlay").style.display = "block";
-        document.body.style.overflow = "hidden"; // Evita que hagan scroll en el menú de fondo
+        document.body.style.overflow = "hidden";
     }
 
     function cerrarSidebar() {
@@ -434,7 +473,7 @@
         document.body.style.overflow = "auto";
     }
 
-    // --- Función Unificada para Abrir y Cerrar Modales ---
+    // --- Funciones para Modales Menores ---
     function abrirModalInfo(modalId) {
         cerrarSidebar(); 
         document.getElementById(modalId).style.display = 'flex';
