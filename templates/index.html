@@ -14,9 +14,16 @@
         :root { --verde-quiosco: #13423b; --cobre: #c98246; --fondo-hueso: #fdfaf6; --texto-oscuro: #2c2c2c; --texto-claro: #5a5a5a; }
         body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 15px 80px 15px; color: var(--texto-oscuro); }
         
-        /* Barra de Administrador Integrada */
-        .navbar-top { display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px; }
-        .btn-admin { background-color: var(--cobre); color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(201, 130, 70, 0.3); }
+        /* Barra superior y Menú Hamburguesa */
+        .navbar-top { display: flex; justify-content: flex-end; padding: 15px 0; margin-bottom: 5px; }
+        .hamburger { font-size: 32px; cursor: pointer; color: var(--verde-quiosco); }
+        
+        /* Menú Lateral (Sidebar) */
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar { height: 100%; width: 0; position: fixed; z-index: 3000; top: 0; right: 0; background-color: #fff; overflow-x: hidden; transition: 0.3s; padding-top: 60px; box-shadow: -5px 0 15px rgba(0,0,0,0.1); border-left: 2px solid var(--cobre); }
+        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 16px; color: var(--verde-quiosco); display: block; transition: 0.3s; font-weight: 600; border-bottom: 1px solid #f0ece1; }
+        .sidebar a:hover { background-color: #faf8f5; }
+        .sidebar .close-btn { position: absolute; top: 10px; right: 25px; font-size: 36px; border: none; padding: 0; margin: 0; background: none; color: var(--cobre); }
         
         .container { max-width: 500px; margin: auto; }
         h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 600; }
@@ -89,13 +96,13 @@
         .filtro-btn { display: inline-block; background: #faf8f5; border: 1px solid var(--cobre); color: var(--cobre); padding: 8px 16px; margin-right: 8px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; }
         .filtro-btn.activo, .filtro-btn:hover { background: var(--cobre); color: #fff; }
 
-        /* Estilos del Nuevo Modal */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 300px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .modal-content h3 { color: var(--verde-quiosco); margin-top: 0; font-size: 20px; }
-        .modal-content p { color: var(--texto-claro); font-size: 14px; margin-bottom: 20px; }
+        /* Estilos Generales de Modales */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 4000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 80vh; overflow-y: auto; }
+        .modal-content h3 { color: var(--verde-quiosco); margin-top: 0; font-size: 20px; border-bottom: 1px solid var(--cobre); padding-bottom: 10px; }
+        .modal-content p { color: var(--texto-claro); font-size: 14px; margin-bottom: 15px; text-align: left; line-height: 1.5; }
         .modal-content input { width: 100%; padding: 12px; font-size: 18px; text-align: center; border: 2px solid var(--cobre); border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; font-weight: bold; }
-        .modal-buttons { display: flex; gap: 10px; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .btn-cancelar { flex: 1; background: #eee; color: #555; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .btn-llamar { flex: 1; background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
@@ -118,7 +125,7 @@
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.25em; font-family: 'Lora', serif; }
 
         /* SECCIÓN DE CALIFICACIÓN POR ESTRELLAS */
-        .eval-container { background: #fff; padding: 25px; margin: 15px auto 30px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; border: 1px solid #efebe4; display: none; /* Oculto por defecto */ transition: all 0.3s ease; }
+        .eval-container { background: #fff; padding: 25px; margin: 15px auto 30px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; border: 1px solid #efebe4; display: none; transition: all 0.3s ease; }
         .eval-container.activo { display: block; }
         .eval-container h3 { margin-top: 0; color: #333; font-size: 22px; }
         .star-rating { direction: rtl; display: flex; justify-content: center; font-size: 2.5rem; line-height: 1; }
@@ -132,30 +139,71 @@
 </head>
 <body>
 
-<!-- Nuevo Modal Elegante para Llamar Mesero -->
+<!-- Menú Lateral Desplegable (Sidebar) -->
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="cerrarSidebar()"></div>
+<div id="miSidebar" class="sidebar">
+    <a href="javascript:void(0)" class="close-btn" onclick="cerrarSidebar()">&times;</a>
+    <a href="#" onclick="cerrarSidebar()">🍔 Ver Menú</a>
+    <a href="#" onclick="abrirModalInfo('modal-como-usar')">❓ ¿Cómo usar esta web?</a>
+    <a href="#" onclick="abrirModalInfo('modal-acerca')">🏛️ Acerca de nosotros</a>
+    <a href="#" onclick="abrirModalInfo('modal-comensal')">📱 Comensal Conectado</a>
+    <a href="/admin_login" style="color: var(--cobre); margin-top: 20px;">⚙️ Iniciar Caja / Admin</a>
+</div>
+
+<!-- Modales Informativos (Se abren desde el sidebar) -->
+<div id="modal-como-usar" class="modal-overlay">
+    <div class="modal-content">
+        <h3>❓ ¿Cómo usar esta web?</h3>
+        <p><strong>1. Explora el menú:</strong> Desliza para ver nuestros platillos y usa los filtros por categorías.</p>
+        <p><strong>2. Llama al mesero:</strong> Usa el botón verde flotante para pedir desde tu mesa rápidamente.</p>
+        <p><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo aquí y acumula consumos.</p>
+        <p><strong>4. Gana premios:</strong> ¡Completa tu tarjeta y disfruta de platillos o bebidas gratis!</p>
+        <button class="btn" onclick="cerrarModalInfo('modal-como-usar')">Entendido</button>
+    </div>
+</div>
+
+<div id="modal-acerca" class="modal-overlay">
+    <div class="modal-content">
+        <h3>🏛️ Quiosco Morisco</h3>
+        <p>El Café y la Vida se disfrutan más en San Cristóbal de las Casas.</p>
+        <p>Somos un espacio bistró dedicado a ofrecerte los mejores desayunos, comidas, bebidas y postres, creando momentos inolvidables en el corazón de la ciudad.</p>
+        <button class="btn" onclick="cerrarModalInfo('modal-acerca')">Cerrar</button>
+    </div>
+</div>
+
+<div id="modal-comensal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>📱 Comensal Conectado</h3>
+        <p>Estás utilizando el sistema <strong>Comensal Conectado</strong>, una plataforma digital de menús inteligentes y fidelización operada mediante tecnología NFC.</p>
+        <p><em>Desarrollado y administrado por:<br>Brayan Jiménez</em></p>
+        <button class="btn" onclick="cerrarModalInfo('modal-comensal')">Cerrar</button>
+    </div>
+</div>
+
+<!-- Modal Elegante para Llamar Mesero -->
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
         <h3>🛎️ Llamar al Mesero</h3>
-        <p>Para atenderte rápido, ¿en qué número de mesa te encuentras?</p>
+        <p style="text-align: center;">Para atenderte rápido, ¿en qué número de mesa te encuentras?</p>
         <input type="number" id="input-mesa" placeholder="Ej. 4">
         <div class="modal-buttons">
-            <button onclick="cerrarModal()" class="btn-cancelar">Cancelar</button>
+            <button onclick="cerrarModalInfo('modal-mesero')" class="btn-cancelar">Cancelar</button>
             <button onclick="enviarMensajeWhatsapp()" class="btn-llamar">Llamar</button>
         </div>
     </div>
 </div>
 
-<!-- Botones Flotantes Inferiores (Llamar Mesero + Déjanos tu opinión) -->
+<!-- Botones Flotantes Inferiores -->
 <div class="botones-flotantes">
-    <div class="btn-flotante-mesero" onclick="abrirModal()">🛎️ Llamar Mesero</div>
+    <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')">🛎️ Llamar Mesero</div>
     <div class="btn-flotante-eval" onclick="toggleEvaluacion()">⭐ Opinión</div>
 </div>
 
 <div class="container">
     
-    <!-- Barra superior para el administrador -->
+    <!-- Barra superior con Menú Hamburguesa -->
     <div class="navbar-top">
-        <a href="/admin_login" class="btn-admin">Iniciar Caja / Admin</a>
+        <div class="hamburger" onclick="abrirSidebar()">&#9776;</div>
     </div>
 
     <div class="logo-container">
@@ -249,7 +297,6 @@
                     <div class="categoria-titulo">{{ categoria }}</div>
                     {% for producto in lista %}
                         <div class="menu-item card" style="margin-bottom: 10px;">
-                            <!-- Lazy Loading aplicado a la imagen del platillo -->
                             {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
                             <div class="info-platillo">
                                 <span class="nombre-platillo">{{ producto.nombre }}</span>
@@ -266,7 +313,7 @@
         {% endif %}
     </div>
 
-    <!-- FORMULARIO DE EVALUACIÓN (Oculto por defecto) -->
+    <!-- FORMULARIO DE EVALUACIÓN -->
     <div class="eval-container" id="seccion-evaluacion">
         <h3>¡Califica tu Experiencia!</h3>
         <form action="{{ url_for('enviar_evaluacion') }}" method="POST">
@@ -313,7 +360,6 @@
                 <input type="radio" id="m1" name="mesero_calificacion" value="1"><label for="m1">★</label>
             </div>
 
-            <!-- Botón colocado justo debajo de calificar mesero -->
             <button type="submit" class="btn-eval">Enviar Evaluación</button>
 
             <span class="eval-label" style="margin-top: 20px;">6. ¿Algún comentario adicional? (Opcional):</span>
@@ -325,24 +371,43 @@
 </div>
 
 <script>
-    // --- Funciones para el Nuevo Modal del Mesero ---
-    function abrirModal() {
-        document.getElementById('modal-mesero').style.display = 'flex';
-        document.getElementById('input-mesa').focus(); // Pone el cursor directo en el campo
+    // --- Funciones del Menú Lateral (Sidebar) ---
+    function abrirSidebar() {
+        document.getElementById("miSidebar").style.width = "280px";
+        document.getElementById("sidebar-overlay").style.display = "block";
     }
 
-    function cerrarModal() {
-        document.getElementById('modal-mesero').style.display = 'none';
-        document.getElementById('input-mesa').value = ''; // Limpia el input
+    function cerrarSidebar() {
+        document.getElementById("miSidebar").style.width = "0";
+        document.getElementById("sidebar-overlay").style.display = "none";
     }
 
+    // --- Función Unificada para Abrir y Cerrar Modales ---
+    function abrirModalInfo(modalId) {
+        cerrarSidebar(); // Cierra el menú lateral si estaba abierto
+        document.getElementById(modalId).style.display = 'flex';
+        
+        // Si es el modal del mesero, hace focus automático en el input
+        if (modalId === 'modal-mesero') {
+            setTimeout(() => document.getElementById('input-mesa').focus(), 100);
+        }
+    }
+
+    function cerrarModalInfo(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+        if (modalId === 'modal-mesero') {
+            document.getElementById('input-mesa').value = '';
+        }
+    }
+
+    // --- Enviar Mensaje WhatsApp Mesero ---
     function enviarMensajeWhatsapp() {
         let mesa = document.getElementById('input-mesa').value;
         if (mesa && mesa.trim() !== "") {
             let numeroWhatsapp = "5219671364781"; 
             let mensaje = `Hola, estoy en la Mesa ${mesa}, ¿me pueden atender por favor?`;
             let url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
-            cerrarModal(); // Cierra el modal antes de abrir WhatsApp
+            cerrarModalInfo('modal-mesero'); 
             window.open(url, '_blank');
         } else {
             alert("Por favor, ingresa tu número de mesa.");
@@ -354,7 +419,6 @@
         let seccionEval = document.getElementById('seccion-evaluacion');
         seccionEval.classList.toggle('activo');
         
-        // Hace un pequeño scroll hacia abajo para que el usuario vea que se abrió
         if (seccionEval.classList.contains('activo')) {
             seccionEval.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -366,7 +430,7 @@
         alert('Contraseña: Corazonsc31 \n\n¡Copiada al portapapeles! Solo ve a tus ajustes de Wi-Fi y pégala.');
     }
 
-    // Funktion para Filtrar el Menú
+    // Función para Filtrar el Menú
     function filtrarMenu(categoria, boton) {
         let botones = document.querySelectorAll('.filtro-btn');
         botones.forEach(btn => btn.classList.remove('activo'));
