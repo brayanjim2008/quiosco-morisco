@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -103,9 +104,9 @@ class Anuncio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     mensaje = db.Column(db.String(250), nullable=False)
     color = db.Column(db.String(50), default="bg-warning")
-    imagen_url = db.Column(db.String(255), nullable=True) # NUEVO: Foto del banner
-    texto_boton = db.Column(db.String(50), nullable=True) # NUEVO: Botón
-    enlace = db.Column(db.String(100), nullable=True) # NUEVO: Link del botón
+    imagen_url = db.Column(db.String(255), nullable=True)
+    texto_boton = db.Column(db.String(50), nullable=True)
+    enlace = db.Column(db.String(100), nullable=True)
     activo = db.Column(db.Boolean, default=False)
 
 @login_manager.user_loader
@@ -115,20 +116,40 @@ def load_user(user_id):
 # --- RUTAS PRINCIPALES ---
 @app.route('/actualizar_db')
 def actualizar_db():
+    # ¡CUIDADO! Esta ruta borra todo. Mejor no usarla si ya hay clientes.
     db.drop_all()
     db.create_all()
-    
     db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
     db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
-    
     db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
     db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
-    
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
-    
     db.session.commit()
-    return "<h1>¡BD Reconstruida (Permisos y Agotados)!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
+    return "<h1>¡BD Reconstruida desde cero!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
+
+# --- NUEVO: PARCHE SEGURO SIN PERDER DATOS ---
+@app.route('/parche_seguro')
+def parche_seguro():
+    db.create_all() # Crea tablas nuevas (como Anuncio) si no existían
+    
+    instrucciones = [
+        "ALTER TABLE producto ADD COLUMN agotado BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE galeria ADD COLUMN titulo VARCHAR(100);",
+        "ALTER TABLE galeria ADD COLUMN descripcion VARCHAR(250);",
+        "ALTER TABLE anuncio ADD COLUMN imagen_url VARCHAR(255);",
+        "ALTER TABLE anuncio ADD COLUMN texto_boton VARCHAR(50);",
+        "ALTER TABLE anuncio ADD COLUMN enlace VARCHAR(100);"
+    ]
+    
+    for sql in instrucciones:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+        except Exception:
+            db.session.rollback() # Ignorar si la columna ya existía y seguir
+            
+    return "<h1>¡PARCHE SEGURO APLICADO CON ÉXITO! 🚀</h1><p>Tus clientes y productos están a salvo. Ya puedes regresar a <a href='/'>tu página principal</a>.</p>"
 
 @app.route('/')
 def index():
@@ -451,7 +472,6 @@ def nuevo_anuncio():
     if request.form.get('activo') == 'on':
         Anuncio.query.update({Anuncio.activo: False})
     
-    # NUEVO: Subir imagen de portada si la hay
     img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
     
     db.session.add(Anuncio(
@@ -479,7 +499,6 @@ def eliminar_anuncio(id):
 def generar_pin():
     cantidad = int(request.form.get('cantidad', 1))
     for _ in range(cantidad):
-        # NUEVO: Solo 4 dígitos numéricos
         codigo = ''.join(random.choices(string.digits, k=4))
         db.session.add(PinCaja(codigo=codigo))
     db.session.commit()
