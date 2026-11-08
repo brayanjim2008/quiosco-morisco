@@ -113,6 +113,31 @@
 </head>
 <body>
 
+<!-- NUEVO: BANNER TIPO PORTADA -->
+{% if anuncio and anuncio.activo %}
+<div class="container-fluid p-0 position-relative" style="margin-bottom: 20px;">
+    {% if anuncio.imagen_url %}
+    <div style="width: 100%; height: 280px; overflow: hidden; position: relative;">
+        <img src="{{ anuncio.imagen_url }}" style="width: 100%; height: 100%; object-fit: cover; filter: brightness(0.6);" alt="Portada">
+        <div class="position-absolute top-50 start-50 translate-middle text-center w-100 px-3">
+            <h2 class="text-white fw-bold mb-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8); font-family: 'Lora', serif; font-size: 2rem;">{{ anuncio.mensaje }}</h2>
+            {% if anuncio.texto_boton and anuncio.enlace %}
+            <a href="{{ anuncio.enlace }}" class="btn btn-warning rounded-pill px-4 py-2 fw-bold shadow" style="text-transform: uppercase; letter-spacing: 1px;" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }}</a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="{{ anuncio.color }} text-center p-3 fw-bold shadow-sm">
+        <span style="font-size: 1.1rem;">{{ anuncio.mensaje }}</span>
+        {% if anuncio.texto_boton and anuncio.enlace %}
+        <br>
+        <a href="{{ anuncio.enlace }}" class="btn btn-sm btn-light rounded-pill px-3 mt-2 fw-bold text-dark" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <div id="sidebar-overlay" class="sidebar-overlay" onclick="cerrarSidebar()"></div>
 <div id="miSidebar" class="sidebar">
     <div class="sidebar-header">
@@ -363,6 +388,15 @@
         </div>
     </div>
 </div>
+
+<footer class="bg-dark text-white text-center py-4 mt-4 shadow">
+    <div class="mb-3">
+        <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fab fa-tiktok"></i></a>
+        <a href="https://share.google/g7hYq0hAgNAgyfS4l" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fas fa-map-marker-alt"></i></a>
+    </div>
+    <p class="mb-0 small text-muted">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
+</footer>
 
 <script>
     const traducciones = {
