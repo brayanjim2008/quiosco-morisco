@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#13423b">
     
     <title>Menú - Quiosco Morisco</title>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -20,9 +20,9 @@
         body.dark-mode .hamburger { color: white; }
         body.dark-mode .logo-container img, body.dark-mode .sidebar-header img { background: #121212; border-color: var(--verde-quiosco); }
 
-        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 15px 80px 15px; color: var(--texto-oscuro); transition: background 0.3s; }
+        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 80px 0; color: var(--texto-oscuro); transition: background 0.3s; }
         
-        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; margin-bottom: 5px; }
+        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 15px; margin-bottom: 5px; }
         .lang-selector { display: flex; gap: 5px; background: var(--fondo-tarjeta); padding: 5px; border-radius: 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); align-items: center; transition: 0.3s; }
         .lang-icono { color: var(--texto-claro); margin-left: 8px; font-size: 14px; cursor: pointer; }
         .lang-btn { background: transparent; border: none; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
@@ -43,13 +43,31 @@
         .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-color); }
         .btn-admin-sidebar { background: var(--cobre); color: white !important; border-radius: 8px; justify-content: center; text-transform: uppercase; font-size: 13px !important; }
         
-        .container { max-width: 500px; margin: auto; }
+        .container { max-width: 500px; margin: auto; padding: 0 15px; }
         h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 600; }
-        .logo-container { text-align: center; margin-bottom: 20px; }
+        .logo-container { text-align: center; margin-bottom: 15px; }
         .logo-container img { width: 120px; border-radius: 50%; border: 3px solid var(--cobre); background: white; }
-        h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 25px; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 20px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border-color); }
         
+        /* NUEVO: BANNER ESTILO STARBUCKS */
+        .hero-banner-starbucks { position: relative; width: 100%; min-height: 400px; height: 50vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; margin-top: -5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%); z-index: 2; }
+        .hero-content { position: relative; z-index: 3; padding: 20px; color: white; width: 100%; max-width: 800px; }
+        .hero-title { font-family: 'Lora', serif; font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 700; margin-bottom: 25px; text-shadow: 0px 4px 15px rgba(0,0,0,0.6); line-height: 1.1; color: white; border: none; }
+        .hero-btn { display: inline-block; padding: 12px 35px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-size: 14px; transition: all 0.3s ease; background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); }
+        .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-2px); }
+
+        /* NUEVO: BARRA SOCIAL ELEGANTE */
+        .social-bar-elegante { display: flex; justify-content: center; gap: 20px; background: var(--fondo-tarjeta); padding: 12px 30px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 35px auto; width: fit-content; position: relative; z-index: 10; }
+        .social-item { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; color: white !important; font-size: 22px; text-decoration: none; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .social-item:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .social-item.instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+        .social-item.tiktok { background: #000000; }
+        .social-item.maps { background: #ea4335; }
+        body.dark-mode .social-bar-elegante { background: #2a2a2a; border-color: #444; box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+
         .vista-app { display: none; animation: fadeIn 0.4s; }
         #vista-inicio { display: block; }
 
@@ -66,7 +84,6 @@
 
         .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; text-transform: uppercase; }
         .btn:hover { background: var(--cobre); }
-        .btn-wifi { background: transparent; color: var(--verde-quiosco); border: 2px solid var(--verde-quiosco); }
         .botones-flotantes { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
@@ -105,7 +122,6 @@
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.2em; color: var(--verde-quiosco); font-weight: 600; display: block; margin-bottom: 4px; }
         .precio { font-weight: bold; color: var(--cobre); font-size: 1.3em; font-family: 'Lora', serif; }
 
-        /* Estilos Evaluaciones */
         .eval-select, .eval-textarea { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; }
         .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 20px; flex: 1; }
         .eval-label { margin-bottom: 0px; font-weight: bold; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 15px; font-size: 14px; }
@@ -113,28 +129,36 @@
 </head>
 <body>
 
-<!-- NUEVO: BANNER TIPO PORTADA -->
-{% if anuncio and anuncio.activo %}
-<div class="container-fluid p-0 position-relative" style="margin-bottom: 20px;">
-    {% if anuncio.imagen_url %}
-    <div style="width: 100%; height: 280px; overflow: hidden; position: relative;">
-        <img src="{{ anuncio.imagen_url }}" style="width: 100%; height: 100%; object-fit: cover; filter: brightness(0.6);" alt="Portada">
-        <div class="position-absolute top-50 start-50 translate-middle text-center w-100 px-3">
-            <h2 class="text-white fw-bold mb-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8); font-family: 'Lora', serif; font-size: 2rem;">{{ anuncio.mensaje }}</h2>
-            {% if anuncio.texto_boton and anuncio.enlace %}
-            <a href="{{ anuncio.enlace }}" class="btn btn-warning rounded-pill px-4 py-2 fw-bold shadow" style="text-transform: uppercase; letter-spacing: 1px;" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }}</a>
-            {% endif %}
+<div class="container" style="padding-top: 5px;">
+    <div class="navbar-top">
+        <div class="lang-selector">
+            <i class="fas fa-moon lang-icono" id="btn-dark-mode" onclick="toggleDarkMode()"></i>
+            <span style="color:var(--border-color);">|</span>
+            <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es')">🇲🇽 ES</button>
+            <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en')">🇺🇸 EN</button>
+        </div>
+        <div class="hamburger" onclick="abrirSidebar()">
+            <span class="hamburger-texto" data-i18n="btn_menu_superior">Menú</span>&#9776;
         </div>
     </div>
+</div>
+
+<!-- NUEVO: BANNER TIPO STARBUCKS (De lado a lado) -->
+{% if anuncio and anuncio.activo %}
+<div class="hero-banner-starbucks">
+    {% if anuncio.imagen_url %}
+        <img src="{{ anuncio.imagen_url }}" class="hero-bg" alt="Portada Quiosco Morisco">
+        <div class="hero-overlay"></div>
     {% else %}
-    <div class="{{ anuncio.color }} text-center p-3 fw-bold shadow-sm">
-        <span style="font-size: 1.1rem;">{{ anuncio.mensaje }}</span>
+        <div class="hero-bg {{ anuncio.color }}"></div>
+    {% endif %}
+    
+    <div class="hero-content">
+        <h1 class="hero-title">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
-        <br>
-        <a href="{{ anuncio.enlace }}" class="btn btn-sm btn-light rounded-pill px-3 mt-2 fw-bold text-dark" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }}</a>
+            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 5px;"></i></a>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endif %}
 
@@ -157,6 +181,7 @@
     </div>
 </div>
 
+<!-- MODALES (Llamar Mesero, Evaluar, Cómo Usar) -->
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="mod_como_usar_titulo">❓ ¿Cómo usar esta web?</h3>
@@ -179,15 +204,12 @@
     </div>
 </div>
 
-<!-- NUEVO: MODAL DE EVALUACIÓN CON IDIOMAS -->
 <div id="modal-evaluacion" class="modal-overlay">
     <div class="modal-content" style="padding: 20px; text-align: left; overflow-y: auto; max-height: 90vh;">
         <h3 style="color: #ff9800; text-align: center; margin-top: 0;">⭐ <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
         <p style="text-align: center; font-size: 13px; color: var(--texto-claro);" data-i18n="eval_desc">Ayúdanos a mejorar el servicio de Quiosco Morisco.</p>
-        
         <form action="/enviar_evaluacion" method="POST">
             <input type="text" name="mesero_nombre" class="eval-select" placeholder="Nombre de quien te atendió" data-i18n-placeholder="eval_ph_mesero" required>
-            
             <label class="eval-label" data-i18n="eval_lbl_atencion">Atención del mesero:</label>
             <select name="mesero_calificacion" class="eval-select" required>
                 <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
@@ -196,7 +218,6 @@
                 <option value="2">⭐⭐ - Malo</option>
                 <option value="1">⭐ - Pésimo</option>
             </select>
-            
             <label class="eval-label" data-i18n="eval_lbl_limpieza">Limpieza:</label>
             <select name="limpieza" class="eval-select" required>
                 <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
@@ -205,7 +226,6 @@
                 <option value="2">⭐⭐ - Malo</option>
                 <option value="1">⭐ - Pésimo</option>
             </select>
-
             <label class="eval-label" data-i18n="eval_lbl_comida">Calidad de la comida:</label>
             <select name="calidad_comida" class="eval-select" required>
                 <option value="5">⭐⭐⭐⭐⭐ - Excelente</option>
@@ -214,9 +234,7 @@
                 <option value="2">⭐⭐ - Malo</option>
                 <option value="1">⭐ - Pésimo</option>
             </select>
-
             <textarea name="comentarios" class="eval-textarea" placeholder="¿Algún comentario adicional?" data-i18n-placeholder="eval_ph_comentarios" rows="2"></textarea>
-            
             <div style="display: flex; gap: 15px; margin-top: 15px;">
                 <button type="button" class="btn-cancelar" onclick="cerrarModalInfo('modal-evaluacion')" data-i18n="btn_cancelar">Cancelar</button>
                 <button type="submit" class="btn-eval" style="margin-top: 0;" data-i18n="btn_enviar">Enviar</button>
@@ -232,22 +250,17 @@
 
 <div class="container">
     
-    <div class="navbar-top">
-        <div class="lang-selector">
-            <i class="fas fa-moon lang-icono" id="btn-dark-mode" onclick="toggleDarkMode()"></i>
-            <span style="color:var(--border-color);">|</span>
-            <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es')">🇲🇽 ES</button>
-            <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en')">🇺🇸 EN</button>
-        </div>
-        <div class="hamburger" onclick="abrirSidebar()">
-            <span class="hamburger-texto" data-i18n="btn_menu_superior">Menú</span>&#9776;
-        </div>
-    </div>
-
-    <div class="logo-container">
+    <div class="logo-container" style="margin-top: 20px;">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" loading="lazy" onerror="this.style.display='none'">
     </div>
     <h1>Quiosco Morisco</h1>
+
+    <!-- NUEVO: BARRA SOCIAL INTERACTIVA PRINCIPAL -->
+    <div class="social-bar-elegante">
+        <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" target="_blank" class="social-item instagram"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" target="_blank" class="social-item tiktok"><i class="fab fa-tiktok"></i></a>
+        <a href="https://share.google/g7hYq0hAgNAgyfS4l" target="_blank" class="social-item maps"><i class="fas fa-map-marker-alt"></i></a>
+    </div>
 
     <div id="notificaciones">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -313,8 +326,8 @@
                 <input type="text" name="nombre" required placeholder="Ej. Brayan">
                 <label data-i18n="lbl_telefono">Tu Teléfono (10 dígitos)</label>
                 <input type="tel" name="telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
-                <label data-i18n="lbl_pin">PIN de Consumo</label>
-                <input type="text" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 5px; font-size: 20px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase;">
+                <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
+                <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 5px; font-size: 24px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase;">
                 <button type="submit" class="btn" data-i18n="btn_sellar">Sellar Visita</button>
             </form>
         </div>
@@ -366,19 +379,12 @@
                     {% for foto in galeria %}
                     <div class="card mb-4 shadow-sm border-0" style="background: transparent;">
                         <img src="{{ foto.imagen_url }}" class="card-img-top" style="width: 100%; border-radius: 10px 10px 0 0;">
-                        
-                        <!-- Textos de la foto -->
                         {% if foto.titulo or foto.descripcion %}
                         <div class="card-body text-center" style="background: var(--fondo-hueso); border-radius: 0 0 10px 10px; border: 1px solid var(--border-color); border-top: none;">
-                            {% if foto.titulo %}
-                                <h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco);">{{ foto.titulo }}</h5>
-                            {% endif %}
-                            {% if foto.descripcion %}
-                                <p class="card-text small mb-0" style="color: var(--texto-claro);">{{ foto.descripcion }}</p>
-                            {% endif %}
+                            {% if foto.titulo %}<h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco);">{{ foto.titulo }}</h5>{% endif %}
+                            {% if foto.descripcion %}<p class="card-text small mb-0" style="color: var(--texto-claro);">{{ foto.descripcion }}</p>{% endif %}
                         </div>
                         {% endif %}
-                        
                     </div>
                     {% endfor %}
                 {% else %}
@@ -389,13 +395,8 @@
     </div>
 </div>
 
-<footer class="bg-dark text-white text-center py-4 mt-4 shadow">
-    <div class="mb-3">
-        <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fab fa-instagram"></i></a>
-        <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fab fa-tiktok"></i></a>
-        <a href="https://share.google/g7hYq0hAgNAgyfS4l" target="_blank" class="text-white mx-3" style="font-size: 2rem;"><i class="fas fa-map-marker-alt"></i></a>
-    </div>
-    <p class="mb-0 small text-muted">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
+<footer style="text-align: center; padding: 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
+    <p class="mb-0 small">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
 </footer>
 
 <script>
@@ -406,7 +407,7 @@
             mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante.", mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Pide tu PIN en caja.",
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Llamar al Mesero", modal_mesero_sub: "¿En qué número de mesa te encuentras?",
             btn_cancelar: "Cancelar", btn_llamar: "Llamar", btn_flotante_mesero: "Llamar Mesero", 
-            fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Pide tu PIN en caja al realizar tu consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo",
+            fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Pide tu PIN en caja al realizar tu consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo (4 Dígitos)",
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
             progreso_titulo: "Tu Avance", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Alcanzaste una meta! Muestra esto en caja:", nivel_casi: "¡Sigue acumulando visitas para destapar premios!", titulo_lista_premios: "Metas Activas",
@@ -418,7 +419,7 @@
             mod_como_usar_2: "<strong>2. Call waiter:</strong> Use the green floating button.", mod_como_usar_3: "<strong>3. Stamp visit:</strong> Ask for PIN at cashier.",
             btn_entendido: "Got it", btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Call Waiter", modal_mesero_sub: "What table number are you at?",
             btn_cancelar: "Cancel", btn_llamar: "Call", btn_flotante_mesero: "Call Waiter",
-            fidelidad_titulo: "Morisco Loyalty", fidelidad_desc: "Ask your cashier for a PIN to stamp your visit.", lbl_nombre: "Your Name", lbl_telefono: "Your Phone (10 digits)", lbl_pin: "PIN Code",
+            fidelidad_titulo: "Morisco Loyalty", fidelidad_desc: "Ask your cashier for a PIN to stamp your visit.", lbl_nombre: "Your Name", lbl_telefono: "Your Phone (10 digits)", lbl_pin: "PIN Code (4 Digits)",
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
             btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
             progreso_titulo: "Your Progress", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
