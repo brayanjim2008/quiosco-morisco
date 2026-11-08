@@ -64,8 +64,8 @@ class Premio(db.Model):
 class Galeria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     imagen_url = db.Column(db.String(255), nullable=False)
-    titulo = db.Column(db.String(100), nullable=True) # MEJORA: Titulo para Galeria
-    descripcion = db.Column(db.String(250), nullable=True) # MEJORA: Descripcion para Galeria
+    titulo = db.Column(db.String(100), nullable=True)
+    descripcion = db.Column(db.String(250), nullable=True)
     fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Publicacion(db.Model):
@@ -99,10 +99,13 @@ class Evaluacion(db.Model):
     comentarios = db.Column(db.Text, nullable=True)
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Anuncio(db.Model): # MEJORA: Tabla para el Banner de Anuncios
+class Anuncio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     mensaje = db.Column(db.String(250), nullable=False)
     color = db.Column(db.String(50), default="bg-warning")
+    imagen_url = db.Column(db.String(255), nullable=True) # NUEVO: Foto del banner
+    texto_boton = db.Column(db.String(50), nullable=True) # NUEVO: Botón
+    enlace = db.Column(db.String(100), nullable=True) # NUEVO: Link del botón
     activo = db.Column(db.Boolean, default=False)
 
 @login_manager.user_loader
@@ -140,7 +143,7 @@ def index():
     premios_bd = Premio.query.order_by(Premio.visitas_necesarias.asc()).all()
     max_visitas = premios_bd[-1].visitas_necesarias if premios_bd else 10
     metas_list = [p.visitas_necesarias for p in premios_bd]
-    anuncio = Anuncio.query.filter_by(activo=True).first() # MEJORA: Obtener anuncio activo
+    anuncio = Anuncio.query.filter_by(activo=True).first()
     
     return render_template('index.html', categorias=categorias_dict, galeria=galeria, 
                            publicaciones=publicaciones, premios=premios_bd, 
@@ -241,7 +244,7 @@ def admin_dashboard():
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(50).all(),
                            galeria=Galeria.query.order_by(Galeria.fecha_subida.desc()).all(),
                            publicaciones=Publicacion.query.order_by(Publicacion.fecha_publicacion.desc()).all(),
-                           anuncios=Anuncio.query.all(), # MEJORA: Mandar anuncios a la vista admin
+                           anuncios=Anuncio.query.all(),
                            total_clientes=total_clientes, total_visitas=total_visitas, promedio_est=round(promedio_est, 1))
 
 @app.route('/cajero_dashboard')
@@ -274,7 +277,6 @@ def exportar_clientes():
     response.headers.set("Content-Disposition", "attachment", filename="Base_Clientes_Quiosco.csv")
     return response
 
-# MEJORA: Exportar Evaluaciones
 @app.route('/admin/exportar_evaluaciones')
 @login_required
 def exportar_evaluaciones():
@@ -410,7 +412,6 @@ def eliminar_publicacion(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# MEJORA: Modificar Galeria para aceptar Título y Descripción
 @app.route('/agregar_galeria', methods=['POST'])
 @login_required
 def agregar_galeria():
@@ -425,7 +426,6 @@ def agregar_galeria():
         db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# MEJORA: Editar Galería
 @app.route('/editar_galeria/<int:id>', methods=['POST'])
 @login_required
 def editar_galeria(id):
@@ -444,18 +444,22 @@ def eliminar_galeria(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# MEJORA: CRUD para Anuncios (Banner)
 @app.route('/admin/anuncio/nuevo', methods=['POST'])
 @login_required
 def nuevo_anuncio():
     if current_user.role != 'admin': return redirect(url_for('index'))
-    # Desactivar todos los demás para solo tener uno activo
     if request.form.get('activo') == 'on':
         Anuncio.query.update({Anuncio.activo: False})
+    
+    # NUEVO: Subir imagen de portada si la hay
+    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
     
     db.session.add(Anuncio(
         mensaje=request.form['mensaje'],
         color=request.form.get('color', 'bg-warning'),
+        imagen_url=img_url, 
+        texto_boton=request.form.get('texto_boton', ''), 
+        enlace=request.form.get('enlace', ''), 
         activo=True if request.form.get('activo') == 'on' else False
     ))
     db.session.commit()
@@ -473,10 +477,13 @@ def eliminar_anuncio(id):
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
 def generar_pin():
-    codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    db.session.add(PinCaja(codigo=codigo))
+    cantidad = int(request.form.get('cantidad', 1))
+    for _ in range(cantidad):
+        # NUEVO: Solo 4 dígitos numéricos
+        codigo = ''.join(random.choices(string.digits, k=4))
+        db.session.add(PinCaja(codigo=codigo))
     db.session.commit()
-    flash(f'NUEVO PIN: {codigo}', 'success')
+    flash(f'¡Se generaron {cantidad} PIN(s) con éxito!', 'success')
     
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
