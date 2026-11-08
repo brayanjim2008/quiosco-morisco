@@ -280,7 +280,7 @@
                                     <h6 class="mb-0">
                                         {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
                                         <span class="badge bg-success">${{ prod.precio }}</span>
-                                        {% if prod.agotado %span class="badge bg-danger">Agotado</span>{% endif %}
+                                        {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
                                     </h6>
                                     <small class="text-muted">{{ prod.categoria }}</small>
                                 </div>
