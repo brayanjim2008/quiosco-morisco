@@ -6,6 +6,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#13423b">
     
+    <!-- ETIQUETAS DE SEGURIDAD Y PRESENCIA COMERCIAL (WhatsApp, Facebook) -->
+    <meta property="og:title" content="Menú Digital | Quiosco Morisco">
+    <meta property="og:description" content="Descubre nuestros platillos, bebidas y sella tu tarjeta de lealtad digital.">
+    <meta property="og:image" content="{{ url_for('static', filename='logo.jpg') }}">
+    <meta property="og:type" content="website">
+    
     <title>Menú - Quiosco Morisco</title>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -20,10 +26,9 @@
         body.dark-mode .hamburger { color: white; }
         body.dark-mode .logo-container img, body.dark-mode .sidebar-header img { background: #121212; border-color: var(--verde-quiosco); }
 
-        /* Ajuste de margen inferior para la barra de app */
         body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 90px 0; color: var(--texto-oscuro); transition: background 0.3s; }
         
-        /* 1. EFECTO CRISTAL (Glassmorphism) en Navbar Top */
+        /* EFECTO CRISTAL en Navbar Top */
         .header-wrapper { position: sticky; top: 0; z-index: 2000; background: rgba(253, 250, 246, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); transition: 0.3s; }
         body.dark-mode .header-wrapper { background: rgba(18, 18, 18, 0.85); }
         .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; max-width: 500px; margin: auto; }
@@ -36,7 +41,7 @@
         .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 15px; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
         .hamburger-texto { font-size: 13px; font-weight: bold; font-family: 'Open Sans', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* 2. NUEVA BARRA DE APP MÓVIL INFERIOR */
+        /* BARRA DE APP MÓVIL INFERIOR */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--fondo-tarjeta); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 10px 0 15px 0; z-index: 2500; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
         body.dark-mode .bottom-nav { background: rgba(30, 30, 30, 0.95); border-color: #333; box-shadow: 0 -4px 15px rgba(0,0,0,0.4); }
         .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--texto-claro); font-size: 11px; font-weight: 600; gap: 4px; transition: 0.3s; width: 33%; }
@@ -46,7 +51,7 @@
         body.dark-mode .nav-item.activo { color: var(--cobre); }
         body.dark-mode .nav-item.activo i { background: rgba(201, 130, 70, 0.15); color: var(--cobre); }
 
-        /* Sidebar Oculto para usar solo el Botton Nav */
+        /* SIDEBAR PROFESIONALIZADO (Adiós emojis, hola íconos premium) */
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 2999; backdrop-filter: blur(5px); }
         .sidebar { height: 100%; width: 0; position: fixed; z-index: 3000; top: 0; right: 0; background-color: var(--fondo-tarjeta); overflow-x: hidden; transition: 0.4s; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; }
         .sidebar-header { background: var(--verde-quiosco); padding: 40px 20px 20px; text-align: center; position: relative; }
@@ -54,8 +59,9 @@
         .sidebar-header h2 { color: white; margin: 0; font-size: 18px; font-family: 'Lora', serif; }
         .sidebar .close-btn { position: absolute; top: 10px; right: 20px; font-size: 36px; border: none; background: none; color: white; text-decoration: none; }
         .sidebar-links { flex-grow: 1; padding: 20px 0; }
-        .sidebar-links a { padding: 15px 25px; font-size: 15px; color: var(--texto-oscuro); display: flex; align-items: center; text-decoration: none; font-weight: 600; }
-        .sidebar-links a .icon { font-size: 20px; margin-right: 15px; width: 25px; text-align: center; }
+        .sidebar-links a { padding: 15px 25px; font-size: 16px; color: var(--texto-oscuro); display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: 0.3s; }
+        .sidebar-links a:hover { background: rgba(201,130,70,0.05); color: var(--cobre); }
+        .sidebar-links a .icon { font-size: 20px; margin-right: 15px; width: 25px; text-align: center; color: var(--cobre); }
         .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-color); }
         .btn-admin-sidebar { background: var(--cobre); color: white !important; border-radius: 8px; justify-content: center; text-transform: uppercase; font-size: 13px !important; }
         
@@ -66,7 +72,7 @@
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 20px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.03); }
         
-        /* BANNER STARBUCKS CON PARALLAX SUTIL */
+        /* BANNER STARBUCKS */
         .hero-banner-starbucks { position: relative; width: 100%; min-height: 380px; height: 45vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.5s ease; }
         .hero-banner-starbucks:hover .hero-bg { transform: scale(1.05); }
@@ -86,7 +92,7 @@
         .vista-app { display: none; animation: fadeIn 0.4s ease; }
         #vista-inicio { display: block; }
 
-        /* 3. TARJETA VIP (Progress Container Mejorado) */
+        /* TARJETA VIP ORO (Progress Container) */
         .tarjeta-vip { background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); padding: 30px 20px; border-radius: 20px; margin-bottom: 30px; text-align: center; color: white; box-shadow: 0 15px 30px rgba(19, 66, 59, 0.2); border: 1px solid rgba(201, 130, 70, 0.3); position: relative; overflow: hidden; }
         .tarjeta-vip::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); transform: rotate(45deg); pointer-events: none; }
         .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
@@ -102,8 +108,10 @@
         .line { height: 3px; background: rgba(201, 130, 70, 0.3); flex-grow: 1; min-width: 10px; max-width: 25px; }
         .line.filled { background: var(--cobre); }
 
+        /* BOTONES GLOBALES Y ANTI-SPAM */
         .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; box-shadow: 0 4px 15px rgba(19, 66, 59, 0.2); }
-        .btn:hover { background: var(--cobre); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201, 130, 70, 0.3); }
+        .btn:hover:not(:disabled) { background: var(--cobre); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201, 130, 70, 0.3); }
+        .btn:disabled { background: #9e9e9e; cursor: not-allowed; box-shadow: none; transform: none; }
         
         .botones-flotantes { position: fixed; bottom: 85px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: 0.3s; }
@@ -125,6 +133,20 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         
+        /* EFECTO "ILUMINAR PLATILLO" (Deep Linking) */
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(201, 130, 70, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0); }
+        }
+        .highlight-focus {
+            animation: pulseGlow 1.5s infinite !important;
+            border: 2px solid var(--cobre) !important;
+            background: rgba(201, 130, 70, 0.1) !important;
+            transform: scale(1.03);
+            z-index: 10;
+        }
+
         .flash { padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .flash.premio_interactivo { background: var(--verde-quiosco); color: #fff; border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
         .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
@@ -135,8 +157,7 @@
         
         .categoria-titulo { color: var(--cobre); padding: 10px 0; border-bottom: 2px solid var(--cobre); margin-bottom: 20px; font-family: 'Lora', serif; font-size: 24px; font-weight: 700; display: inline-block; }
         
-        /* 4. PLATILLOS MÁS ELEGANTES CON HOVER */
-        .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 0; border-radius: 12px; position: relative; transition: 0.3s ease; }
+        .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 0; border-radius: 12px; position: relative; transition: 0.4s ease; }
         .menu-item:hover { background: var(--fondo-tarjeta); padding: 18px 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.04); transform: scale(1.01); border-bottom-color: transparent; }
         .menu-item.platillo-estrella { border: 1px solid var(--cobre); background: linear-gradient(to right, rgba(201,130,70,0.03), transparent); padding: 18px 12px; margin-bottom: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(201, 130, 70, 0.08); }
         .badge-estrella { position: absolute; top: -10px; left: 15px; background: var(--cobre); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(201, 130, 70, 0.3); }
@@ -169,14 +190,14 @@
         <div class="hamburger d-none d-md-flex" onclick="abrirSidebar()">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Menú</span>&#9776;
         </div>
-        <!-- Para móviles, mostramos solo el logo chiquito a la derecha si quitamos la hamburguesa -->
+        <!-- Solo Logo visible en Header Móvil -->
         <div class="d-md-none" style="font-family: 'Lora', serif; font-weight: bold; color: var(--verde-quiosco); font-size: 18px;">
             Morisco
         </div>
     </div>
 </div>
 
-<!-- NUEVA BARRA DE NAVEGACIÓN INFERIOR (Estilo App) -->
+<!-- BARRA DE NAVEGACIÓN INFERIOR -->
 <div class="bottom-nav">
     <a href="javascript:void(0)" onclick="cambiarVista('inicio')" class="nav-item activo" id="bottom-inicio">
         <i class="fas fa-home"></i><span data-i18n="menu_inicio">Inicio</span>
@@ -189,7 +210,7 @@
     </a>
 </div>
 
-<!-- BANNER TIPO STARBUCKS -->
+<!-- BANNER TIPO STARBUCKS CON LÓGICA DE RADAR (DEEP LINKING) -->
 {% if anuncio and anuncio.activo %}
 <div class="hero-banner-starbucks">
     {% if anuncio.imagen_url %}
@@ -202,12 +223,15 @@
     <div class="hero-content">
         <h1 class="hero-title">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
-            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 8px;"></i></a>
+            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="return procesarEnlaceBanner(this.getAttribute('href'));">
+                {{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+            </a>
         {% endif %}
     </div>
 </div>
 {% endif %}
 
+<!-- SIDEBAR CORPORATIVO (Íconos vectoriales en vez de emojis) -->
 <div id="sidebar-overlay" class="sidebar-overlay" onclick="cerrarSidebar()"></div>
 <div id="miSidebar" class="sidebar">
     <div class="sidebar-header">
@@ -217,21 +241,29 @@
     </div>
     
     <div class="sidebar-links">
-        <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo"><span class="icon">🏠</span> <span data-i18n="menu_inicio">Inicio</span></a>
-        <a href="javascript:void(0)" onclick="cambiarVista('menu')" id="link-menu"><span class="icon">🍔</span> <span data-i18n="menu_ver_menu">Ver Menú</span></a>
-        <a href="javascript:void(0)" onclick="cambiarVista('galeria')" id="link-galeria"><span class="icon">📸</span> <span data-i18n="menu_galeria">Galería</span></a>
-        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')"><span class="icon">❓</span> <span data-i18n="menu_como_usar">¿Cómo usar esta web?</span></a>
+        <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo">
+            <i class="fas fa-home icon"></i> <span data-i18n="menu_inicio">Inicio</span>
+        </a>
+        <a href="javascript:void(0)" onclick="cambiarVista('menu')" id="link-menu">
+            <i class="fas fa-hamburger icon"></i> <span data-i18n="menu_ver_menu">Ver Menú</span>
+        </a>
+        <a href="javascript:void(0)" onclick="cambiarVista('galeria')" id="link-galeria">
+            <i class="fas fa-images icon"></i> <span data-i18n="menu_galeria">Galería</span>
+        </a>
+        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')">
+            <i class="fas fa-question-circle icon"></i> <span data-i18n="menu_como_usar">¿Cómo usar esta app?</span>
+        </a>
     </div>
     <div class="sidebar-footer">
-        <a href="/admin_login" class="btn-admin-sidebar"><span class="icon">⚙️</span> <span data-i18n="menu_admin">Acceso Empleados</span></a>
+        <a href="/admin_login" class="btn-admin-sidebar"><i class="fas fa-user-cog" style="margin-right: 8px;"></i> <span data-i18n="menu_admin">Acceso Empleados</span></a>
     </div>
 </div>
 
 <!-- MODALES -->
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
-        <h3 data-i18n="mod_como_usar_titulo" style="border-bottom: none;">❓ ¿Cómo usar esta app?</h3>
-        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Usa la barra de navegación de abajo.</p>
+        <h3 data-i18n="mod_como_usar_titulo" style="border-bottom: none;"><i class="fas fa-info-circle text-warning"></i> ¿Cómo usar esta app?</h3>
+        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Usa la barra de navegación inferior.</p>
         <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha.</p>
         <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio".</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar')" data-i18n="btn_entendido">Entendido</button>
@@ -240,7 +272,7 @@
 
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
-        <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none;">🛎️ Llamar al Mesero</h3>
+        <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none;"><i class="fas fa-bell text-success"></i> Llamar al Mesero</h3>
         <p style="text-align: center;" data-i18n="modal_mesero_sub">Para atenderte súper rápido, ¿en qué número de mesa te encuentras?</p>
         <input type="number" id="input-mesa" placeholder="Ej. 4">
         <div class="modal-buttons">
@@ -252,7 +284,7 @@
 
 <div id="modal-evaluacion" class="modal-overlay">
     <div class="modal-content" style="padding: 25px; text-align: left; overflow-y: auto; max-height: 85vh;">
-        <h3 style="color: #ff9800; text-align: center; margin-top: 0; border: none;">⭐ <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
+        <h3 style="color: #ff9800; text-align: center; margin-top: 0; border: none;"><i class="fas fa-star"></i> <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
         <p style="text-align: center; font-size: 13px; color: var(--texto-claro);" data-i18n="eval_desc">Ayúdanos a mejorar el servicio de Quiosco Morisco.</p>
         <form action="/enviar_evaluacion" method="POST">
             <input type="text" name="mesero_nombre" class="eval-select" placeholder="Nombre de quien te atendió" data-i18n-placeholder="eval_ph_mesero" required>
@@ -290,8 +322,8 @@
 </div>
 
 <div class="botones-flotantes">
-    <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion')"><span>⭐</span> <span data-i18n="btn_flotante_eval">Calificanos</span></div>
-    <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><span>🛎️</span> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
+    <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion')"><i class="fas fa-star"></i> <span data-i18n="btn_flotante_eval">Calificanos</span></div>
+    <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><i class="fas fa-bell"></i> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
 </div>
 
 <div class="container">
@@ -369,14 +401,16 @@
         <div class="card formulario-normal">
             <h3 data-i18n="fidelidad_titulo" style="border: none; padding: 0;">Fidelidad Morisco</h3>
             <p style="text-align: center; color: var(--texto-claro); font-size: 13px; margin-bottom: 25px;" data-i18n="fidelidad_desc">Pide tu PIN en caja al realizar tu consumo para sumar visitas.</p>
-            <form action="/registrar_consumo" method="POST">
+            
+            <!-- FORMULARIO SEGURO (Previene doble clic y SPAM) -->
+            <form action="/registrar_consumo" method="POST" id="form-pin" onsubmit="document.getElementById('btn-sellar').disabled=true; document.getElementById('btn-sellar').innerHTML='Procesando...';">
                 <label data-i18n="lbl_nombre">Tu Nombre</label>
                 <input type="text" name="nombre" required placeholder="Ej. Brayan">
                 <label data-i18n="lbl_telefono">Tu Teléfono (10 dígitos)</label>
                 <input type="tel" name="telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
                 <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
                 <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase; background: rgba(19, 66, 59, 0.05); border: 2px dashed var(--cobre);">
-                <button type="submit" class="btn mt-3" data-i18n="btn_sellar">Sellar Visita</button>
+                <button type="submit" class="btn mt-3" id="btn-sellar" data-i18n="btn_sellar">Sellar Visita</button>
             </form>
         </div>
     </div>
@@ -397,7 +431,10 @@
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}">
                         <div class="categoria-titulo">{{ cat_nombre }}</div>
                         {% for producto in lista %}
-                            <div class="menu-item card {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}">
+                            
+                            <!-- SE AGREGÓ UN ID ÚNICO A CADA PRODUCTO PARA EL DEEP LINKING -->
+                            <div class="menu-item card {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}" id="prod-{{ producto.nombre|replace(' ', '-')|lower }}">
+                                
                                 {% if producto.agotado %}<div class="overlay-agotado" data-i18n="badge_agotado">Agotado</div>{% endif %}
                                 {% if producto.destacado and not producto.agotado %}<span class="badge-estrella" data-i18n="badge_estrella">⭐ Recomendación</span>{% endif %}
                                 
@@ -447,7 +484,6 @@
     </div>
 </div>
 
-<!-- Footer ajustado para no estorbar con el bottom nav -->
 <footer style="text-align: center; padding: 20px 20px 40px 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
     <p class="mb-0 small">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
 </footer>
@@ -500,20 +536,52 @@
 
     function cambiarVista(vista) {
         cerrarSidebar();
-        
-        // Ocultar vistas
         document.querySelectorAll('.vista-app').forEach(v => v.style.display = 'none');
         document.getElementById('vista-' + vista).style.display = 'block';
         
-        // Actualizar barra lateral (si aplica)
         document.querySelectorAll('.sidebar-links a').forEach(a => a.classList.remove('activo'));
         if(document.getElementById('link-' + vista)) document.getElementById('link-' + vista).classList.add('activo');
         
-        // Actualizar barra inferior de App
         document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('activo'));
         if(document.getElementById('bottom-' + vista)) document.getElementById('bottom-' + vista).classList.add('activo');
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // LÓGICA DE RADAR (Deep Linking) PARA EL BANNER
+    function procesarEnlaceBanner(enlace) {
+        // Si el enlace es externo (TikTok, FB, etc)
+        if(enlace.startsWith('http')) {
+            window.open(enlace, '_blank');
+            return false;
+        }
+        
+        // Si el enlace activa el Radar (Ejemplo: #vista-menu|americano)
+        if(enlace.startsWith('#vista-menu')) {
+            cambiarVista('menu'); // Primero abre el menú
+            
+            let partes = enlace.split('|');
+            if(partes.length > 1) {
+                // Genera el ID del platillo (reemplaza espacios por guiones y lo hace minúscula)
+                let nombreBuscado = partes[1].replace(/ /g, '-').toLowerCase();
+                let idPlatillo = 'prod-' + nombreBuscado;
+                
+                // Da medio segundo para que el menú se dibuje y luego baja hacia el platillo
+                setTimeout(() => {
+                    let platillo = document.getElementById(idPlatillo);
+                    if(platillo) {
+                        // Hace scroll suave
+                        platillo.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        // Le pone el marco de luz dorada
+                        platillo.classList.add('highlight-focus');
+                        // Se lo quita a los 4 segundos
+                        setTimeout(() => platillo.classList.remove('highlight-focus'), 4000);
+                    }
+                }, 400);
+            }
+            return false;
+        }
+        return true;
     }
 
     function abrirSidebar() { document.getElementById("miSidebar").style.width = "300px"; document.getElementById("sidebar-overlay").style.display = "block"; document.body.style.overflow = "hidden"; }
