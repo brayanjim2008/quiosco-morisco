@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#13423b">
     
     <title>Menú - Quiosco Morisco</title>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -20,17 +20,33 @@
         body.dark-mode .hamburger { color: white; }
         body.dark-mode .logo-container img, body.dark-mode .sidebar-header img { background: #121212; border-color: var(--verde-quiosco); }
 
-        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 80px 0; color: var(--texto-oscuro); transition: background 0.3s; }
+        /* Ajuste de margen inferior para la barra de app */
+        body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 90px 0; color: var(--texto-oscuro); transition: background 0.3s; }
         
-        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 15px; margin-bottom: 5px; }
-        .lang-selector { display: flex; gap: 5px; background: var(--fondo-tarjeta); padding: 5px; border-radius: 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); align-items: center; transition: 0.3s; }
+        /* 1. EFECTO CRISTAL (Glassmorphism) en Navbar Top */
+        .header-wrapper { position: sticky; top: 0; z-index: 2000; background: rgba(253, 250, 246, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); transition: 0.3s; }
+        body.dark-mode .header-wrapper { background: rgba(18, 18, 18, 0.85); }
+        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; max-width: 500px; margin: auto; }
+        
+        .lang-selector { display: flex; gap: 5px; background: var(--fondo-tarjeta); padding: 4px; border-radius: 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); align-items: center; }
         .lang-icono { color: var(--texto-claro); margin-left: 8px; font-size: 14px; cursor: pointer; }
         .lang-btn { background: transparent; border: none; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
         .lang-btn.activo { background: var(--verde-quiosco); color: white; }
 
-        .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 15px; height: 45px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid var(--border-color); transition: 0.2s; }
-        .hamburger-texto { font-size: 14px; font-weight: bold; font-family: 'Open Sans', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
+        .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 15px; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        .hamburger-texto { font-size: 13px; font-weight: bold; font-family: 'Open Sans', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
         
+        /* 2. NUEVA BARRA DE APP MÓVIL INFERIOR */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--fondo-tarjeta); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 10px 0 15px 0; z-index: 2500; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
+        body.dark-mode .bottom-nav { background: rgba(30, 30, 30, 0.95); border-color: #333; box-shadow: 0 -4px 15px rgba(0,0,0,0.4); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--texto-claro); font-size: 11px; font-weight: 600; gap: 4px; transition: 0.3s; width: 33%; }
+        .nav-item i { font-size: 20px; padding: 8px; border-radius: 20px; transition: 0.3s; }
+        .nav-item.activo { color: var(--verde-quiosco); }
+        .nav-item.activo i { background: rgba(19, 66, 59, 0.1); color: var(--verde-quiosco); }
+        body.dark-mode .nav-item.activo { color: var(--cobre); }
+        body.dark-mode .nav-item.activo i { background: rgba(201, 130, 70, 0.15); color: var(--cobre); }
+
+        /* Sidebar Oculto para usar solo el Botton Nav */
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 2999; backdrop-filter: blur(5px); }
         .sidebar { height: 100%; width: 0; position: fixed; z-index: 3000; top: 0; right: 0; background-color: var(--fondo-tarjeta); overflow-x: hidden; transition: 0.4s; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; }
         .sidebar-header { background: var(--verde-quiosco); padding: 40px 20px 20px; text-align: center; position: relative; }
@@ -44,92 +60,105 @@
         .btn-admin-sidebar { background: var(--cobre); color: white !important; border-radius: 8px; justify-content: center; text-transform: uppercase; font-size: 13px !important; }
         
         .container { max-width: 500px; margin: auto; padding: 0 15px; }
-        h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 600; }
-        .logo-container { text-align: center; margin-bottom: 15px; }
-        .logo-container img { width: 120px; border-radius: 50%; border: 3px solid var(--cobre); background: white; }
+        h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 700; }
+        .logo-container { text-align: center; margin-bottom: 15px; margin-top: 20px; }
+        .logo-container img { width: 110px; border-radius: 50%; border: 3px solid var(--cobre); background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 20px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
-        .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border-color); }
+        .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.03); }
         
-        /* BANNER ESTILO STARBUCKS */
-        .hero-banner-starbucks { position: relative; width: 100%; min-height: 400px; height: 50vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; margin-top: -5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%); z-index: 2; }
-        .hero-content { position: relative; z-index: 3; padding: 20px; color: white; width: 100%; max-width: 800px; }
-        .hero-title { font-family: 'Lora', serif; font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 700; margin-bottom: 25px; text-shadow: 0px 4px 15px rgba(0,0,0,0.6); line-height: 1.1; color: white; border: none; }
-        .hero-btn { display: inline-block; padding: 12px 35px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-size: 14px; transition: all 0.3s ease; background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); }
-        .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-2px); }
+        /* BANNER STARBUCKS CON PARALLAX SUTIL */
+        .hero-banner-starbucks { position: relative; width: 100%; min-height: 380px; height: 45vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.5s ease; }
+        .hero-banner-starbucks:hover .hero-bg { transform: scale(1.05); }
+        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%); z-index: 2; }
+        .hero-content { position: relative; z-index: 3; padding: 20px; color: white; width: 100%; max-width: 800px; animation: fadeInUp 0.8s ease-out; }
+        .hero-title { font-family: 'Lora', serif; font-size: clamp(2.2rem, 8vw, 3.5rem); font-weight: 700; margin-bottom: 25px; text-shadow: 0px 4px 15px rgba(0,0,0,0.8); line-height: 1.1; color: white; border: none; }
+        .hero-btn { display: inline-block; padding: 12px 35px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; font-size: 13px; transition: all 0.3s ease; background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); }
+        .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
 
-        /* BARRA SOCIAL ELEGANTE */
-        .social-bar-elegante { display: flex; justify-content: center; gap: 20px; background: var(--fondo-tarjeta); padding: 12px 30px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 35px auto; width: fit-content; position: relative; z-index: 10; }
-        .social-item { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; color: white !important; font-size: 22px; text-decoration: none; transition: transform 0.3s ease, box-shadow 0.3s ease; }
-        .social-item:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .social-bar-elegante { display: flex; justify-content: center; gap: 20px; background: var(--fondo-tarjeta); padding: 12px 30px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 35px auto; width: fit-content; }
+        .social-item { display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border-radius: 50%; color: white !important; font-size: 20px; text-decoration: none; transition: 0.3s ease; }
+        .social-item:hover { transform: translateY(-5px) scale(1.05); }
         .social-item.instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
         .social-item.tiktok { background: #000000; }
         .social-item.maps { background: #ea4335; }
-        body.dark-mode .social-bar-elegante { background: #2a2a2a; border-color: #444; box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
 
-        .vista-app { display: none; animation: fadeIn 0.4s; }
+        .vista-app { display: none; animation: fadeIn 0.4s ease; }
         #vista-inicio { display: block; }
 
-        .progress-container { background: var(--fondo-tarjeta); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border-color); text-align: center; }
-        .progress-bar { display: flex; align-items: center; justify-content: center; margin: 20px 0; flex-wrap: wrap; gap: 4px; }
-        .circle { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--cobre); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--cobre); background: var(--fondo-hueso); font-size: 14px; }
-        .circle.filled { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); }
-        .circle.premio-intermedio { background: #e8f5e9; border-color: var(--cobre); color: var(--cobre); }
+        /* 3. TARJETA VIP (Progress Container Mejorado) */
+        .tarjeta-vip { background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); padding: 30px 20px; border-radius: 20px; margin-bottom: 30px; text-align: center; color: white; box-shadow: 0 15px 30px rgba(19, 66, 59, 0.2); border: 1px solid rgba(201, 130, 70, 0.3); position: relative; overflow: hidden; }
+        .tarjeta-vip::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); transform: rotate(45deg); pointer-events: none; }
+        .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .tarjeta-vip p { color: #e0e0e0; font-size: 14px; }
+        
+        .progress-bar { display: flex; align-items: center; justify-content: center; margin: 25px 0; flex-wrap: wrap; gap: 4px; position: relative; z-index: 2; }
+        .circle { width: 38px; height: 38px; border-radius: 50%; border: 2px solid rgba(201, 130, 70, 0.5); display: flex; align-items: center; justify-content: center; font-weight: bold; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.2); font-size: 14px; transition: 0.4s; }
+        .circle.filled { background: var(--cobre); color: #fff; border-color: var(--cobre); box-shadow: 0 0 15px rgba(201, 130, 70, 0.5); }
+        .circle.premio-intermedio { background: rgba(201, 130, 70, 0.1); border-color: var(--cobre); color: var(--cobre); }
         .circle.premio-intermedio.filled { background: var(--cobre); color: #fff; }
-        .circle.premio-mayor { background: #fff3e0; border-color: var(--verde-quiosco); color: var(--verde-quiosco); }
-        .circle.premio-mayor.filled { background: var(--verde-quiosco); color: #fff; border-color: var(--cobre); }
-        .line { height: 3px; background: var(--cobre); flex-grow: 1; min-width: 10px; max-width: 25px; }
-        .line.filled { background: var(--verde-quiosco); }
+        .circle.premio-mayor { background: rgba(255,255,255,0.1); border-color: #ffd700; color: #ffd700; }
+        .circle.premio-mayor.filled { background: #ffd700; color: #13423b; border-color: #ffd700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+        .line { height: 3px; background: rgba(201, 130, 70, 0.3); flex-grow: 1; min-width: 10px; max-width: 25px; }
+        .line.filled { background: var(--cobre); }
 
-        .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; text-transform: uppercase; }
-        .btn:hover { background: var(--cobre); }
-        .botones-flotantes { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
-        .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; box-shadow: 0 4px 15px rgba(19, 66, 59, 0.2); }
+        .btn:hover { background: var(--cobre); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201, 130, 70, 0.3); }
+        
+        .botones-flotantes { position: fixed; bottom: 85px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; align-items: flex-end; }
+        .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 14px 20px; border-radius: 50px; font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: 0.3s; }
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
+        .btn-flotante-mesero:active, .btn-flotante-eval:active { transform: scale(0.95); }
 
-        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); scrollbar-width: none; }
+        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 15px; margin-bottom: 25px; scrollbar-width: none; border-bottom: none; }
         .filtros-wrapper::-webkit-scrollbar { display: none; }
-        .filtro-btn { display: inline-block; background: var(--fondo-hueso); border: 1px solid var(--cobre); color: var(--cobre); padding: 8px 16px; margin-right: 8px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; }
-        .filtro-btn.activo { background: var(--cobre); color: #fff; }
+        .filtro-btn { display: inline-block; background: var(--fondo-tarjeta); border: 1.5px solid var(--border-color); color: var(--texto-oscuro); padding: 10px 20px; margin-right: 10px; border-radius: 30px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .filtro-btn.activo { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); box-shadow: 0 6px 15px rgba(19, 66, 59, 0.2); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 4000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--fondo-tarjeta); padding: 30px 25px; border-radius: 16px; max-width: 320px; width: 90%; text-align: center; }
-        .modal-content input { width: 100%; padding: 14px; font-size: 18px; text-align: center; border: 2px solid var(--cobre); border-radius: 10px; margin-bottom: 20px; box-sizing: border-box; }
+        .modal-content { background: var(--fondo-tarjeta); padding: 30px 25px; border-radius: 20px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .modal-content input { width: 100%; padding: 14px; font-size: 18px; text-align: center; border: 2px solid var(--cobre); border-radius: 12px; margin-bottom: 20px; box-sizing: border-box; outline: none; }
         .modal-buttons { display: flex; gap: 15px; margin-top: 25px; }
-        .btn-cancelar { flex: 1; background: var(--border-color); color: var(--texto-oscuro); border: none; padding: 14px; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        .btn-llamar { flex: 1; background: #25D366; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-cancelar { flex: 1; background: var(--border-color); color: var(--texto-oscuro); border: none; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        .btn-llamar { flex: 1; background: #25D366; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3); }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         
-        .flash { padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; }
-        .flash.premio_interactivo { background: var(--verde-quiosco); color: var(--cobre); border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
+        .flash { padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .flash.premio_interactivo { background: var(--verde-quiosco); color: #fff; border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
         .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
         
-        .formulario-normal input { width: 100%; padding: 12px; margin: 8px 0 20px 0; background: var(--fondo-hueso); border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; }
-        .formulario-normal label { color: var(--texto-claro); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        .formulario-normal input { width: 100%; padding: 14px; margin: 8px 0 20px 0; background: var(--fondo-hueso); border: 1px solid var(--border-color); border-radius: 10px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        .formulario-normal input:focus { border-color: var(--cobre); box-shadow: 0 0 0 3px rgba(201, 130, 70, 0.1); }
+        .formulario-normal label { color: var(--texto-claro); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         
-        .categoria-titulo { color: var(--cobre); padding: 10px 0; border-bottom: 2px solid var(--cobre); margin-bottom: 20px; font-family: 'Lora', serif; font-size: 22px; font-weight: 600; }
-        .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid var(--border-color); padding: 15px 0; border-radius: 8px; position: relative; }
-        .menu-item.platillo-estrella { border: 2px solid var(--cobre); background: linear-gradient(to right, rgba(201,130,70,0.05), transparent); padding: 15px 10px; margin-bottom: 20px;}
-        .badge-estrella { position: absolute; top: -12px; left: 15px; background: var(--cobre); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .categoria-titulo { color: var(--cobre); padding: 10px 0; border-bottom: 2px solid var(--cobre); margin-bottom: 20px; font-family: 'Lora', serif; font-size: 24px; font-weight: 700; display: inline-block; }
+        
+        /* 4. PLATILLOS MÁS ELEGANTES CON HOVER */
+        .menu-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid var(--border-color); padding: 18px 0; border-radius: 12px; position: relative; transition: 0.3s ease; }
+        .menu-item:hover { background: var(--fondo-tarjeta); padding: 18px 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.04); transform: scale(1.01); border-bottom-color: transparent; }
+        .menu-item.platillo-estrella { border: 1px solid var(--cobre); background: linear-gradient(to right, rgba(201,130,70,0.03), transparent); padding: 18px 12px; margin-bottom: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(201, 130, 70, 0.08); }
+        .badge-estrella { position: absolute; top: -10px; left: 15px; background: var(--cobre); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(201, 130, 70, 0.3); }
 
         .platillo-agotado { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
-        .overlay-agotado { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; z-index: 10; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+        .overlay-agotado { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 20px; border-radius: 30px; font-weight: bold; z-index: 10; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; backdrop-filter: blur(4px); }
 
-        .foto-platillo { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; background: white; }
+        .foto-platillo { width: 100px; height: 100px; object-fit: cover; border-radius: 14px; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: 0.3s; }
+        .menu-item:hover .foto-platillo { transform: scale(1.05); }
         .info-platillo { flex-grow: 1; }
-        .nombre-platillo { font-family: 'Lora', serif; font-size: 1.2em; color: var(--verde-quiosco); font-weight: 600; display: block; margin-bottom: 4px; }
-        .precio { font-weight: bold; color: var(--cobre); font-size: 1.3em; font-family: 'Lora', serif; }
+        .nombre-platillo { font-family: 'Lora', serif; font-size: 1.25em; color: var(--verde-quiosco); font-weight: 700; display: block; margin-bottom: 6px; line-height: 1.2; }
+        .precio { font-weight: 700; color: var(--cobre); font-size: 1.3em; background: rgba(201, 130, 70, 0.1); padding: 6px 12px; border-radius: 20px; }
 
-        .eval-select, .eval-textarea { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; }
-        .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 20px; flex: 1; }
-        .eval-label { margin-bottom: 0px; font-weight: bold; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 15px; font-size: 14px; }
+        .eval-select, .eval-textarea { width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; transition: 0.3s; }
+        .eval-select:focus, .eval-textarea:focus { border-color: var(--cobre); }
+        .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 12px; cursor: pointer; margin-top: 20px; flex: 1; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3); }
+        .eval-label { margin-bottom: 0px; font-weight: 700; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
 
-<div class="container" style="padding-top: 5px;">
+<div class="header-wrapper">
     <div class="navbar-top">
         <div class="lang-selector">
             <i class="fas fa-moon lang-icono" id="btn-dark-mode" onclick="toggleDarkMode()"></i>
@@ -137,10 +166,27 @@
             <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es')">🇲🇽 ES</button>
             <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en')">🇺🇸 EN</button>
         </div>
-        <div class="hamburger" onclick="abrirSidebar()">
+        <div class="hamburger d-none d-md-flex" onclick="abrirSidebar()">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Menú</span>&#9776;
         </div>
+        <!-- Para móviles, mostramos solo el logo chiquito a la derecha si quitamos la hamburguesa -->
+        <div class="d-md-none" style="font-family: 'Lora', serif; font-weight: bold; color: var(--verde-quiosco); font-size: 18px;">
+            Morisco
+        </div>
     </div>
+</div>
+
+<!-- NUEVA BARRA DE NAVEGACIÓN INFERIOR (Estilo App) -->
+<div class="bottom-nav">
+    <a href="javascript:void(0)" onclick="cambiarVista('inicio')" class="nav-item activo" id="bottom-inicio">
+        <i class="fas fa-home"></i><span data-i18n="menu_inicio">Inicio</span>
+    </a>
+    <a href="javascript:void(0)" onclick="cambiarVista('menu')" class="nav-item" id="bottom-menu">
+        <i class="fas fa-book-open"></i><span data-i18n="menu_ver_menu">Menú</span>
+    </a>
+    <a href="javascript:void(0)" onclick="cambiarVista('galeria')" class="nav-item" id="bottom-galeria">
+        <i class="fas fa-camera-retro"></i><span data-i18n="menu_galeria">Galería</span>
+    </a>
 </div>
 
 <!-- BANNER TIPO STARBUCKS -->
@@ -156,7 +202,7 @@
     <div class="hero-content">
         <h1 class="hero-title">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
-            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 5px;"></i></a>
+            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="if(this.getAttribute('href')==='#vista-menu' || this.getAttribute('href')==='#menu'){ cambiarVista('menu'); return false; }">{{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 8px;"></i></a>
         {% endif %}
     </div>
 </div>
@@ -184,8 +230,8 @@
 <!-- MODALES -->
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
-        <h3 data-i18n="mod_como_usar_titulo">❓ ¿Cómo usar esta web?</h3>
-        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Abre el menú lateral y selecciona "Ver Menú".</p>
+        <h3 data-i18n="mod_como_usar_titulo" style="border-bottom: none;">❓ ¿Cómo usar esta app?</h3>
+        <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Usa la barra de navegación de abajo.</p>
         <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha.</p>
         <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio".</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar')" data-i18n="btn_entendido">Entendido</button>
@@ -194,7 +240,7 @@
 
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
-        <h3 data-i18n="modal_mesero_titulo">🛎️ Llamar al Mesero</h3>
+        <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none;">🛎️ Llamar al Mesero</h3>
         <p style="text-align: center;" data-i18n="modal_mesero_sub">Para atenderte súper rápido, ¿en qué número de mesa te encuentras?</p>
         <input type="number" id="input-mesa" placeholder="Ej. 4">
         <div class="modal-buttons">
@@ -205,8 +251,8 @@
 </div>
 
 <div id="modal-evaluacion" class="modal-overlay">
-    <div class="modal-content" style="padding: 20px; text-align: left; overflow-y: auto; max-height: 90vh;">
-        <h3 style="color: #ff9800; text-align: center; margin-top: 0;">⭐ <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
+    <div class="modal-content" style="padding: 25px; text-align: left; overflow-y: auto; max-height: 85vh;">
+        <h3 style="color: #ff9800; text-align: center; margin-top: 0; border: none;">⭐ <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
         <p style="text-align: center; font-size: 13px; color: var(--texto-claro);" data-i18n="eval_desc">Ayúdanos a mejorar el servicio de Quiosco Morisco.</p>
         <form action="/enviar_evaluacion" method="POST">
             <input type="text" name="mesero_nombre" class="eval-select" placeholder="Nombre de quien te atendió" data-i18n-placeholder="eval_ph_mesero" required>
@@ -275,9 +321,9 @@
     <!-- VISTA 1: INICIO -->
     <div id="vista-inicio" class="vista-app">
         {% if cliente and progreso %}
-        <div class="progress-container">
-            <h3 style="margin-top: 0;"><span data-i18n="progreso_titulo">Tu Avance</span>, {{ cliente.nombre }}</h3>
-            <p style="font-size: 13px; color: var(--texto-claro); margin-top: -10px;"><span data-i18n="progreso_llevas">Llevas</span> <strong>{{ progreso }}</strong> <span data-i18n="progreso_consumos">consumos</span>.</p>
+        <div class="tarjeta-vip">
+            <h3 style="margin-top: 0;"><span data-i18n="progreso_titulo">Socio Oro</span>, {{ cliente.nombre }}</h3>
+            <p style="margin-top: -5px;"><span data-i18n="progreso_llevas">Llevas</span> <strong style="color: #c98246; font-size: 1.2em;">{{ progreso }}</strong> <span data-i18n="progreso_consumos">consumos</span>.</p>
             
             <div class="progress-bar">
                 {% for i in range(1, max_visitas + 1) %}
@@ -296,46 +342,49 @@
             </div>
             
             {% if premio_actual %}
-                <p style="color: var(--cobre); font-weight: bold; font-size: 16px; margin-top: 15px;">
-                    <span data-i18n="nivel_alcanzado">¡Alcanzaste una meta! Muestra esto en caja:</span><br>
-                    <span style="font-size: 22px; color: var(--verde-quiosco); display:block; margin-top:5px;" data-es="{{ premio_actual.premio_es }}" data-en="{{ premio_actual.premio_en | default(premio_actual.premio_es) }}">{{ premio_actual.premio_es }}</span>
-                </p>
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid rgba(255,215,0,0.5);">
+                    <span style="color: #ffd700; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;" data-i18n="nivel_alcanzado">¡Meta Alcanzada! Muestra en caja:</span><br>
+                    <span style="font-size: 24px; font-weight: bold; color: #fff; display:block; margin-top:5px; font-family: 'Lora', serif;" data-es="{{ premio_actual.premio_es }}" data-en="{{ premio_actual.premio_en | default(premio_actual.premio_es) }}">{{ premio_actual.premio_es }}</span>
+                </div>
             {% else %}
-                <p style="color: var(--texto-claro); font-size: 14px; margin-top: 15px;" data-i18n="nivel_casi">¡Sigue acumulando visitas para destapar premios!</p>
+                <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px;" data-i18n="nivel_casi">¡Sigue visitándonos para destapar premios!</p>
             {% endif %}
         </div>
         {% endif %}
 
         {% if premios %}
-        <div class="card p-3 mb-4" style="background: rgba(201,130,70,0.05); border-color: var(--cobre);">
-            <h4 class="text-center" style="color: var(--cobre); margin-top: 0;"><i class="fas fa-gift"></i> <span data-i18n="titulo_lista_premios">Metas Activas</span></h4>
-            <ul style="list-style: none; padding-left: 0; margin-bottom: 0;">
+        <div class="card p-4 mb-4" style="background: rgba(201,130,70,0.03); border: 1px solid rgba(201,130,70,0.2);">
+            <h4 class="text-center" style="color: var(--cobre); margin-top: 0; font-weight: 700;"><i class="fas fa-gift"></i> <span data-i18n="titulo_lista_premios">Metas Activas</span></h4>
+            <ul style="list-style: none; padding-left: 0; margin-bottom: 0; margin-top: 15px;">
                 {% for p in premios %}
-                <li style="margin-bottom: 8px;">🎯 <strong>{{ p.visitas_necesarias }} <span data-i18n="progreso_consumos">visitas</span>:</strong> <span style="color: var(--verde-quiosco); font-weight: bold;" data-es="{{ p.premio_es }}" data-en="{{ p.premio_en | default(p.premio_es) }}">{{ p.premio_es }}</span></li>
+                <li style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px;">
+                    <span style="font-weight: 600; color: var(--texto-claro);">🎯 {{ p.visitas_necesarias }} <span data-i18n="progreso_consumos">visitas</span></span> 
+                    <span style="color: var(--verde-quiosco); font-weight: 700; font-size: 1.1em;" data-es="{{ p.premio_es }}" data-en="{{ p.premio_en | default(p.premio_es) }}">{{ p.premio_es }}</span>
+                </li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
 
         <div class="card formulario-normal">
-            <h3 data-i18n="fidelidad_titulo">Fidelidad Morisco</h3>
-            <p style="text-align: center; color: var(--texto-claro); font-size: 13px;" data-i18n="fidelidad_desc">Pide tu PIN en caja al realizar tu consumo para sumar visitas.</p>
+            <h3 data-i18n="fidelidad_titulo" style="border: none; padding: 0;">Fidelidad Morisco</h3>
+            <p style="text-align: center; color: var(--texto-claro); font-size: 13px; margin-bottom: 25px;" data-i18n="fidelidad_desc">Pide tu PIN en caja al realizar tu consumo para sumar visitas.</p>
             <form action="/registrar_consumo" method="POST">
                 <label data-i18n="lbl_nombre">Tu Nombre</label>
                 <input type="text" name="nombre" required placeholder="Ej. Brayan">
                 <label data-i18n="lbl_telefono">Tu Teléfono (10 dígitos)</label>
                 <input type="tel" name="telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
                 <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
-                <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 5px; font-size: 24px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase;">
-                <button type="submit" class="btn" data-i18n="btn_sellar">Sellar Visita</button>
+                <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase; background: rgba(19, 66, 59, 0.05); border: 2px dashed var(--cobre);">
+                <button type="submit" class="btn mt-3" data-i18n="btn_sellar">Sellar Visita</button>
             </form>
         </div>
     </div>
 
     <!-- VISTA 2: MENÚ DIGITAL -->
     <div id="vista-menu" class="vista-app" style="display: none;">
-        <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
-            <h2 data-i18n="menu_titulo_seccion">Nuestro Menú</h2>
+        <div class="card" style="padding: 10px 0; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
+            <h2 data-i18n="menu_titulo_seccion" style="border: none;">Nuestro Menú</h2>
             {% if categorias %}
             <div class="filtros-wrapper">
                 <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)" data-i18n="filtro_todos">Todos</button>
@@ -355,7 +404,7 @@
                                 {% if producto.imagen_url %}<img src="{{ producto.imagen_url }}" class="foto-platillo" loading="lazy">{% endif %}
                                 <div class="info-platillo">
                                     <span class="nombre-platillo" data-es="{{ producto.nombre }}" data-en="{{ producto.nombre_en | default(producto.nombre) }}">{{ producto.nombre }}</span>
-                                    <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.4;" data-es="{{ producto.descripcion }}" data-en="{{ producto.descripcion_en | default(producto.descripcion) }}">{{ producto.descripcion }}</span>
+                                    <span style="color: var(--texto-claro); font-size: 13px; display: block; line-height: 1.5; margin-bottom: 10px;" data-es="{{ producto.descripcion }}" data-en="{{ producto.descripcion_en | default(producto.descripcion) }}">{{ producto.descripcion }}</span>
                                 </div>
                                 <div class="precio">${{ producto.precio }}</div>
                             </div>
@@ -369,21 +418,21 @@
         </div>
     </div>
 
-    <!-- VISTA 3: GALERÍA CON SCROLL INTERNO PARA TEXTOS LARGOS -->
+    <!-- VISTA 3: GALERÍA -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
-            <h2 data-i18n="menu_galeria">Galería</h2>
-            <div class="galeria-grid">
+            <h2 data-i18n="menu_galeria" style="border: none;">Galería</h2>
+            <div class="galeria-grid" style="margin-top: 20px;">
                 {% if galeria %}
                     {% for foto in galeria %}
-                    <div class="card mb-4 shadow-sm border-0" style="background: transparent;">
-                        <img src="{{ foto.imagen_url }}" class="card-img-top" style="width: 100%; border-radius: 10px 10px 0 0;">
+                    <div class="card mb-4 shadow-sm border-0" style="background: transparent; border-radius: 16px; overflow: hidden;">
+                        <img src="{{ foto.imagen_url }}" class="card-img-top" style="width: 100%; border-radius: 16px 16px 0 0; transition: 0.3s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                         {% if foto.titulo or foto.descripcion %}
-                        <div class="card-body text-center" style="background: var(--fondo-hueso); border-radius: 0 0 10px 10px; border: 1px solid var(--border-color); border-top: none;">
-                            {% if foto.titulo %}<h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco);">{{ foto.titulo }}</h5>{% endif %}
+                        <div class="card-body text-center" style="background: var(--fondo-tarjeta); border-radius: 0 0 16px 16px; border: 1px solid var(--border-color); border-top: none;">
+                            {% if foto.titulo %}<h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco); font-family: 'Lora', serif;">{{ foto.titulo }}</h5>{% endif %}
                             {% if foto.descripcion %}
-                                <div style="max-height: 85px; overflow-y: auto; text-align: left; padding: 0 5px; margin-top: 5px;">
-                                    <p class="card-text small mb-0" style="color: var(--texto-claro); word-wrap: break-word;">{{ foto.descripcion }}</p>
+                                <div style="max-height: 85px; overflow-y: auto; text-align: left; padding: 0 5px; margin-top: 8px;">
+                                    <p class="card-text small mb-0" style="color: var(--texto-claro); word-wrap: break-word; line-height: 1.5;">{{ foto.descripcion }}</p>
                                 </div>
                             {% endif %}
                         </div>
@@ -398,34 +447,35 @@
     </div>
 </div>
 
-<footer style="text-align: center; padding: 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
+<!-- Footer ajustado para no estorbar con el bottom nav -->
+<footer style="text-align: center; padding: 20px 20px 40px 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
     <p class="mb-0 small">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
 </footer>
 
 <script>
     const traducciones = {
         es: {
-            menu_inicio: "Inicio", menu_ver_menu: "Ver Menú", menu_galeria: "Galería",
-            menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta web?", mod_como_usar_1: "<strong>1. Explora el menú:</strong> Abre el menú lateral.",
+            menu_inicio: "Inicio", menu_ver_menu: "Menú", menu_galeria: "Galería",
+            menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta app?", mod_como_usar_1: "<strong>1. Explora el menú:</strong> Usa la barra de navegación inferior.",
             mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante.", mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Pide tu PIN en caja.",
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Llamar al Mesero", modal_mesero_sub: "¿En qué número de mesa te encuentras?",
             btn_cancelar: "Cancelar", btn_llamar: "Llamar", btn_flotante_mesero: "Llamar Mesero", 
             fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Pide tu PIN en caja al realizar tu consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo (4 Dígitos)",
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
-            progreso_titulo: "Tu Avance", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Alcanzaste una meta! Muestra esto en caja:", nivel_casi: "¡Sigue acumulando visitas para destapar premios!", titulo_lista_premios: "Metas Activas",
+            progreso_titulo: "Socio Oro", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Meta Alcanzada! Muestra en caja:", nivel_casi: "¡Sigue visitándonos para destapar premios!", titulo_lista_premios: "Metas Activas",
             eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos..."
         },
         en: {
             menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery",
-            menu_admin: "Admin Login", mod_como_usar_titulo: "❓ How to use this web?", mod_como_usar_1: "<strong>1. Explore menu:</strong> Open the sidebar.",
+            menu_admin: "Admin Login", mod_como_usar_titulo: "❓ How to use this app?", mod_como_usar_1: "<strong>1. Explore menu:</strong> Use the bottom navigation bar.",
             mod_como_usar_2: "<strong>2. Call waiter:</strong> Use the green floating button.", mod_como_usar_3: "<strong>3. Stamp visit:</strong> Ask for PIN at cashier.",
             btn_entendido: "Got it", btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Call Waiter", modal_mesero_sub: "What table number are you at?",
             btn_cancelar: "Cancel", btn_llamar: "Call", btn_flotante_mesero: "Call Waiter",
             fidelidad_titulo: "Morisco Loyalty", fidelidad_desc: "Ask your cashier for a PIN to stamp your visit.", lbl_nombre: "Your Name", lbl_telefono: "Your Phone (10 digits)", lbl_pin: "PIN Code (4 Digits)",
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
             btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
-            progreso_titulo: "Your Progress", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
+            progreso_titulo: "Gold Member", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
             eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon..."
         }
     };
@@ -450,10 +500,19 @@
 
     function cambiarVista(vista) {
         cerrarSidebar();
+        
+        // Ocultar vistas
         document.querySelectorAll('.vista-app').forEach(v => v.style.display = 'none');
-        document.querySelectorAll('.sidebar-links a').forEach(a => a.classList.remove('activo'));
         document.getElementById('vista-' + vista).style.display = 'block';
-        document.getElementById('link-' + vista).classList.add('activo');
+        
+        // Actualizar barra lateral (si aplica)
+        document.querySelectorAll('.sidebar-links a').forEach(a => a.classList.remove('activo'));
+        if(document.getElementById('link-' + vista)) document.getElementById('link-' + vista).classList.add('activo');
+        
+        // Actualizar barra inferior de App
+        document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('activo'));
+        if(document.getElementById('bottom-' + vista)) document.getElementById('bottom-' + vista).classList.add('activo');
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
