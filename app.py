@@ -106,7 +106,8 @@ class Anuncio(db.Model):
     color = db.Column(db.String(50), default="bg-warning")
     imagen_url = db.Column(db.String(255), nullable=True)
     texto_boton = db.Column(db.String(50), nullable=True)
-    enlace = db.Column(db.String(100), nullable=True)
+    # ¡AQUÍ ESTÁ LA MAGIA! Ampliamos el espacio a 500 letras
+    enlace = db.Column(db.String(500), nullable=True)
     activo = db.Column(db.Boolean, default=False)
 
 @login_manager.user_loader
@@ -120,7 +121,7 @@ with app.app_context():
         instrucciones = [
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",
-            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(100);",
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(500);",
             "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);"
@@ -131,7 +132,7 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
-# --- RUTA DE BOMBA ATÓMICA PARA ANUNCIOS (Súper Segura) ---
+# --- RUTA DE BOMBA ATÓMICA PARA ANUNCIOS ---
 @app.route('/forzar_borrado_anuncios')
 def forzar_borrado_anuncios():
     try:
@@ -476,7 +477,6 @@ def eliminar_galeria(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- AQUI ESTA EL DETECTOR DE ERRORES ---
 @app.route('/admin/anuncio/nuevo', methods=['POST'])
 @login_required
 def nuevo_anuncio():
