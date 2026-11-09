@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- MODO KIOSCO Y PWA (Progressive Web App) -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -97,7 +96,8 @@
 
         .tarjeta-vip { background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); padding: 30px 20px; border-radius: 20px; margin-bottom: 25px; text-align: center; color: white; box-shadow: 0 15px 30px rgba(19, 66, 59, 0.2); border: 1px solid rgba(201, 130, 70, 0.3); position: relative; overflow: hidden; }
         .tarjeta-vip::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); transform: rotate(45deg); pointer-events: none; }
-        .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .avatar-letra { width: 60px; height: 60px; border-radius: 50%; background: var(--cobre); color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; text-transform: uppercase; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin: 0 auto 15px auto; }
+        .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 22px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .tarjeta-vip p { color: #e0e0e0; font-size: 14px; margin-bottom: 0; }
         
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 25px 0; flex-wrap: wrap; gap: 4px; position: relative; z-index: 2; }
@@ -263,12 +263,9 @@
         <a href="javascript:void(0)" onclick="cambiarVista('galeria')" id="link-galeria">
             <i class="fas fa-images icon"></i> <span data-i18n="menu_galeria">Galería</span>
         </a>
-        
-        <!-- NUEVO: BOTÓN DE WI-FI EN BARRA LATERAL -->
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-wifi'); vibrar('soft');">
             <i class="fas fa-wifi icon text-primary"></i> <span data-i18n="menu_wifi">Wi-Fi Gratis</span>
         </a>
-        
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar'); vibrar('soft');">
             <i class="fas fa-question-circle icon"></i> <span data-i18n="menu_como_usar">¿Cómo usar esta app?</span>
         </a>
@@ -278,21 +275,18 @@
     </div>
 </div>
 
-<!-- NUEVO MODAL DE WI-FI -->
+<!-- MODAL DE WI-FI CONFIGURADO Y LIMPIO -->
 <div id="modal-wifi" class="modal-overlay">
     <div class="modal-content">
         <h3 style="border-bottom: none; margin-top: 0; color: var(--verde-quiosco);"><i class="fas fa-wifi text-primary"></i> <span data-i18n="menu_wifi">Wi-Fi Gratis</span></h3>
-        <p style="font-size: 14px; color: var(--texto-claro);" data-i18n="wifi_desc">Escanea el código QR con tu cámara o copia la contraseña.</p>
+        <p style="font-size: 14px; color: var(--texto-claro);" data-i18n="wifi_desc">Escanea el código QR con tu cámara para conectarte o copia la contraseña.</p>
         
         <div style="background: white; padding: 15px; border-radius: 16px; display: inline-block; margin: 10px 0 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            <!-- AQUÍ CAMBIAS EL NOMBRE DE TU RED Y CONTRASEÑA EN EL ENLACE PARA EL QR -->
-            <!-- FORMATO: WIFI:T:WPA;S:Tu_Red_Quiosco;P:Tu_Password_123;; -->
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=WIFI:T:WPA;S:Tu_Red_Quiosco;P:Tu_Password_123;;" alt="Wi-Fi QR" style="width: 160px; height: 160px;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=WIFI:T:WPA;S:QuioscoMoriscoB;P:Corazonsc31;;" alt="Wi-Fi QR" style="width: 160px; height: 160px;">
         </div>
         
-        <!-- AQUÍ CAMBIAS EL NOMBRE VISUAL DE TU RED Y CONTRASEÑA -->
-        <p style="margin: 0; font-weight: bold; font-size: 15px; color: var(--texto-oscuro);">Red: <span style="color: var(--cobre);">Tu_Red_Quiosco</span></p>
-        <div style="background: var(--fondo-hueso); padding: 14px; border-radius: 12px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: var(--verde-quiosco); margin: 10px 0; border: 1px solid var(--border-color);" id="wifi-pass">Tu_Password_123</div>
+        <p style="margin: 0; font-weight: bold; font-size: 15px; color: var(--texto-oscuro);">Red: <span style="color: var(--cobre);">QuioscoMoriscoB</span></p>
+        <div style="background: var(--fondo-hueso); padding: 14px; border-radius: 12px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: var(--verde-quiosco); margin: 10px 0; border: 1px solid var(--border-color);" id="wifi-pass">Corazonsc31</div>
         
         <div class="modal-buttons" style="margin-top: 20px;">
             <button onclick="cerrarModalInfo('modal-wifi'); vibrar('soft');" class="btn-cancelar" data-i18n="btn_cerrar">Cerrar</button>
@@ -373,7 +367,6 @@
     </div>
     <h1>Quiosco Morisco</h1>
 
-    <!-- BARRA SOCIAL CON BOTÓN DE WI-FI AÑADIDO -->
     <div class="social-bar-elegante">
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-wifi'); vibrar('soft');" class="social-item wifi" title="Wi-Fi Gratis"><i class="fas fa-wifi"></i></a>
         <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" target="_blank" class="social-item instagram"><i class="fab fa-instagram"></i></a>
@@ -395,8 +388,15 @@
     <div id="vista-inicio" class="vista-app">
         {% if cliente and progreso %}
         <div class="tarjeta-vip">
-            <h3 style="margin-top: 0;"><span id="saludo-dinamico">¡Hola!</span>, {{ cliente.nombre }}</h3>
-            <p style="margin-top: -5px;"><span data-i18n="progreso_llevas">Llevas</span> <strong style="color: #c98246; font-size: 1.2em;">{{ progreso }}</strong> <span data-i18n="progreso_consumos">consumos</span>.</p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
+                <div class="avatar-letra">{{ cliente.nombre[0] }}</div>
+                <h3 style="margin: 0; text-align: left; line-height: 1.2;">
+                    <span id="saludo-dinamico" style="font-size: 16px; opacity: 0.9; font-family: 'Open Sans', sans-serif;">¡Hola!</span><br>
+                    <span style="font-size: 26px;">{{ cliente.nombre }}</span>
+                </h3>
+            </div>
+            
+            <p style="margin-top: 5px;"><span data-i18n="progreso_llevas">Llevas</span> <strong style="color: #c98246; font-size: 1.3em;">{{ progreso }}</strong> <span data-i18n="progreso_consumos">consumos</span>.</p>
             
             <div class="progress-bar">
                 {% for i in range(1, max_visitas + 1) %}
@@ -597,7 +597,7 @@
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
             progreso_titulo: "Socio Oro", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Meta Alcanzada! Muestra en caja:", nivel_casi: "¡Sigue visitándonos para destapar premios!", titulo_lista_premios: "Metas Activas",
-            eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara o copia la contraseña.", wifi_copiar: "Copiar"
+            eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara para conectarte o copia la contraseña.", wifi_copiar: "Copiar"
         },
         en: {
             menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery", menu_wifi: "Free Wi-Fi",
@@ -609,7 +609,7 @@
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
             btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
             progreso_titulo: "Gold Member", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
-            eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera or copy the password.", wifi_copiar: "Copy"
+            eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera to connect or copy the password.", wifi_copiar: "Copy"
         }
     };
 
@@ -622,7 +622,6 @@
         } catch(e) {}
     }
 
-    // LÓGICA DE COPIAR WI-FI
     function copiarWifi() {
         let passText = document.getElementById('wifi-pass').innerText;
         navigator.clipboard.writeText(passText).then(() => {
@@ -634,9 +633,9 @@
     }
 
     function buscarPlatillosVivo() {
-        let input = document.getElementById('buscador-menu').value.toLowerCase();
+        let input = document.getElementById('buscador-menu').value.toLowerCase().trim();
         let bloques = document.querySelectorAll('.categoria-bloque');
-        
+
         bloques.forEach(bloque => {
             let items = bloque.querySelectorAll('.menu-item');
             let tieneVisibles = false;
@@ -662,11 +661,11 @@
         if(saludoEl) {
             let hora = new Date().getHours();
             if(hora >= 5 && hora < 12) {
-                saludoEl.innerHTML = "¡Buenos días";
+                saludoEl.innerHTML = "¡Buenos días desde San Cris! ☕";
             } else if(hora >= 12 && hora < 19) {
-                saludoEl.innerHTML = "¡Buenas tardes";
+                saludoEl.innerHTML = "¡Buenas tardes en San Cris! ☀️";
             } else {
-                saludoEl.innerHTML = "¡Buenas noches";
+                saludoEl.innerHTML = "¡Noche perfecta para un café! 🌙";
             }
         }
     }
