@@ -104,7 +104,7 @@
         .tarjeta-vip { background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); padding: 30px 20px; border-radius: 20px; margin-bottom: 25px; text-align: center; color: white; box-shadow: 0 15px 30px rgba(19, 66, 59, 0.2); border: 1px solid rgba(201, 130, 70, 0.3); position: relative; overflow: hidden; }
         .tarjeta-vip::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); transform: rotate(45deg); pointer-events: none; }
         .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .tarjeta-vip p { color: #e0e0e0; font-size: 14px; }
+        .tarjeta-vip p { color: #e0e0e0; font-size: 14px; margin-bottom: 0; }
         
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 25px 0; flex-wrap: wrap; gap: 4px; position: relative; z-index: 2; }
         .circle { width: 38px; height: 38px; border-radius: 50%; border: 2px solid rgba(201, 130, 70, 0.5); display: flex; align-items: center; justify-content: center; font-weight: bold; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.2); font-size: 14px; transition: 0.4s; }
@@ -116,12 +116,24 @@
         .line { height: 3px; background: rgba(201, 130, 70, 0.3); flex-grow: 1; min-width: 10px; max-width: 25px; }
         .line.filled { background: var(--cobre); }
 
+        @keyframes latido { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .animacion-latido { animation: latido 2s infinite; }
+
+        /* BUSCADOR INTELIGENTE EN VIVO (Diseño) */
+        .buscador-container { position: relative; margin-bottom: 20px; }
+        .buscador-input { width: 100%; padding: 14px 15px 14px 45px; border-radius: 30px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); color: var(--texto-oscuro); outline: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .buscador-input:focus { border-color: var(--cobre); box-shadow: 0 4px 15px rgba(201,130,70,0.2); }
+        .buscador-icono { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--texto-claro); font-size: 16px; }
+
+        /* BANNER DE INSTALACIÓN DE APP */
+        #banner-instalar-app { display: none; position: fixed; bottom: 85px; left: 5%; width: 90%; background: var(--verde-quiosco); color: white; padding: 12px 15px; border-radius: 16px; z-index: 3000; box-shadow: 0 10px 25px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1); animation: fadeInUp 0.5s ease-out; }
+        
         /* BOTONES GLOBALES Y ANTI-SPAM */
         .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: var(--verde-quiosco); color: #ffffff; text-align: center; text-decoration: none; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; box-shadow: 0 4px 15px rgba(19, 66, 59, 0.2); }
         .btn:hover:not(:disabled) { background: var(--cobre); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201, 130, 70, 0.3); }
         .btn:disabled { background: #d32f2f !important; cursor: not-allowed; box-shadow: none; transform: none; opacity: 0.9; }
         
-        /* ESTILOS CARRUSEL DE FAVORITOS (NUEVO) */
+        /* ESTILOS CARRUSEL DE FAVORITOS */
         .carrusel-favoritos { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 15px; padding-top: 5px; scroll-snap-type: x mandatory; scrollbar-width: none; }
         .carrusel-favoritos::-webkit-scrollbar { display: none; }
         .tarjeta-favorito { min-width: 140px; max-width: 140px; scroll-snap-align: start; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 15px rgba(0,0,0,0.06); cursor: pointer; border: 1px solid var(--border-color); background: var(--fondo-tarjeta); transition: 0.3s; margin-bottom: 5px; }
@@ -136,7 +148,7 @@
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
         .btn-flotante-mesero:active, .btn-flotante-eval:active { transform: scale(0.95); }
 
-        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 15px; margin-bottom: 25px; scrollbar-width: none; border-bottom: none; }
+        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 15px; margin-bottom: 15px; scrollbar-width: none; border-bottom: none; }
         .filtros-wrapper::-webkit-scrollbar { display: none; }
         .filtro-btn { display: inline-block; background: var(--fondo-tarjeta); border: 1.5px solid var(--border-color); color: var(--texto-oscuro); padding: 10px 20px; margin-right: 10px; border-radius: 30px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
         .filtro-btn.activo { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); box-shadow: 0 6px 15px rgba(19, 66, 59, 0.2); }
@@ -152,18 +164,8 @@
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         
         /* EFECTO "ILUMINAR PLATILLO" (Deep Linking) */
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(201, 130, 70, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0); }
-        }
-        .highlight-focus {
-            animation: pulseGlow 1.5s infinite !important;
-            border: 2px solid var(--cobre) !important;
-            background: rgba(201, 130, 70, 0.1) !important;
-            transform: scale(1.03);
-            z-index: 10;
-        }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(201, 130, 70, 0); } 100% { box-shadow: 0 0 0 0 rgba(201, 130, 70, 0); } }
+        .highlight-focus { animation: pulseGlow 1.5s infinite !important; border: 2px solid var(--cobre) !important; background: rgba(201, 130, 70, 0.1) !important; transform: scale(1.03); z-index: 10; }
 
         .flash { padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .flash.premio_interactivo { background: var(--verde-quiosco); color: #fff; border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
@@ -200,12 +202,12 @@
 <div class="header-wrapper">
     <div class="navbar-top">
         <div class="lang-selector">
-            <i class="fas fa-moon lang-icono" id="btn-dark-mode" onclick="toggleDarkMode()"></i>
+            <i class="fas fa-moon lang-icono" id="btn-dark-mode" onclick="toggleDarkMode(); vibrar('soft');"></i>
             <span style="color:var(--border-color);">|</span>
-            <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es')">🇲🇽 ES</button>
-            <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en')">🇺🇸 EN</button>
+            <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es'); vibrar('soft');">🇲🇽 ES</button>
+            <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en'); vibrar('soft');">🇺🇸 EN</button>
         </div>
-        <div class="hamburger d-none d-md-flex" onclick="abrirSidebar()">
+        <div class="hamburger d-none d-md-flex" onclick="abrirSidebar(); vibrar('soft');">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Menú</span>&#9776;
         </div>
         <!-- Solo Logo visible en Header Móvil -->
@@ -215,20 +217,35 @@
     </div>
 </div>
 
-<!-- BARRA DE NAVEGACIÓN INFERIOR -->
+<!-- BARRA DE NAVEGACIÓN INFERIOR (App) -->
 <div class="bottom-nav">
-    <a href="javascript:void(0)" onclick="cambiarVista('inicio')" class="nav-item activo" id="bottom-inicio">
+    <a href="javascript:void(0)" onclick="cambiarVista('inicio'); vibrar('soft');" class="nav-item activo" id="bottom-inicio">
         <i class="fas fa-home"></i><span data-i18n="menu_inicio">Inicio</span>
     </a>
-    <a href="javascript:void(0)" onclick="cambiarVista('menu')" class="nav-item" id="bottom-menu">
+    <a href="javascript:void(0)" onclick="cambiarVista('menu'); vibrar('soft');" class="nav-item" id="bottom-menu">
         <i class="fas fa-book-open"></i><span data-i18n="menu_ver_menu">Menú</span>
     </a>
-    <a href="javascript:void(0)" onclick="cambiarVista('galeria')" class="nav-item" id="bottom-galeria">
+    <a href="javascript:void(0)" onclick="cambiarVista('galeria'); vibrar('soft');" class="nav-item" id="bottom-galeria">
         <i class="fas fa-camera-retro"></i><span data-i18n="menu_galeria">Galería</span>
     </a>
 </div>
 
-<!-- BANNER TIPO STARBUCKS CON LÓGICA DE RADAR (DEEP LINKING) -->
+<!-- BANNER PARA INSTALAR APP (Se muestra solo por JS) -->
+<div id="banner-instalar-app">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" style="width: 45px; height: 45px; border-radius: 10px; border: 2px solid white;">
+        <div style="line-height: 1.2;">
+            <span style="font-size: 14px; font-weight: bold; display: block;">App Quiosco Morisco</span>
+            <span style="font-size: 11px; opacity: 0.9;">Instálala para un acceso rápido 🚀</span>
+        </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button onclick="cerrarInstalacionApp(); vibrar('soft');" style="background: transparent; color: white; border: 1px solid rgba(255,255,255,0.5); padding: 6px 10px; border-radius: 8px; font-size: 11px; cursor: pointer;">No</button>
+        <button onclick="instalarApp(); vibrar('soft');" style="background: var(--cobre); color: white; border: none; padding: 6px 15px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">Instalar</button>
+    </div>
+</div>
+
+<!-- BANNER TIPO STARBUCKS -->
 {% if anuncio and anuncio.activo %}
 <div class="hero-banner-starbucks">
     {% if anuncio.imagen_url %}
@@ -241,7 +258,7 @@
     <div class="hero-content">
         <h1 class="hero-title">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
-            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="return procesarEnlaceBanner(this.getAttribute('href'));">
+            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
                 {{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
             </a>
         {% endif %}
@@ -257,7 +274,6 @@
         <h2>Quiosco Morisco</h2>
         <a href="javascript:void(0)" class="close-btn" onclick="cerrarSidebar()" style="padding: 10px;">&times;</a>
     </div>
-    
     <div class="sidebar-links">
         <a href="javascript:void(0)" onclick="cambiarVista('inicio')" id="link-inicio" class="activo">
             <i class="fas fa-home icon"></i> <span data-i18n="menu_inicio">Inicio</span>
@@ -268,7 +284,7 @@
         <a href="javascript:void(0)" onclick="cambiarVista('galeria')" id="link-galeria">
             <i class="fas fa-images icon"></i> <span data-i18n="menu_galeria">Galería</span>
         </a>
-        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar')">
+        <a href="javascript:void(0)" onclick="abrirModalInfo('modal-como-usar'); vibrar('soft');">
             <i class="fas fa-question-circle icon"></i> <span data-i18n="menu_como_usar">¿Cómo usar esta app?</span>
         </a>
     </div>
@@ -284,7 +300,7 @@
         <p data-i18n="mod_como_usar_1"><strong>1. Explora el menú:</strong> Usa la barra de navegación inferior.</p>
         <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero:</strong> Usa el botón verde flotante abajo a la derecha.</p>
         <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Al pagar en caja, pide tu PIN, ingrésalo en la pantalla de "Inicio".</p>
-        <button class="btn" onclick="cerrarModalInfo('modal-como-usar')" data-i18n="btn_entendido">Entendido</button>
+        <button class="btn" onclick="cerrarModalInfo('modal-como-usar'); vibrar('soft');" data-i18n="btn_entendido">Entendido</button>
     </div>
 </div>
 
@@ -294,8 +310,8 @@
         <p style="text-align: center;" data-i18n="modal_mesero_sub">Para atenderte súper rápido, ¿en qué número de mesa te encuentras?</p>
         <input type="number" id="input-mesa" placeholder="Ej. 4">
         <div class="modal-buttons">
-            <button onclick="cerrarModalInfo('modal-mesero')" class="btn-cancelar" data-i18n="btn_cancelar">Cancelar</button>
-            <button onclick="enviarMensajeWhatsapp()" class="btn-llamar" data-i18n="btn_llamar">Llamar</button>
+            <button onclick="cerrarModalInfo('modal-mesero'); vibrar('soft');" class="btn-cancelar" data-i18n="btn_cancelar">Cancelar</button>
+            <button onclick="enviarMensajeWhatsapp(); vibrar('soft');" class="btn-llamar" data-i18n="btn_llamar">Llamar</button>
         </div>
     </div>
 </div>
@@ -332,20 +348,19 @@
             </select>
             <textarea name="comentarios" class="eval-textarea" placeholder="¿Algún comentario adicional?" data-i18n-placeholder="eval_ph_comentarios" rows="2"></textarea>
             <div style="display: flex; gap: 15px; margin-top: 15px;">
-                <button type="button" class="btn-cancelar" onclick="cerrarModalInfo('modal-evaluacion')" data-i18n="btn_cancelar">Cancelar</button>
-                <button type="submit" class="btn-eval" style="margin-top: 0;" data-i18n="btn_enviar">Enviar</button>
+                <button type="button" class="btn-cancelar" onclick="cerrarModalInfo('modal-evaluacion'); vibrar('soft');" data-i18n="btn_cancelar">Cancelar</button>
+                <button type="submit" class="btn-eval" style="margin-top: 0;" data-i18n="btn_enviar" onclick="vibrar('soft');">Enviar</button>
             </div>
         </form>
     </div>
 </div>
 
 <div class="botones-flotantes">
-    <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion')"><i class="fas fa-star"></i> <span data-i18n="btn_flotante_eval">Calificanos</span></div>
-    <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero')"><i class="fas fa-bell"></i> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
+    <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion'); vibrar('soft');"><i class="fas fa-star"></i> <span data-i18n="btn_flotante_eval">Calificanos</span></div>
+    <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');"><i class="fas fa-bell"></i> <span data-i18n="btn_flotante_mesero">Llamar Mesero</span></div>
 </div>
 
 <div class="container">
-    
     <div class="logo-container" style="margin-top: 20px;">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" loading="lazy" onerror="this.style.display='none'">
     </div>
@@ -372,7 +387,8 @@
     <div id="vista-inicio" class="vista-app">
         {% if cliente and progreso %}
         <div class="tarjeta-vip">
-            <h3 style="margin-top: 0;"><span data-i18n="progreso_titulo">Socio Oro</span>, {{ cliente.nombre }}</h3>
+            <!-- SALUDO INTELIGENTE Y PERSONALIZADO -->
+            <h3 style="margin-top: 0;"><span id="saludo-dinamico">¡Hola!</span>, {{ cliente.nombre }}</h3>
             <p style="margin-top: -5px;"><span data-i18n="progreso_llevas">Llevas</span> <strong style="color: #c98246; font-size: 1.2em;">{{ progreso }}</strong> <span data-i18n="progreso_consumos">consumos</span>.</p>
             
             <div class="progress-bar">
@@ -391,18 +407,33 @@
                 {% endfor %}
             </div>
             
+            <!-- LÓGICA DE MOTIVADOR PREDICTIVO (Calcula cuánto falta) -->
             {% if premio_actual %}
                 <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid rgba(255,215,0,0.5);">
                     <span style="color: #ffd700; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;" data-i18n="nivel_alcanzado">¡Meta Alcanzada! Muestra en caja:</span><br>
                     <span style="font-size: 24px; font-weight: bold; color: #fff; display:block; margin-top:5px; font-family: 'Lora', serif;" data-es="{{ premio_actual.premio_es }}" data-en="{{ premio_actual.premio_en | default(premio_actual.premio_es) }}">{{ premio_actual.premio_es }}</span>
                 </div>
             {% else %}
-                <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px;" data-i18n="nivel_casi">¡Sigue visitándonos para destapar premios!</p>
+                {% set next_metas = [] %}
+                {% for m in metas_list %}
+                    {% if m > progreso %}
+                        {% set _ = next_metas.append(m) %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if next_metas|length > 0 %}
+                    {% set faltan = next_metas[0] - progreso %}
+                    <div class="animacion-latido mt-3" style="background: rgba(0,0,0,0.15); padding: 10px; border-radius: 10px; border: 1px dashed rgba(201,130,70,0.5);">
+                        <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0;">¡Estás a solo <strong style="color: #ffd700; font-size: 1.3em;">{{ faltan }} visita{% if faltan > 1 %}s{% endif %}</strong> de tu próximo premio! 🎁</p>
+                    </div>
+                {% else %}
+                    <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px;">¡Eres un cliente estrella, alcanzaste todas las metas!</p>
+                {% endif %}
             {% endif %}
         </div>
         {% endif %}
 
-        <!-- NUEVO: CARRUSEL DE FAVORITOS DE LA CASA (Social Proof) -->
+        <!-- CARRUSEL DE FAVORITOS DE LA CASA -->
         {% set destacados = [] %}
         {% for cat, lista in categorias.items() %}
             {% for p in lista %}
@@ -419,7 +450,7 @@
             </h4>
             <div class="carrusel-favoritos">
                 {% for p in destacados %}
-                <div class="tarjeta-favorito" onclick="return procesarEnlaceBanner('#vista-menu|{{ p.nombre }}');">
+                <div class="tarjeta-favorito" onclick="vibrar('soft'); return procesarEnlaceBanner('#vista-menu|{{ p.nombre }}');">
                     {% if p.imagen_url %}
                         <img src="{{ p.imagen_url }}" alt="{{ p.nombre }}">
                     {% else %}
@@ -434,7 +465,6 @@
             </div>
         </div>
         {% endif %}
-        <!-- FIN CARRUSEL DE FAVORITOS -->
 
         {% if premios %}
         <div class="card p-4 mb-4" style="background: rgba(201,130,70,0.03); border: 1px solid rgba(201,130,70,0.2);">
@@ -467,29 +497,36 @@
                 <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
                 <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; text-transform: uppercase; background: rgba(19, 66, 59, 0.05); border: 2px dashed var(--cobre);">
                 
-                <button type="submit" class="btn mt-3" id="btn-sellar" data-i18n="btn_sellar">Sellar Visita</button>
+                <button type="submit" class="btn mt-3" id="btn-sellar" data-i18n="btn_sellar" onclick="vibrar('soft');">Sellar Visita</button>
             </form>
         </div>
     </div>
 
     <!-- VISTA 2: MENÚ DIGITAL -->
     <div id="vista-menu" class="vista-app" style="display: none;">
-        <div class="card" style="padding: 10px 0; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
-            <h2 data-i18n="menu_titulo_seccion" style="border: none;">Nuestro Menú</h2>
+        <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
+            <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 20px;">Nuestro Menú</h2>
+            
+            <!-- BUSCADOR EN VIVO INTELIGENTE -->
+            <div class="buscador-container">
+                <i class="fas fa-search buscador-icono"></i>
+                <input type="text" id="buscador-menu" class="buscador-input" placeholder="Buscar platillos o bebidas..." onkeyup="buscarPlatillosVivo()">
+            </div>
+
             {% if categorias %}
             <div class="filtros-wrapper">
-                <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this)" data-i18n="filtro_todos">Todos</button>
+                <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this); vibrar('soft');" data-i18n="filtro_todos">Todos</button>
                 {% for cat_nombre in categorias.keys() %}
-                    <button class="filtro-btn" data-categoria="{{ cat_nombre|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this)">{{ cat_nombre }}</button>
+                    <button class="filtro-btn" data-categoria="{{ cat_nombre|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this); vibrar('soft');">{{ cat_nombre }}</button>
                 {% endfor %}
             </div>
+            
             <div id="contenedor-menu">
                 {% for cat_nombre, lista in categorias.items() %}
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}">
                         <div class="categoria-titulo">{{ cat_nombre }}</div>
                         {% for producto in lista %}
-                            
-                            <!-- SE AGREGÓ UN ID ÚNICO A CADA PRODUCTO PARA EL DEEP LINKING -->
+                            <!-- SE AGREGÓ UN ID ÚNICO PARA DEEP LINKING -->
                             <div class="menu-item card {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}" id="prod-{{ producto.nombre|replace(' ', '-')|lower }}">
                                 
                                 {% if producto.agotado %}<div class="overlay-agotado" data-i18n="badge_agotado">Agotado</div>{% endif %}
@@ -541,7 +578,6 @@
     </div>
 </div>
 
-<!-- Footer ajustado para no estorbar con el bottom nav -->
 <footer style="text-align: center; padding: 20px 20px 40px 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
     <p class="mb-0 small">© 2026 Quiosco Morisco. Todos los derechos reservados.</p>
 </footer>
@@ -573,6 +609,79 @@
             eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites"
         }
     };
+
+    // MOTOR DE VIBRACIÓN TÁCTIL
+    function vibrar(tipo) {
+        if (!navigator.vibrate) return;
+        try {
+            if (tipo === 'soft') navigator.vibrate(40); // Toque de menú
+            if (tipo === 'error') navigator.vibrate([100, 50, 100]); // Fallo de PIN
+            if (tipo === 'success') navigator.vibrate([100, 50, 100, 50, 200]); // Premio
+        } catch(e) {}
+    }
+
+    // BUSCADOR EN VIVO
+    function buscarPlatillosVivo() {
+        let input = document.getElementById('buscador-menu').value.toLowerCase();
+        let bloques = document.querySelectorAll('.categoria-bloque');
+        
+        bloques.forEach(bloque => {
+            let items = bloque.querySelectorAll('.menu-item');
+            let tieneVisibles = false;
+            
+            items.forEach(item => {
+                let nombre = item.querySelector('.nombre-platillo').innerText.toLowerCase();
+                let descElemento = item.querySelector('.info-platillo span:nth-child(2)');
+                let desc = descElemento ? descElemento.innerText.toLowerCase() : "";
+                
+                if(nombre.includes(input) || desc.includes(input)) {
+                    item.style.display = 'flex';
+                    tieneVisibles = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            // Oculta la categoría entera si no hay ningún platillo que coincida
+            bloque.style.display = tieneVisibles ? 'block' : 'none';
+        });
+    }
+
+    // SALUDO INTELIGENTE (Dependiendo la hora)
+    function actualizarSaludoDinamico() {
+        let saludoEl = document.getElementById('saludo-dinamico');
+        if(saludoEl) {
+            let hora = new Date().getHours();
+            if(hora >= 5 && hora < 12) {
+                saludoEl.innerHTML = "¡Buenos días";
+            } else if(hora >= 12 && hora < 19) {
+                saludoEl.innerHTML = "¡Buenas tardes";
+            } else {
+                saludoEl.innerHTML = "¡Buenas noches";
+            }
+        }
+    }
+
+    // SISTEMA INSTALACIÓN PWA
+    let appInstallPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        appInstallPrompt = e;
+        // Muestra el banner solo si el cliente no la tiene instalada
+        setTimeout(() => { document.getElementById('banner-instalar-app').style.display = 'flex'; }, 3000);
+    });
+
+    function instalarApp() {
+        if(appInstallPrompt) {
+            appInstallPrompt.prompt();
+            appInstallPrompt.userChoice.then((choiceResult) => {
+                appInstallPrompt = null;
+            });
+            cerrarInstalacionApp();
+        }
+    }
+    function cerrarInstalacionApp() {
+        document.getElementById('banner-instalar-app').style.display = 'none';
+    }
 
     function cambiarIdioma(lang) {
         document.getElementById('btn-es').classList.remove('activo');
@@ -606,10 +715,8 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // LÓGICA DE RADAR (Deep Linking) PARA EL BANNER Y CARRUSEL
     function procesarEnlaceBanner(enlace) {
         if(enlace.startsWith('http')) { window.open(enlace, '_blank'); return false; }
-        
         if(enlace.startsWith('#vista-menu')) {
             cambiarVista('menu');
             let partes = enlace.split('|');
@@ -645,9 +752,14 @@
     }
 
     function filtrarMenu(categoria, boton) {
+        // Limpia el buscador si se toca una categoría
+        document.getElementById('buscador-menu').value = "";
+        
         document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('activo'));
         boton.classList.add('activo');
         document.querySelectorAll('.categoria-bloque').forEach(bloque => {
+            // Asegura que los items se vuelvan a mostrar
+            bloque.querySelectorAll('.menu-item').forEach(i => i.style.display = 'flex');
             bloque.style.display = (categoria === 'Todos' || bloque.getAttribute('data-categoria') === categoria) ? 'block' : 'none';
         });
     }
@@ -660,6 +772,8 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
+        actualizarSaludoDinamico();
+        
         if (localStorage.getItem('darkMode') === 'yes') toggleDarkMode();
 
         let savedLang = localStorage.getItem('idioma_quiosco');
@@ -673,6 +787,7 @@
 
         var flashElement = document.getElementById("mensaje-flash");
         if (flashElement && flashElement.getAttribute("data-categoria") === "premio_interactivo") {
+            vibrar('success');
             var duration = 3 * 1000; var animationEnd = Date.now() + duration;
             var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0, colors: ['#13423b', '#c98246', '#ffffff'] };
             var interval = setInterval(function() {
@@ -693,12 +808,11 @@
             let cat = flashElement.getAttribute("data-categoria");
             let msg = flashElement.innerText.toLowerCase();
             
-            // Si el mensaje es un error por PIN inválido, suma un fallo
             if (cat === "error" && (msg.includes("inválido") || msg.includes("utilizado"))) {
+                vibrar('error');
                 let fallos = parseInt(localStorage.getItem('pin_fallos') || '0') + 1;
                 localStorage.setItem('pin_fallos', fallos);
             } 
-            // Si es un éxito, limpia el historial de fraude
             else if (cat === "success" || cat === "premio_interactivo") {
                 localStorage.setItem('pin_fallos', '0');
             }
@@ -709,17 +823,12 @@
             let bloqueoHasta = parseInt(localStorage.getItem('pin_bloqueo_hasta') || '0');
             let ahora = new Date().getTime();
 
-            // Si está bloqueado actualmente
-            if (bloqueoHasta > ahora) {
-                activarBloqueo(bloqueoHasta);
-                return;
-            }
+            if (bloqueoHasta > ahora) { activarBloqueo(bloqueoHasta); return; }
 
-            // Si falló 3 veces y no estaba bloqueado, bloquear ahora por 60 segundos
             if (fallos >= 3) {
                 let nuevoBloqueo = ahora + (60 * 1000); 
                 localStorage.setItem('pin_bloqueo_hasta', nuevoBloqueo);
-                localStorage.setItem('pin_fallos', '0'); // Reinicia cuenta para el próximo bloque
+                localStorage.setItem('pin_fallos', '0'); 
                 activarBloqueo(nuevoBloqueo);
             }
         }
@@ -748,10 +857,8 @@
             }
         }
 
-        // Ejecutar verificación del escudo al arrancar la página
         verificarEscudo();
 
-        // Evitar doble clic rápido al enviar el formulario
         const formPin = document.getElementById('form-pin');
         if(formPin) {
             formPin.addEventListener('submit', function() {
