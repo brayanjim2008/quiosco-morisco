@@ -118,16 +118,12 @@ def load_user(user_id):
 def actualizar_db():
     db.drop_all()
     db.create_all()
-    
     db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
     db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
-    
     db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
     db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
-    
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
-    
     db.session.commit()
     return "<h1>¡BD Reconstruida (Permisos y Agotados)!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
 
@@ -386,22 +382,27 @@ def nuevo_producto():
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/producto/editar/<int:id>', methods=['POST'])
+# MODIFICACIÓN: AHORA PERMITE ABRIR LA PANTALLA DE EDICIÓN Y GUARDAR LOS CAMBIOS
+@app.route('/admin/producto/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar_producto(id):
     if current_user.role != 'admin': return redirect(url_for('index'))
     p = Producto.query.get_or_404(id)
-    p.nombre, p.nombre_en = request.form['nombre'], request.form.get('nombre_en', '')
-    p.descripcion, p.descripcion_en = request.form['descripcion'], request.form.get('descripcion_en', '')
-    p.precio, p.categoria = request.form['precio'], request.form['categoria']
-    
-    p.destacado = True if request.form.get('destacado') == 'on' else False
-    p.agotado = True if request.form.get('agotado') == 'on' else False
-    
-    if 'foto' in request.files and request.files['foto'].filename != '':
-        p.imagen_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url')
-    db.session.commit()
-    return redirect(url_for('admin_dashboard'))
+    if request.method == 'POST':
+        p.nombre, p.nombre_en = request.form['nombre'], request.form.get('nombre_en', '')
+        p.descripcion, p.descripcion_en = request.form['descripcion'], request.form.get('descripcion_en', '')
+        p.precio, p.categoria = request.form['precio'], request.form['categoria']
+        
+        p.destacado = True if request.form.get('destacado') == 'on' else False
+        p.agotado = True if request.form.get('agotado') == 'on' else False
+        
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            p.imagen_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url')
+        db.session.commit()
+        flash('Platillo actualizado correctamente.', 'success')
+        return redirect(url_for('admin_dashboard'))
+        
+    return render_template('editar_producto.html', producto=p)
 
 @app.route('/admin/producto/eliminar/<int:id>', methods=['POST'])
 @login_required
@@ -454,6 +455,7 @@ def editar_galeria(id):
     g.titulo = request.form.get('titulo', '')
     g.descripcion = request.form.get('descripcion', '')
     db.session.commit()
+    flash('Foto de galería actualizada.', 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/eliminar_galeria/<int:id>')

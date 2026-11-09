@@ -50,7 +50,7 @@
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 20px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border-color); }
         
-        /* NUEVO: BANNER ESTILO STARBUCKS */
+        /* BANNER ESTILO STARBUCKS */
         .hero-banner-starbucks { position: relative; width: 100%; min-height: 400px; height: 50vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; margin-top: -5px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
         .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%); z-index: 2; }
@@ -59,7 +59,7 @@
         .hero-btn { display: inline-block; padding: 12px 35px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-size: 14px; transition: all 0.3s ease; background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); }
         .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-2px); }
 
-        /* NUEVO: BARRA SOCIAL ELEGANTE */
+        /* BARRA SOCIAL ELEGANTE */
         .social-bar-elegante { display: flex; justify-content: center; gap: 20px; background: var(--fondo-tarjeta); padding: 12px 30px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 35px auto; width: fit-content; position: relative; z-index: 10; }
         .social-item { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; color: white !important; font-size: 22px; text-decoration: none; transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .social-item:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
@@ -143,7 +143,7 @@
     </div>
 </div>
 
-<!-- NUEVO: BANNER TIPO STARBUCKS (De lado a lado) -->
+<!-- BANNER TIPO STARBUCKS -->
 {% if anuncio and anuncio.activo %}
 <div class="hero-banner-starbucks">
     {% if anuncio.imagen_url %}
@@ -181,7 +181,7 @@
     </div>
 </div>
 
-<!-- MODALES (Llamar Mesero, Evaluar, Cómo Usar) -->
+<!-- MODALES -->
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="mod_como_usar_titulo">❓ ¿Cómo usar esta web?</h3>
@@ -255,7 +255,7 @@
     </div>
     <h1>Quiosco Morisco</h1>
 
-    <!-- NUEVO: BARRA SOCIAL INTERACTIVA PRINCIPAL -->
+    <!-- BARRA SOCIAL -->
     <div class="social-bar-elegante">
         <a href="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" target="_blank" class="social-item instagram"><i class="fab fa-instagram"></i></a>
         <a href="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc" target="_blank" class="social-item tiktok"><i class="fab fa-tiktok"></i></a>
@@ -274,7 +274,6 @@
 
     <!-- VISTA 1: INICIO -->
     <div id="vista-inicio" class="vista-app">
-        
         {% if cliente and progreso %}
         <div class="progress-container">
             <h3 style="margin-top: 0;"><span data-i18n="progreso_titulo">Tu Avance</span>, {{ cliente.nombre }}</h3>
@@ -370,7 +369,7 @@
         </div>
     </div>
 
-    <!-- VISTA 3: GALERÍA CORREGIDA -->
+    <!-- VISTA 3: GALERÍA CON SCROLL INTERNO PARA TEXTOS LARGOS -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
             <h2 data-i18n="menu_galeria">Galería</h2>
@@ -382,7 +381,11 @@
                         {% if foto.titulo or foto.descripcion %}
                         <div class="card-body text-center" style="background: var(--fondo-hueso); border-radius: 0 0 10px 10px; border: 1px solid var(--border-color); border-top: none;">
                             {% if foto.titulo %}<h5 class="card-title fw-bold mb-1" style="color: var(--verde-quiosco);">{{ foto.titulo }}</h5>{% endif %}
-                            {% if foto.descripcion %}<p class="card-text small mb-0" style="color: var(--texto-claro);">{{ foto.descripcion }}</p>{% endif %}
+                            {% if foto.descripcion %}
+                                <div style="max-height: 85px; overflow-y: auto; text-align: left; padding: 0 5px; margin-top: 5px;">
+                                    <p class="card-text small mb-0" style="color: var(--texto-claro); word-wrap: break-word;">{{ foto.descripcion }}</p>
+                                </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

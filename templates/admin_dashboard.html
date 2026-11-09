@@ -77,7 +77,7 @@
         <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- NUEVO: BANNER DE ANUNCIOS MEJORADO (FOTO Y BOTÓN) -->
+            <!-- BANNER DE ANUNCIOS MEJORADO (FOTO Y BOTÓN) -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
@@ -128,7 +128,7 @@
                 </div>
             </div>
 
-            <!-- GALERÍA MEJORADA -->
+            <!-- GALERÍA MEJORADA CON EDICIÓN -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
                 <div class="card-body">
@@ -144,11 +144,16 @@
                         <div class="col-6 mb-3">
                             <div class="card h-100 shadow-sm border-0">
                                 <img src="{{ foto.imagen_url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
-                                <div class="card-body p-2 text-center bg-light">
-                                    {% if foto.titulo %}<h6 class="card-title fw-bold text-dark mb-1" style="font-size: 0.9rem;">{{ foto.titulo }}</h6>{% endif %}
-                                    {% if foto.descripcion %}<p class="card-text text-muted mb-2" style="font-size: 0.75rem; line-height: 1.2;">{{ foto.descripcion }}</p>{% endif %}
-                                    <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET" class="mt-2">
-                                        <button type="submit" class="btn btn-sm btn-danger w-100">Eliminar</button>
+                                <div class="card-body p-2 bg-light">
+                                    <!-- Formulario para editar título y descripción de esta foto -->
+                                    <form action="{{ url_for('editar_galeria', id=foto.id) }}" method="POST">
+                                        <input type="text" name="titulo" class="form-control form-control-sm mb-1" value="{{ foto.titulo or '' }}" placeholder="Título">
+                                        <textarea name="descripcion" class="form-control form-control-sm mb-1" rows="2" placeholder="Descripción">{{ foto.descripcion or '' }}</textarea>
+                                        <button type="submit" class="btn btn-sm btn-warning w-100 mb-1" style="font-size: 11px; font-weight: bold;">Actualizar</button>
+                                    </form>
+                                    <!-- Botón original de eliminar -->
+                                    <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100" style="font-size: 11px;">Eliminar</button>
                                     </form>
                                 </div>
                             </div>
@@ -284,9 +289,13 @@
                                     </h6>
                                     <small class="text-muted">{{ prod.categoria }}</small>
                                 </div>
-                                <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
-                                </form>
+                                <!-- Aquí agregamos el botón de Editar de forma segura -->
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-warning fw-bold">Editar</a>
+                                    <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
