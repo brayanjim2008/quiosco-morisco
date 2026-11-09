@@ -95,7 +95,6 @@
                             <div class="col-12">
                                 <label class="small fw-bold text-primary">Enlace del botón (Pégalo o elígelo):</label>
                                 
-                                <!-- EL SELECTOR MAGICO (Ayuda a llenar la caja de texto) -->
                                 <select class="form-select mb-1 border-primary shadow-sm" style="font-weight:bold; font-size: 14px;" onchange="document.getElementById('enlace_personalizado').value = this.value;">
                                     <option value="">Elegir rápido de la lista (Opcional)...</option>
                                     
@@ -117,7 +116,6 @@
                                     </optgroup>
                                 </select>
 
-                                <!-- LA CAJA DE TEXTO TRADICIONAL (Aquí puedes pegar cualquier TikTok) -->
                                 <input type="text" name="enlace" id="enlace_personalizado" class="form-control mb-2 border-primary shadow-sm" placeholder="O pega tu link largo aquí...">
                             </div>
                         </div>
@@ -173,13 +171,11 @@
                             <div class="card h-100 shadow-sm border-0">
                                 <img src="{{ foto.imagen_url }}" class="card-img-top" style="height: 120px; object-fit: cover;">
                                 <div class="card-body p-2 bg-light">
-                                    <!-- Formulario para editar título y descripción de esta foto -->
                                     <form action="{{ url_for('editar_galeria', id=foto.id) }}" method="POST">
                                         <input type="text" name="titulo" class="form-control form-control-sm mb-1" value="{{ foto.titulo or '' }}" placeholder="Título">
                                         <textarea name="descripcion" class="form-control form-control-sm mb-1" rows="2" placeholder="Descripción">{{ foto.descripcion or '' }}</textarea>
                                         <button type="submit" class="btn btn-sm btn-warning w-100 mb-1" style="font-size: 11px; font-weight: bold;">Actualizar</button>
                                     </form>
-                                    <!-- Botón original de eliminar -->
                                     <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET">
                                         <button type="submit" class="btn btn-sm btn-danger w-100" style="font-size: 11px;">Eliminar</button>
                                     </form>
@@ -220,18 +216,25 @@
                 </div>
             </div>
 
-            <!-- CATEGORÍAS -->
+            <!-- CATEGORÍAS (AHORA CON ESPAÑOL E INGLÉS) -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú</div>
                 <div class="card-body">
-                    <form action="{{ url_for('nueva_categoria') }}" method="POST" class="d-flex gap-2 mb-3">
-                        <input type="text" name="nombre" class="form-control" placeholder="Nueva categoría" required>
-                        <button type="submit" class="btn btn-success">Agregar</button>
+                    <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
+                        <div class="row gap-2 mb-2">
+                            <div class="col">
+                                <input type="text" name="nombre" class="form-control form-control-sm" placeholder="Categoría (ES)" required>
+                            </div>
+                            <div class="col">
+                                <input type="text" name="nombre_en" class="form-control form-control-sm" placeholder="Categoría (EN)">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm w-100">Agregar Categoría</button>
                     </form>
                     <ul class="list-group">
                         {% for cat in categorias %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ cat.nombre }}
+                            {{ cat.nombre }} <small class="text-muted ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small>
                             <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST">
                                 <button type="submit" class="btn btn-sm btn-danger">X</button>
                             </form>
@@ -241,21 +244,28 @@
                 </div>
             </div>
             
-            <!-- PREMIOS Y FIDELIDAD -->
+            <!-- PREMIOS Y FIDELIDAD (AHORA CON ESPAÑOL E INGLÉS) -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_premio') }}" method="POST" class="mb-3">
-                        <div class="input-group">
-                            <input type="number" name="visitas" class="form-control" placeholder="No. Visitas" required>
-                            <input type="text" name="premio_es" class="form-control w-50" placeholder="Premio (Ej. Frappé Gratis)" required>
-                            <button type="submit" class="btn btn-success">Crear</button>
+                        <div class="row g-2 mb-2">
+                            <div class="col-4">
+                                <input type="number" name="visitas" class="form-control form-control-sm" placeholder="No. Visitas" required>
+                            </div>
+                            <div class="col-4">
+                                <input type="text" name="premio_es" class="form-control form-control-sm" placeholder="Premio (ES)" required>
+                            </div>
+                            <div class="col-4">
+                                <input type="text" name="premio_en" class="form-control form-control-sm" placeholder="Premio (EN)">
+                            </div>
                         </div>
+                        <button type="submit" class="btn btn-success btn-sm w-100">Crear Meta</button>
                     </form>
                     <ul class="list-group">
                         {% for p in premios %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }}</span>
+                            <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }} <small class="text-muted">({{ p.premio_en or 'Sin inglés' }})</small></span>
                             <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST">
                                 <button type="submit" class="btn btn-sm btn-danger">X</button>
                             </form>
@@ -270,19 +280,42 @@
         <!-- COLUMNA DERECHA -->
         <div class="col-md-6">
             
-            <!-- PRODUCTOS (PLATILLOS) -->
+            <!-- PRODUCTOS (AHORA CON ESPAÑOL E INGLÉS EN CADA CAMPO) -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data" class="mb-4 bg-light p-3 rounded border">
-                        <h6>Agregar Nuevo Platillo</h6>
-                        <input type="text" name="nombre" class="form-control mb-2" placeholder="Nombre del platillo" required>
-                        <textarea name="descripcion" class="form-control mb-2" placeholder="Descripción de los ingredientes..." rows="2"></textarea>
+                        <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary">Agregar Nuevo Platillo</h6>
+                        
                         <div class="row">
                             <div class="col-6">
+                                <label class="small fw-bold text-muted">Nombre (Español)</label>
+                                <input type="text" name="nombre" class="form-control mb-2" placeholder="Ej. Capuchino" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Nombre (Inglés)</label>
+                                <input type="text" name="nombre_en" class="form-control mb-2" placeholder="Ej. Cappuccino">
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Descripción (Español)</label>
+                                <textarea name="descripcion" class="form-control mb-2" placeholder="Ingredientes..." rows="2"></textarea>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Descripción (Inglés)</label>
+                                <textarea name="descripcion_en" class="form-control mb-2" placeholder="Ingredients..." rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted">Precio</label>
                                 <input type="number" step="0.01" name="precio" class="form-control mb-2" placeholder="Precio ($)" required>
                             </div>
                             <div class="col-6">
+                                <label class="small fw-bold text-muted">Categoría</label>
                                 <select name="categoria" class="form-select mb-2" required>
                                     <option value="">Selecciona Categoría</option>
                                     {% for cat in categorias %}
@@ -291,8 +324,11 @@
                                 </select>
                             </div>
                         </div>
+                        
+                        <label class="small fw-bold text-muted mt-2">Foto del platillo:</label>
                         <input type="file" name="foto" class="form-control mb-2">
-                        <div class="d-flex gap-3 mb-3 mt-2">
+                        
+                        <div class="d-flex gap-3 mb-3 mt-3 p-2 border rounded bg-white">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
                                 <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Destacar</label>
@@ -302,7 +338,7 @@
                                 <label class="form-check-label text-danger fw-bold" for="agotado">❌ Agotado</label>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Platillo</button>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
                     </form>
 
                     <div class="list-group" style="max-height: 500px; overflow-y: auto;">
@@ -315,7 +351,7 @@
                                         <span class="badge bg-success">${{ prod.precio }}</span>
                                         {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
                                     </h6>
-                                    <small class="text-muted">{{ prod.categoria }}</small>
+                                    <small class="text-muted">{{ prod.categoria }} | EN: {{ prod.nombre_en or 'Sin traducción' }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
                                     <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-warning fw-bold">Editar</a>
