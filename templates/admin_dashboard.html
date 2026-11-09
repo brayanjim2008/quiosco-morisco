@@ -77,7 +77,7 @@
         <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- BANNER DE ANUNCIOS PREMIUM CON SELECTOR AUTOMÁTICO -->
+            <!-- BANNER DE ANUNCIOS PREMIUM CON LOS 2 MÉTODOS (SELECTOR Y TEXTO) -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
@@ -93,11 +93,11 @@
                                 <input type="text" name="texto_boton" class="form-control mb-2" placeholder="Ej. Pedir Frappé">
                             </div>
                             <div class="col-12">
-                                <label class="small fw-bold text-primary">¿A dónde quieres que lleve el botón?</label>
+                                <label class="small fw-bold text-primary">Enlace del botón (Pégalo o elígelo):</label>
                                 
-                                <!-- EL SELECTOR MAGICO (Deep Linking) -->
-                                <select name="enlace" class="form-select mb-2 border-primary shadow-sm" style="font-weight:bold;">
-                                    <option value="">Selecciona el destino (Opcional)...</option>
+                                <!-- EL SELECTOR MAGICO (Ayuda a llenar la caja de texto) -->
+                                <select class="form-select mb-1 border-primary shadow-sm" style="font-weight:bold; font-size: 14px;" onchange="document.getElementById('enlace_personalizado').value = this.value;">
+                                    <option value="">Elegir rápido de la lista (Opcional)...</option>
                                     
                                     <optgroup label="👉 SECCIONES GENERALES">
                                         <option value="#vista-menu">Menú Principal Completo</option>
@@ -116,6 +116,9 @@
                                         <option value="https://share.google/g7hYq0hAgNAgyfS4l">Google Maps (Cómo llegar)</option>
                                     </optgroup>
                                 </select>
+
+                                <!-- LA CAJA DE TEXTO TRADICIONAL (Aquí puedes pegar cualquier TikTok) -->
+                                <input type="text" name="enlace" id="enlace_personalizado" class="form-control mb-2 border-primary shadow-sm" placeholder="O pega tu link largo aquí...">
                             </div>
                         </div>
 
@@ -314,7 +317,6 @@
                                     </h6>
                                     <small class="text-muted">{{ prod.categoria }}</small>
                                 </div>
-                                <!-- Aquí agregamos el botón de Editar de forma segura -->
                                 <div class="d-flex gap-1">
                                     <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-warning fw-bold">Editar</a>
                                     <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin: 0;">
