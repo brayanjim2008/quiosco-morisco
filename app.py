@@ -118,32 +118,43 @@ def load_user(user_id):
 def actualizar_db():
     db.drop_all()
     db.create_all()
+    
     db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
     db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
+    
     db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
     db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
+    
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
+    
     db.session.commit()
     return "<h1>¡BD Reconstruida (Permisos y Agotados)!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
 
 @app.route('/parche_seguro')
 def parche_seguro():
+    try:
+        # Borramos SOLO la tabla de anuncios para que se regenere limpia con las nuevas columnas
+        Anuncio.__table__.drop(db.engine, checkfirst=True)
+    except Exception:
+        pass
+
+    # Crea la tabla de anuncios de nuevo (y cualquier otra que falte)
     db.create_all()
+    
     instrucciones = [
         "ALTER TABLE producto ADD COLUMN agotado BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE galeria ADD COLUMN titulo VARCHAR(100);",
-        "ALTER TABLE galeria ADD COLUMN descripcion VARCHAR(250);",
-        "ALTER TABLE anuncio ADD COLUMN imagen_url VARCHAR(255);",
-        "ALTER TABLE anuncio ADD COLUMN texto_boton VARCHAR(50);",
-        "ALTER TABLE anuncio ADD COLUMN enlace VARCHAR(100);"
+        "ALTER TABLE galeria ADD COLUMN descripcion VARCHAR(250);"
     ]
+    
     for sql in instrucciones:
         try:
             db.session.execute(text(sql))
             db.session.commit()
         except Exception:
             db.session.rollback()
+            
     return "<h1>¡ÉXITO! Base de datos actualizada sin perder clientes.</h1><p><a href='/'>Ir al inicio</a></p>"
 
 @app.route('/')
@@ -382,7 +393,6 @@ def nuevo_producto():
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# MODIFICACIÓN: AHORA PERMITE ABRIR LA PANTALLA DE EDICIÓN Y GUARDAR LOS CAMBIOS
 @app.route('/admin/producto/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar_producto(id):
