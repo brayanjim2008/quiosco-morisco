@@ -113,49 +113,38 @@ class Anuncio(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# --- AUTO-PARCHE MÁGICO (Se ejecuta solo sin que hagas nada) ---
+with app.app_context():
+    parches = [
+        "ALTER TABLE anuncio ADD COLUMN imagen_url VARCHAR(255);",
+        "ALTER TABLE anuncio ADD COLUMN texto_boton VARCHAR(50);",
+        "ALTER TABLE anuncio ADD COLUMN enlace VARCHAR(100);",
+        "ALTER TABLE producto ADD COLUMN agotado BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE galeria ADD COLUMN titulo VARCHAR(100);",
+        "ALTER TABLE galeria ADD COLUMN descripcion VARCHAR(250);"
+    ]
+    for sql in parches:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+        except Exception:
+            db.session.rollback() # Si la columna ya existe, lo ignora silenciosamente
+    db.create_all()
+
+
 # --- RUTAS PRINCIPALES ---
 @app.route('/actualizar_db')
 def actualizar_db():
     db.drop_all()
     db.create_all()
-    
     db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
     db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
-    
     db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
     db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
-    
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
-    
     db.session.commit()
     return "<h1>¡BD Reconstruida (Permisos y Agotados)!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
-
-@app.route('/parche_seguro')
-def parche_seguro():
-    try:
-        # COMANDO DE FUERZA BRUTA: Elimina la tabla vieja desde la raíz
-        db.session.execute(text("DROP TABLE IF EXISTS anuncio;"))
-        db.session.commit()
-        
-        # Recrea las tablas con todos los campos nuevos
-        db.create_all()
-        
-        # Parches para las demás tablas
-        instrucciones = [
-            "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
-            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);"
-        ]
-        
-        for sql in instrucciones:
-            db.session.execute(text(sql))
-        db.session.commit()
-        
-        return "<h1>¡ÉXITO TOTAL! 🚀</h1><p>La tabla de anuncios fue purgada y reconstruida con todos sus espacios nuevos. Ya puedes regresar a tu panel.</p>"
-    except Exception as e:
-        db.session.rollback()
-        return f"<h1>Error al intentar actualizar la base de datos:</h1><p>{str(e)}</p>"
 
 @app.route('/')
 def index():
@@ -481,27 +470,21 @@ def eliminar_galeria(id):
 def nuevo_anuncio():
     if current_user.role != 'admin': return redirect(url_for('index'))
     
-    try:
-        if request.form.get('activo') == 'on':
-            Anuncio.query.update({Anuncio.activo: False})
-        
-        img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
-        
-        db.session.add(Anuncio(
-            mensaje=request.form['mensaje'],
-            color=request.form.get('color', 'bg-warning'),
-            imagen_url=img_url, 
-            texto_boton=request.form.get('texto_boton', ''), 
-            enlace=request.form.get('enlace', ''), 
-            activo=True if request.form.get('activo') == 'on' else False
-        ))
-        db.session.commit()
-        return redirect(url_for('admin_dashboard'))
+    if request.form.get('activo') == 'on':
+        Anuncio.query.update({Anuncio.activo: False})
     
-    except Exception as e:
-        db.session.rollback()
-        # ¡AQUÍ ESTÁ LA MAGIA! Si algo falla, te mostrará el error en la cara en lugar de darte el Error 500
-        return f"<h1>Error al guardar el anuncio:</h1><p>{str(e)}</p>"
+    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
+    
+    db.session.add(Anuncio(
+        mensaje=request.form['mensaje'],
+        color=request.form.get('color', 'bg-warning'),
+        imagen_url=img_url, 
+        texto_boton=request.form.get('texto_boton', ''), 
+        enlace=request.form.get('enlace', ''), 
+        activo=True if request.form.get('activo') == 'on' else False
+    ))
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/anuncio/eliminar/<int:id>', methods=['POST'])
 @login_required
