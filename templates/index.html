@@ -236,10 +236,11 @@
     {% endif %}
     
     <div class="hero-content">
-        <h1 class="hero-title">{{ anuncio.mensaje }}</h1>
+        <div class="hero-content">
+        <h1 class="hero-title" data-es="{{ anuncio.mensaje }}" data-en="{{ anuncio.mensaje_en | default(anuncio.mensaje) }}">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
             <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
-                {{ anuncio.texto_boton }} <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+                <span data-es="{{ anuncio.texto_boton }}" data-en="{{ anuncio.texto_boton_en | default(anuncio.texto_boton) }}">{{ anuncio.texto_boton }}</span> <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
             </a>
         {% endif %}
     </div>

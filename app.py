@@ -103,9 +103,11 @@ class Evaluacion(db.Model):
 class Anuncio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     mensaje = db.Column(db.String(250), nullable=False)
+    mensaje_en = db.Column(db.String(250), nullable=True) # NUEVO INGLÉS
     color = db.Column(db.String(50), default="bg-warning")
     imagen_url = db.Column(db.String(255), nullable=True)
     texto_boton = db.Column(db.String(50), nullable=True)
+    texto_boton_en = db.Column(db.String(50), nullable=True) # NUEVO INGLÉS
     enlace = db.Column(db.String(500), nullable=True)
     activo = db.Column(db.Boolean, default=False)
 
@@ -121,6 +123,8 @@ with app.app_context():
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(500);",
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS mensaje_en VARCHAR(250);",
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton_en VARCHAR(50);",
             "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);"
@@ -131,7 +135,6 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
-# --- RUTA DE BOMBA ATÓMICA PARA ANUNCIOS ---
 @app.route('/forzar_borrado_anuncios')
 def forzar_borrado_anuncios():
     try:
@@ -266,7 +269,6 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', 
                            categorias=CategoriaMenu.query.all(),
                            premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
-                           # LA MAGIA ESTÁ AQUÍ: Ordenamos los productos por nombre para que el selector se vea bien
                            productos=Producto.query.order_by(Producto.nombre.asc()).all(), 
                            pins=PinCaja.query.filter_by(activo=True).all(),
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(50).all(),
@@ -492,9 +494,11 @@ def nuevo_anuncio():
         
         nuevo = Anuncio(
             mensaje=request.form.get('mensaje', 'Sin mensaje'),
+            mensaje_en=request.form.get('mensaje_en', ''), # NUEVO INGLÉS
             color=request.form.get('color', 'bg-warning'),
             imagen_url=img_url, 
             texto_boton=request.form.get('texto_boton', ''), 
+            texto_boton_en=request.form.get('texto_boton_en', ''), # NUEVO INGLÉS
             enlace=request.form.get('enlace', ''), 
             activo=True if request.form.get('activo') == 'on' else False
         )

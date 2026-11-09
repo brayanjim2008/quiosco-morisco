@@ -16,7 +16,6 @@
 </nav>
 
 <div class="container pb-5">
-    <!-- MENSAGES FLASH -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -28,7 +27,6 @@
       {% endif %}
     {% endwith %}
 
-    <!-- ESTADÍSTICAS Y EXPORTACIONES -->
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card text-center text-white bg-primary mb-3 shadow-sm">
@@ -57,12 +55,8 @@
     </div>
 
     <div class="d-flex gap-2 mb-4">
-        <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">
-            📊 Exportar Clientes (Excel)
-        </a>
-        <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">
-            📝 Exportar Evaluaciones (Excel)
-        </a>
+        <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">📊 Exportar Clientes (Excel)</a>
+        <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">📝 Exportar Evaluaciones (Excel)</a>
         <form action="{{ url_for('generar_pin') }}" method="POST" class="ms-auto d-flex gap-2">
             <select name="cantidad" class="form-select form-select-sm" style="width: auto;">
                 <option value="1">1</option>
@@ -73,49 +67,64 @@
         </form>
     </div>
 
+    <!-- ALERTA DEL BOT TRADUCTOR -->
+    <div class="alert alert-info text-center fw-bold shadow-sm mb-4">
+        🤖 Asistente de Traducción Activado: Solo escribe en las cajas en Español. Al dar clic fuera, se traducirán solas al Inglés.
+    </div>
+
     <div class="row">
         <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- BANNER DE ANUNCIOS PREMIUM CON LOS 2 MÉTODOS (SELECTOR Y TEXTO) -->
+            <!-- BANNER PRINCIPAL (CON INGLÉS AÑADIDO) -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_anuncio') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-                        <input type="text" name="mensaje" class="form-control mb-2" placeholder="Texto Grande (Ej. ¡Refrescantes Frappés!)" required>
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label class="small fw-bold">Texto Grande (Español):</label>
+                                <input type="text" name="mensaje" id="banner_es" onblur="traducirElemento('banner_es', 'banner_en')" class="form-control" placeholder="Ej. ¡Prueba el Moka!" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-primary">Texto Grande (Inglés):</label>
+                                <input type="text" name="mensaje_en" id="banner_en" class="form-control border-primary" placeholder="Ej. Try the Mocha!">
+                            </div>
+                        </div>
                         
                         <label class="small fw-bold mt-2">Foto de Portada (Opcional):</label>
                         <input type="file" name="foto" class="form-control mb-2" accept="image/*">
                         
                         <div class="row mt-2">
-                            <div class="col-12">
-                                <label class="small fw-bold">Texto del Botón:</label>
-                                <input type="text" name="texto_boton" class="form-control mb-2" placeholder="Ej. Pedir Frappé">
+                            <div class="col-6">
+                                <label class="small fw-bold">Botón (Español):</label>
+                                <input type="text" name="texto_boton" id="btn_es" onblur="traducirElemento('btn_es', 'btn_en')" class="form-control" placeholder="Ej. Ver Moka">
                             </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-primary">Botón (Inglés):</label>
+                                <input type="text" name="texto_boton_en" id="btn_en" class="form-control border-primary" placeholder="Ej. View Mocha">
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
                             <div class="col-12">
                                 <label class="small fw-bold text-primary">Enlace del botón (Pégalo o elígelo):</label>
-                                
                                 <select class="form-select mb-1 border-primary shadow-sm" style="font-weight:bold; font-size: 14px;" onchange="document.getElementById('enlace_personalizado').value = this.value;">
                                     <option value="">Elegir rápido de la lista (Opcional)...</option>
-                                    
                                     <optgroup label="👉 SECCIONES GENERALES">
                                         <option value="#vista-menu">Menú Principal Completo</option>
                                         <option value="#vista-galeria">Galería de Fotos</option>
                                     </optgroup>
-                                    
                                     <optgroup label="🍟 LLEVAR A UN PLATILLO DIRECTO">
                                         {% for p in productos %}
                                         <option value="#vista-menu|{{ p.nombre }}">{{ p.nombre }} - ${{ p.precio }}</option>
                                         {% endfor %}
                                     </optgroup>
-
                                     <optgroup label="🌐 REDES SOCIALES">
                                         <option value="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc">TikTok de Quiosco Morisco</option>
                                         <option value="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==">Instagram de Quiosco Morisco</option>
-                                        <option value="https://share.google/g7hYq0hAgNAgyfS4l">Google Maps (Cómo llegar)</option>
                                     </optgroup>
                                 </select>
-
                                 <input type="text" name="enlace" id="enlace_personalizado" class="form-control mb-2 border-primary shadow-sm" placeholder="O pega tu link largo aquí...">
                             </div>
                         </div>
@@ -154,7 +163,7 @@
                 </div>
             </div>
 
-            <!-- GALERÍA MEJORADA CON EDICIÓN -->
+            <!-- GALERÍA -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
                 <div class="card-body">
@@ -187,46 +196,17 @@
                 </div>
             </div>
 
-            <!-- TARJETA DE PINES DE CAJA Y QRS -->
-            <div class="card shadow-sm mb-4 border-dark">
-                <div class="card-header bg-dark text-white fw-bold">🎟️ Generador de PINs y QR (Caja)</div>
-                <div class="card-body">
-                    <form action="{{ url_for('generar_pin') }}" method="POST" class="d-flex gap-2 mb-4">
-                        <select name="cantidad" class="form-select w-50">
-                            <option value="1">Generar 1 PIN</option>
-                            <option value="5">Generar 5 PINs</option>
-                            <option value="10">Generar 10 PINs</option>
-                        </select>
-                        <button type="submit" class="btn btn-warning fw-bold w-50">⚡ Generar</button>
-                    </form>
-                    
-                    <h6 class="fw-bold text-muted">PINs Activos ({{ pins|length }}):</h6>
-                    <div class="row" style="max-height: 400px; overflow-y: auto;">
-                        {% for pin in pins|reverse %}
-                        <div class="col-6 col-md-4 mb-3">
-                            <div class="border rounded p-2 text-center bg-light shadow-sm">
-                                <h5 class="fw-bold mb-2" style="letter-spacing: 2px;">{{ pin.codigo }}</h5>
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 100px;">
-                            </div>
-                        </div>
-                        {% else %}
-                        <p class="text-muted small w-100 text-center">No hay PINs activos esperando cliente.</p>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- CATEGORÍAS (AHORA CON ESPAÑOL E INGLÉS) -->
+            <!-- CATEGORÍAS -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú</div>
                 <div class="card-body">
                     <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
                         <div class="row gap-2 mb-2">
                             <div class="col">
-                                <input type="text" name="nombre" class="form-control form-control-sm" placeholder="Categoría (ES)" required>
+                                <input type="text" name="nombre" id="cat_es" onblur="traducirElemento('cat_es', 'cat_en')" class="form-control form-control-sm" placeholder="Categoría (ES)" required>
                             </div>
                             <div class="col">
-                                <input type="text" name="nombre_en" class="form-control form-control-sm" placeholder="Categoría (EN)">
+                                <input type="text" name="nombre_en" id="cat_en" class="form-control form-control-sm border-primary" placeholder="Category (EN)">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-success btn-sm w-100">Agregar Categoría</button>
@@ -244,7 +224,7 @@
                 </div>
             </div>
             
-            <!-- PREMIOS Y FIDELIDAD (AHORA CON ESPAÑOL E INGLÉS) -->
+            <!-- PREMIOS Y FIDELIDAD -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
                 <div class="card-body">
@@ -254,10 +234,10 @@
                                 <input type="number" name="visitas" class="form-control form-control-sm" placeholder="No. Visitas" required>
                             </div>
                             <div class="col-4">
-                                <input type="text" name="premio_es" class="form-control form-control-sm" placeholder="Premio (ES)" required>
+                                <input type="text" name="premio_es" id="premio_es" onblur="traducirElemento('premio_es', 'premio_en')" class="form-control form-control-sm" placeholder="Premio (ES)" required>
                             </div>
                             <div class="col-4">
-                                <input type="text" name="premio_en" class="form-control form-control-sm" placeholder="Premio (EN)">
+                                <input type="text" name="premio_en" id="premio_en" class="form-control form-control-sm border-primary" placeholder="Premio (EN)">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-success btn-sm w-100">Crear Meta</button>
@@ -280,7 +260,7 @@
         <!-- COLUMNA DERECHA -->
         <div class="col-md-6">
             
-            <!-- PRODUCTOS (AHORA CON ESPAÑOL E INGLÉS EN CADA CAMPO) -->
+            <!-- PRODUCTOS -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú</div>
                 <div class="card-body">
@@ -290,22 +270,22 @@
                         <div class="row">
                             <div class="col-6">
                                 <label class="small fw-bold text-muted">Nombre (Español)</label>
-                                <input type="text" name="nombre" class="form-control mb-2" placeholder="Ej. Capuchino" required>
+                                <input type="text" name="nombre" id="prod_nombre_es" onblur="traducirElemento('prod_nombre_es', 'prod_nombre_en')" class="form-control mb-2" placeholder="Ej. Capuchino" required>
                             </div>
                             <div class="col-6">
-                                <label class="small fw-bold text-muted">Nombre (Inglés)</label>
-                                <input type="text" name="nombre_en" class="form-control mb-2" placeholder="Ej. Cappuccino">
+                                <label class="small fw-bold text-primary">Nombre (Inglés)</label>
+                                <input type="text" name="nombre_en" id="prod_nombre_en" class="form-control mb-2 border-primary" placeholder="Ej. Cappuccino">
                             </div>
                         </div>
 
                         <div class="row mt-2">
                             <div class="col-6">
                                 <label class="small fw-bold text-muted">Descripción (Español)</label>
-                                <textarea name="descripcion" class="form-control mb-2" placeholder="Ingredientes..." rows="2"></textarea>
+                                <textarea name="descripcion" id="prod_desc_es" onblur="traducirElemento('prod_desc_es', 'prod_desc_en')" class="form-control mb-2" placeholder="Ingredientes..." rows="2"></textarea>
                             </div>
                             <div class="col-6">
-                                <label class="small fw-bold text-muted">Descripción (Inglés)</label>
-                                <textarea name="descripcion_en" class="form-control mb-2" placeholder="Ingredients..." rows="2"></textarea>
+                                <label class="small fw-bold text-primary">Descripción (Inglés)</label>
+                                <textarea name="descripcion_en" id="prod_desc_en" class="form-control mb-2 border-primary" placeholder="Ingredients..." rows="2"></textarea>
                             </div>
                         </div>
 
@@ -371,5 +351,27 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- SCRIPT DEL BOT TRADUCTOR MÁGICO -->
+<script>
+    async function traducirElemento(origen_id, destino_id) {
+        let origen = document.getElementById(origen_id);
+        let destino = document.getElementById(destino_id);
+        
+        // Si el origen está vacío, o el destino ya tiene texto, no hace nada para no borrarte lo que ya escribiste a mano
+        if (!origen.value || destino.value) return; 
+        
+        destino.placeholder = "🤖 Traduciendo...";
+        
+        try {
+            let res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(origen.value)}&langpair=es|en`);
+            let data = await res.json();
+            destino.value = data.responseData.translatedText;
+        } catch(e) {
+            destino.placeholder = "Error, escribe manual";
+        }
+    }
+</script>
+
 </body>
 </html>
