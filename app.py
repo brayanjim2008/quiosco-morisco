@@ -113,23 +113,34 @@ class Anuncio(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- AUTO-PARCHE MÁGICO (Se ejecuta solo sin que hagas nada) ---
+# --- AUTO-PARCHE INICIAL ---
 with app.app_context():
-    parches = [
-        "ALTER TABLE anuncio ADD COLUMN imagen_url VARCHAR(255);",
-        "ALTER TABLE anuncio ADD COLUMN texto_boton VARCHAR(50);",
-        "ALTER TABLE anuncio ADD COLUMN enlace VARCHAR(100);",
-        "ALTER TABLE producto ADD COLUMN agotado BOOLEAN DEFAULT FALSE;",
-        "ALTER TABLE galeria ADD COLUMN titulo VARCHAR(100);",
-        "ALTER TABLE galeria ADD COLUMN descripcion VARCHAR(250);"
-    ]
-    for sql in parches:
-        try:
-            db.session.execute(text(sql))
-            db.session.commit()
-        except Exception:
-            db.session.rollback() # Si la columna ya existe, lo ignora silenciosamente
     db.create_all()
+    try:
+        instrucciones = [
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",
+            "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(100);",
+            "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
+            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);"
+        ]
+        for sql in instrucciones:
+            db.session.execute(text(sql))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+# --- RUTA DE BOMBA ATÓMICA PARA ANUNCIOS (Súper Segura) ---
+@app.route('/forzar_borrado_anuncios')
+def forzar_borrado_anuncios():
+    try:
+        db.session.execute(text("DROP TABLE IF EXISTS anuncio;"))
+        db.session.commit()
+        db.create_all()
+        return "<h1>¡Tabla de Anuncios Recreada Correctamente! 🚀</h1><a href='/admin_dashboard'>Volver al Panel</a>"
+    except Exception as e:
+        return f"<h1>Error al recrear tabla:</h1><p>{str(e)}</p>"
 
 
 # --- RUTAS PRINCIPALES ---
@@ -144,7 +155,7 @@ def actualizar_db():
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
     db.session.commit()
-    return "<h1>¡BD Reconstruida (Permisos y Agotados)!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
+    return "<h1>¡BD Reconstruida!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
 
 @app.route('/')
 def index():
@@ -465,26 +476,45 @@ def eliminar_galeria(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
+# --- AQUI ESTA EL DETECTOR DE ERRORES ---
 @app.route('/admin/anuncio/nuevo', methods=['POST'])
 @login_required
 def nuevo_anuncio():
     if current_user.role != 'admin': return redirect(url_for('index'))
     
-    if request.form.get('activo') == 'on':
-        Anuncio.query.update({Anuncio.activo: False})
-    
-    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
-    
-    db.session.add(Anuncio(
-        mensaje=request.form['mensaje'],
-        color=request.form.get('color', 'bg-warning'),
-        imagen_url=img_url, 
-        texto_boton=request.form.get('texto_boton', ''), 
-        enlace=request.form.get('enlace', ''), 
-        activo=True if request.form.get('activo') == 'on' else False
-    ))
-    db.session.commit()
-    return redirect(url_for('admin_dashboard'))
+    try:
+        if request.form.get('activo') == 'on':
+            Anuncio.query.update({Anuncio.activo: False})
+        
+        img_url = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url')
+        
+        nuevo = Anuncio(
+            mensaje=request.form.get('mensaje', 'Sin mensaje'),
+            color=request.form.get('color', 'bg-warning'),
+            imagen_url=img_url, 
+            texto_boton=request.form.get('texto_boton', ''), 
+            enlace=request.form.get('enlace', ''), 
+            activo=True if request.form.get('activo') == 'on' else False
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        return redirect(url_for('admin_dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        error_detectado = str(e)
+        return f"""
+        <div style="padding: 40px; font-family: sans-serif; text-align: center;">
+            <h1 style='color:red;'>🚨 ERROR EXACTO ENCONTRADO 🚨</h1>
+            <p style="font-size: 18px;">Copia el texto negro de abajo y envíaselo a tu asistente:</p>
+            <div style="background: #eee; padding: 20px; font-size: 20px; font-weight: bold; border-left: 5px solid red; margin: 20px auto; max-width: 600px; word-wrap: break-word;">
+                {error_detectado}
+            </div>
+            <a href='/admin_dashboard' style="font-size: 18px; text-decoration: none; color: blue;">← Volver a mi panel</a>
+        </div>
+        """
 
 @app.route('/admin/anuncio/eliminar/<int:id>', methods=['POST'])
 @login_required
