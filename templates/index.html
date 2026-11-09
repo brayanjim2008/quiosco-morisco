@@ -236,7 +236,6 @@
     {% endif %}
     
     <div class="hero-content">
-        <div class="hero-content">
         <h1 class="hero-title" data-es="{{ anuncio.mensaje }}" data-en="{{ anuncio.mensaje_en | default(anuncio.mensaje) }}">{{ anuncio.mensaje }}</h1>
         {% if anuncio.texto_boton and anuncio.enlace %}
             <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
@@ -276,7 +275,6 @@
     </div>
 </div>
 
-<!-- MODAL DE WI-FI CONFIGURADO Y LIMPIO -->
 <div id="modal-wifi" class="modal-overlay">
     <div class="modal-content">
         <h3 style="border-bottom: none; margin-top: 0; color: var(--verde-quiosco);"><i class="fas fa-wifi text-primary"></i> <span data-i18n="menu_wifi">Wi-Fi Gratis</span></h3>
@@ -512,7 +510,6 @@
         <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
             <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 20px;">Nuestro Menú</h2>
             
-            <!-- BUSCADOR EN VIVO INTELIGENTE -->
             <div class="buscador-container">
                 <i class="fas fa-search buscador-icono"></i>
                 <input type="text" id="buscador-menu" class="buscador-input" placeholder="Buscar platillos o bebidas..." onkeyup="buscarPlatillosVivo()">
