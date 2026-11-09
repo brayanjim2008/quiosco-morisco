@@ -106,7 +106,6 @@ class Anuncio(db.Model):
     color = db.Column(db.String(50), default="bg-warning")
     imagen_url = db.Column(db.String(255), nullable=True)
     texto_boton = db.Column(db.String(50), nullable=True)
-    # ¡AQUÍ ESTÁ LA MAGIA! Ampliamos el espacio a 500 letras
     enlace = db.Column(db.String(500), nullable=True)
     activo = db.Column(db.Boolean, default=False)
 
@@ -267,7 +266,8 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', 
                            categorias=CategoriaMenu.query.all(),
                            premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
-                           productos=Producto.query.order_by(Producto.destacado.desc()).all(), 
+                           # LA MAGIA ESTÁ AQUÍ: Ordenamos los productos por nombre para que el selector se vea bien
+                           productos=Producto.query.order_by(Producto.nombre.asc()).all(), 
                            pins=PinCaja.query.filter_by(activo=True).all(),
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(50).all(),
                            galeria=Galeria.query.order_by(Galeria.fecha_subida.desc()).all(),

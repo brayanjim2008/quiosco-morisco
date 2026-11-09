@@ -77,39 +77,64 @@
         <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- BANNER DE ANUNCIOS MEJORADO (FOTO Y BOTÓN) -->
+            <!-- BANNER DE ANUNCIOS PREMIUM CON SELECTOR AUTOMÁTICO -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_anuncio') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-                        <input type="text" name="mensaje" class="form-control mb-2" placeholder="Texto (Ej. ¡Nuevos Frappés!)" required>
+                        <input type="text" name="mensaje" class="form-control mb-2" placeholder="Texto Grande (Ej. ¡Refrescantes Frappés!)" required>
                         
                         <label class="small fw-bold mt-2">Foto de Portada (Opcional):</label>
                         <input type="file" name="foto" class="form-control mb-2" accept="image/*">
                         
-                        <div class="row">
-                            <div class="col-6">
-                                <input type="text" name="texto_boton" class="form-control mb-2" placeholder="Botón (Ej. Ver promos)">
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <label class="small fw-bold">Texto del Botón:</label>
+                                <input type="text" name="texto_boton" class="form-control mb-2" placeholder="Ej. Pedir Frappé">
                             </div>
-                            <div class="col-6">
-                                <input type="text" name="enlace" class="form-control mb-2" placeholder="Link (Ej. #vista-menu)">
+                            <div class="col-12">
+                                <label class="small fw-bold text-primary">¿A dónde quieres que lleve el botón?</label>
+                                
+                                <!-- EL SELECTOR MAGICO (Deep Linking) -->
+                                <select name="enlace" class="form-select mb-2 border-primary shadow-sm" style="font-weight:bold;">
+                                    <option value="">Selecciona el destino (Opcional)...</option>
+                                    
+                                    <optgroup label="👉 SECCIONES GENERALES">
+                                        <option value="#vista-menu">Menú Principal Completo</option>
+                                        <option value="#vista-galeria">Galería de Fotos</option>
+                                    </optgroup>
+                                    
+                                    <optgroup label="🍟 LLEVAR A UN PLATILLO DIRECTO">
+                                        {% for p in productos %}
+                                        <option value="#vista-menu|{{ p.nombre }}">{{ p.nombre }} - ${{ p.precio }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+
+                                    <optgroup label="🌐 REDES SOCIALES">
+                                        <option value="https://www.tiktok.com/@quioscomorisco?is_from_webapp=1&sender_device=pc">TikTok de Quiosco Morisco</option>
+                                        <option value="https://www.instagram.com/quioscomorisco?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==">Instagram de Quiosco Morisco</option>
+                                        <option value="https://share.google/g7hYq0hAgNAgyfS4l">Google Maps (Cómo llegar)</option>
+                                    </optgroup>
+                                </select>
                             </div>
                         </div>
 
-                        <select name="color" class="form-select mb-2">
+                        <select name="color" class="form-select mb-2 mt-2">
                             <option value="bg-dark text-white">Oscuro Elegante (Recomendado con foto)</option>
                             <option value="bg-warning text-dark">Amarillo (Avisos)</option>
                             <option value="bg-danger text-white">Rojo (Urgente)</option>
                         </select>
+                        
                         <div class="form-check mb-3">
-                            <input type="checkbox" name="activo" class="form-check-input" id="activoBanner">
-                            <label class="form-check-label" for="activoBanner">Activar y mostrar a los clientes</label>
+                            <input type="checkbox" name="activo" class="form-check-input" id="activoBanner" checked>
+                            <label class="form-check-label fw-bold text-success" for="activoBanner">Activar y mostrar a los clientes</label>
                         </div>
-                        <button type="submit" class="btn btn-sm btn-primary w-100">Publicar Portada</button>
+                        
+                        <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Publicar Portada</button>
                     </form>
                     
                     {% if anuncios %}
-                    <h6>Anuncios Guardados:</h6>
+                    <h6 class="mt-4 border-top pt-2">Anuncios Guardados:</h6>
                     <ul class="list-group">
                     {% for an in anuncios %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
