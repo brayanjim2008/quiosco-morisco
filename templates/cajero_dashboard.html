@@ -52,13 +52,13 @@
       {% endif %}
     {% endwith %}
 
-    <!-- MONITOR DE PRE-ÓRDENES EN VIVO -->
+    <!-- MONITOR DE PRE-ÓRDENES EN VIVO (ACTUALIZACIÓN SIN PARPADEO) -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
             <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
             <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length }} Pendientes</span>
         </div>
-        <div class="card-body">
+        <div class="card-body" id="contenedor-preordenes-caja">
             {% if preordenes %}
             <div class="row">
                 {% for o in preordenes %}
@@ -82,11 +82,11 @@
                         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                             <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
                             <div class="d-flex gap-1">
-                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
                                     <input type="hidden" name="accion" value="atendido">
                                     <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
                                 </form>
-                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
                                     <input type="hidden" name="accion" value="cancelado">
                                     <button type="submit" class="btn btn-outline-danger btn-sm fw-bold" title="Cliente se retiró">🚶‍♂️❌</button>
                                 </form>
@@ -190,16 +190,63 @@
         } catch(e) {}
     }
 
+    function actualizarContenedorCaja(ordenes) {
+        const cont = document.getElementById('contenedor-preordenes-caja');
+        document.getElementById('badge-total-preordenes').innerText = `${ordenes.length} Pendientes`;
+        if (ordenes.length === 0) {
+            cont.innerHTML = '<p class="text-muted text-center m-0 py-2">No hay pre-órdenes pendientes en este momento.</p>';
+            return;
+        }
+        let html = '<div class="row">';
+        ordenes.forEach(o => {
+            let notaHtml = o.notas ? `<div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> ${o.notas}</div>` : '';
+            html += `
+            <div class="col-md-6 mb-3">
+                <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-dark fs-6">📍 Plaquita / Mesa ${o.mesa}</span>
+                            <span class="badge bg-secondary">Folio #${o.id} • ${o.hora}</span>
+                        </div>
+                        <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">${o.cliente_nombre}</span></h6>
+                        <p class="small mb-2">
+                            <span class="badge bg-info text-dark">${o.modalidad}</span>
+                            <span class="badge bg-warning text-dark">💳 ${o.metodo_pago}</span>
+                        </p>
+                        <div class="bg-light p-2 rounded small mb-2 border" style="white-space: pre-line; font-family: monospace;">${o.detalle_items}</div>
+                        ${notaHtml}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                        <span class="fw-bold fs-5 text-success">Total: $${o.total}</span>
+                        <div class="d-flex gap-1">
+                            <form action="/atender_preorden/${o.id}" method="POST" style="margin:0;">
+                                <input type="hidden" name="accion" value="atendido">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
+                            </form>
+                            <form action="/atender_preorden/${o.id}" method="POST" style="margin:0;">
+                                <input type="hidden" name="accion" value="cancelado">
+                                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold" title="Cliente se retiró">🚶‍♂️❌</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        cont.innerHTML = html;
+    }
+
     setInterval(async () => {
         try {
             let res = await fetch('/api/preordenes_pendientes');
             let data = await res.json();
+            if (data.total_pendientes > ultimoConteoOrdenes) sonarCampana();
             if (data.total_pendientes !== ultimoConteoOrdenes) {
-                if (data.total_pendientes > ultimoConteoOrdenes) sonarCampana();
-                window.location.reload();
+                ultimoConteoOrdenes = data.total_pendientes;
+                actualizarContenedorCaja(data.ordenes);
             }
         } catch(e) {}
-    }, 7000);
+    }, 5000);
 
     function crearHTMLTicketDesdeElemento(el) {
         const codigo = el.getAttribute('data-pin-activo');

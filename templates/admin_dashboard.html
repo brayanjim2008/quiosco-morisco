@@ -8,6 +8,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
+        
+        /* PESTAÑAS DE NAVEGACIÓN DEL PANEL ADMIN */
+        .admin-nav-tabs { display: flex; flex-wrap: wrap; gap: 8px; background: white; padding: 12px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 22px; border: 1px solid #e9ecef; }
+        .admin-tab-btn { flex: 1; min-width: 155px; padding: 11px 14px; border-radius: 12px; border: 1.5px solid #e9ecef; background: #f8f9fa; color: #495057; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; text-align: center; }
+        .admin-tab-btn:hover { border-color: #c98246; color: #13423b; }
+        .admin-tab-btn.activo { background: #13423b; color: white; border-color: #13423b; box-shadow: 0 4px 12px rgba(19,66,59,0.25); }
+        .seccion-tab-admin { display: none; animation: fadeIn 0.25s ease; }
+        .seccion-tab-admin.activa { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .filtro-admin-pill { border-radius: 20px; font-weight: 700; font-size: 12px; padding: 5px 12px; cursor: pointer; border: 1px solid #ced4da; background: white; color: #495057; }
+        .filtro-admin-pill.activo { background: #13423b; color: white; border-color: #13423b; }
+
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
@@ -31,11 +44,11 @@
 <body class="bg-light">
 
 <div id="no-print-admin">
-<nav class="navbar navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-dark mb-3 shadow-sm" style="background: #13423b;">
     <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">👑 Quiosco Morisco - Admin ({{ current_user.username|capitalize }})</span>
+        <span class="navbar-brand mb-0 h1">👑 Quiosco Morisco • Administración ({{ current_user.username|capitalize }})</span>
         <div class="d-flex gap-2">
-            <a href="/" target="_blank" class="btn btn-outline-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
+            <a href="/" target="_blank" class="btn btn-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
             <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Cerrar Sesión</a>
         </div>
     </div>
@@ -45,7 +58,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show fw-bold" role="alert">
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show fw-bold py-2" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
@@ -53,548 +66,631 @@
       {% endif %}
     {% endwith %}
 
+    <!-- TARJETAS DE RESUMEN SUPERIOR -->
     <div class="row mb-3">
         <div class="col-md-3 col-6">
-            <div class="card text-center text-white bg-primary mb-3 shadow-sm">
-                <div class="card-body py-3">
-                    <h6 class="card-title">Clientes</h6>
-                    <h2 class="fw-bold m-0">{{ total_clientes }}</h2>
+            <div class="card text-center text-white bg-primary mb-2 shadow-sm border-0">
+                <div class="card-body py-2">
+                    <small class="fw-bold text-uppercase opacity-75">Clientes</small>
+                    <h3 class="fw-bold m-0">{{ total_clientes }}</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="card text-center text-white bg-success mb-3 shadow-sm">
-                <div class="card-body py-3">
-                    <h6 class="card-title">Visitas Totales</h6>
-                    <h2 class="fw-bold m-0">{{ total_visitas }}</h2>
+            <div class="card text-center text-white bg-success mb-2 shadow-sm border-0">
+                <div class="card-body py-2">
+                    <small class="fw-bold text-uppercase opacity-75">Visitas Totales</small>
+                    <h3 class="fw-bold m-0">{{ total_visitas }}</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="card text-center text-white bg-dark mb-3 shadow-sm">
-                <div class="card-body py-3">
-                    <h6 class="card-title">PINs Emitidos Hoy</h6>
-                    <h2 class="fw-bold m-0 text-warning">{{ total_pins_hoy }}</h2>
+            <div class="card text-center text-white bg-dark mb-2 shadow-sm border-0">
+                <div class="card-body py-2">
+                    <small class="fw-bold text-uppercase opacity-75">PINs Hoy</small>
+                    <h3 class="fw-bold m-0 text-warning">{{ total_pins_hoy }}</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="card text-center text-dark bg-warning mb-3 shadow-sm">
-                <div class="card-body py-3">
-                    <h6 class="card-title">Calif. Meseros</h6>
-                    <h2 class="fw-bold m-0">⭐ {{ promedio_est }}</h2>
+            <div class="card text-center text-dark bg-warning mb-2 shadow-sm border-0">
+                <div class="card-body py-2">
+                    <small class="fw-bold text-uppercase opacity-75">Calif. Meseros</small>
+                    <h3 class="fw-bold m-0">⭐ {{ promedio_est }}</h3>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
-        <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">📊 Exportar Clientes (Excel)</a>
-        <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">📝 Exportar Evaluaciones (Excel)</a>
+    <!-- BARRA DE 5 PESTAÑAS PARA ORDENAR EL PANEL -->
+    {% set cant_agotados_admin = productos|selectattr('agotado', 'equalto', True)|list|length %}
+    <div class="admin-nav-tabs">
+        <button type="button" class="admin-tab-btn activo" id="tabbtn-operacion" onclick="cambiarTabAdmin('operacion')">
+            🔔 Operación y PINs <span class="badge bg-warning text-dark ms-1" id="badge-tab-preordenes">{{ preordenes|length if preordenes is defined else 0 }}</span>
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabbtn-menu" onclick="cambiarTabAdmin('menu')">
+            🍔 Menú y Platillos ({{ productos|length }}) {% if cant_agotados_admin > 0 %}<span class="badge bg-danger ms-1">{{ cant_agotados_admin }} agotados</span>{% endif %}
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabbtn-marketing" onclick="cambiarTabAdmin('marketing')">
+            📢 Banners, Fotos y QRs
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabbtn-fidelidad" onclick="cambiarTabAdmin('fidelidad')">
+            🎁 Fidelidad y Clientes
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabbtn-equipo" onclick="cambiarTabAdmin('equipo')">
+            👥 Equipo y Evaluaciones
+        </button>
     </div>
 
-    <!-- MONITOR EN VIVO DE PRE-ÓRDENES DE MESAS EXTERIORES -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
-            <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
-            <span class="badge bg-warning text-dark">{{ preordenes|length if preordenes is defined else 0 }} Pendientes</span>
-        </div>
-        <div class="card-body">
-            {% if preordenes is defined and preordenes %}
-            <div class="row">
-                {% for o in preordenes %}
-                <div class="col-md-6 mb-3">
-                    <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-dark fs-6">📍 Plaquita / Mesa {{ o.mesa }}</span>
-                                <span class="badge bg-secondary">Folio #{{ o.id }} • {{ o.fecha.strftime('%H:%M') }}</span>
+    <!-- ==========================================
+         PESTAÑA 1: OPERACIÓN EN VIVO, PINs Y CORTE
+         ========================================== -->
+    <div id="tab-operacion" class="seccion-tab-admin activa">
+        <!-- MONITOR DE PRE-ÓRDENES EN VIVO -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
+                <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
+                <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length if preordenes is defined else 0 }} Pendientes</span>
+            </div>
+            <div class="card-body" id="contenedor-preordenes-admin">
+                {% if preordenes is defined and preordenes %}
+                <div class="row">
+                    {% for o in preordenes %}
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-dark fs-6">📍 Plaquita / Mesa {{ o.mesa }}</span>
+                                    <span class="badge bg-secondary">Folio #{{ o.id }} • {{ o.fecha.strftime('%H:%M') }}</span>
+                                </div>
+                                <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">{{ o.cliente_nombre }}</span></h6>
+                                <p class="small mb-2">
+                                    <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
+                                    <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
+                                </p>
+                                <div class="bg-light p-2 rounded small mb-2 border" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
+                                {% if o.notas %}
+                                <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> {{ o.notas }}</div>
+                                {% endif %}
                             </div>
-                            <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">{{ o.cliente_nombre }}</span></h6>
-                            <p class="small mb-2">
-                                <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
-                                <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
-                            </p>
-                            <div class="bg-light p-2 rounded small mb-2 border" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
-                            {% if o.notas %}
-                            <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> {{ o.notas }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                            <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
-                            <div class="d-flex gap-1">
-                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
-                                    <input type="hidden" name="accion" value="atendido">
-                                    <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
-                                </form>
-                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
-                                    <input type="hidden" name="accion" value="cancelado">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🚶‍♂️❌</button>
-                                </form>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                                <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
+                                <div class="d-flex gap-1">
+                                    <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                        <input type="hidden" name="accion" value="atendido">
+                                        <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
+                                    </form>
+                                    <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                        <input type="hidden" name="accion" value="cancelado">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🚶‍♂️❌</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-muted text-center m-0 py-1 small">No hay pre-órdenes pendientes en este momento.</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- CORTE Y AUDITORÍA DE PINs DEL DÍA (PARA CRUZAR CON SOFT RESTAURANT) -->
-    <div class="card shadow-sm mb-4 border-dark">
-        <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-            <span>🧾 Auditoría y Corte de PINs Emitidos (Cruzar con Folios de Soft Restaurant)</span>
-            <span class="badge bg-warning text-dark">Hoy: {{ total_pins_hoy }} PINs</span>
-        </div>
-        <div class="card-body">
-            <div class="row mb-3">
-                {% for cajero_nom, datos in resumen_cajeros.items() %}
-                <div class="col-md-4 mb-2">
-                    <div class="border rounded p-2 bg-white shadow-sm text-center">
-                        <strong class="text-uppercase text-primary">👤 {{ cajero_nom }}</strong>
-                        <div class="small mt-1">
-                            Emitidos hoy: <strong>{{ datos.generados }}</strong> |
-                            Usados: <strong class="text-success">{{ datos.usados }}</strong> |
-                            Activos: <strong class="text-warning">{{ datos.activos }}</strong>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted small mb-0">Aún no se han generado PINs el día de hoy.</p>
-                {% endfor %}
+                <p class="text-muted text-center m-0 py-2 small">No hay pre-órdenes pendientes en este momento.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-5">
+                <!-- GENERADOR DE PINs -->
+                <div class="card shadow-sm mb-4 border-dark">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>🎟️ Generador de PINs (Caja)</span>
+                        {% if pins %}
+                        <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-sm btn-warning fw-bold">🖨️ Imprimir Todos ({{ pins|length }})</button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 mb-3">
+                            <div class="col-5">
+                                <input type="text" name="folio_sr" class="form-control form-control-sm" placeholder="Folio SR (Opcional)">
+                            </div>
+                            <div class="col-4">
+                                <select name="cantidad" class="form-select form-select-sm">
+                                    <option value="1">1 PIN</option>
+                                    <option value="5">5 PINs</option>
+                                    <option value="10">10 PINs</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <button type="submit" class="btn btn-sm btn-warning fw-bold w-100">⚡ Generar</button>
+                            </div>
+                        </form>
+                        <div class="row" style="max-height: 330px; overflow-y: auto;">
+                            {% for pin in pins|reverse %}
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2 text-center bg-light shadow-sm"
+                                     data-pin-activo="{{ pin.codigo }}"
+                                     data-cajero="{{ (pin.creado_por or current_user.username)|upper }}"
+                                     data-folio="{{ pin.folio_sr or '' }}"
+                                     data-hora="{{ pin.fecha_creacion.strftime('%d/%m/%Y %H:%M') if pin.fecha_creacion else '' }}">
+                                    <small class="text-muted d-block" style="font-size:10px;">👤 {{ (pin.creado_por or 'Caja')|capitalize }} {{ ('• #' ~ pin.folio_sr) if pin.folio_sr else '' }}</small>
+                                    <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
+                                    <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark w-100 fw-bold" style="font-size: 11px;">🖨️ Imprimir Ticket</button>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small text-center m-0">No hay PINs activos pendientes.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div style="max-height: 220px; overflow-y: auto;">
-                <table class="table table-sm table-striped table-hover mb-0 small">
-                    <thead class="table-light sticky-top">
-                        <tr>
-                            <th>PIN</th>
-                            <th>Emitido por</th>
-                            <th>Folio Soft Restaurant</th>
-                            <th>Fecha / Hora</th>
-                            <th>Estado / Canjeado por</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for hp in historial_pins %}
-                        <tr>
-                            <td class="fw-bold font-monospace">{{ hp.codigo }}</td>
-                            <td class="text-uppercase fw-bold">{{ hp.creado_por or 'Caja' }}</td>
-                            <td>{{ hp.folio_sr if hp.folio_sr else '-' }}</td>
-                            <td>{{ hp.fecha_creacion.strftime('%d/%m %H:%M') if hp.fecha_creacion else '-' }}</td>
-                            <td>
-                                {% if hp.activo %}
-                                <span class="badge bg-warning text-dark">Pendiente</span>
-                                {% else %}
-                                <span class="badge bg-success">Sellado: {{ hp.usado_por or 'Cliente' }} ({{ hp.fecha_uso.strftime('%H:%M') if hp.fecha_uso else '' }})</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="col-md-7">
+                <!-- AUDITORÍA Y CORTE DE PINS -->
+                <div class="card shadow-sm mb-4 border-dark">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>🧾 Auditoría y Corte de PINs del Día (Soft Restaurant)</span>
+                        <span class="badge bg-warning text-dark">Hoy: {{ total_pins_hoy }} PINs</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            {% for cajero_nom, datos in resumen_cajeros.items() %}
+                            <div class="col-md-6 mb-2">
+                                <div class="border rounded p-2 bg-white shadow-sm text-center">
+                                    <strong class="text-uppercase text-primary">👤 {{ cajero_nom }}</strong>
+                                    <div class="small mt-1">
+                                        Emitidos: <strong>{{ datos.generados }}</strong> |
+                                        Usados: <strong class="text-success">{{ datos.usados }}</strong> |
+                                        Activos: <strong class="text-warning">{{ datos.activos }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small mb-0">Aún no se han generado PINs el día de hoy.</p>
+                            {% endfor %}
+                        </div>
+
+                        <div style="max-height: 290px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-hover mb-0 small">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>PIN</th>
+                                        <th>Cajero</th>
+                                        <th>Folio SR</th>
+                                        <th>Hora</th>
+                                        <th>Estado / Cliente</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for hp in historial_pins %}
+                                    <tr>
+                                        <td class="fw-bold font-monospace">{{ hp.codigo }}</td>
+                                        <td class="text-uppercase fw-bold">{{ hp.creado_por or 'Caja' }}</td>
+                                        <td>{{ hp.folio_sr if hp.folio_sr else '-' }}</td>
+                                        <td>{{ hp.fecha_creacion.strftime('%d/%m %H:%M') if hp.fecha_creacion else '-' }}</td>
+                                        <td>
+                                            {% if hp.activo %}
+                                            <span class="badge bg-warning text-dark">Pendiente</span>
+                                            {% else %}
+                                            <span class="badge bg-success">Sellado: {{ hp.usado_por or 'Cliente' }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            
-            <!-- GESTIÓN DE EMPLEADOS Y CONTRASEÑAS -->
-            <div class="card shadow-sm mb-4 border-primary">
-                <div class="card-header bg-primary text-white fw-bold">👥 Equipo y Contraseñas (Admin, Cajeros y Meseros)</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nuevo_usuario') }}" method="POST" class="row g-2 mb-3 bg-light p-2 rounded border">
-                        <div class="col-4">
-                            <input type="text" name="username" class="form-control form-control-sm" placeholder="Usuario (ej. luis)" required>
-                        </div>
-                        <div class="col-4">
-                            <input type="text" name="password" class="form-control form-control-sm" placeholder="Contraseña" required>
-                        </div>
-                        <div class="col-4 d-flex gap-1">
-                            <select name="role" class="form-select form-select-sm">
-                                <option value="mesero">Mesero</option>
-                                <option value="cajero">Cajero</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-success fw-bold">+</button>
-                        </div>
-                    </form>
-
-                    <ul class="list-group">
-                        {% for u in usuarios %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <strong class="text-uppercase">{{ u.username }}</strong>
-                                <span class="badge {{ 'bg-danger' if u.role=='admin' else ('bg-warning text-dark' if u.role=='cajero' else 'bg-info text-dark') }}">{{ u.role|upper }}</span>
-                            </div>
-                            <div class="d-flex gap-1 align-items-center">
-                                <form action="{{ url_for('cambiar_pass_usuario', id=u.id) }}" method="POST" class="d-flex gap-1">
-                                    <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 120px;" placeholder="Nueva clave" required>
-                                    <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
-                                </form>
-                                {% if u.id != current_user.id %}
-                                <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" onsubmit="return confirm('¿Eliminar a {{ u.username }}?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-
-            <!-- CARRUSEL DE BANNERS -->
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">📢 Carrusel de Banners (Puedes activar varios)</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nuevo_anuncio') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-                        <div class="row mb-2">
-                            <div class="col-6">
-                                <label class="small fw-bold">Texto Grande (Español):</label>
-                                <input type="text" name="mensaje" id="banner_es" onblur="traducirElemento('banner_es', 'banner_en')" class="form-control" placeholder="Ej. ¡Prueba el Moka!" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-primary">Texto Grande (Inglés):</label>
-                                <input type="text" name="mensaje_en" id="banner_en" class="form-control border-primary" placeholder="Ej. Try the Mocha!">
-                            </div>
-                        </div>
-                        <label class="small fw-bold mt-2">Foto de Portada (Opcional):</label>
-                        <input type="file" name="foto" class="form-control mb-2" accept="image/*">
-                        <div class="row mt-2">
-                            <div class="col-6">
-                                <label class="small fw-bold">Botón (Español):</label>
-                                <input type="text" name="texto_boton" id="btn_es" onblur="traducirElemento('btn_es', 'btn_en')" class="form-control" placeholder="Ej. Ver Moka">
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-primary">Botón (Inglés):</label>
-                                <input type="text" name="texto_boton_en" id="btn_en" class="form-control border-primary" placeholder="Ej. View Mocha">
-                            </div>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-12">
-                                <label class="small fw-bold text-primary">Enlace del botón:</label>
-                                <select class="form-select mb-1 border-primary shadow-sm" style="font-weight:bold; font-size: 14px;" onchange="document.getElementById('enlace_personalizado').value = this.value;">
-                                    <option value="">Elegir rápido de la lista (Opcional)...</option>
-                                    <optgroup label="👉 SECCIONES GENERALES">
-                                        <option value="#vista-menu">Menú Principal Completo</option>
-                                        <option value="#vista-galeria">Galería de Fotos</option>
-                                        <option value="#vista-experiencia">Experiencia & Reservaciones</option>
-                                    </optgroup>
-                                    <optgroup label="🍟 LLEVAR A UN PLATILLO DIRECTO">
-                                        {% for p in productos %}
-                                        <option value="#vista-menu|{{ p.nombre }}">{{ p.nombre }} - ${{ p.precio }}</option>
-                                        {% endfor %}
-                                    </optgroup>
-                                </select>
-                                <input type="text" name="enlace" id="enlace_personalizado" class="form-control mb-2 border-primary shadow-sm" placeholder="O pega tu link aquí...">
-                            </div>
-                        </div>
-                        <label class="small fw-bold mt-1">Tipo y Estilo Visual del Banner:</label>
-                        <select name="color" class="form-select mb-2">
-                            <option value="bg-dark text-white">✨ Recomendación del Chef / Especial (Verde Morisco)</option>
-                            <option value="bg-danger text-white">🔥 Promoción / Oferta Especial (Rojo Cobre Intenso)</option>
-                            <option value="bg-warning text-dark">📢 Aviso Importante / Evento (Dorado Elegante)</option>
-                        </select>
-                        <div class="form-check mb-3">
-                            <input type="checkbox" name="activo" class="form-check-input" id="activoBanner" checked>
-                            <label class="form-check-label fw-bold text-success" for="activoBanner">Mostrar inmediatamente en el carrusel</label>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Agregar al Carrusel de Portada</button>
-                    </form>
-                    
-                    {% if anuncios %}
-                    <h6 class="mt-4 border-top pt-2 fw-bold">Banners en tu Carrusel ({{ anuncios|length }}):</h6>
-                    <ul class="list-group">
-                    {% for an in anuncios %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'EN CARRUSEL' if an.activo else 'OCULTO' }}</span> 
-                                <small class="ms-1 fw-bold">{{ an.mensaje }}</small>
-                            </div>
-                            <div class="d-flex gap-1">
-                                <form action="{{ url_for('toggle_anuncio', id=an.id) }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm {{ 'btn-outline-secondary' if an.activo else 'btn-outline-success' }} fw-bold">{{ 'Apagar' if an.activo else 'Activar' }}</button>
-                                </form>
-                                <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
-                                </form>
-                            </div>
-                        </li>
-                    {% endfor %}
-                    </ul>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- PINs E IMPRESIÓN -->
-            <div class="card shadow-sm mb-4 border-dark">
-                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-                    <span>🎟️ Generador de PINs y QR (Caja)</span>
-                    {% if pins %}
-                    <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-sm btn-warning fw-bold">🖨️ Imprimir Todos ({{ pins|length }})</button>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 mb-3">
-                        <div class="col-5">
-                            <input type="text" name="folio_sr" class="form-control form-control-sm" placeholder="Folio SR (Opcional)">
-                        </div>
-                        <div class="col-4">
-                            <select name="cantidad" class="form-select form-select-sm">
-                                <option value="1">1 PIN</option>
-                                <option value="5">5 PINs</option>
-                                <option value="10">10 PINs</option>
-                            </select>
-                        </div>
-                        <div class="col-3">
-                            <button type="submit" class="btn btn-sm btn-warning fw-bold w-100">⚡ Generar</button>
-                        </div>
-                    </form>
-                    <div class="row" style="max-height: 320px; overflow-y: auto;">
-                        {% for pin in pins|reverse %}
-                        <div class="col-6 mb-3">
-                            <div class="border rounded p-2 text-center bg-light shadow-sm"
-                                 data-pin-activo="{{ pin.codigo }}"
-                                 data-cajero="{{ (pin.creado_por or current_user.username)|upper }}"
-                                 data-folio="{{ pin.folio_sr or '' }}"
-                                 data-hora="{{ pin.fecha_creacion.strftime('%d/%m/%Y %H:%M') if pin.fecha_creacion else '' }}">
-                                <small class="text-muted d-block" style="font-size:10px;">👤 {{ (pin.creado_por or 'Caja')|capitalize }} {{ ('• #' ~ pin.folio_sr) if pin.folio_sr else '' }}</small>
-                                <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 85px;">
-                                <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark w-100 fw-bold" style="font-size: 11px;">🖨️ Imprimir Ticket</button>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- GENERADOR DE QRs POR PLAQUITA / MESA -->
-            <div class="card shadow-sm mb-4 border-success">
-                <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs por Plaquita / Mesa (NFC)</div>
-                <div class="card-body">
-                    <div class="d-flex gap-2 mb-3">
-                        <input type="number" id="input-total-mesas" class="form-control form-control-sm" value="10" min="1" max="50">
-                        <button type="button" onclick="generarQRsMesas()" class="btn btn-sm btn-success fw-bold w-50">Generar QRs</button>
-                    </div>
-                    <div id="grid-qrs-mesas" class="row" style="max-height: 280px; overflow-y: auto;"></div>
-                </div>
-            </div>
-
-            <!-- GALERÍA, CATEGORÍAS Y PREMIOS -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
-                <div class="card-body">
-                    <form action="{{ url_for('agregar_galeria') }}" method="POST" enctype="multipart/form-data" class="mb-3">
-                        <input type="file" name="foto" class="form-control mb-2" required>
-                        <input type="text" name="titulo" class="form-control mb-2" placeholder="Título">
-                        <input type="text" name="descripcion" class="form-control mb-2" placeholder="Descripción breve">
-                        <button type="submit" class="btn btn-sm btn-success w-100">Subir a Galería</button>
-                    </form>
-                    <div class="row">
-                        {% for foto in galeria %}
-                        <div class="col-6 mb-3">
-                            <div class="card h-100 shadow-sm border-0">
-                                <img src="{{ foto.imagen_url|opt_img(400) }}" class="card-img-top" style="height: 110px; object-fit: cover;">
-                                <div class="card-body p-2 bg-light">
-                                    <form action="{{ url_for('editar_galeria', id=foto.id) }}" method="POST">
-                                        <input type="text" name="titulo" class="form-control form-control-sm mb-1" value="{{ foto.titulo or '' }}">
-                                        <textarea name="descripcion" class="form-control form-control-sm mb-1" rows="2">{{ foto.descripcion or '' }}</textarea>
-                                        <button type="submit" class="btn btn-sm btn-warning w-100 mb-1" style="font-size: 11px; font-weight: bold;">Actualizar</button>
-                                    </form>
-                                    <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET">
-                                        <button type="submit" class="btn btn-sm btn-danger w-100" style="font-size: 11px;">Eliminar</button>
-                                    </form>
+    <!-- ==========================================
+         PESTAÑA 2: MENÚ, PLATILLOS Y CATEGORÍAS
+         ========================================== -->
+    <div id="tab-menu" class="seccion-tab-admin">
+        <div class="row">
+            <div class="col-md-5">
+                <!-- FORMULARIO NUEVO PLATILLO -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white fw-bold">➕ Agregar Nuevo Platillo</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted">Nombre (ES)</label>
+                                    <input type="text" name="nombre" id="prod_nombre_es" onblur="traducirElemento('prod_nombre_es', 'prod_nombre_en')" class="form-control mb-2" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-primary">Nombre (EN)</label>
+                                    <input type="text" name="nombre_en" id="prod_nombre_en" class="form-control mb-2 border-primary">
                                 </div>
                             </div>
-                        </div>
-                        {% endfor %}
+                            <div class="row mt-1">
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted">Descripción (ES)</label>
+                                    <textarea name="descripcion" id="prod_desc_es" onblur="traducirElemento('prod_desc_es', 'prod_desc_en')" class="form-control mb-2" rows="2"></textarea>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-primary">Descripción (EN)</label>
+                                    <textarea name="descripcion_en" id="prod_desc_en" class="form-control mb-2 border-primary" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted">Precio ($)</label>
+                                    <input type="number" step="0.01" name="precio" class="form-control mb-2" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-muted">Categoría</label>
+                                    <select name="categoria" class="form-select mb-2" required>
+                                        {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <label class="small fw-bold text-muted">Foto del platillo:</label>
+                            <input type="file" name="foto" class="form-control mb-2">
+                            <div class="d-flex gap-3 mb-3 mt-2 p-2 border rounded bg-light">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
+                                    <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Lo más pedido</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="agotado" id="agotado">
+                                    <label class="form-check-label text-danger fw-bold" for="agotado">❌ Agotado</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- CATEGORÍAS DEL MENÚ -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú ({{ categorias|length }})</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
+                            <div class="row g-2 mb-2">
+                                <div class="col"><input type="text" name="nombre" id="cat_es" onblur="traducirElemento('cat_es', 'cat_en')" class="form-control form-control-sm" placeholder="Categoría (ES)" required></div>
+                                <div class="col"><input type="text" name="nombre_en" id="cat_en" class="form-control form-control-sm border-primary" placeholder="Category (EN)"></div>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Agregar Categoría</button>
+                        </form>
+                        <ul class="list-group" style="max-height: 240px; overflow-y: auto;">
+                            {% for cat in categorias %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
+                                <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
-                        <div class="row g-2 mb-2">
-                            <div class="col"><input type="text" name="nombre" id="cat_es" onblur="traducirElemento('cat_es', 'cat_en')" class="form-control form-control-sm" placeholder="Categoría (ES)" required></div>
-                            <div class="col"><input type="text" name="nombre_en" id="cat_en" class="form-control form-control-sm border-primary" placeholder="Category (EN)"></div>
+            <div class="col-md-7">
+                <!-- LISTA DE PLATILLOS CON FILTROS DE 1 TOQUE -->
+                {% set cant_destacados_admin = productos|selectattr('destacado', 'equalto', True)|list|length %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>🍔 Lista de Platillos ({{ productos|length }})</span>
+                        <span class="badge bg-danger">{{ cant_agotados_admin }} Agotados</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <button type="button" class="filtro-admin-pill activo" id="fadm-todos" onclick="cambiarFiltroProdAdmin('todos')">📋 Todos ({{ productos|length }})</button>
+                            <button type="button" class="filtro-admin-pill" id="fadm-agotados" onclick="cambiarFiltroProdAdmin('agotados')">🚫 Agotados ({{ cant_agotados_admin }})</button>
+                            <button type="button" class="filtro-admin-pill" id="fadm-destacados" onclick="cambiarFiltroProdAdmin('destacados')">⭐ Lo más pedido ({{ cant_destacados_admin }})</button>
                         </div>
-                        <button type="submit" class="btn btn-success btn-sm w-100">Agregar Categoría</button>
-                    </form>
-                    <ul class="list-group" style="max-height: 240px; overflow-y: auto;">
-                        {% for cat in categorias %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
-                            <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
-                        </li>
-                        {% endfor %}
-                    </ul>
+
+                        <div class="input-group mb-3 shadow-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="buscador-admin-prod" class="form-control" placeholder="Buscar platillo por nombre o categoría..." onkeyup="filtrarProductosAdmin()">
+                        </div>
+
+                        <div class="list-group" id="lista-admin-productos" style="max-height: 580px; overflow-y: auto;">
+                            {% for prod in productos %}
+                            <div class="list-group-item item-admin-prod"
+                                 data-agotado="{{ 'si' if prod.agotado else 'no' }}"
+                                 data-destacado="{{ 'si' if prod.destacado else 'no' }}">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div>
+                                        <h6 class="mb-0">
+                                            {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
+                                            <span class="badge bg-success">${{ prod.precio }}</span>
+                                            {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
+                                        </h6>
+                                        <small class="text-muted">{{ prod.categoria }} | 🇺🇸 {{ prod.nombre_en or 'Sin traducción' }}</small>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <form action="{{ url_for('toggle_destacado', id=prod.id) }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold" title="Poner o quitar de Lo más pedido">⭐</button>
+                                        </form>
+                                        <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold" title="Marcar o desmarcar Agotado">🚫</button>
+                                        </form>
+                                        <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
+                                        <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('¿Borrar {{ prod.nombre }}?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nuevo_premio') }}" method="POST" class="mb-3">
-                        <div class="row g-2 mb-2">
-                            <div class="col-4"><input type="number" name="visitas" class="form-control form-control-sm" placeholder="Visitas" required></div>
-                            <div class="col-4"><input type="text" name="premio_es" id="premio_es" onblur="traducirElemento('premio_es', 'premio_en')" class="form-control form-control-sm" placeholder="Premio (ES)" required></div>
-                            <div class="col-4"><input type="text" name="premio_en" id="premio_en" class="form-control form-control-sm border-primary" placeholder="Premio (EN)"></div>
-                        </div>
-                        <button type="submit" class="btn btn-success btn-sm w-100">Crear Meta</button>
-                    </form>
-                    <ul class="list-group">
-                        {% for p in premios %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }}</span>
-                            <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-
         </div>
+    </div>
 
-        <div class="col-md-6">
-            
-            <!-- PLATILLOS CON BOTONES DE 1 CLIC -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú ({{ productos|length }})</div>
-                <div class="card-body">
-                    <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data" class="mb-4 bg-light p-3 rounded border">
-                        <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary">Agregar Nuevo Platillo</h6>
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Nombre (ES)</label>
-                                <input type="text" name="nombre" id="prod_nombre_es" onblur="traducirElemento('prod_nombre_es', 'prod_nombre_en')" class="form-control mb-2" required>
+    <!-- ==========================================
+         PESTAÑA 3: MARKETING, FOTOS Y QRs DE MESA
+         ========================================== -->
+    <div id="tab-marketing" class="seccion-tab-admin">
+        <div class="row">
+            <div class="col-md-6">
+                <!-- CARRUSEL DE BANNERS -->
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning text-dark fw-bold">📢 Carrusel de Banners de Portada</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('nuevo_anuncio') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <label class="small fw-bold">Texto Grande (ES):</label>
+                                    <input type="text" name="mensaje" id="banner_es" onblur="traducirElemento('banner_es', 'banner_en')" class="form-control" placeholder="Ej. ¡Prueba el Moka!" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-primary">Texto Grande (EN):</label>
+                                    <input type="text" name="mensaje_en" id="banner_en" class="form-control border-primary" placeholder="Ej. Try the Mocha!">
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-primary">Nombre (EN)</label>
-                                <input type="text" name="nombre_en" id="prod_nombre_en" class="form-control mb-2 border-primary">
+                            <label class="small fw-bold mt-1">Foto de Portada (Opcional):</label>
+                            <input type="file" name="foto" class="form-control mb-2" accept="image/*">
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <label class="small fw-bold">Botón (ES):</label>
+                                    <input type="text" name="texto_boton" id="btn_es" onblur="traducirElemento('btn_es', 'btn_en')" class="form-control" placeholder="Ej. Ver Moka">
+                                </div>
+                                <div class="col-6">
+                                    <label class="small fw-bold text-primary">Botón (EN):</label>
+                                    <input type="text" name="texto_boton_en" id="btn_en" class="form-control border-primary" placeholder="Ej. View Mocha">
+                                </div>
                             </div>
-                        </div>
-                        <div class="row mt-1">
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Descripción (ES)</label>
-                                <textarea name="descripcion" id="prod_desc_es" onblur="traducirElemento('prod_desc_es', 'prod_desc_en')" class="form-control mb-2" rows="2"></textarea>
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <label class="small fw-bold text-primary">Enlace del botón:</label>
+                                    <select class="form-select mb-1 border-primary shadow-sm" onchange="document.getElementById('enlace_personalizado').value = this.value;">
+                                        <option value="">Elegir rápido de la lista (Opcional)...</option>
+                                        <optgroup label="👉 SECCIONES GENERALES">
+                                            <option value="#vista-menu">Menú Principal Completo</option>
+                                            <option value="#vista-galeria">Galería de Fotos</option>
+                                            <option value="#vista-experiencia">Experiencia & Reservaciones</option>
+                                        </optgroup>
+                                        <optgroup label="🍟 LLEVAR A UN PLATILLO DIRECTO">
+                                            {% for p in productos %}
+                                            <option value="#vista-menu|{{ p.nombre }}">{{ p.nombre }} - ${{ p.precio }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    </select>
+                                    <input type="text" name="enlace" id="enlace_personalizado" class="form-control mb-2 border-primary shadow-sm" placeholder="O pega tu link aquí...">
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-primary">Descripción (EN)</label>
-                                <textarea name="descripcion_en" id="prod_desc_en" class="form-control mb-2 border-primary" rows="2"></textarea>
+                            <label class="small fw-bold mt-1">Estilo Visual del Banner:</label>
+                            <select name="color" class="form-select mb-2">
+                                <option value="bg-dark text-white">✨ Recomendación del Chef / Especial (Verde Morisco)</option>
+                                <option value="bg-danger text-white">🔥 Promoción / Oferta Especial (Rojo Cobre Intenso)</option>
+                                <option value="bg-warning text-dark">📢 Aviso Importante / Evento (Dorado Elegante)</option>
+                            </select>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="activo" class="form-check-input" id="activoBanner" checked>
+                                <label class="form-check-label fw-bold text-success" for="activoBanner">Mostrar inmediatamente en el carrusel</label>
                             </div>
-                        </div>
-                        <div class="row mt-1">
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Precio ($)</label>
-                                <input type="number" step="0.01" name="precio" class="form-control mb-2" required>
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted">Categoría</label>
-                                <select name="categoria" class="form-select mb-2" required>
-                                    {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <input type="file" name="foto" class="form-control mb-2">
-                        <div class="d-flex gap-3 mb-3 mt-2 p-2 border rounded bg-white">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
-                                <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Lo más pedido</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="agotado" id="agotado">
-                                <label class="form-check-label text-danger fw-bold" for="agotado">❌ Agotado</label>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
-                    </form>
-
-                    <div class="input-group mb-2 shadow-sm">
-                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" id="buscador-admin-prod" class="form-control" placeholder="Buscar platillo rápido..." onkeyup="filtrarProductosAdmin()">
-                    </div>
-
-                    <div class="list-group" id="lista-admin-productos" style="max-height: 480px; overflow-y: auto;">
-                        {% for prod in productos %}
-                        <div class="list-group-item item-admin-prod">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Agregar al Carrusel</button>
+                        </form>
+                        
+                        {% if anuncios %}
+                        <h6 class="mt-3 border-top pt-2 fw-bold">Banners Guardados ({{ anuncios|length }}):</h6>
+                        <ul class="list-group">
+                        {% for an in anuncios %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-0">
-                                        {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
-                                        <span class="badge bg-success">${{ prod.precio }}</span>
-                                        {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
-                                    </h6>
-                                    <small class="text-muted">{{ prod.categoria }} | 🇺🇸 {{ prod.nombre_en or 'Sin traducción' }}</small>
+                                    <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'EN CARRUSEL' if an.activo else 'OCULTO' }}</span> 
+                                    <small class="ms-1 fw-bold">{{ an.mensaje }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
-                                    <form action="{{ url_for('toggle_destacado', id=prod.id) }}" method="POST" style="margin:0;">
-                                        <button type="submit" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold" title="Destacar en Lo más pedido">⭐</button>
+                                    <form action="{{ url_for('toggle_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm {{ 'btn-outline-secondary' if an.activo else 'btn-outline-success' }} fw-bold">{{ 'Apagar' if an.activo else 'Activar' }}</button>
                                     </form>
-                                    <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin:0;">
-                                        <button type="submit" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold" title="Marcar Agotado">🚫</button>
-                                    </form>
-                                    <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
-                                    <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin:0;">
+                                    <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
                                     </form>
                                 </div>
-                            </div>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- GENERADOR DE QRs POR PLAQUITA -->
+                <div class="card shadow-sm mb-4 border-success">
+                    <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs y Links por Plaquita / Mesa (NFC)</div>
+                    <div class="card-body">
+                        <div class="d-flex gap-2 mb-3">
+                            <input type="number" id="input-total-mesas" class="form-control form-control-sm" value="10" min="1" max="50">
+                            <button type="button" onclick="generarQRsMesas()" class="btn btn-sm btn-success fw-bold w-50">Generar QRs</button>
                         </div>
+                        <div id="grid-qrs-mesas" class="row" style="max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+
+                <!-- GALERÍA DE FOTOS -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('agregar_galeria') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                            <input type="file" name="foto" class="form-control mb-2" required>
+                            <input type="text" name="titulo" class="form-control mb-2" placeholder="Título">
+                            <input type="text" name="descripcion" class="form-control mb-2" placeholder="Descripción breve">
+                            <button type="submit" class="btn btn-sm btn-success w-100 fw-bold">Subir a Galería</button>
+                        </form>
+                        <div class="row" style="max-height: 320px; overflow-y: auto;">
+                            {% for foto in galeria %}
+                            <div class="col-6 mb-3">
+                                <div class="card h-100 shadow-sm border-0">
+                                    <img src="{{ foto.imagen_url|opt_img(400) }}" class="card-img-top" style="height: 100px; object-fit: cover;">
+                                    <div class="card-body p-2 bg-light">
+                                        <form action="{{ url_for('editar_galeria', id=foto.id) }}" method="POST">
+                                            <input type="text" name="titulo" class="form-control form-control-sm mb-1" value="{{ foto.titulo or '' }}">
+                                            <textarea name="descripcion" class="form-control form-control-sm mb-1" rows="2">{{ foto.descripcion or '' }}</textarea>
+                                            <button type="submit" class="btn btn-sm btn-warning w-100 mb-1" style="font-size: 11px; font-weight: bold;">Actualizar</button>
+                                        </form>
+                                        <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET">
+                                            <button type="submit" class="btn btn-sm btn-danger w-100" style="font-size: 11px;">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PESTAÑA 4: FIDELIDAD Y RANKING DE CLIENTES
+         ========================================== -->
+    <div id="tab-fidelidad" class="seccion-tab-admin">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('nuevo_premio') }}" method="POST" class="mb-3">
+                            <div class="row g-2 mb-2">
+                                <div class="col-4"><input type="number" name="visitas" class="form-control form-control-sm" placeholder="Visitas" required></div>
+                                <div class="col-4"><input type="text" name="premio_es" id="premio_es" onblur="traducirElemento('premio_es', 'premio_en')" class="form-control form-control-sm" placeholder="Premio (ES)" required></div>
+                                <div class="col-4"><input type="text" name="premio_en" id="premio_en" class="form-control form-control-sm border-primary" placeholder="Premio (EN)"></div>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear Meta</button>
+                        </form>
+                        <ul class="list-group">
+                            {% for p in premios %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }}</span>
+                                <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card shadow-sm mb-4 border-primary">
+                    <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>👑 Ranking de Clientes Frecuentes</span>
+                        <a href="{{ url_for('exportar_clientes') }}" class="btn btn-sm btn-light fw-bold text-primary">📊 Descargar Excel</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div style="max-height: 420px; overflow-y: auto;">
+                            <table class="table table-striped table-hover mb-0 small">
+                                <thead class="table-light sticky-top">
+                                    <tr><th>Cliente</th><th>Teléfono (WhatsApp)</th><th class="text-center">Visitas</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for c in clientes_top %}
+                                    <tr>
+                                        <td class="fw-bold">{{ c.nombre }}</td>
+                                        <td><a href="https://wa.me/521{{ c.telefono }}" target="_blank" class="text-decoration-none text-success fw-bold"><i class="fab fa-whatsapp"></i> {{ c.telefono }}</a></td>
+                                        <td class="text-center"><span class="badge bg-primary">{{ c.visitas }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PESTAÑA 5: EQUIPO Y EVALUACIONES DE MESEROS
+         ========================================== -->
+    <div id="tab-equipo" class="seccion-tab-admin">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4 border-primary">
+                    <div class="card-header bg-primary text-white fw-bold">👥 Equipo y Contraseñas (Admin, Cajeros y Meseros)</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('nuevo_usuario') }}" method="POST" class="row g-2 mb-3 bg-light p-2 rounded border">
+                            <div class="col-4"><input type="text" name="username" class="form-control form-control-sm" placeholder="Usuario" required></div>
+                            <div class="col-4"><input type="text" name="password" class="form-control form-control-sm" placeholder="Contraseña" required></div>
+                            <div class="col-4 d-flex gap-1">
+                                <select name="role" class="form-select form-select-sm">
+                                    <option value="mesero">Mesero</option>
+                                    <option value="cajero">Cajero</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-success fw-bold">+</button>
+                            </div>
+                        </form>
+                        <ul class="list-group">
+                            {% for u in usuarios %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <strong class="text-uppercase">{{ u.username }}</strong>
+                                    <span class="badge {{ 'bg-danger' if u.role=='admin' else ('bg-warning text-dark' if u.role=='cajero' else 'bg-info text-dark') }}">{{ u.role|upper }}</span>
+                                </div>
+                                <div class="d-flex gap-1 align-items-center">
+                                    <form action="{{ url_for('cambiar_pass_usuario', id=u.id) }}" method="POST" class="d-flex gap-1">
+                                        <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 120px;" placeholder="Nueva clave" required>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
+                                    </form>
+                                    {% if u.id != current_user.id %}
+                                    <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" onsubmit="return confirm('¿Eliminar a {{ u.username }}?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                        <span>⭐ Evaluaciones de Paola y Daniel</span>
+                        <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-sm btn-dark fw-bold">📝 Descargar Excel</a>
+                    </div>
+                    <div class="card-body" style="max-height: 420px; overflow-y: auto;">
+                        {% for ev in evaluaciones %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <div class="d-flex justify-content-between">
+                                <strong>👤 Mesero: {{ ev.mesero_nombre }}</strong>
+                                <span class="badge bg-dark">⭐ {{ ev.mesero_calificacion }}/5</span>
+                            </div>
+                            <small class="text-muted d-block">Limpieza: {{ ev.limpieza }}/5 | Comida: {{ ev.calidad_comida }}/5 | {{ ev.fecha.strftime('%d/%m/%Y') }}</small>
+                            {% if ev.comentarios %}<div class="bg-light p-2 rounded mt-1 small fst-italic">"{{ ev.comentarios }}"</div>{% endif %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted small text-center mb-0">No hay evaluaciones todavía.</p>
                         {% endfor %}
                     </div>
                 </div>
             </div>
-
-            <div class="card shadow-sm mb-4 border-primary">
-                <div class="card-header bg-primary text-white fw-bold">👑 Ranking de Clientes Frecuentes</div>
-                <div class="card-body p-0">
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-striped table-hover mb-0 small">
-                            <thead class="table-light sticky-top">
-                                <tr><th>Cliente</th><th>Teléfono</th><th class="text-center">Visitas</th></tr>
-                            </thead>
-                            <tbody>
-                                {% for c in clientes_top %}
-                                <tr>
-                                    <td class="fw-bold">{{ c.nombre }}</td>
-                                    <td><a href="https://wa.me/521{{ c.telefono }}" target="_blank" class="text-decoration-none text-success fw-bold">{{ c.telefono }}</a></td>
-                                    <td class="text-center"><span class="badge bg-primary">{{ c.visitas }}</span></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">⭐ Evaluaciones de Paola y Daniel</div>
-                <div class="card-body" style="max-height: 280px; overflow-y: auto;">
-                    {% for ev in evaluaciones %}
-                    <div class="border-bottom pb-2 mb-2">
-                        <div class="d-flex justify-content-between">
-                            <strong>👤 Mesero: {{ ev.mesero_nombre }}</strong>
-                            <span class="badge bg-dark">⭐ {{ ev.mesero_calificacion }}/5</span>
-                        </div>
-                        <small class="text-muted d-block">Limpieza: {{ ev.limpieza }}/5 | Comida: {{ ev.calidad_comida }}/5 | {{ ev.fecha.strftime('%d/%m/%Y') }}</small>
-                        {% if ev.comentarios %}<div class="bg-light p-2 rounded mt-1 small fst-italic">"{{ ev.comentarios }}"</div>{% endif %}
-                    </div>
-                    {% else %}
-                    <p class="text-muted small text-center mb-0">No hay evaluaciones todavía.</p>
-                    {% endfor %}
-                </div>
-            </div>
-
         </div>
     </div>
+
 </div>
 </div>
 
@@ -602,6 +698,35 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    function cambiarTabAdmin(tabId) {
+        sessionStorage.setItem('tab_admin_quiosco', tabId);
+        document.querySelectorAll('.seccion-tab-admin').forEach(s => s.classList.remove('activa'));
+        document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('activo'));
+        document.getElementById('tab-' + tabId).classList.add('activa');
+        document.getElementById('tabbtn-' + tabId).classList.add('activo');
+    }
+
+    let filtroProdAdminEstado = 'todos';
+    function cambiarFiltroProdAdmin(modo) {
+        filtroProdAdminEstado = modo;
+        document.querySelectorAll('.filtro-admin-pill').forEach(b => b.classList.remove('activo'));
+        document.getElementById('fadm-' + modo).classList.add('activo');
+        filtrarProductosAdmin();
+    }
+
+    function filtrarProductosAdmin() {
+        let q = document.getElementById('buscador-admin-prod').value.toLowerCase().trim();
+        document.querySelectorAll('.item-admin-prod').forEach(el => {
+            let txt = el.innerText.toLowerCase().includes(q);
+            let esAg = el.getAttribute('data-agotado') === 'si';
+            let esDest = el.getAttribute('data-destacado') === 'si';
+            let okEstado = true;
+            if (filtroProdAdminEstado === 'agotados') okEstado = esAg;
+            if (filtroProdAdminEstado === 'destacados') okEstado = esDest;
+            el.style.display = (txt && okEstado) ? 'block' : 'none';
+        });
+    }
+
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
@@ -612,13 +737,6 @@
             let data = await res.json();
             destino.value = data[0][0][0];
         } catch(e) { destino.placeholder = "Escribe manual"; }
-    }
-
-    function filtrarProductosAdmin() {
-        let q = document.getElementById('buscador-admin-prod').value.toLowerCase().trim();
-        document.querySelectorAll('.item-admin-prod').forEach(el => {
-            el.style.display = el.innerText.toLowerCase().includes(q) ? 'block' : 'none';
-        });
     }
 
     function generarQRsMesas() {
@@ -687,7 +805,14 @@
         imagenesEsperadas = elementos.length; imagenesCargadas = 0;
         zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
     }
-    document.addEventListener("DOMContentLoaded", gerarQRsInit => generarQRsMesas());
+
+    document.addEventListener("DOMContentLoaded", function() {
+        generarQRsMesas();
+        let savedTab = sessionStorage.getItem('tab_admin_quiosco');
+        if (savedTab && document.getElementById('tab-' + savedTab)) {
+            cambiarTabAdmin(savedTab);
+        }
+    });
 </script>
 </body>
 </html>
