@@ -371,8 +371,9 @@
             <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es'); vibrar('soft');">🇲🇽 ES</button>
             <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en'); vibrar('soft');">🇺🇸 EN</button>
         </div>
-        <div id="badge-mesa-activa" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');" title="Toca para elegir o cambiar tu plaquita de mesa">
-            📍 Elegir Mesa ✏️
+        <div id="badge-mesa-activa" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');" title="Solicitar asistencia en tu mesa">
+            <i class="fas fa-bell"></i> Asistencia en Mesa
+        </div>
         </div>
         <div class="hamburger" onclick="abrirSidebar(); vibrar('soft');">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Opciones</span>&#9776;
@@ -1118,12 +1119,12 @@
         let n = parseInt(numMesa);
         if (n >= 1 && n <= 10) {
             sessionStorage.setItem('mesa_quiosco', String(n));
-            if (badgeMesa) badgeMesa.innerText = `📍 Plaquita ${n} ✏️`;
+            if (badgeMesa) badgeMesa.innerHTML = `<i class="fas fa-bell"></i> Asistencia • Mesa ${n}`;
             if (inMesa1) inMesa1.value = String(n);
             if (inMesa2) inMesa2.value = String(n);
         }
     }
-
+    
     function irASlide(n) {
         const slides = document.querySelectorAll('.hero-banner-starbucks');
         const dots = document.querySelectorAll('.carousel-dot');
