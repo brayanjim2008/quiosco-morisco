@@ -33,17 +33,30 @@
 
         body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 110px 0; color: var(--texto-oscuro); transition: background 0.3s; }
         
-        .header-wrapper { position: sticky; top: 0; z-index: 2000; background: rgba(253, 250, 246, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); transition: 0.3s; }
-        body.dark-mode .header-wrapper { background: rgba(18, 18, 18, 0.85); }
-        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; max-width: 500px; margin: auto; }
+        .header-wrapper { position: sticky; top: 0; z-index: 2000; background: rgba(253, 250, 246, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color); transition: 0.3s; }
+        body.dark-mode .header-wrapper { background: rgba(18, 18, 18, 0.88); }
+        .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; max-width: 500px; margin: auto; }
         
-        .lang-selector { display: flex; gap: 5px; background: var(--fondo-tarjeta); padding: 4px; border-radius: 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); align-items: center; }
+        .lang-selector { display: flex; gap: 4px; background: var(--fondo-tarjeta); padding: 4px; border-radius: 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); align-items: center; }
         .lang-icono { color: var(--texto-claro); margin-left: 8px; font-size: 14px; cursor: pointer; }
-        .lang-btn { background: transparent; border: none; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
+        .lang-btn { background: transparent; border: none; padding: 6px 11px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
         .lang-btn.activo { background: var(--verde-quiosco); color: white; }
 
-        .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 15px; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
-        .hamburger-texto { font-size: 13px; font-weight: bold; font-family: 'Open Sans', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
+        /* INSIGNIA AUTOMÁTICA DE MESA DETECTADA */
+        #badge-mesa-activa {
+            display: none;
+            background: linear-gradient(135deg, var(--cobre), #b06d35);
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 5px 11px;
+            border-radius: 20px;
+            box-shadow: 0 3px 10px rgba(201,130,70,0.35);
+            letter-spacing: 0.5px;
+        }
+
+        .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 14px; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        .hamburger-texto { font-size: 12px; font-weight: bold; font-family: 'Open Sans', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
         
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--fondo-tarjeta); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0 12px 0; z-index: 2500; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
         body.dark-mode .bottom-nav { background: rgba(30, 30, 30, 0.95); border-color: #333; box-shadow: 0 -4px 15px rgba(0,0,0,0.4); }
@@ -69,23 +82,33 @@
         
         .container { max-width: 500px; margin: auto; padding: 0 15px; }
         h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 700; }
-        .logo-container { text-align: center; margin-bottom: 15px; margin-top: 20px; }
-        .logo-container img { width: 110px; border-radius: 50%; border: 3px solid var(--cobre); background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 10px; margin-bottom: 20px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; }
+        .logo-container { text-align: center; margin-bottom: 10px; margin-top: 18px; }
+        .logo-container img { width: 105px; border-radius: 50%; border: 3px solid var(--cobre); background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 8px; margin-bottom: 8px; font-size: 25px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.03); }
         
-        .hero-banner-starbucks { position: relative; width: 100%; min-height: 380px; height: 45vh; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; margin-bottom: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.5s ease; }
+        /* NUEVO BANNER CARRUSEL TIPO TARJETA FLOTANTE PREMIUM */
+        .hero-carousel-wrapper { max-width: 500px; margin: 14px auto 10px auto; padding: 0 15px; box-sizing: border-box; }
+        .hero-banner-starbucks { position: relative; width: 100%; min-height: 270px; border-radius: 24px; display: none; align-items: flex-end; justify-content: center; text-align: center; overflow: hidden; box-shadow: 0 14px 30px rgba(19, 66, 59, 0.22); border: 1.5px solid rgba(201, 130, 70, 0.45); animation: fadeIn 0.5s ease; }
+        .hero-banner-starbucks.slide-activo { display: flex; }
+        .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.6s ease; }
+        .hero-bg-gradiente { background: linear-gradient(135deg, #0d322c 0%, #1a5c53 55%, #c98246 100%); }
         .hero-banner-starbucks:hover .hero-bg { transform: scale(1.05); }
-        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%); z-index: 2; }
-        .hero-content { position: relative; z-index: 3; padding: 20px; color: white; width: 100%; max-width: 800px; animation: fadeInUp 0.8s ease-out; }
-        .hero-title { font-family: 'Lora', serif; font-size: clamp(2.2rem, 8vw, 3.5rem); font-weight: 700; margin-bottom: 25px; text-shadow: 0px 4px 15px rgba(0,0,0,0.8); line-height: 1.1; color: white; border: none; }
-        .hero-btn { display: inline-block; padding: 12px 35px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; font-size: 13px; transition: all 0.3s ease; background: rgba(255,255,255,0.15); backdrop-filter: blur(5px); }
-        .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.82) 100%); z-index: 2; }
+        .hero-content { position: relative; z-index: 3; padding: 22px 18px; color: white; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); }
+        .hero-pill-badge { display: inline-block; background: rgba(201, 130, 70, 0.92); color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 30px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
+        .hero-title { font-family: 'Lora', serif; font-size: clamp(1.5rem, 6vw, 2.2rem); font-weight: 700; margin-bottom: 16px; text-shadow: 0px 3px 12px rgba(0,0,0,0.85); line-height: 1.15; color: white; border: none; padding: 0; }
+        .hero-btn { display: inline-block; padding: 10px 26px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; font-size: 12px; transition: all 0.3s ease; background: rgba(255,255,255,0.18); backdrop-filter: blur(6px); }
+        .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-2px); }
+        .carousel-dots { display: flex; justify-content: center; gap: 7px; margin-top: 10px; }
+        .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(19, 66, 59, 0.25); cursor: pointer; transition: 0.3s; }
+        .carousel-dot.activo { width: 22px; border-radius: 10px; background: var(--cobre); }
 
-        .social-bar-elegante { display: flex; justify-content: center; gap: 20px; background: var(--fondo-tarjeta); padding: 12px 30px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 35px auto; width: fit-content; }
-        .social-item { display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border-radius: 50%; color: white !important; font-size: 20px; text-decoration: none; transition: 0.3s ease; }
-        .social-item:hover { transform: translateY(-5px) scale(1.05); }
+        .estado-local-pill { text-align: center; margin-bottom: 18px; font-size: 12px; font-weight: 700; color: var(--texto-claro); }
+
+        .social-bar-elegante { display: flex; justify-content: center; gap: 18px; background: var(--fondo-tarjeta); padding: 10px 25px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 28px auto; width: fit-content; }
+        .social-item { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; color: white !important; font-size: 19px; text-decoration: none; transition: 0.3s ease; }
+        .social-item:hover { transform: translateY(-4px) scale(1.05); }
         .social-item.instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
         .social-item.tiktok { background: #000000; }
         .social-item.maps { background: #ea4335; }
@@ -95,9 +118,8 @@
         #vista-inicio { display: block; }
 
         .tarjeta-vip { background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); padding: 30px 20px; border-radius: 20px; margin-bottom: 25px; text-align: center; color: white; box-shadow: 0 15px 30px rgba(19, 66, 59, 0.2); border: 1px solid rgba(201, 130, 70, 0.3); position: relative; overflow: hidden; }
-        .tarjeta-vip::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); transform: rotate(45deg); pointer-events: none; }
         .avatar-letra { width: 60px; height: 60px; border-radius: 50%; background: var(--cobre); color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; text-transform: uppercase; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin: 0 auto 15px auto; }
-        .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 22px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .tarjeta-vip h3 { color: #fdfaf6; border: none; padding: 0; font-size: 22px; }
         .tarjeta-vip p { color: #e0e0e0; font-size: 14px; margin-bottom: 0; }
         
         .progress-bar { display: flex; align-items: center; justify-content: center; margin: 25px 0; flex-wrap: wrap; gap: 4px; position: relative; z-index: 2; }
@@ -113,10 +135,21 @@
         @keyframes latido { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
         .animacion-latido { animation: latido 2.5s infinite; }
 
-        .buscador-container { position: relative; margin-bottom: 20px; }
-        .buscador-input { width: 100%; padding: 14px 15px 14px 45px; border-radius: 30px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); color: var(--texto-oscuro); outline: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); box-sizing: border-box; }
+        .buscador-container { position: relative; margin-bottom: 12px; }
+        .buscador-input { width: 100%; padding: 14px 15px 14px 45px; border-radius: 30px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-tarjeta); color: var(--texto-oscuro); outline: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); box-sizing: border-box; }
         .buscador-input:focus { border-color: var(--cobre); box-shadow: 0 4px 15px rgba(201,130,70,0.2); }
         .buscador-icono { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--texto-claro); font-size: 16px; }
+
+        /* FILTROS CLIMA DE SAN CRIS */
+        .clima-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .clima-btn { flex: 1; padding: 9px 10px; border-radius: 20px; border: 1.5px solid var(--border-color); background: var(--fondo-tarjeta); color: var(--texto-oscuro); font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.25s; text-align: center; }
+        .clima-btn.activo { border-color: var(--cobre); background: rgba(201, 130, 70, 0.14); color: var(--cobre); }
+
+        /* BARRA DE CATEGORÍAS STICKY AL BAJAR POR EL MENÚ */
+        .filtros-wrapper { position: sticky; top: 61px; z-index: 1800; background: var(--fondo-hueso); overflow-x: auto; white-space: nowrap; padding: 10px 0 12px 0; margin-bottom: 15px; scrollbar-width: none; border-bottom: 1px solid var(--border-color); }
+        .filtros-wrapper::-webkit-scrollbar { display: none; }
+        .filtro-btn { display: inline-block; background: var(--fondo-tarjeta); border: 1.5px solid var(--border-color); color: var(--texto-oscuro); padding: 9px 18px; margin-right: 8px; border-radius: 30px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .filtro-btn.activo { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); box-shadow: 0 6px 15px rgba(19, 66, 59, 0.2); }
 
         #banner-instalar-app { display: none; position: fixed; bottom: 85px; left: 5%; width: 90%; background: var(--verde-quiosco); color: white; padding: 12px 15px; border-radius: 16px; z-index: 3000; box-shadow: 0 10px 25px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1); animation: fadeInUp 0.5s ease-out; box-sizing: border-box; }
         
@@ -136,7 +169,7 @@
         .botones-flotantes { position: fixed; bottom: 80px; right: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 1500; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 12px 18px; border-radius: 50px; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.25); transition: 0.3s; }
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
-        .btn-flotante-mesero:active, .btn-flotante-eval:active { transform: scale(0.95); }
+        .btn-subir-arriba { display: none; width: 40px; height: 40px; border-radius: 50%; background: var(--verde-quiosco); color: white; border: 2px solid var(--cobre); align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
 
         #barra-antojos {
             display: none;
@@ -157,11 +190,6 @@
             gap: 10px;
             animation: fadeInUp 0.3s ease;
         }
-
-        .filtros-wrapper { overflow-x: auto; white-space: nowrap; padding-bottom: 15px; margin-bottom: 15px; scrollbar-width: none; border-bottom: none; }
-        .filtros-wrapper::-webkit-scrollbar { display: none; }
-        .filtro-btn { display: inline-block; background: var(--fondo-tarjeta); border: 1.5px solid var(--border-color); color: var(--texto-oscuro); padding: 10px 20px; margin-right: 10px; border-radius: 30px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        .filtro-btn.activo { background: var(--verde-quiosco); color: #fff; border-color: var(--verde-quiosco); box-shadow: 0 6px 15px rgba(19, 66, 59, 0.2); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); z-index: 4000; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 15px; box-sizing: border-box; }
         .modal-content { background: var(--fondo-tarjeta); padding: 25px 22px; border-radius: 20px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25); max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
@@ -193,7 +221,7 @@
         .foto-platillo { width: 92px; height: 92px; object-fit: cover; border-radius: 14px; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: 0.3s; flex-shrink: 0; }
         .info-platillo { flex-grow: 1; min-width: 0; }
         .nombre-platillo { font-family: 'Lora', serif; font-size: 1.15em; color: var(--verde-quiosco); font-weight: 700; display: block; margin-bottom: 4px; line-height: 1.2; }
-        .precio { font-weight: 700; color: var(--cobre); font-size: 1.15em; background: rgba(201, 130, 70, 0.12); padding: 5px 11px; border-radius: 20px; display: inline-block; }
+        .precio { font-weight: 700; color: var(--cobre); font-size: 1.12em; background: rgba(201, 130, 70, 0.12); padding: 5px 10px; border-radius: 20px; display: inline-block; }
         
         .btn-add-antojo { width: 34px; height: 34px; border-radius: 50%; background: var(--verde-quiosco); color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(19,66,59,0.25); transition: 0.2s; margin-top: 6px; margin-left: auto; }
         .btn-add-antojo:active { transform: scale(0.88); background: var(--cobre); }
@@ -207,6 +235,10 @@
 
         .accion-mesero-btn { width: 100%; text-align: left; padding: 11px 14px; margin-bottom: 8px; border-radius: 12px; border: 1.5px solid var(--border-color); background: var(--fondo-hueso); color: var(--texto-oscuro); font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
         .accion-mesero-btn.seleccionado, .accion-mesero-btn:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.1); }
+
+        /* BANNER CUMPLEAÑERO VIP */
+        .cumple-card { background: linear-gradient(135deg, #13423b 0%, #1f5c52 100%); color: white; border: 2px solid #ffd700; border-radius: 18px; padding: 16px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; box-shadow: 0 8px 20px rgba(19,66,59,0.18); transition: 0.3s; }
+        .cumple-card:hover { transform: translateY(-2px); }
 
         .eval-select, .eval-textarea { width: 100%; padding: 13px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; transition: 0.3s; box-sizing: border-box; }
         .btn-eval { background: #ff9800; color: white; border: none; padding: 14px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 12px; cursor: pointer; flex: 1; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3); }
@@ -224,6 +256,10 @@
             <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es'); vibrar('soft');">🇲🇽 ES</button>
             <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en'); vibrar('soft');">🇺🇸 EN</button>
         </div>
+
+        <!-- INSIGNIA AUTOMÁTICA CUANDO ESCANEAN QR DE MESA (?mesa=4) -->
+        <div id="badge-mesa-activa">📍 Mesa --</div>
+
         <div class="hamburger" onclick="abrirSidebar(); vibrar('soft');">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Opciones</span>&#9776;
         </div>
@@ -259,23 +295,38 @@
     </div>
 </div>
 
-{% if anuncio and anuncio.activo %}
-<div class="hero-banner-starbucks">
-    {% if anuncio.imagen_url %}
-        <img src="{{ anuncio.imagen_url }}" class="hero-bg" alt="Portada Quiosco Morisco">
-        <div class="hero-overlay"></div>
-    {% else %}
-        <div class="hero-bg {{ anuncio.color }}"></div>
-    {% endif %}
-    
-    <div class="hero-content">
-        <h1 class="hero-title" data-es="{{ anuncio.mensaje }}" data-en="{{ anuncio.mensaje_en | default(anuncio.mensaje) }}">{{ anuncio.mensaje }}</h1>
-        {% if anuncio.texto_boton and anuncio.enlace %}
-            <a href="{{ anuncio.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
-                <span data-es="{{ anuncio.texto_boton }}" data-en="{{ anuncio.texto_boton_en | default(anuncio.texto_boton) }}">{{ anuncio.texto_boton }}</span> <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
-            </a>
+<!-- CARRUSEL DE BANNERS FLOTANTES REDONDEADOS -->
+{% set lista_banners = anuncios_activos if anuncios_activos is defined and anuncios_activos else ([anuncio] if anuncio and anuncio.activo else []) %}
+{% if lista_banners %}
+<div class="hero-carousel-wrapper">
+    {% for ban in lista_banners %}
+    <div class="hero-banner-starbucks {% if loop.first %}slide-activo{% endif %}">
+        {% if ban.imagen_url %}
+            <img src="{{ ban.imagen_url }}" class="hero-bg" alt="Portada Quiosco Morisco">
+            <div class="hero-overlay"></div>
+        {% else %}
+            <div class="hero-bg hero-bg-gradiente"></div>
         {% endif %}
+        
+        <div class="hero-content">
+            <span class="hero-pill-badge" data-i18n="banner_pill">✨ Especial de Hoy</span>
+            <h2 class="hero-title" data-es="{{ ban.mensaje }}" data-en="{{ ban.mensaje_en | default(ban.mensaje) }}">{{ ban.mensaje }}</h2>
+            {% if ban.texto_boton and ban.enlace %}
+                <a href="{{ ban.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
+                    <span data-es="{{ ban.texto_boton }}" data-en="{{ ban.texto_boton_en | default(ban.texto_boton) }}">{{ ban.texto_boton }}</span> <i class="fas fa-arrow-right" style="margin-left: 6px;"></i>
+                </a>
+            {% endif %}
+        </div>
     </div>
+    {% endfor %}
+
+    {% if lista_banners|length > 1 %}
+    <div class="carousel-dots">
+        {% for ban in lista_banners %}
+        <span class="carousel-dot {% if loop.first %}activo{% endif %}" data-slide-idx="{{ loop.index0 }}" onclick="irASlide(parseInt(this.getAttribute('data-slide-idx')))"></span>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -299,6 +350,9 @@
         <a href="javascript:void(0)" onclick="cambiarVista('experiencia')" id="link-experiencia">
             <i class="fas fa-calendar-check icon"></i> <span data-i18n="menu_experiencia">Reservar / Eventos</span>
         </a>
+        <a href="javascript:void(0)" onclick="abrirPaseCumple(); vibrar('success');">
+            <i class="fas fa-birthday-cake icon text-warning"></i> <span data-i18n="menu_cumple">Pase Cumpleañero VIP</span>
+        </a>
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-wifi'); vibrar('soft');">
             <i class="fas fa-wifi icon text-primary"></i> <span data-i18n="menu_wifi">Wi-Fi Gratis</span>
         </a>
@@ -308,6 +362,22 @@
     </div>
     <div class="sidebar-footer">
         <a href="/admin_login" class="btn-admin-sidebar"><i class="fas fa-user-cog" style="margin-right: 8px;"></i> <span data-i18n="menu_admin">Acceso Empleados</span></a>
+    </div>
+</div>
+
+<!-- MODAL DE PASE DIGITAL CUMPLEAÑERO VIP -->
+<div id="modal-cumple" class="modal-overlay" onclick="if(event.target===this) cerrarModalInfo('modal-cumple')">
+    <div class="modal-content" style="background: linear-gradient(135deg, #0f332d 0%, #1a5c53 100%); color: white; border: 2px solid #ffd700;">
+        <div style="font-size: 42px; margin-bottom: 5px;">🎂✨</div>
+        <span style="background: #ffd700; color: #13423b; font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px;">PASE VIP OFICIAL</span>
+        <h3 style="color: #fff; border: none; margin: 10px 0 6px 0; font-size: 22px;" data-i18n="cumple_modal_titulo">¡Feliz Cumpleaños!</h3>
+        <p style="font-size: 13px; color: #e0e0e0; line-height: 1.5;" data-i18n="cumple_modal_desc">
+            En Quiosco Morisco queremos consentirte. Muestra este pase activo a tu mesero junto con tu identificación oficial (INE / Pasaporte) en el consumo de tu mesa para recibir tu cortesía de cumpleaños.
+        </p>
+        <div style="background: rgba(0,0,0,0.28); border: 1px dashed #ffd700; border-radius: 12px; padding: 10px; margin: 14px 0; font-family: monospace; font-size: 12px; color: #a5d6a7;">
+            🟢 <span data-i18n="verificado_vivo">SELLO EN VIVO:</span> <span id="reloj-cumple">--:--:--</span>
+        </div>
+        <button type="button" onclick="cerrarModalInfo('modal-cumple')" class="btn" style="background: #ffd700; color: #13423b; margin-bottom: 0;" data-i18n="btn_entendido">Entendido</button>
     </div>
 </div>
 
@@ -472,15 +542,17 @@
 </div>
 
 <div class="botones-flotantes">
+    <div id="btn-subir" class="btn-subir-arriba" onclick="window.scrollTo({top:0, behavior:'smooth'}); vibrar('soft');"><i class="fas fa-arrow-up"></i></div>
     <div class="btn-flotante-eval" onclick="abrirModalInfo('modal-evaluacion'); vibrar('soft');"><i class="fas fa-star"></i> <span data-i18n="btn_flotante_eval">Califícanos</span></div>
     <div class="btn-flotante-mesero" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');"><i class="fas fa-bell"></i> <span data-i18n="btn_flotante_mesero">Mesero</span></div>
 </div>
 
 <div class="container">
-    <div class="logo-container" style="margin-top: 20px;">
+    <div class="logo-container">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo Quiosco Morisco" loading="lazy" onerror="this.style.display='none'">
     </div>
     <h1>Quiosco Morisco</h1>
+    <div class="estado-local-pill" id="estado-local-vivo">🟢 Abierto • Parque Central, San Cristóbal</div>
 
     <div class="social-bar-elegante">
         <a href="javascript:void(0)" onclick="abrirModalInfo('modal-wifi'); vibrar('soft');" class="social-item wifi" title="Wi-Fi Gratis"><i class="fas fa-wifi"></i></a>
@@ -499,6 +571,7 @@
         {% endwith %}
     </div>
 
+    <!-- VISTA 1: INICIO -->
     <div id="vista-inicio" class="vista-app">
         {% if cliente and progreso %}
         <div class="tarjeta-vip">
@@ -580,13 +653,23 @@
                     {% endif %}
                     <div class="info">
                         <div class="nombre" data-es="{{ p.nombre }}" data-en="{{ p.nombre_en | default(p.nombre) }}">{{ p.nombre }}</div>
-                        <div class="precio">${{ p.precio }}</div>
+                        <div class="precio precio-convertible" data-mxn="{{ p.precio }}">${{ p.precio }}</div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
+
+        <!-- TARJETA PASE CUMPLEAÑERO VIP -->
+        <div class="cumple-card" onclick="abrirPaseCumple(); vibrar('success');">
+            <div>
+                <span style="background: #ffd700; color: #13423b; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;" data-i18n="cumple_badge">🎁 REGALO ESPECIAL</span>
+                <h4 style="color: white; margin: 5px 0 2px 0; font-size: 16px; text-align: left;" data-i18n="cumple_card_titulo">¿Cumples años esta semana?</h4>
+                <p style="margin: 0; font-size: 12px; color: #e0e0e0;" data-i18n="cumple_card_sub">Toca aquí para activar tu Pase Cumpleañero VIP 🎂</p>
+            </div>
+            <i class="fas fa-chevron-right" style="color: #ffd700; font-size: 18px;"></i>
+        </div>
 
         {% if premios %}
         <div class="card p-4 mb-4" style="background: rgba(201,130,70,0.03); border: 1px solid rgba(201,130,70,0.2);">
@@ -623,10 +706,21 @@
         </div>
     </div>
 
+    <!-- VISTA 2: MENÚ DIGITAL -->
     <div id="vista-menu" class="vista-app" style="display: none;">
         <div class="card" style="padding: 15px 5px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
             <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 15px;">Nuestro Menú</h2>
             
+            <!-- SELECTOR INTERACTIVO DE CLIMA DE SAN CRIS -->
+            <div class="clima-bar">
+                <button type="button" class="clima-btn" id="btn-clima-frio" onclick="filtrarPorClima('frio', this); vibrar('soft');">
+                    🥶 <span data-i18n="clima_frio">Frío Coleto</span>
+                </button>
+                <button type="button" class="clima-btn" id="btn-clima-calor" onclick="filtrarPorClima('calor', this); vibrar('soft');">
+                    ☀️ <span data-i18n="clima_calor">Tarde Fresca</span>
+                </button>
+            </div>
+
             <div class="buscador-container">
                 <i class="fas fa-search buscador-icono"></i>
                 <input type="text" id="buscador-menu" class="buscador-input" placeholder="Buscar platillos o bebidas..." data-i18n-placeholder="ph_buscador" onkeyup="buscarPlatillosVivo()">
@@ -634,7 +728,7 @@
 
             {% if categorias %}
             <div class="filtros-wrapper">
-                <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this); vibrar('soft');" data-i18n="filtro_todos">Todos</button>
+                <button class="filtro-btn activo" id="btn-filtro-todos" onclick="filtrarMenu('Todos', this); vibrar('soft');" data-i18n="filtro_todos">Todos</button>
                 {% for cat_nombre in categorias.keys() %}
                     <button class="filtro-btn" 
                             data-categoria="{{ cat_nombre|replace(' ', '-') }}" 
@@ -693,7 +787,7 @@
                                     </div>
                                 </div>
                                 <div style="text-align: right; flex-shrink: 0;">
-                                    <div class="precio">${{ producto.precio }}</div>
+                                    <div class="precio precio-convertible" data-mxn="{{ producto.precio }}">${{ producto.precio }}</div>
                                     <button type="button" 
                                             class="btn-add-antojo" 
                                             title="Agregar a mi lista"
@@ -712,6 +806,7 @@
         </div>
     </div>
 
+    <!-- VISTA 3: GALERÍA -->
     <div id="vista-galeria" class="vista-app" style="display: none;">
         <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0;">
             <h2 data-i18n="menu_galeria" style="border: none;">Galería</h2>
@@ -739,6 +834,7 @@
         </div>
     </div>
 
+    <!-- VISTA 4: EXPERIENCIA & RESERVACIONES -->
     <div id="vista-experiencia" class="vista-app" style="display: none;">
         <div class="card" style="text-align: center; background: linear-gradient(135deg, #13423b, #0f332d); color: white;">
             <h2 style="color: #fdfaf6; border: none; margin-top: 0;" data-i18n="exp_titulo">El Corazón de San Cris</h2>
@@ -789,10 +885,13 @@
 </footer>
 
 <script>
+    const TASA_USD = 19.5; // Conversión aproximada MXN -> USD en modo inglés
+
     const traducciones = {
         es: {
+            banner_pill: "✨ Especial de Hoy",
             menu_inicio: "Inicio", menu_ver_menu: "Menú", menu_galeria: "Galería", menu_experiencia: "Reservar", menu_wifi: "Wi-Fi Gratis",
-            menu_como_usar: "¿Cómo usar esta app?",
+            menu_cumple: "Pase Cumpleañero VIP", menu_como_usar: "¿Cómo usar esta app?",
             menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta app?",
             mod_como_usar_1: "<strong>1. Explora y arma tu lista:</strong> Toca el botón (+) en tus platillos favoritos para armar tu pedido en mesa.",
             mod_como_usar_2: "<strong>2. Llama al mesero en 1 toque:</strong> Usa el botón verde flotante para pedir la cuenta, servilletas o atención.",
@@ -807,6 +906,9 @@
             progreso_titulo: "Socio Oro", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Meta Alcanzada! Muestra en caja:", verificado_vivo: "SELLO EN VIVO:", titulo_lista_premios: "Metas Activas",
             eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara para conectarte o copia la contraseña.", wifi_copiar: "Copiar",
             ph_buscador: "Buscar platillos o bebidas...",
+            clima_frio: "Antojo para el Frío Coleto", clima_calor: "Antojo Refrescante",
+            cumple_badge: "🎁 REGALO ESPECIAL", cumple_card_titulo: "¿Cumples años esta semana?", cumple_card_sub: "Toca aquí para activar tu Pase Cumpleañero VIP 🎂",
+            cumple_modal_titulo: "¡Feliz Cumpleaños!", cumple_modal_desc: "En Quiosco Morisco queremos consentirte. Muestra este pase activo a tu mesero junto con tu identificación oficial (INE / Pasaporte) en el consumo de tu mesa para recibir tu cortesía de cumpleaños.",
             btn_sumar_antojo: "Agregar a mi Lista de Antojos", maridaje_titulo: "Acompáñalo perfecto con:",
             antojos_titulo: "Mi Lista de Antojos", antojos_sub: "Muestra esta pantalla a tu mesero o envíala directo con tu número de mesa.", antojos_total: "Total Estimado:", btn_enviar_orden_wa: "Enviar Pedido al Mesero", btn_vaciar: "Vaciar", btn_seguir_viendo: "Seguir viendo",
             exp_titulo: "El Corazón de San Cris", exp_frase_1: "\"El café y la vida se disfrutan más en San Cris\"", exp_historia: "En Café Quiosco Morisco Bistró cada taza y cada platillo celebran la tradición coleta y al mismo tiempo transforman vidas apoyando a las niñas y niños con cáncer del DIF Municipal.",
@@ -815,8 +917,9 @@
             dif_desc: "Una parte de lo recaudado se destina a apoyar a niñas y niños con cáncer • <strong>DIF San Cristóbal de Las Casas</strong>."
         },
         en: {
+            banner_pill: "✨ Today's Special",
             menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery", menu_experiencia: "Book Table", menu_wifi: "Free Wi-Fi",
-            menu_como_usar: "How to use this app?",
+            menu_cumple: "VIP Birthday Pass", menu_como_usar: "How to use this app?",
             menu_admin: "Staff Access", mod_como_usar_titulo: "❓ How to use this app?",
             mod_como_usar_1: "<strong>1. Build your order:</strong> Tap (+) on your favorite dishes to create your table list.",
             mod_como_usar_2: "<strong>2. 1-Tap Waiter Call:</strong> Use the green button to ask for the bill, napkins, or service.",
@@ -831,6 +934,9 @@
             progreso_titulo: "Gold Member", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show at register:", verificado_vivo: "LIVE STAMP:", titulo_lista_premios: "Active Goals",
             eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera to connect or copy the password.", wifi_copiar: "Copy",
             ph_buscador: "Search dishes or drinks...",
+            clima_frio: "Cozy & Warm Cravings", clima_calor: "Refreshing & Cold",
+            cumple_badge: "🎁 BIRTHDAY GIFT", cumple_card_titulo: "Birthday this week?", cumple_card_sub: "Tap here to unlock your VIP Birthday Pass 🎂",
+            cumple_modal_titulo: "Happy Birthday!", cumple_modal_desc: "Show this live pass and your ID to your server with your table order to receive a complimentary birthday treat!",
             btn_sumar_antojo: "Add to my Craving List", maridaje_titulo: "Pairs perfectly with:",
             antojos_titulo: "My Craving List", antojos_sub: "Show this screen to your waiter or send it via WhatsApp with your table number.", antojos_total: "Estimated Total:", btn_enviar_orden_wa: "Send Order to Waiter", btn_vaciar: "Clear", btn_seguir_viendo: "Keep browsing",
             exp_titulo: "The Heart of San Cris", exp_frase_1: "\"Coffee and life are enjoyed more in San Cris\"", exp_historia: "At Café Quiosco Morisco Bistró every cup and dish celebrates local tradition while supporting children with cancer through DIF San Cristóbal.",
@@ -842,6 +948,7 @@
 
     let listaAntojos = [];
     let motivoMeseroActual = "📝 Estamos listos para ordenar";
+    let slideIndexActual = 0;
 
     function vibrar(tipo) {
         if (!navigator.vibrate) return;
@@ -850,6 +957,47 @@
             if (tipo === 'error') navigator.vibrate([100, 50, 100]);
             if (tipo === 'success') navigator.vibrate([100, 50, 100, 50, 200]);
         } catch(e) {}
+    }
+
+    /* --- CARRUSEL AUTOMÁTICO DE BANNERS --- */
+    function irASlide(n) {
+        const slides = document.querySelectorAll('.hero-banner-starbucks');
+        const dots = document.querySelectorAll('.carousel-dot');
+        if (slides.length <= 1) return;
+        slides.forEach(s => s.classList.remove('slide-activo'));
+        dots.forEach(d => d.classList.remove('activo'));
+        slideIndexActual = (n + slides.length) % slides.length;
+        slides[slideIndexActual].classList.add('slide-activo');
+        if (dots[slideIndexActual]) dots[slideIndexActual].classList.add('activo');
+    }
+
+    /* --- PASE CUMPLEAÑERO VIP --- */
+    function abrirPaseCumple() {
+        cerrarSidebar();
+        abrirModalInfo('modal-cumple');
+        confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 }, colors: ['#ffd700', '#c98246', '#13423b'] });
+    }
+
+    /* --- FILTRO INTERACTIVO POR CLIMA DE SAN CRIS --- */
+    function filtrarPorClima(modo, btnEl) {
+        const yaActivo = btnEl.classList.contains('activo');
+        document.querySelectorAll('.clima-btn').forEach(b => b.classList.remove('activo'));
+        if (yaActivo) {
+            filtrarMenu('Todos', document.getElementById('btn-filtro-todos'));
+            return;
+        }
+        btnEl.classList.add('activo');
+        document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo'));
+
+        const catsFrio = ['Bebidas-Calientes', 'Infusiones', 'Postres', 'Desayunos', 'Antojitos'];
+        const catsCalor = ['Bebidas-Frías', 'Frappés', 'Jugos-Naturales', 'Aguas-Naturales', 'Refrescos'];
+        const permitidas = (modo === 'frio') ? catsFrio : catsCalor;
+
+        document.querySelectorAll('.categoria-bloque').forEach(bloque => {
+            let cat = bloque.getAttribute('data-categoria');
+            bloque.querySelectorAll('.menu-item').forEach(i => i.style.display = 'flex');
+            bloque.style.display = permitidas.includes(cat) ? 'block' : 'none';
+        });
     }
 
     function agregarAAntojos(nombre, precio) {
@@ -944,7 +1092,11 @@
         document.getElementById('detalle-cat').innerText = cat;
         document.getElementById('detalle-nombre').innerText = nombre;
         document.getElementById('detalle-desc').innerText = desc || '';
-        document.getElementById('detalle-precio').innerText = '$' + precio;
+        if (lang === 'en') {
+            document.getElementById('detalle-precio').innerText = `$${precio} MXN (~$${(precio / TASA_USD).toFixed(1)} USD)`;
+        } else {
+            document.getElementById('detalle-precio').innerText = '$' + precio;
+        }
 
         const btnSumar = document.getElementById('btn-agregar-desde-modal');
         btnSumar.onclick = function() {
@@ -1047,6 +1199,15 @@
             }
         }
 
+        let estadoLocal = document.getElementById('estado-local-vivo');
+        if (estadoLocal) {
+            if (hora >= 8 && hora < 22) {
+                estadoLocal.innerHTML = "🟢 Abierto ahora • Parque Central, San Cristóbal";
+            } else {
+                estadoLocal.innerHTML = "🌙 Horario de servicio: 8:00 am a 10:00 pm";
+            }
+        }
+
         let badgeDesayuno = document.getElementById('badge-horario-desayuno');
         if (badgeDesayuno) {
             let enHorario = (hora >= 8 && (hora < 12 || (hora === 12 && minutos <= 30)));
@@ -1093,6 +1254,17 @@
         });
         document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
             if (traducciones[lang][el.getAttribute('data-i18n-placeholder')]) el.placeholder = traducciones[lang][el.getAttribute('data-i18n-placeholder')];
+        });
+
+        // Conversor automático de precios a USD cuando está en Inglés
+        document.querySelectorAll('.precio-convertible').forEach(el => {
+            let mxn = parseFloat(el.getAttribute('data-mxn'));
+            if (lang === 'en') {
+                let usd = (mxn / TASA_USD).toFixed(1);
+                el.innerHTML = `$${mxn} <small style="font-size:10px; opacity:0.85;">(~$${usd} USD)</small>`;
+            } else {
+                el.innerHTML = `$${mxn}`;
+            }
         });
     }
 
@@ -1143,6 +1315,7 @@
     function enviarMensajeWhatsapp() {
         let mesa = document.getElementById('input-mesa').value;
         if (mesa && mesa.trim() !== "") {
+            localStorage.setItem('mesa_quiosco', mesa.trim());
             let extraOrden = "";
             if (motivoMeseroActual.includes("ordenar") && listaAntojos.length > 0) {
                 let itemsTxt = listaAntojos.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
@@ -1155,8 +1328,9 @@
 
     function filtrarMenu(categoria, boton) {
         document.getElementById('buscador-menu').value = "";
+        document.querySelectorAll('.clima-btn').forEach(b => b.classList.remove('activo'));
         document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('activo'));
-        boton.classList.add('activo');
+        if (boton) boton.classList.add('activo');
         document.querySelectorAll('.categoria-bloque').forEach(bloque => {
             bloque.querySelectorAll('.menu-item').forEach(i => i.style.display = 'flex');
             bloque.style.display = (categoria === 'Todos' || bloque.getAttribute('data-categoria') === categoria) ? 'block' : 'none';
@@ -1170,26 +1344,60 @@
         document.getElementById('btn-dark-mode').className = isDark ? 'fas fa-sun lang-icono' : 'fas fa-moon lang-icono';
     }
 
+    window.addEventListener('scroll', function() {
+        const btnSubir = document.getElementById('btn-subir');
+        if (btnSubir) {
+            btnSubir.style.display = (window.scrollY > 380) ? 'flex' : 'none';
+        }
+    });
+
     document.addEventListener("DOMContentLoaded", function() {
         actualizarSaludoYHorario();
         
-        const relojEl = document.getElementById('reloj-antifraude');
-        if (relojEl) {
+        // Relojes en vivo anti-fraude
+        setInterval(() => {
+            const ahoraStr = new Date().toLocaleTimeString('es-MX');
+            const r1 = document.getElementById('reloj-antifraude');
+            const r2 = document.getElementById('reloj-cumple');
+            if (r1) r1.innerText = ahoraStr;
+            if (r2) r2.innerText = ahoraStr;
+        }, 1000);
+
+        // Auto-rotación del Carrusel de Banners cada 4.5 segundos
+        const totalSlides = document.querySelectorAll('.hero-banner-starbucks').length;
+        if (totalSlides > 1) {
             setInterval(() => {
-                relojEl.innerText = new Date().toLocaleTimeString('es-MX');
-            }, 1000);
+                irASlide(slideIndexActual + 1);
+            }, 4500);
         }
 
         if (localStorage.getItem('darkMode') === 'yes') toggleDarkMode();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
+
+        // DETECTOR AUTOMÁTICO DE MESA POR QR / NFC (?mesa=4)
+        let mesaParam = urlParams.get('mesa') || localStorage.getItem('mesa_quiosco');
+        if (urlParams.get('mesa')) {
+            localStorage.setItem('mesa_quiosco', urlParams.get('mesa'));
+        }
+        if (mesaParam) {
+            const badgeMesa = document.getElementById('badge-mesa-activa');
+            if (badgeMesa) {
+                badgeMesa.style.display = 'inline-block';
+                badgeMesa.innerText = `📍 Mesa ${mesaParam}`;
+            }
+            const inMesa1 = document.getElementById('input-mesa');
+            const inMesa2 = document.getElementById('input-mesa-antojos');
+            if (inMesa1) inMesa1.value = mesaParam;
+            if (inMesa2) inMesa2.value = mesaParam;
+        }
 
         let savedLang = localStorage.getItem('idioma_quiosco');
         if (savedLang) { cambiarIdioma(savedLang); } else {
             let userLang = navigator.language || navigator.userLanguage;
             if (userLang.toLowerCase().includes('es')) { cambiarIdioma('es'); } else { cambiarIdioma('en'); }
         }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
 
         var flashElement = document.getElementById("mensaje-flash");
         if (flashElement && flashElement.getAttribute("data-categoria") === "premio_interactivo") {
