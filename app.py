@@ -417,9 +417,12 @@ def admin_login():
 
 @app.route('/logout')
 def logout():
-    logout_user()
     session.clear()
-    return redirect(url_for('admin_login'))
+    logout_user()
+    resp = redirect(url_for('admin_login'))
+    resp.delete_cookie('remember_token')
+    resp.delete_cookie('session')
+    return resp
 
 @app.route('/admin_dashboard')
 @login_required
