@@ -5,9 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administrador - Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        #zona-impresion-termica { display: none; }
+        @media print {
+            @page { margin: 0; size: 80mm auto; }
+            body * { visibility: hidden; }
+            #no-print-admin { display: none !important; }
+            #zona-impresion-termica, #zona-impresion-termica * { visibility: visible; }
+            #zona-impresion-termica {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 72mm;
+                margin: 0;
+                padding: 0;
+                background: white;
+                color: black;
+                font-family: 'Courier New', Courier, monospace;
+            }
+            .ticket-termico {
+                width: 100%;
+                text-align: center;
+                padding: 4mm 2mm 8mm 2mm;
+                box-sizing: border-box;
+                page-break-after: always;
+                break-after: page;
+                border-bottom: 1px dashed #000;
+            }
+            .ticket-termico:last-child { page-break-after: auto; break-after: auto; }
+            .ticket-titulo { font-size: 16px; font-weight: bold; margin: 0; }
+            .ticket-sub { font-size: 11px; margin: 2px 0 6px 0; }
+            .ticket-linea { border-top: 1px dashed #000; margin: 6px 0; }
+            .ticket-pin-box { border: 2px solid #000; padding: 6px; margin: 8px auto; width: 85%; font-size: 26px; font-weight: bold; letter-spacing: 6px; }
+            .ticket-qr { width: 140px; height: 140px; margin: 4px auto; display: block; }
+            .ticket-instruccion { font-size: 11px; font-weight: bold; margin: 6px 0; }
+            .ticket-en { font-size: 10px; font-style: italic; margin-bottom: 6px; }
+            .ticket-footer { font-size: 9px; margin-top: 8px; line-height: 1.2; }
+        }
+    </style>
 </head>
 <body class="bg-light">
 
+<div id="no-print-admin">
 <nav class="navbar navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">Quiosco Morisco - Panel Admin</span>
@@ -78,10 +119,8 @@
     </div>
 
     <div class="row">
-        <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- BANNER PRINCIPAL -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
@@ -119,6 +158,7 @@
                                     <optgroup label="👉 SECCIONES GENERALES">
                                         <option value="#vista-menu">Menú Principal Completo</option>
                                         <option value="#vista-galeria">Galería de Fotos</option>
+                                        <option value="#vista-experiencia">Experiencia & Reservaciones</option>
                                     </optgroup>
                                     <optgroup label="🍟 LLEVAR A UN PLATILLO DIRECTO">
                                         {% for p in productos %}
@@ -168,9 +208,15 @@
                 </div>
             </div>
 
-            <!-- PINs Y QR DE CAJA -->
             <div class="card shadow-sm mb-4 border-dark">
-                <div class="card-header bg-dark text-white fw-bold">🎟️ Generador de PINs y QR (Caja)</div>
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>🎟️ Generador de PINs y QR (Caja)</span>
+                    {% if pins %}
+                    <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-sm btn-warning fw-bold">
+                        🖨️ Imprimir Todos ({{ pins|length }})
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="card-body">
                     <form action="{{ url_for('generar_pin') }}" method="POST" class="d-flex gap-2 mb-4">
                         <select name="cantidad" class="form-select w-50">
@@ -182,13 +228,15 @@
                     </form>
                     
                     <h6 class="fw-bold text-muted">PINs Activos ({{ pins|length }}) y Códigos QR:</h6>
-                    <div class="row" style="max-height: 350px; overflow-y: auto;">
+                    <div class="row" style="max-height: 380px; overflow-y: auto;">
                         {% for pin in pins|reverse %}
                         <div class="col-6 col-md-6 mb-3">
-                            <div class="border rounded p-2 text-center bg-light shadow-sm">
+                            <div class="border rounded p-2 text-center bg-light shadow-sm" data-pin-activo="{{ pin.codigo }}">
                                 <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-1" style="max-width: 90px;">
-                                <p class="small text-muted mb-0" style="font-size: 10px;">Escanear para canjear</p>
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 90px;">
+                                <button type="button" data-codigo="{{ pin.codigo }}" onclick="imprimirTicketUnico(this.getAttribute('data-codigo'))" class="btn btn-sm btn-dark w-100 fw-bold" style="font-size: 11px;">
+                                    🖨️ Imprimir Ticket
+                                </button>
                             </div>
                         </div>
                         {% else %}
@@ -198,7 +246,6 @@
                 </div>
             </div>
 
-            <!-- GALERÍA -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
                 <div class="card-body">
@@ -231,7 +278,6 @@
                 </div>
             </div>
 
-            <!-- CATEGORÍAS -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú</div>
                 <div class="card-body">
@@ -259,7 +305,6 @@
                 </div>
             </div>
             
-            <!-- PREMIOS Y FIDELIDAD -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-info text-white fw-bold">🎁 Metas de Fidelidad (Premios)</div>
                 <div class="card-body">
@@ -292,10 +337,8 @@
 
         </div>
 
-        <!-- COLUMNA DERECHA -->
         <div class="col-md-6">
             
-            <!-- PRODUCTOS -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú ({{ productos|length }})</div>
                 <div class="card-body">
@@ -381,7 +424,6 @@
                 </div>
             </div>
 
-            <!-- NUEVO: RANKING DE CLIENTES VIP EN VIVO -->
             <div class="card shadow-sm mb-4 border-primary">
                 <div class="card-header bg-primary text-white fw-bold">👑 Ranking de Clientes Frecuentes</div>
                 <div class="card-body p-0">
@@ -410,7 +452,6 @@
                 </div>
             </div>
 
-            <!-- NUEVO: VISOR DE EVALUACIONES DE MESEROS EN VIVO -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">⭐ Últimas Evaluaciones de Servicio</div>
                 <div class="card-body" style="max-height: 300px; overflow-y: auto;">
@@ -434,18 +475,17 @@
         </div>
     </div>
 </div>
+</div>
+
+<div id="zona-impresion-termica"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
-        
         if (!origen.value || destino.value) return; 
-        
         destino.placeholder = "🤖 Traduciendo...";
-        
         try {
             let res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(origen.value)}`);
             let data = await res.json();
@@ -453,6 +493,62 @@
         } catch(e) {
             destino.placeholder = "Error, escribe manual";
         }
+    }
+
+    function obtenerPinsDePantalla() {
+        let elementos = document.querySelectorAll('[data-pin-activo]');
+        return Array.from(elementos).map(el => el.getAttribute('data-pin-activo'));
+    }
+
+    function crearHTMLTicket(codigo) {
+        const ahora = new Date();
+        const fechaHora = ahora.toLocaleDateString('es-MX') + ' ' + ahora.toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://quiosco-morisco.onrender.com/?pin=${codigo}`;
+        
+        return `
+        <div class="ticket-termico">
+            <p class="ticket-titulo">QUIOSCO MORISCO</p>
+            <p class="ticket-sub">BISTRÓ & CAFÉ • SAN CRIS</p>
+            <div class="ticket-linea"></div>
+            <p style="font-size:10px; margin:2px 0;">Fecha: ${fechaHora}</p>
+            <p class="ticket-instruccion">¡SELLA TU VISITA Y GANA PREMIOS!</p>
+            <p class="ticket-en">Scan QR or enter PIN to earn rewards!</p>
+            <img src="${qrUrl}" class="ticket-qr" onload="verificarCargaImagenes()">
+            <p style="font-size:10px; margin:4px 0 0 0; font-weight:bold;">TU PIN DE UN SOLO USO:</p>
+            <div class="ticket-pin-box">${codigo}</div>
+            <p style="font-size:10px; margin:4px 0;">Wi-Fi: <strong>QuioscoMoriscoB</strong><br>Clave: <strong>Corazonsc31</strong></p>
+            <div class="ticket-linea"></div>
+            <p class="ticket-footer">
+                "Sorbo a sorbo se descubre la magia del corazón de la ciudad"<br><br>
+                ♥ Tu consumo apoya a niñas y niños con cáncer (DIF San Cristóbal).
+            </p>
+        </div>`;
+    }
+
+    let imagenesEsperadas = 0;
+    let imagenesCargadas = 0;
+
+    function verificarCargaImagenes() {
+        imagenesCargadas++;
+        if (imagenesCargadas >= imagenesEsperadas) {
+            setTimeout(() => { window.print(); }, 250);
+        }
+    }
+
+    function imprimirTicketUnico(codigo) {
+        const zona = document.getElementById('zona-impresion-termica');
+        imagenesEsperadas = 1;
+        imagenesCargadas = 0;
+        zona.innerHTML = crearHTMLTicket(codigo);
+    }
+
+    function imprimirLoteCompleto() {
+        const lista = obtenerPinsDePantalla();
+        if (lista.length === 0) return;
+        const zona = document.getElementById('zona-impresion-termica');
+        imagenesEsperadas = lista.length;
+        imagenesCargadas = 0;
+        zona.innerHTML = lista.map(c => crearHTMLTicket(c)).join('');
     }
 </script>
 
