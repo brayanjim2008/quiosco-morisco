@@ -54,7 +54,7 @@
         <span class="navbar-brand mb-0 h1">Quiosco Morisco - Panel Admin</span>
         <div class="d-flex gap-2">
             <a href="/" target="_blank" class="btn btn-outline-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Cerrar Sesión</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Cerrar Sesión</a>
         </div>
     </div>
 </nav>
@@ -101,9 +101,6 @@
     <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
         <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">📊 Exportar Clientes (Excel)</a>
         <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">📝 Exportar Evaluaciones (Excel)</a>
-        <a href="{{ url_for('cargar_menu_pdf') }}" class="btn btn-warning fw-bold shadow-sm" onclick="return confirm('¿Deseas insertar todas las categorías y los 46 platillos bilingües del PDF de Quiosco Morisco automáticamente? (No se borrarán tus clientes ni tus PINs).');">
-            🚀 Auto-Cargar Menú del PDF (ES/EN)
-        </a>
         <form action="{{ url_for('generar_pin') }}" method="POST" class="ms-auto d-flex gap-2">
             <select name="cantidad" class="form-select form-select-sm" style="width: auto;">
                 <option value="1">1</option>
@@ -122,7 +119,7 @@
         <div class="col-md-6">
             
             <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
+                <div class="card-header bg-warning text-dark fw-bold">📢 Carrusel de Banners (Puedes activar varios)</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_anuncio') }}" method="POST" enctype="multipart/form-data" class="mb-3">
                         <div class="row mb-2">
@@ -175,32 +172,39 @@
                         </div>
 
                         <select name="color" class="form-select mb-2 mt-2">
-                            <option value="bg-dark text-white">Oscuro Elegante (Recomendado con foto)</option>
-                            <option value="bg-warning text-dark">Amarillo (Avisos)</option>
-                            <option value="bg-danger text-white">Rojo (Urgente)</option>
+                            <option value="bg-dark text-white">Verde / Oscuro Elegante (Recomendado)</option>
+                            <option value="bg-warning text-dark">Dorado / Cobre</option>
+                            <option value="bg-danger text-white">Rojo Intenso (Promos)</option>
                         </select>
                         
                         <div class="form-check mb-3">
                             <input type="checkbox" name="activo" class="form-check-input" id="activoBanner" checked>
-                            <label class="form-check-label fw-bold text-success" for="activoBanner">Activar y mostrar a los clientes</label>
+                            <label class="form-check-label fw-bold text-success" for="activoBanner">Mostrar inmediatamente en el carrusel</label>
                         </div>
                         
-                        <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Publicar Portada</button>
+                        <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Agregar al Carrusel de Portada</button>
                     </form>
                     
                     {% if anuncios %}
-                    <h6 class="mt-4 border-top pt-2">Anuncios Guardados:</h6>
+                    <h6 class="mt-4 border-top pt-2 fw-bold">Banners en tu Carrusel ({{ anuncios|length }}):</h6>
                     <ul class="list-group">
                     {% for an in anuncios %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'ACTIVO' if an.activo else 'INACTIVO' }}</span> 
+                                <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'EN CARRUSEL' if an.activo else 'OCULTO' }}</span> 
                                 <small class="ms-1 fw-bold">{{ an.mensaje }}</small>
-                                {% if an.imagen_url %}<br><small class="text-muted">🖼️ Incluye foto de portada</small>{% endif %}
+                                {% if an.imagen_url %}<br><small class="text-muted">🖼️ Con foto de fondo</small>{% endif %}
                             </div>
-                            <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
-                            </form>
+                            <div class="d-flex gap-1">
+                                <form action="{{ url_for('toggle_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-outline-secondary' if an.activo else 'btn-outline-success' }} fw-bold">
+                                        {{ 'Apagar' if an.activo else 'Activar' }}
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
+                                </form>
+                            </div>
                         </li>
                     {% endfor %}
                     </ul>
@@ -243,6 +247,18 @@
                         <p class="text-muted small w-100 text-center">No hay PINs activos esperando cliente.</p>
                         {% endfor %}
                     </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4 border-success">
+                <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs por Mesa (Acrílicos / NFC)</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Cuando el cliente escanee el QR de su mesa, la app detectará automáticamente en qué mesa está sentado sin preguntarle.</p>
+                    <div class="d-flex gap-2 mb-3">
+                        <input type="number" id="input-total-mesas" class="form-control form-control-sm" placeholder="¿Cuántas mesas tienes? (Ej. 12)" value="10" min="1" max="50">
+                        <button type="button" onclick="generarQRsMesas()" class="btn btn-sm btn-success fw-bold w-50">Generar QRs</button>
+                    </div>
+                    <div id="grid-qrs-mesas" class="row" style="max-height: 320px; overflow-y: auto;"></div>
                 </div>
             </div>
 
@@ -399,12 +415,17 @@
                         <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
                     </form>
 
-                    <div class="list-group" style="max-height: 480px; overflow-y: auto;">
+                    <div class="input-group mb-2 shadow-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="buscador-admin-prod" class="form-control" placeholder="Buscar platillo rápido para editar o agotar..." onkeyup="filtrarProductosAdmin()">
+                    </div>
+
+                    <div class="list-group" id="lista-admin-productos" style="max-height: 480px; overflow-y: auto;">
                         {% for prod in productos %}
-                        <div class="list-group-item">
+                        <div class="list-group-item item-admin-prod">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-0">
+                                    <h6 class="mb-0 nombre-prod-admin">
                                         {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
                                         <span class="badge bg-success">${{ prod.precio }}</span>
                                         {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
@@ -495,6 +516,34 @@
         }
     }
 
+    function filtrarProductosAdmin() {
+        let q = document.getElementById('buscador-admin-prod').value.toLowerCase().trim();
+        document.querySelectorAll('.item-admin-prod').forEach(el => {
+            let txt = el.innerText.toLowerCase();
+            el.style.display = txt.includes(q) ? 'block' : 'none';
+        });
+    }
+
+    function generarQRsMesas() {
+        let total = parseInt(document.getElementById('input-total-mesas').value || '10');
+        let grid = document.getElementById('grid-qrs-mesas');
+        let baseUrl = window.location.origin;
+        grid.innerHTML = '';
+        for (let m = 1; m <= total; m++) {
+            let linkMesa = `${baseUrl}/?mesa=${m}`;
+            let qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(linkMesa)}`;
+            grid.innerHTML += `
+                <div class="col-6 mb-3">
+                    <div class="border rounded p-2 text-center bg-white shadow-sm">
+                        <span class="badge bg-success mb-1">📍 MESA ${m}</span><br>
+                        <img src="${qrImg}" class="img-fluid my-1" style="max-width:95px;">
+                        <input type="text" class="form-control form-control-sm text-center mt-1" style="font-size:10px;" value="${linkMesa}" readonly onclick="this.select()">
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     function obtenerPinsDePantalla() {
         let elementos = document.querySelectorAll('[data-pin-activo]');
         return Array.from(elementos).map(el => el.getAttribute('data-pin-activo'));
@@ -550,6 +599,10 @@
         imagenesCargadas = 0;
         zona.innerHTML = lista.map(c => crearHTMLTicket(c)).join('');
     }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        generarQRsMesas();
+    });
 </script>
 
 </body>
