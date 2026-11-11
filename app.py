@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import cloudinary
 import cloudinary.uploader
 import random
@@ -13,6 +13,8 @@ from io import StringIO
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_quiosco'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
 # --- CONFIGURACIÓN DE CLOUDINARY ---
 cloudinary.config(
@@ -41,6 +43,15 @@ def optimizar_imagen_cloudinary(url, ancho=500):
     if 'res.cloudinary.com' in url and '/upload/' in url and 'q_auto' not in url:
         return url.replace('/upload/', f'/upload/f_auto,q_auto,w_{ancho}/')
     return url
+
+# --- RUTA ANTI-SUEÑO PARA MANTENER ENCENDIDO RENDER Y NEON DB 24/7 ---
+@app.route('/ping')
+def ping_keep_alive():
+    try:
+        db.session.execute(text("SELECT 1"))
+        return jsonify({"status": "awake", "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)}), 500
 
 # --- MODELOS ---
 class User(UserMixin, db.Model):
@@ -135,7 +146,7 @@ class PreOrden(db.Model):
     detalle_items = db.Column(db.Text, nullable=False)
     notas = db.Column(db.Text, nullable=True)
     total = db.Column(db.Float, nullable=False)
-    estado = db.Column(db.String(30), default="pendiente") # 'pendiente', 'atendido', 'cancelado'
+    estado = db.Column(db.String(30), default="pendiente")
     atendido_por = db.Column(db.String(80), nullable=True)
     fecha = db.Column(db.DateTime, default=datetime.now)
 
@@ -169,7 +180,6 @@ def inicializar_sistema():
     except Exception:
         db.session.rollback()
 
-    # Crear cuentas del equipo si no existen (sin borrar nada)
     cuentas_equipo = [
         ('raquel', 'raquel2026', 'admin'),
         ('brayan', 'brayan123', 'cajero'),
@@ -200,7 +210,16 @@ def obtener_datos_menu():
             cat_traducciones[cat.nombre] = cat.nombre_en if cat.nombre_en and cat.nombre_en.strip() != "" else cat.nombre
     return categorias_dict, cat_traducciones
 
-# --- RUTAS DE PRE-ÓRDENES EN VIVO (CONFIRMACIÓN CON MESERO) ---
+# --- API PÚBLICA EN VIVO PARA CLIENTES (AGOTADOS CADA 4 SEGUNDOS) ---
+@app.route('/api/estado_menu_publico')
+def api_estado_menu_publico():
+    agotados = Producto.query.filter_by(agotado=True).all()
+    return jsonify({
+        "agotados_ids": [p.id for p in agotados],
+        "agotados_nombres": [p.nombre for p in agotados]
+    })
+
+# --- RUTAS DE PRE-ÓRDENES Y SINCRONIZACIÓN EN VIVO CADA 3 SEGUNDOS ---
 @app.route('/crear_preorden', methods=['POST'])
 def crear_preorden():
     try:
@@ -255,7 +274,14 @@ def api_preordenes_pendientes():
             "total": o.total,
             "hora": o.fecha.strftime('%H:%M') if o.fecha else ""
         })
-    return jsonify({"total_pendientes": len(resultado), "ordenes": resultado})
+    agotados_ids = [p.id for p in Producto.query.filter_by(agotado=True).all()]
+    pins_activos = PinCaja.query.filter_by(activo=True).count()
+    return jsonify({
+        "total_pendientes": len(resultado),
+        "ordenes": resultado,
+        "agotados_ids": agotados_ids,
+        "pins_activos": pins_activos
+    })
 
 @app.route('/atender_preorden/<int:id>', methods=['POST'])
 @login_required
@@ -363,14 +389,23 @@ def enviar_evaluacion():
     flash('¡Gracias por tu evaluación!', 'success')
     return redirect(url_for('index'))
 
-# --- ADMIN, CAJA Y MESEROS (AUTENTICACIÓN POR ROL) ---
+# --- ADMIN, CAJA Y MESEROS (AUTENTICACIÓN CON SESIÓN PERMANENTE DE 365 DÍAS) ---
 @app.route('/admin_login', methods=['GET', 'POST'])
 def admin_login():
+    if current_user.is_authenticated:
+        if current_user.role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        elif current_user.role == 'mesero':
+            return redirect(url_for('mesero_dashboard'))
+        else:
+            return redirect(url_for('cajero_dashboard'))
+
     if request.method == 'POST':
         username_input = request.form['username'].strip().lower()
         user = User.query.filter(db.func.lower(User.username) == username_input).first()
         if user and check_password_hash(user.password, request.form['password']):
-            login_user(user)
+            session.permanent = True
+            login_user(user, remember=True, duration=timedelta(days=365))
             if user.role == 'admin':
                 return redirect(url_for('admin_dashboard'))
             elif user.role == 'mesero':
@@ -400,7 +435,6 @@ def admin_dashboard():
     clientes_top = Cliente.query.order_by(Cliente.visitas.desc(), Cliente.fecha_registro.desc()).limit(30).all()
     preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
 
-    # Auditoría y Corte de PINs del día por Cajero
     hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     pins_hoy = PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).all()
     resumen_cajeros = {}
@@ -455,7 +489,7 @@ def mesero_dashboard():
     productos = Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
     return render_template('mesero_dashboard.html', preordenes=preordenes, productos=productos)
 
-# --- GESTIÓN DE USUARIOS Y CONTRASEÑAS (SOLO ADMIN RAQUEL) ---
+# --- GESTIÓN DE USUARIOS Y CONTRASEÑAS ---
 @app.route('/admin/usuario/nuevo', methods=['POST'])
 @login_required
 def nuevo_usuario():
@@ -590,7 +624,7 @@ def eliminar_categoria(id):
         db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- PRODUCTOS Y BOTONES RÁPIDOS DE 1 CLIC ---
+# --- PRODUCTOS Y BOTONES RÁPIDOS DE 1 CLIC (SOPORTE AJAX Y NORMAL) ---
 @app.route('/admin/producto/nuevo', methods=['POST'])
 @login_required
 def nuevo_producto():
@@ -615,6 +649,8 @@ def toggle_destacado(id):
     p = Producto.query.get_or_404(id)
     p.destacado = not p.destacado
     db.session.commit()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"ok": True, "destacado": p.destacado})
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/producto/toggle_agotado/<int:id>', methods=['POST'])
@@ -625,6 +661,8 @@ def toggle_agotado(id):
     p = Producto.query.get_or_404(id)
     p.agotado = not p.agotado
     db.session.commit()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"ok": True, "agotado": p.agotado})
     if current_user.role == 'mesero':
         flash(f'{p.nombre}: {"🚫 Marcado como AGOTADO" if p.agotado else "✅ Marcado como DISPONIBLE"}', 'success')
         return redirect(url_for('mesero_dashboard'))

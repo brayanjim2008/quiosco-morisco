@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Caja Morisco">
+    <meta name="theme-color" content="#13423b">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Caja - Quiosco Morisco","short_name":"Caja Morisco","start_url":"/cajero_dashboard","display":"standalone","background_color":"%23f4f6f9","theme_color":"%2313423b"}'>
     <title>Caja | Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -10,6 +16,8 @@
         .pin-tarjeta { border: 2px dashed #ffc107; background: #fffdf2; border-radius: 14px; transition: 0.2s; }
         .pin-tarjeta:hover { transform: translateY(-3px); }
         .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        @keyframes pulsoVivo { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+        .punto-vivo { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; animation: pulsoVivo 1.5s infinite; margin-right: 4px; }
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
@@ -34,12 +42,17 @@
 
 <div id="no-print-area" class="container py-4" style="max-width: 900px;">
     
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded shadow-sm flex-wrap gap-2">
         <div>
             <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja Quiosco Morisco</h3>
-            <small class="text-muted fw-bold">👤 Cajero en turno: <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs emitidos hoy por ti: <span class="badge bg-dark">{{ mis_pins_hoy }}</span></small>
+            <small class="text-muted fw-bold">
+                <span class="punto-vivo"></span> En vivo cada 3s • 👤 Cajero: <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs emitidos hoy por ti: <span class="badge bg-dark">{{ mis_pins_hoy }}</span>
+            </small>
         </div>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        <div class="d-flex gap-2">
+            <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC / Inicio</button>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold" onclick="return confirm('¿Cerrar la sesión de caja?');"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -52,7 +65,7 @@
       {% endif %}
     {% endwith %}
 
-    <!-- MONITOR DE PRE-ÓRDENES EN VIVO (ACTUALIZACIÓN SIN PARPADEO) -->
+    <!-- MONITOR DE PRE-ÓRDENES EN VIVO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
             <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
@@ -174,6 +187,17 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let ultimoConteoOrdenes = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
+    let promptInstalacionCaja;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        promptInstalacionCaja = e;
+        document.getElementById('btn-instalar-caja').style.display = 'inline-block';
+    });
+
+    function instalarAppCaja() {
+        if (promptInstalacionCaja) promptInstalacionCaja.prompt();
+    }
 
     function sonarCampana() {
         try {
@@ -236,6 +260,7 @@
         cont.innerHTML = html;
     }
 
+    // SINCRONIZACIÓN CADA 3 SEGUNDOS
     setInterval(async () => {
         try {
             let res = await fetch('/api/preordenes_pendientes');
@@ -246,7 +271,10 @@
                 actualizarContenedorCaja(data.ordenes);
             }
         } catch(e) {}
-    }, 5000);
+    }, 3000);
+
+    // LATIDO ANTI-SUEÑO CADA 4 MINUTOS MIENTRAS CAJA ESTÉ ABIERTA
+    setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
 
     function crearHTMLTicketDesdeElemento(el) {
         const codigo = el.getAttribute('data-pin-activo');

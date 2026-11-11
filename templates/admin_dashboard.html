@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Admin Morisco">
+    <meta name="theme-color" content="#13423b">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Admin - Quiosco Morisco","short_name":"Admin Morisco","start_url":"/admin_dashboard","display":"standalone","background_color":"%23f8f9fa","theme_color":"%2313423b"}'>
     <title>Panel de Administrador - Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -17,6 +23,8 @@
         .seccion-tab-admin { display: none; animation: fadeIn 0.25s ease; }
         .seccion-tab-admin.activa { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulsoVivo { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+        .punto-vivo { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; animation: pulsoVivo 1.5s infinite; margin-right: 4px; }
 
         .filtro-admin-pill { border-radius: 20px; font-weight: 700; font-size: 12px; padding: 5px 12px; cursor: pointer; border: 1px solid #ced4da; background: white; color: #495057; }
         .filtro-admin-pill.activo { background: #13423b; color: white; border-color: #13423b; }
@@ -46,10 +54,13 @@
 <div id="no-print-admin">
 <nav class="navbar navbar-dark mb-3 shadow-sm" style="background: #13423b;">
     <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">👑 Quiosco Morisco • Administración ({{ current_user.username|capitalize }})</span>
+        <div>
+            <span class="navbar-brand mb-0 h1">👑 Quiosco Morisco • Administración ({{ current_user.username|capitalize }})</span>
+            <small class="text-light d-block" style="font-size: 11px;"><span class="punto-vivo"></span> Sincronizado en vivo cada 3s</small>
+        </div>
         <div class="d-flex gap-2">
             <a href="/" target="_blank" class="btn btn-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Cerrar Sesión</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold" onclick="return confirm('¿Cerrar sesión de administrador?');">🚪 Cerrar Sesión</a>
         </div>
     </div>
 </nav>
@@ -87,7 +98,7 @@
         <div class="col-md-3 col-6">
             <div class="card text-center text-white bg-dark mb-2 shadow-sm border-0">
                 <div class="card-body py-2">
-                    <small class="fw-bold text-uppercase opacity-75">PINs Hoy</small>
+                    <small class="fw-bold text-uppercase opacity-75">PINs Emitidos Hoy</small>
                     <h3 class="fw-bold m-0 text-warning">{{ total_pins_hoy }}</h3>
                 </div>
             </div>
@@ -109,10 +120,10 @@
             🔔 Operación y PINs <span class="badge bg-warning text-dark ms-1" id="badge-tab-preordenes">{{ preordenes|length if preordenes is defined else 0 }}</span>
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-menu" onclick="cambiarTabAdmin('menu')">
-            🍔 Menú y Platillos ({{ productos|length }}) {% if cant_agotados_admin > 0 %}<span class="badge bg-danger ms-1">{{ cant_agotados_admin }} agotados</span>{% endif %}
+            🍔 Menú y Platillos ({{ productos|length }}) <span class="badge bg-danger ms-1" id="badge-tab-agotados">{{ cant_agotados_admin }} agotados</span>
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-marketing" onclick="cambiarTabAdmin('marketing')">
-            📢 Banners, Fotos y QRs
+            📢 Banners, Fotos y 10 Plaquitas
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-fidelidad" onclick="cambiarTabAdmin('fidelidad')">
             🎁 Fidelidad y Clientes
@@ -156,11 +167,11 @@
                             <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                                 <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
                                 <div class="d-flex gap-1">
-                                    <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                    <form action="/atender_preorden/{{ o.id }}" method="POST" class="m-0">
                                         <input type="hidden" name="accion" value="atendido">
                                         <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
                                     </form>
-                                    <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                    <form action="/atender_preorden/{{ o.id }}" method="POST" class="m-0">
                                         <input type="hidden" name="accion" value="cancelado">
                                         <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🚶‍♂️❌</button>
                                     </form>
@@ -360,7 +371,7 @@
                             {% for cat in categorias %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
-                                <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                                <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST" class="m-0"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
                             </li>
                             {% endfor %}
                         </ul>
@@ -369,18 +380,18 @@
             </div>
 
             <div class="col-md-7">
-                <!-- LISTA DE PLATILLOS CON FILTROS DE 1 TOQUE -->
+                <!-- LISTA DE PLATILLOS CON FILTROS Y ACCIÓN INSTANTÁNEA (0 ERRORES EN VS CODE) -->
                 {% set cant_destacados_admin = productos|selectattr('destacado', 'equalto', True)|list|length %}
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
                         <span>🍔 Lista de Platillos ({{ productos|length }})</span>
-                        <span class="badge bg-danger">{{ cant_agotados_admin }} Agotados</span>
+                        <span class="badge bg-danger" id="badge-header-admin-agotados">{{ cant_agotados_admin }} Agotados</span>
                     </div>
                     <div class="card-body">
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             <button type="button" class="filtro-admin-pill activo" id="fadm-todos" onclick="cambiarFiltroProdAdmin('todos')">📋 Todos ({{ productos|length }})</button>
-                            <button type="button" class="filtro-admin-pill" id="fadm-agotados" onclick="cambiarFiltroProdAdmin('agotados')">🚫 Agotados ({{ cant_agotados_admin }})</button>
-                            <button type="button" class="filtro-admin-pill" id="fadm-destacados" onclick="cambiarFiltroProdAdmin('destacados')">⭐ Lo más pedido ({{ cant_destacados_admin }})</button>
+                            <button type="button" class="filtro-admin-pill" id="fadm-agotados" onclick="cambiarFiltroProdAdmin('agotados')">🚫 Agotados (<span id="cnt-adm-agotados">{{ cant_agotados_admin }}</span>)</button>
+                            <button type="button" class="filtro-admin-pill" id="fadm-destacados" onclick="cambiarFiltroProdAdmin('destacados')">⭐ Lo más pedido (<span id="cnt-adm-destacados">{{ cant_destacados_admin }}</span>)</button>
                         </div>
 
                         <div class="input-group mb-3 shadow-sm">
@@ -391,26 +402,24 @@
                         <div class="list-group" id="lista-admin-productos" style="max-height: 580px; overflow-y: auto;">
                             {% for prod in productos %}
                             <div class="list-group-item item-admin-prod"
+                                 data-prod-id="{{ prod.id }}"
                                  data-agotado="{{ 'si' if prod.agotado else 'no' }}"
                                  data-destacado="{{ 'si' if prod.destacado else 'no' }}">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                     <div>
                                         <h6 class="mb-0">
-                                            {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
+                                            <span class="estrella-icono {{ '' if prod.destacado else 'd-none' }}">⭐</span>
+                                            {{ prod.nombre }} 
                                             <span class="badge bg-success">${{ prod.precio }}</span>
-                                            {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
+                                            <span class="badge bg-danger badge-agotado-adm {{ '' if prod.agotado else 'd-none' }}">Agotado</span>
                                         </h6>
                                         <small class="text-muted">{{ prod.categoria }} | 🇺🇸 {{ prod.nombre_en or 'Sin traducción' }}</small>
                                     </div>
                                     <div class="d-flex gap-1">
-                                        <form action="{{ url_for('toggle_destacado', id=prod.id) }}" method="POST" style="margin:0;">
-                                            <button type="submit" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold" title="Poner o quitar de Lo más pedido">⭐</button>
-                                        </form>
-                                        <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin:0;">
-                                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold" title="Marcar o desmarcar Agotado">🚫</button>
-                                        </form>
+                                        <button type="button" data-id="{{ prod.id }}" onclick="toggleDestacadoAdmin(this.getAttribute('data-id'), this)" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold" title="Poner o quitar de Lo más pedido">⭐</button>
+                                        <button type="button" data-id="{{ prod.id }}" onclick="toggleAgotadoAdmin(this.getAttribute('data-id'), this)" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold btn-agotado-adm" title="Marcar o desmarcar Agotado">🚫</button>
                                         <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
-                                        <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('¿Borrar {{ prod.nombre }}?');">
+                                        <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" class="m-0" data-nom="{{ prod.nombre }}" onsubmit="return confirm('¿Borrar ' + this.getAttribute('data-nom') + '?');">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
                                         </form>
                                     </div>
@@ -425,7 +434,7 @@
     </div>
 
     <!-- ==========================================
-         PESTAÑA 3: MARKETING, FOTOS Y QRs DE MESA
+         PESTAÑA 3: MARKETING, FOTOS Y 10 PLAQUITAS FIJAS
          ========================================== -->
     <div id="tab-marketing" class="seccion-tab-admin">
         <div class="row">
@@ -499,10 +508,10 @@
                                     <small class="ms-1 fw-bold">{{ an.mensaje }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
-                                    <form action="{{ url_for('toggle_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                    <form action="{{ url_for('toggle_anuncio', id=an.id) }}" method="POST" class="d-inline">
                                         <button type="submit" class="btn btn-sm {{ 'btn-outline-secondary' if an.activo else 'btn-outline-success' }} fw-bold">{{ 'Apagar' if an.activo else 'Activar' }}</button>
                                     </form>
-                                    <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" style="display:inline;">
+                                    <form action="{{ url_for('eliminar_anuncio', id=an.id) }}" method="POST" class="d-inline">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
                                     </form>
                                 </div>
@@ -515,15 +524,15 @@
             </div>
 
             <div class="col-md-6">
-                <!-- GENERADOR DE QRs POR PLAQUITA -->
+                <!-- LAS 10 PLAQUITAS / MESAS OFICIALES FIJAS PARA EL NEGOCIO -->
                 <div class="card shadow-sm mb-4 border-success">
-                    <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs y Links por Plaquita / Mesa (NFC)</div>
+                    <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span>📍 Las 10 Plaquitas Oficiales de Mesa (NFC / QR Fijos)</span>
+                        <span class="badge bg-light text-success">10 Plaquitas</span>
+                    </div>
                     <div class="card-body">
-                        <div class="d-flex gap-2 mb-3">
-                            <input type="number" id="input-total-mesas" class="form-control form-control-sm" value="10" min="1" max="50">
-                            <button type="button" onclick="generarQRsMesas()" class="btn btn-sm btn-success fw-bold w-50">Generar QRs</button>
-                        </div>
-                        <div id="grid-qrs-mesas" class="row" style="max-height: 250px; overflow-y: auto;"></div>
+                        <p class="small text-muted mb-2">Estos son los 10 enlaces fijos para grabar en los chips NFC e imprimir en las 10 plaquitas del restaurante:</p>
+                        <div id="grid-qrs-mesas" class="row" style="max-height: 310px; overflow-y: auto;"></div>
                     </div>
                 </div>
 
@@ -583,7 +592,7 @@
                             {% for p in premios %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span><strong>{{ p.visitas_necesarias }} visitas:</strong> {{ p.premio_es }}</span>
-                                <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                                <form action="{{ url_for('eliminar_premio', id=p.id) }}" method="POST" class="m-0"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
                             </li>
                             {% endfor %}
                         </ul>
@@ -649,12 +658,12 @@
                                     <span class="badge {{ 'bg-danger' if u.role=='admin' else ('bg-warning text-dark' if u.role=='cajero' else 'bg-info text-dark') }}">{{ u.role|upper }}</span>
                                 </div>
                                 <div class="d-flex gap-1 align-items-center">
-                                    <form action="{{ url_for('cambiar_pass_usuario', id=u.id) }}" method="POST" class="d-flex gap-1">
+                                    <form action="{{ url_for('cambiar_pass_usuario', id=u.id) }}" method="POST" class="d-flex gap-1 m-0">
                                         <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 120px;" placeholder="Nueva clave" required>
                                         <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
                                     </form>
                                     {% if u.id != current_user.id %}
-                                    <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" onsubmit="return confirm('¿Eliminar a {{ u.username }}?');">
+                                    <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" class="m-0" data-usr="{{ u.username }}" onsubmit="return confirm('¿Eliminar a ' + this.getAttribute('data-usr') + '?');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
                                     </form>
                                     {% endif %}
@@ -698,6 +707,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    let ultimoConteoAdmin = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
+
     function cambiarTabAdmin(tabId) {
         sessionStorage.setItem('tab_admin_quiosco', tabId);
         document.querySelectorAll('.seccion-tab-admin').forEach(s => s.classList.remove('activa'));
@@ -727,6 +738,56 @@
         });
     }
 
+    function recalcularContadoresAdmin() {
+        let ag = 0, dest = 0;
+        document.querySelectorAll('.item-admin-prod').forEach(el => {
+            if (el.getAttribute('data-agotado') === 'si') ag++;
+            if (el.getAttribute('data-destacado') === 'si') dest++;
+        });
+        document.getElementById('cnt-adm-agotados').innerText = ag;
+        document.getElementById('cnt-adm-destacados').innerText = dest;
+        document.getElementById('badge-header-admin-agotados').innerText = `${ag} Agotados`;
+        document.getElementById('badge-tab-agotados').innerText = `${ag} agotados`;
+    }
+
+    async function toggleAgotadoAdmin(idProd, btnEl) {
+        btnEl.disabled = true;
+        try {
+            let res = await fetch(`/admin/producto/toggle_agotado/${idProd}`, {
+                method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            let data = await res.json();
+            if (data.ok) {
+                let fila = btnEl.closest('.item-admin-prod');
+                fila.setAttribute('data-agotado', data.agotado ? 'si' : 'no');
+                fila.querySelector('.badge-agotado-adm').classList.toggle('d-none', !data.agotado);
+                btnEl.className = data.agotado ? 'btn btn-sm btn-danger fw-bold btn-agotado-adm' : 'btn btn-sm btn-outline-secondary fw-bold btn-agotado-adm';
+                recalcularContadoresAdmin();
+                filtrarProductosAdmin();
+            }
+        } catch(e) {}
+        btnEl.disabled = false;
+    }
+
+    async function toggleDestacadoAdmin(idProd, btnEl) {
+        btnEl.disabled = true;
+        try {
+            let res = await fetch(`/admin/producto/toggle_destacado/${idProd}`, {
+                method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            let data = await res.json();
+            if (data.ok) {
+                let fila = btnEl.closest('.item-admin-prod');
+                fila.setAttribute('data-destacado', data.destacado ? 'si' : 'no');
+                fila.querySelector('.estrella-icono').classList.toggle('d-none', !data.destacado);
+                btnEl.className = data.destacado ? 'btn btn-sm btn-warning fw-bold' : 'btn btn-sm btn-outline-secondary fw-bold';
+                recalcularContadoresAdmin();
+                filtrarProductosAdmin();
+            }
+        } catch(e) {}
+        btnEl.disabled = false;
+    }
+
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
@@ -739,24 +800,87 @@
         } catch(e) { destino.placeholder = "Escribe manual"; }
     }
 
-    function generarQRsMesas() {
-        let total = parseInt(document.getElementById('input-total-mesas').value || '10');
+    // GENERADOR FIJO DE LAS 10 PLAQUITAS OFICIALES DEL RESTAURANTE
+    function generarQRsMesasFijas() {
         let grid = document.getElementById('grid-qrs-mesas');
         let baseUrl = window.location.origin;
         grid.innerHTML = '';
-        for (let m = 1; m <= total; m++) {
+        for (let m = 1; m <= 10; m++) {
             let linkMesa = `${baseUrl}/?mesa=${m}`;
             let qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(linkMesa)}`;
             grid.innerHTML += `
                 <div class="col-6 mb-3">
                     <div class="border rounded p-2 text-center bg-white shadow-sm">
-                        <span class="badge bg-success mb-1">📍 PLAQUITA ${m}</span><br>
-                        <img src="${qrImg}" class="img-fluid my-1" style="max-width:90px;">
-                        <input type="text" class="form-control form-control-sm text-center mt-1" style="font-size:10px;" value="${linkMesa}" readonly onclick="this.select()">
+                        <span class="badge bg-success mb-1">📍 PLAQUITA / MESA ${m}</span><br>
+                        <img src="${qrImg}" class="img-fluid my-1" style="max-width:85px;">
+                        <input type="text" class="form-control form-control-sm text-center mt-1 mb-1" style="font-size:10px;" value="${linkMesa}" readonly onclick="this.select()">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100 fw-bold" style="font-size:10px;" onclick="navigator.clipboard.writeText('${linkMesa}'); this.innerText='✓ Link Copiado';">📋 Copiar Link NFC</button>
                     </div>
                 </div>`;
         }
     }
+
+    function renderizarPreordenesAdmin(ordenes) {
+        const cont = document.getElementById('contenedor-preordenes-admin');
+        document.getElementById('badge-total-preordenes').innerText = `${ordenes.length} Pendientes`;
+        document.getElementById('badge-tab-preordenes').innerText = ordenes.length;
+        if (ordenes.length === 0) {
+            cont.innerHTML = '<p class="text-muted text-center m-0 py-2 small">No hay pre-órdenes pendientes en este momento.</p>';
+            return;
+        }
+        let html = '<div class="row">';
+        ordenes.forEach(o => {
+            let notaHtml = o.notas ? `<div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> ${o.notas}</div>` : '';
+            html += `
+            <div class="col-md-6 mb-3">
+                <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-dark fs-6">📍 Plaquita / Mesa ${o.mesa}</span>
+                            <span class="badge bg-secondary">Folio #${o.id} • ${o.hora}</span>
+                        </div>
+                        <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">${o.cliente_nombre}</span></h6>
+                        <p class="small mb-2">
+                            <span class="badge bg-info text-dark">${o.modalidad}</span>
+                            <span class="badge bg-warning text-dark">💳 ${o.metodo_pago}</span>
+                        </p>
+                        <div class="bg-light p-2 rounded small mb-2 border" style="white-space: pre-line; font-family: monospace;">${o.detalle_items}</div>
+                        ${notaHtml}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                        <span class="fw-bold fs-5 text-success">Total: $${o.total}</span>
+                        <div class="d-flex gap-1">
+                            <form action="/atender_preorden/${o.id}" method="POST" class="m-0">
+                                <input type="hidden" name="accion" value="atendido">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
+                            </form>
+                            <form action="/atender_preorden/${o.id}" method="POST" class="m-0">
+                                <input type="hidden" name="accion" value="cancelado">
+                                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">🚶‍♂️❌</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        cont.innerHTML = html;
+    }
+
+    // SINCRONIZACIÓN CADA 3 SEGUNDOS EN ADMIN
+    setInterval(async () => {
+        try {
+            let res = await fetch('/api/preordenes_pendientes');
+            let data = await res.json();
+            if (data.total_pendientes !== ultimoConteoAdmin) {
+                ultimoConteoAdmin = data.total_pendientes;
+                renderizarPreordenesAdmin(data.ordenes);
+            }
+        } catch(e) {}
+    }, 3000);
+
+    // LATIDO ANTI-SUEÑO CADA 4 MINUTOS
+    setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
 
     function crearHTMLTicketDesdeElemento(el) {
         const codigo = el.getAttribute('data-pin-activo');
@@ -807,7 +931,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        generarQRsMesas();
+        generarQRsMesasFijas();
         let savedTab = sessionStorage.getItem('tab_admin_quiosco');
         if (savedTab && document.getElementById('tab-' + savedTab)) {
             cambiarTabAdmin(savedTab);

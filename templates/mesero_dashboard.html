@@ -2,7 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Mesero Morisco">
+    <meta name="theme-color" content="#13423b">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Tablet Mesero - Quiosco Morisco","short_name":"Mesero Morisco","start_url":"/mesero_dashboard","display":"standalone","background_color":"%23f4f6f9","theme_color":"%2313423b"}'>
     <title>Tablet Mesero | Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -13,21 +19,26 @@
         .filtro-pill.activo-todos { background: #13423b; color: white; border-color: #13423b; }
         .filtro-pill.activo-agotados { background: #dc3545; color: white; border-color: #dc3545; }
         .filtro-pill.activo-disponibles { background: #198754; color: white; border-color: #198754; }
+        @keyframes pulsoVivo { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+        .punto-vivo { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; animation: pulsoVivo 1.5s infinite; margin-right: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container py-3" style="max-width: 900px;">
-    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom bg-white p-3 rounded shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom bg-white p-3 rounded shadow-sm flex-wrap gap-2">
         <div>
             <h4 class="fw-bold m-0" style="color: #13423b;">
                 <i class="fas fa-utensils text-warning"></i> Tablet de Mesero
             </h4>
-            <small class="text-muted fw-bold">👤 En turno: <span class="text-success text-uppercase">{{ current_user.username }}</span></small>
+            <small class="text-muted fw-bold">
+                <span class="punto-vivo"></span> En vivo cada 3s • 👤 En turno: <span class="text-success text-uppercase">{{ current_user.username }}</span>
+            </small>
         </div>
         <div class="d-flex gap-2">
+            <button type="button" id="btn-instalar-mesero" onclick="instalarAppMesero()" style="display:none;" class="btn btn-warning btn-sm fw-bold">📲 Fijar en Inicio</button>
             <a href="/" target="_blank" class="btn btn-outline-dark btn-sm fw-bold">👁️ Ver Menú</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold" onclick="return confirm('¿Cerrar sesión en esta tablet?');"><i class="fas fa-sign-out-alt"></i> Salir</a>
         </div>
     </div>
 
@@ -41,7 +52,7 @@
       {% endif %}
     {% endwith %}
 
-    <!-- MONITOR DE MESAS EN VIVO (SE ACTUALIZA SOLO SIN RECARGAR LA PÁGINA) -->
+    <!-- MONITOR DE MESAS EN VIVO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
             <span>🔔 Mesas Esperando Confirmación (Capturar en Soft Restaurant)</span>
@@ -74,13 +85,13 @@
                                 <span class="fw-bold fs-4 text-success">${{ o.total }}</span>
                             </div>
                             <div class="d-flex gap-2">
-                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="w-75">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="w-75 m-0">
                                     <input type="hidden" name="accion" value="atendido">
                                     <button type="submit" class="btn btn-success w-100 fw-bold py-2">
                                         ✅ Confirmado en Mesa
                                     </button>
                                 </form>
-                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="w-25" onsubmit="return confirm('¿Marcar que el cliente se retiró o canceló?');">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="w-25 m-0" onsubmit="return confirm('¿Marcar que el cliente se retiró o canceló?');">
                                     <input type="hidden" name="accion" value="cancelado">
                                     <button type="submit" class="btn btn-outline-danger w-100 fw-bold py-2" title="Cliente se retiró">
                                         🚶‍♂️❌
@@ -101,25 +112,24 @@
         </div>
     </div>
 
-    <!-- CONTROL RÁPIDO DE PLATILLOS AGOTADOS CON FILTROS DE 1 TOQUE -->
+    <!-- CONTROL RÁPIDO DE PLATILLOS AGOTADOS (0 ERRORES EN VS CODE) -->
     {% set total_agotados = productos|selectattr('agotado', 'equalto', True)|list|length %}
     {% set total_disponibles = (productos|length) - total_agotados %}
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
             <span>🚫 Control Rápido de Platillos Agotados</span>
-            <span class="badge bg-danger">{{ total_agotados }} Agotados</span>
+            <span class="badge bg-danger" id="badge-header-agotados">{{ total_agotados }} Agotados</span>
         </div>
         <div class="card-body">
-            <!-- BOTONES DE FILTRO RÁPIDO (TODOS / AGOTADOS / DISPONIBLES) -->
             <div class="d-flex flex-wrap gap-2 mb-3">
                 <button type="button" id="btn-f-todos" class="filtro-pill activo-todos" onclick="cambiarFiltroEstadoMesero('todos')">
                     📋 Todos ({{ productos|length }})
                 </button>
                 <button type="button" id="btn-f-agotados" class="filtro-pill" onclick="cambiarFiltroEstadoMesero('agotados')">
-                    🚫 Solo Agotados ({{ total_agotados }})
+                    🚫 Solo Agotados (<span id="cnt-agotados">{{ total_agotados }}</span>)
                 </button>
                 <button type="button" id="btn-f-disponibles" class="filtro-pill" onclick="cambiarFiltroEstadoMesero('disponibles')">
-                    ✅ Disponibles ({{ total_disponibles }})
+                    ✅ Disponibles (<span id="cnt-disponibles">{{ total_disponibles }}</span>)
                 </button>
             </div>
 
@@ -132,21 +142,19 @@
                 {% for prod in productos %}
                 <div class="list-group-item item-mesero-prod justify-content-between align-items-center" 
                      style="display: flex;"
+                     data-prod-id="{{ prod.id }}"
                      data-agotado="{{ 'si' if prod.agotado else 'no' }}">
                     <div>
                         <strong class="fs-6">{{ prod.nombre }}</strong>
-                        {% if prod.agotado %}
-                        <span class="badge bg-danger ms-1">AGOTADO</span>
-                        {% endif %}
+                        <span class="badge bg-danger ms-1 badge-estado-agotado {{ '' if prod.agotado else 'd-none' }}">AGOTADO</span>
                         <small class="text-muted d-block">{{ prod.categoria }} • ${{ prod.precio }}</small>
                     </div>
-                    <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin:0;">
-                        {% if prod.agotado %}
-                        <button type="submit" class="btn btn-danger btn-sm fw-bold px-3">🚫 AGOTADO (Toca para activar)</button>
-                        {% else %}
-                        <button type="submit" class="btn btn-outline-success btn-sm fw-bold px-3">✅ Disponible</button>
-                        {% endif %}
-                    </form>
+                    <button type="button" 
+                            data-id="{{ prod.id }}"
+                            onclick="toggleAgotadoInstantaneo(this.getAttribute('data-id'), this)"
+                            class="btn {{ 'btn-danger' if prod.agotado else 'btn-outline-success' }} btn-sm fw-bold px-3 btn-accion-agotado">
+                        {{ '🚫 AGOTADO (Toca para activar)' if prod.agotado else '✅ Disponible' }}
+                    </button>
                 </div>
                 {% endfor %}
             </div>
@@ -158,6 +166,50 @@
 <script>
     let ultimoConteo = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
     let estadoFiltroActual = 'todos';
+    let promptInstalacionMesero;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        promptInstalacionMesero = e;
+        document.getElementById('btn-instalar-mesero').style.display = 'inline-block';
+    });
+
+    function instalarAppMesero() {
+        if (promptInstalacionMesero) promptInstalacionMesero.prompt();
+    }
+
+    async function toggleAgotadoInstantaneo(idProd, btnEl) {
+        btnEl.disabled = true;
+        try {
+            let res = await fetch(`/admin/producto/toggle_agotado/${idProd}`, {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            let data = await res.json();
+            if (data.ok) {
+                let fila = btnEl.closest('.item-mesero-prod');
+                fila.setAttribute('data-agotado', data.agotado ? 'si' : 'no');
+                let badge = fila.querySelector('.badge-estado-agotado');
+                if (badge) badge.classList.toggle('d-none', !data.agotado);
+                btnEl.className = data.agotado ? 'btn btn-danger btn-sm fw-bold px-3 btn-accion-agotado' : 'btn btn-outline-success btn-sm fw-bold px-3 btn-accion-agotado';
+                btnEl.innerText = data.agotado ? '🚫 AGOTADO (Toca para activar)' : '✅ Disponible';
+                recalcularContadoresAgotados();
+                filtrarProdMesero();
+            }
+        } catch(e) {}
+        btnEl.disabled = false;
+    }
+
+    function recalcularContadoresAgotados() {
+        let totalAg = 0, totalItems = 0;
+        document.querySelectorAll('.item-mesero-prod').forEach(el => {
+            totalItems++;
+            if (el.getAttribute('data-agotado') === 'si') totalAg++;
+        });
+        document.getElementById('badge-header-agotados').innerText = `${totalAg} Agotados`;
+        document.getElementById('cnt-agotados').innerText = totalAg;
+        document.getElementById('cnt-disponibles').innerText = totalItems - totalAg;
+    }
 
     function sonarAlertaMesero() {
         try {
@@ -210,11 +262,11 @@
                             <span class="fw-bold fs-4 text-success">$${o.total}</span>
                         </div>
                         <div class="d-flex gap-2">
-                            <form action="/atender_preorden/${o.id}" method="POST" class="w-75">
+                            <form action="/atender_preorden/${o.id}" method="POST" class="w-75 m-0">
                                 <input type="hidden" name="accion" value="atendido">
                                 <button type="submit" class="btn btn-success w-100 fw-bold py-2">✅ Confirmado en Mesa</button>
                             </form>
-                            <form action="/atender_preorden/${o.id}" method="POST" class="w-25" onsubmit="return confirm('¿Marcar que el cliente se retiró o canceló?');">
+                            <form action="/atender_preorden/${o.id}" method="POST" class="w-25 m-0" onsubmit="return confirm('¿Marcar que el cliente se retiró o canceló?');">
                                 <input type="hidden" name="accion" value="cancelado">
                                 <button type="submit" class="btn btn-outline-danger w-100 fw-bold py-2" title="Cliente se retiró">🚶‍♂️❌</button>
                             </form>
@@ -227,18 +279,38 @@
         cont.innerHTML = html;
     }
 
-    // Actualiza en vivo sin recargar la página ni borrar el buscador
+    function sincronizarAgotadosEnVivo(agotadosIds) {
+        if (!Array.isArray(agotadosIds)) return;
+        document.querySelectorAll('.item-mesero-prod').forEach(el => {
+            let id = parseInt(el.getAttribute('data-prod-id'));
+            let estaAgotado = agotadosIds.includes(id);
+            el.setAttribute('data-agotado', estaAgotado ? 'si' : 'no');
+            let badge = el.querySelector('.badge-estado-agotado');
+            let btn = el.querySelector('.btn-accion-agotado');
+            if (badge) badge.classList.toggle('d-none', !estaAgotado);
+            if (btn) {
+                btn.className = estaAgotado ? 'btn btn-danger btn-sm fw-bold px-3 btn-accion-agotado' : 'btn btn-outline-success btn-sm fw-bold px-3 btn-accion-agotado';
+                btn.innerText = estaAgotado ? '🚫 AGOTADO (Toca para activar)' : '✅ Disponible';
+            }
+        });
+        recalcularContadoresAgotados();
+        filtrarProdMesero();
+    }
+
+    // SINCRONIZACIÓN CADA 3 SEGUNDOS
     setInterval(async () => {
         try {
             let res = await fetch('/api/preordenes_pendientes');
             let data = await res.json();
             if (data.total_pendientes > ultimoConteo) sonarAlertaMesero();
-            if (data.total_pendientes !== ultimoConteo) {
-                ultimoConteo = data.total_pendientes;
-                renderizarPreordenesVivo(data.ordenes);
-            }
+            ultimoConteo = data.total_pendientes;
+            renderizarPreordenesVivo(data.ordenes);
+            sincronizarAgotadosEnVivo(data.agotados_ids);
         } catch(e) {}
-    }, 5000);
+    }, 3000);
+
+    // LATIDO ANTI-SUEÑO CADA 4 MINUTOS MIENTRAS LA TABLET ESTÉ ABIERTA
+    setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
 
     function cambiarFiltroEstadoMesero(modo) {
         estadoFiltroActual = modo;

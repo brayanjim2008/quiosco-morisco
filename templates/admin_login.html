@@ -8,7 +8,7 @@
     <style>
         body { font-family: sans-serif; background-color: #13423b; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 15px; }
         .login-box { background: #fdfaf6; padding: 35px 30px; border-radius: 18px; box-shadow: 0 15px 35px rgba(0,0,0,0.35); width: 100%; max-width: 360px; border: 2px solid #c98246; }
-        h2 { text-align: center; color: #13423b; font-weight: 800; margin-bottom: 20px; }
+        h2 { text-align: center; color: #13423b; font-weight: 800; margin-bottom: 8px; }
         label { font-weight: bold; font-size: 13px; color: #444; text-transform: uppercase; }
         input { width: 100%; padding: 12px; margin: 6px 0 16px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 13px; background: #13423b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; }
@@ -18,6 +18,7 @@
 <body>
     <div class="login-box">
         <h2>🔑 Control de Mando</h2>
+        <p class="text-center text-muted small mb-3">La sesión quedará guardada automáticamente en este dispositivo.</p>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -27,7 +28,7 @@
         {% endwith %}
         <form action="{{ url_for('admin_login') }}" method="POST">
             <label>Usuario:</label>
-            <input type="text" name="username" placeholder="admin o caja1" required autofocus>
+            <input type="text" name="username" placeholder="raquel, brayan, emili, paola, daniel" required autofocus>
             <label>Contraseña:</label>
             <input type="password" name="password" placeholder="••••••••" required>
             <button type="submit">Entrar al Sistema</button>

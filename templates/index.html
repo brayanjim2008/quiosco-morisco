@@ -369,7 +369,7 @@
             <button class="lang-btn activo" id="btn-es" onclick="cambiarIdioma('es'); vibrar('soft');">🇲🇽 ES</button>
             <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en'); vibrar('soft');">🇺🇸 EN</button>
         </div>
-        <div id="badge-mesa-activa" onclick="cambiarMesaManual(); vibrar('soft');" title="Toca si te cambiaste de mesa">
+        <div id="badge-mesa-activa" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');" title="Toca para elegir o cambiar tu plaquita de mesa">
             📍 Elegir Mesa ✏️
         </div>
         <div class="hamburger" onclick="abrirSidebar(); vibrar('soft');">
@@ -483,7 +483,7 @@
     </div>
 </div>
 
-<!-- MODAL DE PRE-ORDEN -->
+<!-- MODAL DE PRE-ORDEN CON SELECTOR FIJO DE LAS 10 PLAQUITAS DE MESA -->
 <div id="modal-antojos" class="modal-overlay" onclick="if(event.target===this) cerrarModalInfo('modal-antojos')">
     <div class="modal-content" style="max-width: 390px; text-align: left;">
         <h3 style="margin-top: 0; border: none;"><i class="fas fa-clipboard-list" style="color: var(--cobre);"></i> <span data-i18n="antojos_titulo">Mi Pre-Orden en Mesa</span></h3>
@@ -501,10 +501,17 @@
             <span data-i18n="antojos_total">Total Estimado:</span>
             <span id="antojos-total-monto" style="color: var(--cobre);">$0</span>
         </div>
+
         <label style="font-size: 11px; font-weight: bold; color: var(--cobre); display: block; margin-bottom: 4px;">
-            📍 Número de Plaquita en tu mesa actual (si te cambiaste de mesa, corrígelo aquí):
+            📍 Selecciona el número de Plaquita en tu mesa actual (1 a 10):
         </label>
-        <input type="number" id="input-mesa-antojos" placeholder="Ej. Plaquita / Mesa 4">
+        <select id="input-mesa-antojos">
+            <option value="">Selecciona tu Plaquita de Mesa...</option>
+            {% for m in range(1, 11) %}
+            <option value="{{ m }}">📍 Plaquita / Mesa {{ m }}</option>
+            {% endfor %}
+        </select>
+
         <label style="font-size: 11px; font-weight: bold; color: var(--texto-claro); display: block; margin-bottom: 4px;" data-i18n="lbl_nombre">
             👤 Tu Nombre (para que el mesero te ubique):
         </label>
@@ -547,11 +554,18 @@
     </div>
 </div>
 
+<!-- MODAL DE ASISTENCIA EN MESA CON LAS 10 PLAQUITAS FIJAS -->
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none; margin-top: 0;"><i class="fas fa-bell text-success"></i> Asistencia en Mesa</h3>
-        <label style="font-size: 11px; font-weight: bold; color: var(--cobre); display: block; text-align: left; margin-bottom: 4px;">📍 Número de Plaquita en tu mesa actual:</label>
-        <input type="number" id="input-mesa" placeholder="¿Qué número tiene tu plaquita? (Ej. 4)">
+        <label style="font-size: 11px; font-weight: bold; color: var(--cobre); display: block; text-align: left; margin-bottom: 4px;">📍 Selecciona la Plaquita de tu mesa actual (1 a 10):</label>
+        <select id="input-mesa" onchange="if(this.value) actualizarInsigniaMesa(this.value);">
+            <option value="">Selecciona tu Plaquita de Mesa...</option>
+            {% for m in range(1, 11) %}
+            <option value="{{ m }}">📍 Plaquita / Mesa {{ m }}</option>
+            {% endfor %}
+        </select>
+
         <p style="font-size: 12px; font-weight: bold; color: var(--texto-claro); text-align: left; margin: 5px 0 8px 0;" data-i18n="mesero_que_necesitas">¿Qué necesitas que llevemos a tu mesa?</p>
         <button type="button" class="accion-mesero-btn seleccionado" onclick="seleccionarMotivoMesero('📝 Estamos listos para ordenar', this)"><span>📝</span> <span data-i18n="motivo_ordenar">Estamos listos para ordenar</span></button>
         <button type="button" class="accion-mesero-btn" onclick="seleccionarMotivoMesero('💳 ¿Nos traen la cuenta, por favor?', this)"><span>💳</span> <span data-i18n="motivo_cuenta">Pedir la cuenta</span></button>
@@ -791,9 +805,9 @@
             </div>
             <form action="/registrar_consumo" method="POST" id="form-pin">
                 <label data-i18n="lbl_nombre">Tu Nombre</label>
-                <input type="text" name="nombre" required placeholder="Ej. Brayan">
+                <input type="text" name="nombre" id="fidelidad-nombre" required placeholder="Ej. Brayan">
                 <label data-i18n="lbl_telefono">Tu Teléfono (10 dígitos)</label>
-                <input type="tel" name="telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
+                <input type="tel" name="telefono" id="fidelidad-telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
                 <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
                 <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; border: 2px dashed var(--cobre);">
                 <button type="submit" class="btn mt-3" id="btn-sellar" data-i18n="btn_sellar">Sellar Visita</button>
@@ -1099,18 +1113,13 @@
         const badgeMesa = document.getElementById('badge-mesa-activa');
         const inMesa1 = document.getElementById('input-mesa');
         const inMesa2 = document.getElementById('input-mesa-antojos');
-        if (numMesa && String(numMesa).trim() !== "") {
-            sessionStorage.setItem('mesa_quiosco', String(numMesa).trim());
-            if (badgeMesa) badgeMesa.innerText = `📍 Mesa ${numMesa} ✏️`;
-            if (inMesa1) inMesa1.value = numMesa;
-            if (inMesa2) inMesa2.value = numMesa;
+        let n = parseInt(numMesa);
+        if (n >= 1 && n <= 10) {
+            sessionStorage.setItem('mesa_quiosco', String(n));
+            if (badgeMesa) badgeMesa.innerText = `📍 Plaquita ${n} ✏️`;
+            if (inMesa1) inMesa1.value = String(n);
+            if (inMesa2) inMesa2.value = String(n);
         }
-    }
-
-    function cambiarMesaManual() {
-        let actual = sessionStorage.getItem('mesa_quiosco') || '';
-        let nueva = prompt("¿Qué número tiene la plaquita de la mesa donde estás sentado ahorita?", actual);
-        if (nueva !== null && nueva.trim() !== "") actualizarInsigniaMesa(nueva.trim());
     }
 
     function irASlide(n) {
@@ -1172,7 +1181,6 @@
                 </div>`;
         });
 
-        // Actualizar el contador en cada botón (+) de las tarjetas estilo Starbucks
         document.querySelectorAll('.sbux-btn-plus').forEach(btn => {
             let nom = btn.getAttribute('data-btn-nom');
             let encontrado = listaAntojos.find(i => i.nombre === nom);
@@ -1197,7 +1205,7 @@
         let metodoPago = document.getElementById('select-pago-antojos').value;
         let notas = document.getElementById('input-notas-antojos').value.trim();
 
-        if (!mesa) { alert("Por favor escribe el número de la plaquita en tu mesa actual."); return; }
+        if (!mesa) { alert("Por favor selecciona el número de Plaquita en tu mesa actual (1 a 10)."); return; }
         if (!nombre) { alert("Por favor escribe tu nombre para que el mesero te ubique."); return; }
         if (listaAntojos.length === 0) return;
 
@@ -1209,6 +1217,7 @@
             return;
         }
 
+        localStorage.setItem('cliente_nombre_quiosco', nombre);
         actualizarInsigniaMesa(mesa);
         let totalMonto = listaAntojos.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
         let resumenTxt = listaAntojos.map(i => `• ${i.cantidad}x ${i.nombre} ($${i.precio * i.cantidad})`).join('\n');
@@ -1226,7 +1235,7 @@
             if (data.ok) {
                 vibrar('success');
                 sessionStorage.setItem('bloqueo_preorden_hasta', new Date().getTime() + (60 * 1000));
-                document.getElementById('folio-numero-grande').innerText = `FOLIO #${data.folio} • MESA ${mesa}`;
+                document.getElementById('folio-numero-grande').innerText = `FOLIO #${data.folio} • PLAQUITA ${mesa}`;
                 document.getElementById('bloque-folio-exito').style.display = 'block';
                 btn.innerText = "✅ Enviado (Esperando Mesero en Mesa)";
                 setTimeout(() => { btn.disabled = false; btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero"; }, 60000);
@@ -1405,14 +1414,14 @@
 
     async function enviarMensajeWhatsapp() {
         let mesa = document.getElementById('input-mesa').value.trim();
-        if (!mesa) { alert("Ingresa el número de tu plaquita."); return; }
+        if (!mesa) { alert("Selecciona el número de tu plaquita (1 a 10)."); return; }
         actualizarInsigniaMesa(mesa);
         await fetch('/crear_preorden', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ mesa: mesa, cliente_nombre: "Asistencia en Mesa", modalidad: "Llamado Mesero", metodo_pago: "-", detalle_items: motivoMeseroActual, notas: "", total: 0 })
         });
         cerrarModalInfo('modal-mesero');
-        alert(`✅ Aviso enviado a la tablet de tu mesero para la Mesa ${mesa}.`);
+        alert(`✅ Aviso enviado a la tablet de tu mesero para la Plaquita / Mesa ${mesa}.`);
     }
 
     function toggleDarkMode() {
@@ -1426,6 +1435,32 @@
         const btnSubir = document.getElementById('btn-subir');
         if (btnSubir) btnSubir.style.display = (window.scrollY > 380) ? 'flex' : 'none';
     });
+
+    // SINCRONIZACIÓN DE AGOTADOS EN TIEMPO REAL CADA 4 SEGUNDOS EN EL CELULAR DEL CLIENTE
+    setInterval(async () => {
+        try {
+            let res = await fetch('/api/estado_menu_publico');
+            let data = await res.json();
+            if (!data.agotados_nombres) return;
+            document.querySelectorAll('.sbux-prod-card').forEach(card => {
+                let nomEs = card.getAttribute('data-nombre-es');
+                let estaAgotado = data.agotados_nombres.includes(nomEs);
+                let overlayExistente = card.querySelector('.overlay-agotado');
+                if (estaAgotado) {
+                    card.classList.add('platillo-agotado');
+                    if (!overlayExistente) {
+                        let divAg = document.createElement('div');
+                        divAg.className = 'overlay-agotado';
+                        divAg.innerText = 'Agotado';
+                        card.prepend(divAg);
+                    }
+                } else {
+                    card.classList.remove('platillo-agotado');
+                    if (overlayExistente) overlayExistente.remove();
+                }
+            });
+        } catch(e) {}
+    }, 4000);
 
     document.addEventListener("DOMContentLoaded", function() {
         actualizarSaludoYHorario();
@@ -1445,6 +1480,26 @@
         if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
         let mesaParam = urlParams.get('mesa') || sessionStorage.getItem('mesa_quiosco');
         if (mesaParam) actualizarInsigniaMesa(mesaParam);
+
+        // AUTOGUARDADO DE NOMBRE Y TELÉFONO PARA QUE EL CLIENTE NO ESCRIBA TODO DE NUEVO
+        const inNomFid = document.getElementById('fidelidad-nombre');
+        const inTelFid = document.getElementById('fidelidad-telefono');
+        const inNomAnt = document.getElementById('input-nombre-antojos');
+        if (localStorage.getItem('cliente_nombre_quiosco')) {
+            if (inNomFid) inNomFid.value = localStorage.getItem('cliente_nombre_quiosco');
+            if (inNomAnt) inNomAnt.value = localStorage.getItem('cliente_nombre_quiosco');
+        }
+        if (localStorage.getItem('cliente_tel_quiosco') && inTelFid) {
+            inTelFid.value = localStorage.getItem('cliente_tel_quiosco');
+        }
+
+        const formPin = document.getElementById('form-pin');
+        if (formPin) {
+            formPin.addEventListener('submit', function() {
+                if (inNomFid && inNomFid.value) localStorage.setItem('cliente_nombre_quiosco', inNomFid.value.trim());
+                if (inTelFid && inTelFid.value) localStorage.setItem('cliente_tel_quiosco', inTelFid.value.trim());
+            });
+        }
 
         let savedLang = localStorage.getItem('idioma_quiosco');
         if (savedLang) cambiarIdioma(savedLang);
