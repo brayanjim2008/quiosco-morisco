@@ -10,6 +10,7 @@ import random
 import string
 import csv
 from io import StringIO
+from flask import session
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_quiosco'
@@ -31,6 +32,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
+login_manager.login_message = None  
 
 # --- MODELOS ---
 class User(UserMixin, db.Model):
@@ -359,10 +361,10 @@ def admin_login():
     return render_template('admin_login.html')
 
 @app.route('/logout')
-@login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    session.clear()
+    return redirect(url_for('admin_login'))
 
 @app.route('/admin_dashboard')
 @login_required
