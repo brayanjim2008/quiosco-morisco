@@ -11,7 +11,10 @@
 <nav class="navbar navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">Quiosco Morisco - Panel Admin</span>
-        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Cerrar Sesión</a>
+        <div class="d-flex gap-2">
+            <a href="/" target="_blank" class="btn btn-outline-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Cerrar Sesión</a>
+        </div>
     </div>
 </nav>
 
@@ -19,7 +22,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show fw-bold" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
@@ -54,9 +57,12 @@
         </div>
     </div>
 
-    <div class="d-flex gap-2 mb-4">
+    <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
         <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">📊 Exportar Clientes (Excel)</a>
         <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">📝 Exportar Evaluaciones (Excel)</a>
+        <a href="{{ url_for('cargar_menu_pdf') }}" class="btn btn-warning fw-bold shadow-sm" onclick="return confirm('¿Deseas insertar todas las categorías y los 46 platillos bilingües del PDF de Quiosco Morisco automáticamente? (No se borrarán tus clientes ni tus PINs).');">
+            🚀 Auto-Cargar Menú del PDF (ES/EN)
+        </a>
         <form action="{{ url_for('generar_pin') }}" method="POST" class="ms-auto d-flex gap-2">
             <select name="cantidad" class="form-select form-select-sm" style="width: auto;">
                 <option value="1">1</option>
@@ -67,16 +73,15 @@
         </form>
     </div>
 
-    <!-- ALERTA DEL BOT TRADUCTOR -->
     <div class="alert alert-info text-center fw-bold shadow-sm mb-4">
-        🤖 Asistente de Traducción Activado: Solo escribe en las cajas en Español. Al dar clic fuera, se traducirán solas al Inglés.
+        🤖 Asistente de Traducción Google Activado: Solo escribe en las cajas en Español. Al dar clic fuera, se traducirán solas al Inglés.
     </div>
 
     <div class="row">
         <!-- COLUMNA IZQUIERDA -->
         <div class="col-md-6">
             
-            <!-- BANNER PRINCIPAL (CON INGLÉS AÑADIDO) -->
+            <!-- BANNER PRINCIPAL -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">📢 Banner Principal (Estilo Portada)</div>
                 <div class="card-body">
@@ -163,6 +168,36 @@
                 </div>
             </div>
 
+            <!-- PINs Y QR DE CAJA -->
+            <div class="card shadow-sm mb-4 border-dark">
+                <div class="card-header bg-dark text-white fw-bold">🎟️ Generador de PINs y QR (Caja)</div>
+                <div class="card-body">
+                    <form action="{{ url_for('generar_pin') }}" method="POST" class="d-flex gap-2 mb-4">
+                        <select name="cantidad" class="form-select w-50">
+                            <option value="1">Generar 1 PIN</option>
+                            <option value="5">Generar 5 PINs</option>
+                            <option value="10">Generar 10 PINs</option>
+                        </select>
+                        <button type="submit" class="btn btn-warning fw-bold w-50">⚡ Generar</button>
+                    </form>
+                    
+                    <h6 class="fw-bold text-muted">PINs Activos ({{ pins|length }}) y Códigos QR:</h6>
+                    <div class="row" style="max-height: 350px; overflow-y: auto;">
+                        {% for pin in pins|reverse %}
+                        <div class="col-6 col-md-6 mb-3">
+                            <div class="border rounded p-2 text-center bg-light shadow-sm">
+                                <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-1" style="max-width: 90px;">
+                                <p class="small text-muted mb-0" style="font-size: 10px;">Escanear para canjear</p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted small w-100 text-center">No hay PINs activos esperando cliente.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
             <!-- GALERÍA -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
@@ -211,10 +246,10 @@
                         </div>
                         <button type="submit" class="btn btn-success btn-sm w-100">Agregar Categoría</button>
                     </form>
-                    <ul class="list-group">
+                    <ul class="list-group" style="max-height: 280px; overflow-y: auto;">
                         {% for cat in categorias %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ cat.nombre }} <small class="text-muted ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small>
+                            <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
                             <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST">
                                 <button type="submit" class="btn btn-sm btn-danger">X</button>
                             </form>
@@ -262,7 +297,7 @@
             
             <!-- PRODUCTOS -->
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú</div>
+                <div class="card-header bg-dark text-white fw-bold">🍔 Platillos del Menú ({{ productos|length }})</div>
                 <div class="card-body">
                     <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data" class="mb-4 bg-light p-3 rounded border">
                         <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary">Agregar Nuevo Platillo</h6>
@@ -321,7 +356,7 @@
                         <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
                     </form>
 
-                    <div class="list-group" style="max-height: 500px; overflow-y: auto;">
+                    <div class="list-group" style="max-height: 480px; overflow-y: auto;">
                         {% for prod in productos %}
                         <div class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center">
@@ -331,7 +366,7 @@
                                         <span class="badge bg-success">${{ prod.precio }}</span>
                                         {% if prod.agotado %}<span class="badge bg-danger">Agotado</span>{% endif %}
                                     </h6>
-                                    <small class="text-muted">{{ prod.categoria }} | EN: {{ prod.nombre_en or 'Sin traducción' }}</small>
+                                    <small class="text-muted">{{ prod.categoria }} | 🇺🇸 {{ prod.nombre_en or 'Sin traducción' }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
                                     <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-warning fw-bold">Editar</a>
@@ -346,29 +381,74 @@
                 </div>
             </div>
 
+            <!-- NUEVO: RANKING DE CLIENTES VIP EN VIVO -->
+            <div class="card shadow-sm mb-4 border-primary">
+                <div class="card-header bg-primary text-white fw-bold">👑 Ranking de Clientes Frecuentes</div>
+                <div class="card-body p-0">
+                    <div style="max-height: 260px; overflow-y: auto;">
+                        <table class="table table-striped table-hover mb-0 small">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Teléfono</th>
+                                    <th class="text-center">Visitas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in clientes_top %}
+                                <tr>
+                                    <td class="fw-bold">{{ c.nombre }}</td>
+                                    <td><a href="https://wa.me/521{{ c.telefono }}" target="_blank" class="text-decoration-none text-success fw-bold">{{ c.telefono }}</a></td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ c.visitas }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-3">Aún no hay clientes registrados.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NUEVO: VISOR DE EVALUACIONES DE MESEROS EN VIVO -->
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">⭐ Últimas Evaluaciones de Servicio</div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    {% for ev in evaluaciones %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>👤 Mesero: {{ ev.mesero_nombre }}</strong>
+                            <span class="badge bg-dark">⭐ {{ ev.mesero_calificacion }}/5</span>
+                        </div>
+                        <small class="text-muted d-block">Limpieza: {{ ev.limpieza }}/5 | Comida: {{ ev.calidad_comida }}/5 | {{ ev.fecha.strftime('%d/%m/%Y') }}</small>
+                        {% if ev.comentarios %}
+                        <div class="bg-light p-2 rounded mt-1 small fst-italic">"{{ ev.comentarios }}"</div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted small text-center mb-0">No hay evaluaciones recibidas todavía.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- SCRIPT DEL BOT TRADUCTOR MÁGICO (AHORA CON GOOGLE TRANSLATE) -->
 <script>
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
         
-        // Si el origen está vacío, o el destino ya tiene texto, no hace nada
         if (!origen.value || destino.value) return; 
         
         destino.placeholder = "🤖 Traduciendo...";
         
         try {
-            // Usamos el motor de Google Translate, es mucho más exacto
             let res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(origen.value)}`);
             let data = await res.json();
-            
-            // Google nos devuelve la info en una lista, sacamos el texto traducido:
             destino.value = data[0][0][0];
         } catch(e) {
             destino.placeholder = "Error, escribe manual";

@@ -179,6 +179,7 @@
         .eval-select:focus, .eval-textarea:focus { border-color: var(--cobre); }
         .btn-eval { background: #ff9800; color: white; border: none; padding: 15px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 12px; cursor: pointer; margin-top: 20px; flex: 1; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3); }
         .eval-label { margin-bottom: 0px; font-weight: 700; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .causa-social-box { background: linear-gradient(135deg, rgba(19, 66, 59, 0.08), rgba(201, 130, 70, 0.12)); border: 1px solid rgba(201, 130, 70, 0.35); border-radius: 16px; padding: 18px; text-align: center; margin-top: 25px; }
     </style>
 </head>
 <body>
@@ -505,28 +506,34 @@
         </div>
     </div>
 
-    <!-- VISTA 2: MENÚ DIGITAL -->
+    <!-- VISTA 2: MENÚ DIGITAL (AHORA CON CATEGORÍAS 100% BILINGÜES) -->
     <div id="vista-menu" class="vista-app" style="display: none;">
         <div class="card" style="padding: 15px 20px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
             <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 20px;">Nuestro Menú</h2>
             
             <div class="buscador-container">
                 <i class="fas fa-search buscador-icono"></i>
-                <input type="text" id="buscador-menu" class="buscador-input" placeholder="Buscar platillos o bebidas..." onkeyup="buscarPlatillosVivo()">
+                <input type="text" id="buscador-menu" class="buscador-input" placeholder="Buscar platillos o bebidas..." data-i18n-placeholder="ph_buscador" onkeyup="buscarPlatillosVivo()">
             </div>
 
             {% if categorias %}
             <div class="filtros-wrapper">
                 <button class="filtro-btn activo" onclick="filtrarMenu('Todos', this); vibrar('soft');" data-i18n="filtro_todos">Todos</button>
                 {% for cat_nombre in categorias.keys() %}
-                    <button class="filtro-btn" data-categoria="{{ cat_nombre|replace(' ', '-') }}" onclick="filtrarMenu(this.getAttribute('data-categoria'), this); vibrar('soft');">{{ cat_nombre }}</button>
+                    <button class="filtro-btn" 
+                            data-categoria="{{ cat_nombre|replace(' ', '-') }}" 
+                            data-es="{{ cat_nombre }}" 
+                            data-en="{{ cat_traducciones[cat_nombre] if cat_traducciones and cat_nombre in cat_traducciones else cat_nombre }}"
+                            onclick="filtrarMenu(this.getAttribute('data-categoria'), this); vibrar('soft');">{{ cat_nombre }}</button>
                 {% endfor %}
             </div>
             
             <div id="contenedor-menu">
                 {% for cat_nombre, lista in categorias.items() %}
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}">
-                        <div class="categoria-titulo">{{ cat_nombre }}</div>
+                        <div class="categoria-titulo" 
+                             data-es="{{ cat_nombre }}" 
+                             data-en="{{ cat_traducciones[cat_nombre] if cat_traducciones and cat_nombre in cat_traducciones else cat_nombre }}">{{ cat_nombre }}</div>
                         {% for producto in lista %}
                             <div class="menu-item card {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}" id="prod-{{ producto.nombre|replace(' ', '-')|lower }}">
                                 
@@ -577,6 +584,17 @@
             </div>
         </div>
     </div>
+
+    <!-- SELLO DE CAUSA SOCIAL DIF SAN CRISTÓBAL -->
+    <div class="causa-social-box">
+        <i class="fas fa-heart" style="color: #e63946; font-size: 20px; margin-bottom: 6px;"></i>
+        <p style="margin: 0; font-size: 13px; font-weight: 700; color: var(--verde-quiosco);" data-i18n="dif_titulo">
+            UN MOMENTO PARA DISFRUTAR TAMBIÉN PUEDE SER UN MOMENTO PARA AYUDAR.
+        </p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: var(--texto-claro);" data-i18n="dif_desc">
+            Una parte de lo recaudado se destina a apoyar a niñas y niños con cáncer • <strong>DIF San Cristóbal de Las Casas</strong>.
+        </p>
+    </div>
 </div>
 
 <footer style="text-align: center; padding: 20px 20px 40px 20px; color: var(--texto-claro); border-top: 1px solid var(--border-color); margin-top: 20px;">
@@ -587,6 +605,7 @@
     const traducciones = {
         es: {
             menu_inicio: "Inicio", menu_ver_menu: "Menú", menu_galeria: "Galería", menu_wifi: "Wi-Fi Gratis",
+            menu_como_usar: "¿Cómo usar esta app?",
             menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta app?", mod_como_usar_1: "<strong>1. Explora el menú:</strong> Usa la barra de navegación inferior.",
             mod_como_usar_2: "<strong>2. Llama al mesero:</strong> Usa el botón verde flotante.", mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Pide tu PIN en caja.",
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Llamar al Mesero", modal_mesero_sub: "¿En qué número de mesa te encuentras?",
@@ -595,10 +614,14 @@
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Menú", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
             progreso_titulo: "Socio Oro", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Meta Alcanzada! Muestra en caja:", nivel_casi: "¡Sigue visitándonos para destapar premios!", titulo_lista_premios: "Metas Activas",
-            eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara para conectarte o copia la contraseña.", wifi_copiar: "Copiar"
+            eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara para conectarte o copia la contraseña.", wifi_copiar: "Copiar",
+            ph_buscador: "Buscar platillos o bebidas...",
+            dif_titulo: "UN MOMENTO PARA DISFRUTAR TAMBIÉN PUEDE SER UN MOMENTO PARA AYUDAR.",
+            dif_desc: "Una parte de lo recaudado se destina a apoyar a niñas y niños con cáncer • <strong>DIF San Cristóbal de Las Casas</strong>."
         },
         en: {
             menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery", menu_wifi: "Free Wi-Fi",
+            menu_como_usar: "How to use this app?",
             menu_admin: "Admin Login", mod_como_usar_titulo: "❓ How to use this app?", mod_como_usar_1: "<strong>1. Explore menu:</strong> Use the bottom navigation bar.",
             mod_como_usar_2: "<strong>2. Call waiter:</strong> Use the green floating button.", mod_como_usar_3: "<strong>3. Stamp visit:</strong> Ask for PIN at cashier.",
             btn_entendido: "Got it", btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Call Waiter", modal_mesero_sub: "What table number are you at?",
@@ -607,7 +630,10 @@
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
             btn_menu_superior: "Menu", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
             progreso_titulo: "Gold Member", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show this to claim:", nivel_casi: "Keep collecting visits to unlock rewards!", titulo_lista_premios: "Active Goals",
-            eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera to connect or copy the password.", wifi_copiar: "Copy"
+            eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera to connect or copy the password.", wifi_copiar: "Copy",
+            ph_buscador: "Search dishes or drinks...",
+            dif_titulo: "A MOMENT TO ENJOY CAN ALSO BE A MOMENT TO HELP.",
+            dif_desc: "A portion of proceeds goes to support children with cancer • <strong>DIF San Cristóbal de Las Casas</strong>."
         }
     };
 
