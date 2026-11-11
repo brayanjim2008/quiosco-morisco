@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
@@ -101,18 +102,51 @@
     <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
         <a href="{{ url_for('exportar_clientes') }}" class="btn btn-success fw-bold shadow-sm">📊 Exportar Clientes (Excel)</a>
         <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-info fw-bold text-white shadow-sm">📝 Exportar Evaluaciones (Excel)</a>
-        <form action="{{ url_for('generar_pin') }}" method="POST" class="ms-auto d-flex gap-2">
-            <select name="cantidad" class="form-select form-select-sm" style="width: auto;">
-                <option value="1">1</option>
-                <option value="5">5</option>
-                <option value="10">10</option>
-            </select>
-            <button type="submit" class="btn btn-dark shadow-sm">🔑 Generar PIN de Caja</button>
-        </form>
     </div>
 
-    <div class="alert alert-info text-center fw-bold shadow-sm mb-4">
-        🤖 Asistente de Traducción Google Activado: Solo escribe en las cajas en Español. Al dar clic fuera, se traducirán solas al Inglés.
+    <!-- MONITOR EN VIVO DE PRE-ÓRDENES DE MESAS EXTERIORES -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
+            <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesero Confirma en Mesa)</span>
+            <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length if preordenes is defined else 0 }} Pendientes</span>
+        </div>
+        <div class="card-body">
+            {% if preordenes is defined and preordenes %}
+            <div class="row">
+                {% for o in preordenes %}
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-dark fs-6">📍 Plaquita / Mesa {{ o.mesa }}</span>
+                                <span class="badge bg-secondary">Folio #{{ o.id }} • {{ o.fecha.strftime('%H:%M') }}</span>
+                            </div>
+                            <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">{{ o.cliente_nombre }}</span></h6>
+                            <p class="small mb-2">
+                                <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
+                                <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
+                            </p>
+                            <div class="bg-light p-2 rounded small mb-2" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
+                            {% if o.notas %}
+                            <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> {{ o.notas }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
+                            <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">
+                                    ✅ Confirmado en Mesa
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center m-0 py-1 small">No hay pre-órdenes pendientes en este momento. Cuando un cliente arme su pedido en una mesa, aparecerá aquí.</p>
+            {% endif %}
+        </div>
     </div>
 
     <div class="row">
@@ -171,10 +205,11 @@
                             </div>
                         </div>
 
-                        <select name="color" class="form-select mb-2 mt-2">
-                            <option value="bg-dark text-white">Verde / Oscuro Elegante (Recomendado)</option>
-                            <option value="bg-warning text-dark">Dorado / Cobre</option>
-                            <option value="bg-danger text-white">Rojo Intenso (Promos)</option>
+                        <label class="small fw-bold mt-1">Tipo y Estilo Visual del Banner:</label>
+                        <select name="color" class="form-select mb-2">
+                            <option value="bg-dark text-white">✨ Recomendación del Chef / Especial (Verde Morisco)</option>
+                            <option value="bg-danger text-white">🔥 Promoción / Oferta Especial (Rojo Cobre Intenso)</option>
+                            <option value="bg-warning text-dark">📢 Aviso Importante / Evento (Dorado Elegante)</option>
                         </select>
                         
                         <div class="form-check mb-3">
@@ -251,11 +286,11 @@
             </div>
 
             <div class="card shadow-sm mb-4 border-success">
-                <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs por Mesa (Acrílicos / NFC)</div>
+                <div class="card-header bg-success text-white fw-bold">📍 Generador de QRs por Plaquita / Mesa (NFC)</div>
                 <div class="card-body">
-                    <p class="small text-muted mb-2">Cuando el cliente escanee el QR de su mesa, la app detectará automáticamente en qué mesa está sentado sin preguntarle.</p>
+                    <p class="small text-muted mb-2">Graba cada link en el chip NFC o imprime el QR para cada plaquita numerada que el mesero coloca en las mesas exteriores.</p>
                     <div class="d-flex gap-2 mb-3">
-                        <input type="number" id="input-total-mesas" class="form-control form-control-sm" placeholder="¿Cuántas mesas tienes? (Ej. 12)" value="10" min="1" max="50">
+                        <input type="number" id="input-total-mesas" class="form-control form-control-sm" placeholder="¿Cuántas plaquitas tienes?" value="10" min="1" max="50">
                         <button type="button" onclick="generarQRsMesas()" class="btn btn-sm btn-success fw-bold w-50">Generar QRs</button>
                     </div>
                     <div id="grid-qrs-mesas" class="row" style="max-height: 320px; overflow-y: auto;"></div>
@@ -405,7 +440,7 @@
                         <div class="d-flex gap-3 mb-3 mt-3 p-2 border rounded bg-white">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
-                                <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Destacar</label>
+                                <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Destacar (Lo más pedido)</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="agotado" id="agotado">
@@ -417,13 +452,13 @@
 
                     <div class="input-group mb-2 shadow-sm">
                         <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" id="buscador-admin-prod" class="form-control" placeholder="Buscar platillo rápido para editar o agotar..." onkeyup="filtrarProductosAdmin()">
+                        <input type="text" id="buscador-admin-prod" class="form-control" placeholder="Buscar platillo rápido para destacar, agotar o editar..." onkeyup="filtrarProductosAdmin()">
                     </div>
 
                     <div class="list-group" id="lista-admin-productos" style="max-height: 480px; overflow-y: auto;">
                         {% for prod in productos %}
                         <div class="list-group-item item-admin-prod">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
                                     <h6 class="mb-0 nombre-prod-admin">
                                         {{ '⭐' if prod.destacado else '' }} {{ prod.nombre }} 
@@ -433,9 +468,15 @@
                                     <small class="text-muted">{{ prod.categoria }} | 🇺🇸 {{ prod.nombre_en or 'Sin traducción' }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
-                                    <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-warning fw-bold">Editar</a>
+                                    <form action="{{ url_for('toggle_destacado', id=prod.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" title="Poner o quitar de Lo más pedido" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold">⭐</button>
+                                    </form>
+                                    <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" title="Marcar o desmarcar como Agotado" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold">🚫</button>
+                                    </form>
+                                    <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
                                     <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" style="margin: 0;">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Borrar</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
                                     </form>
                                 </div>
                             </div>
@@ -535,7 +576,7 @@
             grid.innerHTML += `
                 <div class="col-6 mb-3">
                     <div class="border rounded p-2 text-center bg-white shadow-sm">
-                        <span class="badge bg-success mb-1">📍 MESA ${m}</span><br>
+                        <span class="badge bg-success mb-1">📍 PLAQUITA / MESA ${m}</span><br>
                         <img src="${qrImg}" class="img-fluid my-1" style="max-width:95px;">
                         <input type="text" class="form-control form-control-sm text-center mt-1" style="font-size:10px;" value="${linkMesa}" readonly onclick="this.select()">
                     </div>

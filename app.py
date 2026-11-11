@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -10,7 +10,6 @@ import random
 import string
 import csv
 from io import StringIO
-from flask import session
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_quiosco'
@@ -32,7 +31,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
-login_manager.login_message = None  
+login_manager.login_message = None
 
 # --- MODELOS ---
 class User(UserMixin, db.Model):
@@ -113,6 +112,18 @@ class Anuncio(db.Model):
     enlace = db.Column(db.String(500), nullable=True)
     activo = db.Column(db.Boolean, default=True)
 
+class PreOrden(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mesa = db.Column(db.String(30), nullable=False)
+    cliente_nombre = db.Column(db.String(100), nullable=False)
+    modalidad = db.Column(db.String(40), default="En Mesa")
+    metodo_pago = db.Column(db.String(60), default="Efectivo")
+    detalle_items = db.Column(db.Text, nullable=False)
+    notas = db.Column(db.Text, nullable=True)
+    total = db.Column(db.Float, nullable=False)
+    estado = db.Column(db.String(30), default="pendiente")
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -148,117 +159,72 @@ def obtener_datos_menu():
             cat_traducciones[cat.nombre] = cat.nombre_en if cat.nombre_en and cat.nombre_en.strip() != "" else cat.nombre
     return categorias_dict, cat_traducciones
 
-@app.route('/forzar_borrado_anuncios')
-def forzar_borrado_anuncios():
+# --- RUTAS DE PRE-ÓRDENES EN VIVO (CONFIRMACIÓN CON MESERO) ---
+@app.route('/crear_preorden', methods=['POST'])
+def crear_preorden():
     try:
-        db.session.execute(text("DROP TABLE IF EXISTS anuncio;"))
+        data = request.get_json()
+        if not data:
+            return jsonify({"ok": False, "error": "Datos inválidos"}), 400
+            
+        mesa = str(data.get('mesa', '')).strip()
+        nombre = str(data.get('cliente_nombre', '')).strip()
+        modalidad = str(data.get('modalidad', 'En Mesa')).strip()
+        metodo_pago = str(data.get('metodo_pago', 'Efectivo')).strip()
+        items_txt = str(data.get('detalle_items', '')).strip()
+        notas = str(data.get('notas', '')).strip()
+        total = float(data.get('total', 0))
+
+        if not mesa or not nombre or not items_txt:
+            return jsonify({"ok": False, "error": "Faltan datos de mesa o nombre"}), 400
+
+        nueva = PreOrden(
+            mesa=mesa,
+            cliente_nombre=nombre,
+            modalidad=modalidad,
+            metodo_pago=metodo_pago,
+            detalle_items=items_txt,
+            notas=notas,
+            total=total,
+            estado="pendiente"
+        )
+        db.session.add(nueva)
         db.session.commit()
-        db.create_all()
-        return "<h1>¡Tabla de Anuncios Recreada Correctamente! 🚀</h1><a href='/admin_dashboard'>Volver al Panel</a>"
+        hora_str = datetime.now().strftime('%H:%M')
+        return jsonify({"ok": True, "folio": nueva.id, "hora": hora_str})
     except Exception as e:
-        return f"<h1>Error al recrear tabla:</h1><p>{str(e)}</p>"
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-# --- RUTA OCULTA DE RESPALDO: CARGAR MENÚ PDF ---
-@app.route('/cargar_menu_pdf')
+@app.route('/api/preordenes_pendientes')
 @login_required
-def cargar_menu_pdf():
-    if current_user.role != 'admin':
-        return redirect(url_for('index'))
-        
-    categorias_pdf = [
-        ("Desayunos", "Breakfast"), ("Entradas", "Starters"), ("Sándwiches Bistró", "Bistro Sandwiches"),
-        ("Hamburguesas", "Burgers"), ("Antojitos", "Mexican Cravings"), ("Platillos Bistró", "Bistro Dishes"),
-        ("Postres", "Desserts"), ("Bebidas Calientes", "Hot Drinks"), ("Bebidas Frías", "Cold Drinks"),
-        ("Frappés", "Frappes"), ("Infusiones", "Infusions"), ("Jugos Naturales", "Natural Juices"),
-        ("Refrescos", "Soft Drinks"), ("Aguas Naturales", "Fresh Fruit Waters")
-    ]
-    for nom_es, nom_en in categorias_pdf:
-        cat_existente = CategoriaMenu.query.filter_by(nombre=nom_es).first()
-        if not cat_existente:
-            db.session.add(CategoriaMenu(nombre=nom_es, nombre_en=nom_en))
-        elif not cat_existente.nombre_en:
-            cat_existente.nombre_en = nom_en
+def api_preordenes_pendientes():
+    ordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
+    resultado = []
+    for o in ordenes:
+        resultado.append({
+            "id": o.id,
+            "mesa": o.mesa,
+            "cliente_nombre": o.cliente_nombre,
+            "modalidad": o.modalidad,
+            "metodo_pago": o.metodo_pago,
+            "detalle_items": o.detalle_items,
+            "notas": o.notas or "",
+            "total": o.total,
+            "hora": o.fecha.strftime('%H:%M')
+        })
+    return jsonify({"total_pendientes": len(resultado), "ordenes": resultado})
+
+@app.route('/atender_preorden/<int:id>', methods=['POST'])
+@login_required
+def atender_preorden(id):
+    orden = PreOrden.query.get_or_404(id)
+    orden.estado = 'atendido'
     db.session.commit()
-
-    platillos_pdf = [
-        ("Huevos Revueltos al Gusto", "Scrambled Eggs to Taste", "(Chorizo, jamón, tocino o a la mexicana) Acompañado de chilaquiles y frijoles fritos con queso. Horario: 8:00 am a 12:30 pm.", "(Chorizo, ham, bacon, or Mexican style) Served with chilaquiles and fried beans with cheese. Hours: 8:00 am to 12:30 pm.", 85.0, "Desayunos", False),
-        ("Huevos Motuleños", "Motuleño Eggs", "Estrellados sobre una tortilla frita bañados con salsa de tomate, jamón, queso amarillo, chícharos y crema.", "Sunny-side up eggs over a fried tortilla bathed in tomato sauce, ham, yellow cheese, peas, and cream.", 175.0, "Desayunos", True),
-        ("Huevos Rancheros", "Ranchero Eggs", "Estrellados sobre tortilla frita, cubiertos con salsa ranchera tradicional y acompañados de frijoles refritos.", "Sunny-side up eggs on a fried tortilla, covered with traditional ranchera sauce and served with refried beans.", 95.0, "Desayunos", False),
-        ("Huevos Estrellados", "Sunny-Side Up Eggs", "Acompañados de frijoles fritos, guarnición de chilaquiles y tocineta frita.", "Served with fried beans, a side of chilaquiles, and fried bacon.", 85.0, "Desayunos", False),
-        ("Omelete", "Mushroom & Cheese Omelette", "Omelette de champiñones y queso, servido con frijoles refritos y guarnición de chilaquiles.", "Mushroom and cheese omelette, served with refried beans and a side of chilaquiles.", 170.0, "Desayunos", False),
-        ("Chilaquiles Rojos", "Red Chilaquiles", "Totopos en salsa roja tradicional, con crema, queso y cebolla morada. Acompáñalos con huevos estrellados o pollo deshebrado.", "Tortilla chips in traditional red sauce with cream, cheese, and red onion. Served with sunny-side up eggs or shredded chicken.", 160.0, "Desayunos", True),
-        ("Hot Cakes", "Hot Cakes with Red Berries", "Espolvoreados con azúcar, acompañados de frutos rojos.", "Dusted with powdered sugar and served with fresh red berries.", 145.0, "Desayunos", False),
-        ("Café Refill", "Refill Coffee", "El refill es para consumo individual, no compartido.", "Refill is for individual consumption only, not shared.", 55.0, "Desayunos", False),
-        ("Papas Gajo", "Potato Wedges", "Papas gajo doradas y sazonadas.", "Golden seasoned potato wedges.", 65.0, "Entradas", False),
-        ("Tapitas del Quiosco", "Quiosco Tapas", "Tapas de pan artesanal inspiradas en nuestros sándwiches bistró.", "Artisanal bread tapas inspired by our bistro sandwiches.", 89.0, "Entradas", False),
-        ("Guacamole", "Fresh Guacamole", "Guacamole tradicional preparado al momento.", "Traditional freshly made guacamole.", 89.0, "Entradas", False),
-        ("Nachos", "Loaded Nachos", "Con frijoles, queso amarillo y chile jalapeño (+$25 con chorizo frito).", "With beans, yellow cheese, and jalapeño peppers (+$25 with fried chorizo).", 95.0, "Entradas", False),
-        ("Sandwich Morisco", "Morisco Sandwich", "Jamón serrano, aderezo de queso de cabra, fresa, frambuesa, arúgula y vinagreta.", "Serrano ham, goat cheese dressing, strawberry, raspberry, arugula, and vinaigrette.", 132.0, "Sándwiches Bistró", True),
-        ("Sandwich de Pollo", "Chicken Sandwich", "Pechuga de pollo, tomate cherry, arúgula, aderezo de aguacate y vinagreta.", "Chicken breast, cherry tomato, arugula, avocado dressing, and vinaigrette.", 115.0, "Sándwiches Bistró", False),
-        ("Cuernito Pomposo", "Pomposo Croissant", "Jamón serrano, aderezo de queso, arúgula, tomate cherry y queso mozzarella.", "Serrano ham, cheese dressing, arugula, cherry tomato, and mozzarella cheese.", 125.0, "Sándwiches Bistró", False),
-        ("Hamburguesa Morisco", "Morisco Burger", "Carne de res, tocino, ensalada, aderezo de mayonesa y queso mozzarella.", "Beef patty, bacon, salad, mayo dressing, and mozzarella cheese.", 115.0, "Hamburguesas", True),
-        ("Hamburguesa Hawaiana", "Hawaiian Burger", "Carne de res, tocino, piña, ensalada, aderezo de mayonesa y queso mozzarella.", "Beef patty, bacon, pineapple, salad, mayo dressing, and mozzarella cheese.", 123.0, "Hamburguesas", False),
-        ("Enchiladas Coletas", "Coletas Mole Enchiladas", "Enchiladas de pollo bañadas en mole tradicional coleto, acompañadas con queso y crema.", "Chicken enchiladas bathed in traditional San Cristobal mole, topped with cheese and cream.", 155.0, "Antojitos", True),
-        ("Tacos SC", "Tacos SC (Asado Coleto)", "De asado tradicional coleto, acompañados de cilantro y salsa verde.", "Traditional San Cristobal pork stew tacos, served with cilantro and green salsa.", 140.0, "Antojitos", False),
-        ("Tostadas de Pollo", "Chicken Tostadas", "Tostadas doradas cubiertas con lechuga, queso, crema, aguacate y pollo. Acompañadas de pico de gallo.", "Crispy tortillas topped with lettuce, cheese, cream, avocado, and chicken. Served with pico de gallo.", 95.0, "Antojitos", False),
-        ("Tacos Dorados", "Crispy Chicken Tacos", "Orden de 4 tacos dorados, rellenos de pollo, servidos con lechuga, queso, crema y pico de gallo.", "Order of 4 crispy tacos filled with chicken, served with lettuce, cheese, cream, and pico de gallo.", 80.0, "Antojitos", False),
-        ("Quesadillas", "Quesadillas", "Orden de 3 quesadillas, acompañadas de ensalada.", "Order of 3 quesadillas, served with salad.", 105.0, "Antojitos", False),
-        ("Club Sandwich", "Club Sandwich", "Con pollo, jamón y queso gratinado.", "With chicken, ham, and melted gratin cheese.", 155.0, "Platillos Bistró", False),
-        ("Plátanos Fritos", "Fried Plantains", "Plátanos fritos tradicionales.", "Traditional sweet fried plantains.", 60.0, "Postres", False),
-        ("Cuernito Relleno de Nutella", "Nutella Stuffed Croissant", "Crujiente cuernito relleno de Nutella.", "Crispy croissant filled with Nutella.", 62.0, "Postres", False),
-        ("Corbata de Frutos Rojos", "Red Berries Tie Pastry", "Hojaldre crujiente con frutos rojos.", "Crispy puff pastry with red berries.", 60.0, "Postres", False),
-        ("Relleno de Guayaba", "Guava Filled Pastry", "Pan artesanal relleno de dulce de guayaba.", "Artisanal pastry filled with sweet guava.", 58.0, "Postres", False),
-        ("Chocolatín", "Pain au Chocolat", "Hojaldre relleno de chocolate.", "Flaky pastry filled with chocolate.", 50.0, "Postres", False),
-        ("Pan Regional", "Regional Sweet Bread", "Orden de 6 piezas de pan tradicional coleto.", "Order of 6 pieces of traditional regional bread.", 35.0, "Postres", False),
-        ("Expresso", "Espresso", "Sencillo $40 | Doble +$20 | Cortado +$15.", "Single $40 | Double +$20 | Cortado +$15.", 40.0, "Bebidas Calientes", False),
-        ("Americano", "Americano Coffee", "Café americano recién extraído.", "Freshly brewed Americano coffee.", 55.0, "Bebidas Calientes", False),
-        ("Mocha", "Hot Mocha", "Espresso con chocolate y leche vaporizada.", "Espresso with chocolate and steamed milk.", 72.0, "Bebidas Calientes", False),
-        ("Café Latte", "Cafe Latte", "Espresso con leche suave vaporizada.", "Espresso with smooth steamed milk.", 65.0, "Bebidas Calientes", False),
-        ("Capuchino", "Cappuccino", "Clásico capuchino espumoso (Moka +$10).", "Classic foamy cappuccino (Mocha +$10).", 65.0, "Bebidas Calientes", True),
-        ("Chai Latte", "Hot Chai Latte", "Té chai especiado con leche vaporizada.", "Spiced chai tea with steamed milk.", 70.0, "Bebidas Calientes", False),
-        ("Chocolate", "Hot Chocolate", "Chocolate caliente tradicional.", "Traditional hot chocolate.", 70.0, "Bebidas Calientes", False),
-        ("Americano Frío", "Iced Americano", "Café americano servido en las rocas.", "Americano coffee served over ice.", 55.0, "Bebidas Frías", False),
-        ("Expresso Menta", "Mint Iced Espresso", "Refrescante espresso frío con un toque de menta.", "Refreshing iced espresso with a touch of mint.", 68.0, "Bebidas Frías", False),
-        ("Café Latte Frío", "Iced Cafe Latte", "Espresso con leche fría y hielo.", "Espresso with cold milk and ice.", 65.0, "Bebidas Frías", False),
-        ("Capuchino Frío", "Iced Cappuccino", "Capuchino frío (Moka +$10).", "Iced cappuccino (Mocha +$10).", 65.0, "Bebidas Frías", False),
-        ("Chai Latte Frío", "Iced Chai Latte", "Té chai especiado con leche y hielo.", "Spiced chai tea with milk and ice.", 70.0, "Bebidas Frías", False),
-        ("Chocolate Frío", "Iced Chocolate", "Chocolate frío espumoso.", "Frothy iced chocolate.", 70.0, "Bebidas Frías", False),
-        ("Frappé Moka", "Mocha Frappe", "Frappé de café con chocolate.", "Blended coffee and chocolate frappe.", 90.0, "Frappés", False),
-        ("Frappé Café", "Coffee Frappe", "Clásico frappé de café.", "Classic blended coffee frappe.", 90.0, "Frappés", False),
-        ("Frappé Taro", "Taro Frappe", "Frappé cremoso de taro.", "Creamy taro frappe.", 85.0, "Frappés", False),
-        ("Frappé Chai", "Chai Frappe", "Frappé de té chai especiado.", "Spiced chai tea frappe.", 85.0, "Frappés", False),
-        ("Bae", "Bae (Taro Bubble Tea)", "Taro, lácteos, té negro y tapioca.", "Taro, dairy, black tea, and tapioca pearls.", 90.0, "Frappés", True),
-        ("Bubba Ti", "Bubba Ti (Cold Brew Bubble Tea)", "Cold brew, té negro, lácteos y tapioca.", "Cold brew, black tea, dairy, and tapioca pearls.", 95.0, "Frappés", False),
-        ("Leche Dorada", "Golden Milk", "Infusión reconfortante a base de cúrcuma y especias. *Pregunta por nuestras bebidas de temporada.", "Soothing turmeric and spice infusion. *Ask about our seasonal drinks.", 70.0, "Infusiones", False),
-        ("Infusión de Maracuyá", "Passion Fruit Infusion", "Infusión aromática de maracuyá. *Pregunta por nuestras bebidas de temporada.", "Aromatic passion fruit infusion. *Ask about our seasonal drinks.", 65.0, "Infusiones", False),
-        ("Moon Milk", "Moon Milk", "Infusión relajante de leche especiada. *Pregunta por nuestras bebidas de temporada.", "Relaxing spiced milk infusion. *Ask about our seasonal drinks.", 70.0, "Infusiones", False),
-        ("Agua Moriska", "Moriska Cooler", "Fresa, pepino y menta.", "Strawberry, cucumber, and fresh mint.", 80.0, "Jugos Naturales", True),
-        ("Vergel", "Vergel Green Juice", "Piña, naranja y arúgula.", "Pineapple, orange, and arugula.", 65.0, "Jugos Naturales", False),
-        ("Rosal", "Rosal Cold Brew Tonic", "Cold brew, mora y miel.", "Cold brew coffee, blackberry, and honey.", 80.0, "Jugos Naturales", False),
-        ("Coca Cola Lata", "Canned Coca-Cola", "Lata 355 ml.", "355 ml can.", 50.0, "Refrescos", False),
-        ("Sprite Lata", "Canned Sprite", "Lata 355 ml.", "355 ml can.", 50.0, "Refrescos", False),
-        ("Sidral Mundet", "Sidral Mundet Apple Soda", "Lata 355 ml.", "355 ml can.", 50.0, "Refrescos", False),
-        ("Agua Ciel 600", "Bottled Water (600 ml)", "Botella de agua natural 600 ml.", "600 ml natural bottled water.", 30.0, "Refrescos", False),
-        ("Agua Mineral", "Sparkling Mineral Water", "Agua mineral refrescante.", "Refreshing sparkling mineral water.", 45.0, "Refrescos", False),
-        ("Agua de Jamaica", "Hibiscus Water", "Agua fresca natural de flor de jamaica.", "Fresh natural hibiscus flower water.", 40.0, "Aguas Naturales", False),
-        ("Naranjada", "Fresh Orangeade", "Preparada con jugo de naranja natural.", "Made with fresh-squeezed orange juice.", 40.0, "Aguas Naturales", False),
-        ("Naranjada Mineral", "Sparkling Orangeade", "Jugo de naranja natural con agua mineral.", "Fresh orange juice with sparkling mineral water.", 52.0, "Aguas Naturales", False),
-        ("Limonada", "Fresh Lemonade", "Preparada con jugo de limón natural.", "Made with fresh lime juice.", 40.0, "Aguas Naturales", False),
-        ("Limonada Mineral", "Sparkling Lemonade", "Jugo de limón natural con agua mineral.", "Fresh lime juice with sparkling mineral water.", 52.0, "Aguas Naturales", False)
-    ]
-
-    for nom_es, nom_en, desc_es, desc_en, precio, cat, dest in platillos_pdf:
-        prod_existente = Producto.query.filter_by(nombre=nom_es).first()
-        if not prod_existente:
-            db.session.add(Producto(
-                nombre=nom_es, nombre_en=nom_en,
-                descripcion=desc_es, descripcion_en=desc_en,
-                precio=precio, categoria=cat, destacado=dest, agotado=False
-            ))
-    db.session.commit()
-    flash('¡Menú de respaldo restaurado con éxito!', 'success')
-    return redirect(url_for('admin_dashboard'))
-
+    flash(f'Pre-Orden #{orden.id} (Mesa {orden.mesa}) confirmada y atendida.', 'success')
+    if current_user.role == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('cajero_dashboard'))
 
 # --- RUTAS PRINCIPALES ---
 @app.route('/actualizar_db')
@@ -364,7 +330,7 @@ def admin_login():
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('admin_login'))
 
 @app.route('/admin_dashboard')
 @login_required
@@ -376,12 +342,14 @@ def admin_dashboard():
     total_visitas = db.session.query(db.func.sum(Cliente.visitas)).scalar() or 0
     promedio_est = db.session.query(db.func.avg(Evaluacion.mesero_calificacion)).scalar() or 0
     clientes_top = Cliente.query.order_by(Cliente.visitas.desc(), Cliente.fecha_registro.desc()).limit(30).all()
+    preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
 
     return render_template('admin_dashboard.html', 
                            categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
                            premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
                            productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(), 
                            pins=PinCaja.query.filter_by(activo=True).all(),
+                           preordenes=preordenes,
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(30).all(),
                            clientes_top=clientes_top,
                            galeria=Galeria.query.order_by(Galeria.fecha_subida.desc()).all(),
@@ -396,7 +364,8 @@ def cajero_dashboard():
         return redirect(url_for('admin_dashboard'))
         
     pins = PinCaja.query.filter_by(activo=True).all()
-    return render_template('cajero_dashboard.html', pins=pins)
+    preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
+    return render_template('cajero_dashboard.html', pins=pins, preordenes=preordenes)
 
 @app.route('/admin/exportar_clientes')
 @login_required
@@ -490,7 +459,7 @@ def eliminar_categoria(id):
         db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- PRODUCTOS ---
+# --- PRODUCTOS Y BOTONES RÁPIDOS DE 1 CLIC ---
 @app.route('/admin/producto/nuevo', methods=['POST'])
 @login_required
 def nuevo_producto():
@@ -505,6 +474,24 @@ def nuevo_producto():
         descripcion_en=request.form.get('descripcion_en', ''), precio=request.form['precio'], categoria=request.form['categoria'], 
         imagen_url=img_url, destacado=destacado, agotado=agotado
     ))
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/producto/toggle_destacado/<int:id>', methods=['POST'])
+@login_required
+def toggle_destacado(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    p = Producto.query.get_or_404(id)
+    p.destacado = not p.destacado
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/producto/toggle_agotado/<int:id>', methods=['POST'])
+@login_required
+def toggle_agotado(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    p = Producto.query.get_or_404(id)
+    p.agotado = not p.agotado
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
@@ -539,26 +526,6 @@ def eliminar_producto(id):
     return redirect(url_for('admin_dashboard'))
 
 # --- PUBLICACIONES Y GALERÍA ---
-@app.route('/admin/publicacion/nueva', methods=['POST'])
-@login_required
-def nueva_publicacion():
-    if current_user.role != 'admin': return redirect(url_for('index'))
-    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if 'foto' in request.files and request.files['foto'].filename != '' else None
-    db.session.add(Publicacion(
-        titulo=request.form['titulo'], titulo_en=request.form.get('titulo_en', ''), descripcion=request.form['descripcion'], 
-        descripcion_en=request.form.get('descripcion_en', ''), categoria=request.form['categoria'], imagen_url=img_url
-    ))
-    db.session.commit()
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/admin/publicacion/eliminar/<int:id>', methods=['POST'])
-@login_required
-def eliminar_publicacion(id):
-    if current_user.role != 'admin': return redirect(url_for('index'))
-    db.session.delete(Publicacion.query.get_or_404(id))
-    db.session.commit()
-    return redirect(url_for('admin_dashboard'))
-
 @app.route('/agregar_galeria', methods=['POST'])
 @login_required
 def agregar_galeria():

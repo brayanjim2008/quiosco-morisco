@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja | Quiosco Morisco</title>
+    <title>Caja & Monitor de Mesas | Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .pin-tarjeta { border: 2px dashed #ffc107; background: #fffdf2; border-radius: 14px; transition: 0.2s; }
         .pin-tarjeta:hover { transform: translateY(-3px); }
+        .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
         #zona-impresion-termica { display: none; }
 
         @media print {
@@ -54,11 +55,11 @@
 </head>
 <body style="background-color: #f4f6f9;">
 
-<div id="no-print-area" class="container py-4" style="max-width: 850px;">
+<div id="no-print-area" class="container py-4" style="max-width: 920px;">
     
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-        <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja Quiosco Morisco</h3>
-        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja & Monitor de Mesas</h3>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -71,9 +72,54 @@
       {% endif %}
     {% endwith %}
 
+    <!-- MONITOR EN VIVO DE PRE-ÓRDENES DE MESAS EXTERIORES -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
+            <span>🔔 Monitor de Pre-Órdenes en Vivo (Enviar Mesero a Confirmar)</span>
+            <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length }} Pendientes</span>
+        </div>
+        <div class="card-body" id="contenedor-preordenes-vivo">
+            {% if preordenes %}
+            <div class="row">
+                {% for o in preordenes %}
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-dark fs-6">📍 Plaquita / Mesa {{ o.mesa }}</span>
+                                <span class="badge bg-secondary">Folio #{{ o.id }} • {{ o.fecha.strftime('%H:%M') }}</span>
+                            </div>
+                            <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">{{ o.cliente_nombre }}</span></h6>
+                            <p class="small mb-2">
+                                <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
+                                <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
+                            </p>
+                            <div class="bg-light p-2 rounded small mb-2" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
+                            {% if o.notas %}
+                            <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> {{ o.notas }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
+                            <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">
+                                    ✅ Confirmado en Mesa
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center m-0 py-2">No hay pre-órdenes pendientes en este momento. Se actualizará automáticamente.</p>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4 text-center">
-            <h5 class="text-muted fw-bold mb-3">Generador e Impresor Rápido (Hora Pico)</h5>
+            <h5 class="text-muted fw-bold mb-3">Generador e Impresor Rápido de PINs (Hora Pico)</h5>
             <div class="d-flex flex-wrap justify-content-center gap-2">
                 <form action="{{ url_for('generar_pin') }}" method="POST" class="d-flex gap-2">
                     <select name="cantidad" class="form-select form-select-lg" style="max-width: 190px; border: 2px solid #ffc107;">
@@ -127,6 +173,34 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    let ultimoConteoOrdenes = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
+
+    function sonarCampana() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.35);
+        } catch(e) {}
+    }
+
+    setInterval(async () => {
+        try {
+            let res = await fetch('/api/preordenes_pendientes');
+            let data = await res.json();
+            if (data.total_pendientes !== ultimoConteoOrdenes) {
+                if (data.total_pendientes > ultimoConteoOrdenes) sonarCampana();
+                window.location.reload();
+            }
+        } catch(e) {}
+    }, 8000);
+
     function obtenerPinsDePantalla() {
         let elementos = document.querySelectorAll('[data-pin-activo]');
         return Array.from(elementos).map(el => el.getAttribute('data-pin-activo'));

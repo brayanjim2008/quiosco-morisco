@@ -42,9 +42,9 @@
         .lang-btn { background: transparent; border: none; padding: 6px 11px; border-radius: 15px; font-weight: bold; font-size: 12px; cursor: pointer; color: var(--texto-claro); transition: 0.3s; }
         .lang-btn.activo { background: var(--verde-quiosco); color: white; }
 
-        /* INSIGNIA AUTOMÁTICA DE MESA DETECTADA */
+        /* INSIGNIA INTERACTIVA DE MESA (TOCABLE SI CAMBIAN DE MESA) */
         #badge-mesa-activa {
-            display: none;
+            display: inline-block;
             background: linear-gradient(135deg, var(--cobre), #b06d35);
             color: white;
             font-size: 11px;
@@ -52,7 +52,7 @@
             padding: 5px 11px;
             border-radius: 20px;
             box-shadow: 0 3px 10px rgba(201,130,70,0.35);
-            letter-spacing: 0.5px;
+            cursor: pointer;
         }
 
         .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 14px; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
@@ -87,26 +87,38 @@
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 8px; margin-bottom: 8px; font-size: 25px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.03); }
         
-        /* NUEVO BANNER CARRUSEL TIPO TARJETA FLOTANTE PREMIUM */
-        .hero-carousel-wrapper { max-width: 500px; margin: 14px auto 10px auto; padding: 0 15px; box-sizing: border-box; }
-        .hero-banner-starbucks { position: relative; width: 100%; min-height: 270px; border-radius: 24px; display: none; align-items: flex-end; justify-content: center; text-align: center; overflow: hidden; box-shadow: 0 14px 30px rgba(19, 66, 59, 0.22); border: 1.5px solid rgba(201, 130, 70, 0.45); animation: fadeIn 0.5s ease; }
+        /* BANNER CARRUSEL CON 3 ESTILOS VISUALES DIFERENCIADOS Y FLECHAS */
+        .hero-carousel-wrapper { position: relative; width: 100%; margin: 0 auto 26px auto; }
+        .hero-banner-starbucks { position: relative; width: 100%; min-height: 250px; border-radius: 22px; display: none; align-items: flex-end; justify-content: center; text-align: center; overflow: hidden; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16); animation: fadeIn 0.45s ease; }
         .hero-banner-starbucks.slide-activo { display: flex; }
         .hero-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.6s ease; }
-        .hero-bg-gradiente { background: linear-gradient(135deg, #0d322c 0%, #1a5c53 55%, #c98246 100%); }
-        .hero-banner-starbucks:hover .hero-bg { transform: scale(1.05); }
-        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.82) 100%); z-index: 2; }
-        .hero-content { position: relative; z-index: 3; padding: 22px 18px; color: white; width: 100%; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); }
-        .hero-pill-badge { display: inline-block; background: rgba(201, 130, 70, 0.92); color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; padding: 4px 12px; border-radius: 30px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
-        .hero-title { font-family: 'Lora', serif; font-size: clamp(1.5rem, 6vw, 2.2rem); font-weight: 700; margin-bottom: 16px; text-shadow: 0px 3px 12px rgba(0,0,0,0.85); line-height: 1.15; color: white; border: none; padding: 0; }
-        .hero-btn { display: inline-block; padding: 10px 26px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; font-size: 12px; transition: all 0.3s ease; background: rgba(255,255,255,0.18); backdrop-filter: blur(6px); }
+        
+        /* 3 ESTILOS DISTINTOS DE BANNER */
+        .estilo-banner-especial { background: linear-gradient(135deg, #0d322c 0%, #1a5c53 60%, #2a7a6e 100%); border: 2px solid #c98246; }
+        .estilo-banner-promo { background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 55%, #c98246 100%); border: 2px solid #ffd700; }
+        .estilo-banner-aviso { background: linear-gradient(135deg, #78350f 0%, #b45309 55%, #d97706 100%); border: 2px solid #fde68a; }
+
+        .hero-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.82) 100%); z-index: 2; }
+        .hero-content { position: relative; z-index: 3; padding: 24px 36px 22px 36px; color: white; width: 100%; }
+        .hero-pill-badge { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; padding: 5px 13px; border-radius: 30px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .pill-especial { background: #13423b; color: #ffd700; border: 1px solid #c98246; }
+        .pill-promo { background: #dc2626; color: #ffffff; border: 1px solid #ffd700; }
+        .pill-aviso { background: #ffd700; color: #13423b; }
+
+        .hero-title { font-family: 'Lora', serif; font-size: clamp(1.45rem, 5.5vw, 2.1rem); font-weight: 700; margin-bottom: 16px; text-shadow: 0px 3px 12px rgba(0,0,0,0.85); line-height: 1.2; color: white; border: none; padding: 0; }
+        .hero-btn { display: inline-block; padding: 10px 26px; border: 1.5px solid white; border-radius: 50px; color: white; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; font-size: 12px; transition: all 0.3s ease; background: rgba(255,255,255,0.2); backdrop-filter: blur(6px); }
         .hero-btn:hover { background: white; color: var(--verde-quiosco); transform: translateY(-2px); }
+        
+        .carousel-arrow { position: absolute; top: 45%; transform: translateY(-50%); z-index: 10; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.45); color: white; border: 1px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .carousel-arrow.izq { left: 8px; }
+        .carousel-arrow.der { right: 8px; }
         .carousel-dots { display: flex; justify-content: center; gap: 7px; margin-top: 10px; }
         .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(19, 66, 59, 0.25); cursor: pointer; transition: 0.3s; }
         .carousel-dot.activo { width: 22px; border-radius: 10px; background: var(--cobre); }
 
-        .estado-local-pill { text-align: center; margin-bottom: 18px; font-size: 12px; font-weight: 700; color: var(--texto-claro); }
+        .estado-local-pill { text-align: center; margin-bottom: 16px; font-size: 12px; font-weight: 700; color: var(--texto-claro); }
 
-        .social-bar-elegante { display: flex; justify-content: center; gap: 18px; background: var(--fondo-tarjeta); padding: 10px 25px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 28px auto; width: fit-content; }
+        .social-bar-elegante { display: flex; justify-content: center; gap: 18px; background: var(--fondo-tarjeta); padding: 10px 25px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid var(--border-color); margin: 0 auto 22px auto; width: fit-content; }
         .social-item { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; color: white !important; font-size: 19px; text-decoration: none; transition: 0.3s ease; }
         .social-item:hover { transform: translateY(-4px) scale(1.05); }
         .social-item.instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
@@ -139,11 +151,6 @@
         .buscador-input { width: 100%; padding: 14px 15px 14px 45px; border-radius: 30px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-tarjeta); color: var(--texto-oscuro); outline: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.03); box-sizing: border-box; }
         .buscador-input:focus { border-color: var(--cobre); box-shadow: 0 4px 15px rgba(201,130,70,0.2); }
         .buscador-icono { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--texto-claro); font-size: 16px; }
-
-        /* FILTROS CLIMA DE SAN CRIS */
-        .clima-bar { display: flex; gap: 8px; margin-bottom: 12px; }
-        .clima-btn { flex: 1; padding: 9px 10px; border-radius: 20px; border: 1.5px solid var(--border-color); background: var(--fondo-tarjeta); color: var(--texto-oscuro); font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.25s; text-align: center; }
-        .clima-btn.activo { border-color: var(--cobre); background: rgba(201, 130, 70, 0.14); color: var(--cobre); }
 
         /* BARRA DE CATEGORÍAS STICKY AL BAJAR POR EL MENÚ */
         .filtros-wrapper { position: sticky; top: 61px; z-index: 1800; background: var(--fondo-hueso); overflow-x: auto; white-space: nowrap; padding: 10px 0 12px 0; margin-bottom: 15px; scrollbar-width: none; border-bottom: 1px solid var(--border-color); }
@@ -192,9 +199,9 @@
         }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); z-index: 4000; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 15px; box-sizing: border-box; }
-        .modal-content { background: var(--fondo-tarjeta); padding: 25px 22px; border-radius: 20px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25); max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
-        .modal-content input { width: 100%; padding: 12px; font-size: 16px; text-align: center; border: 2px solid var(--cobre); border-radius: 12px; margin-bottom: 15px; box-sizing: border-box; outline: none; }
-        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-content { background: var(--fondo-tarjeta); padding: 22px 20px; border-radius: 20px; max-width: 375px; width: 100%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; box-sizing: border-box; }
+        .modal-content input, .modal-content select { width: 100%; padding: 11px; font-size: 15px; border: 1.5px solid var(--border-color); border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; outline: none; background: var(--fondo-hueso); color: var(--texto-oscuro); }
+        .modal-buttons { display: flex; gap: 12px; margin-top: 15px; }
         .btn-cancelar { flex: 1; background: var(--border-color); color: var(--texto-oscuro); border: none; padding: 13px; border-radius: 12px; font-weight: bold; cursor: pointer; }
         .btn-llamar { flex: 1; background: #25D366; color: white; border: none; padding: 13px; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3); }
 
@@ -236,14 +243,15 @@
         .accion-mesero-btn { width: 100%; text-align: left; padding: 11px 14px; margin-bottom: 8px; border-radius: 12px; border: 1.5px solid var(--border-color); background: var(--fondo-hueso); color: var(--texto-oscuro); font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
         .accion-mesero-btn.seleccionado, .accion-mesero-btn:hover { border-color: #25D366; background: rgba(37, 211, 102, 0.1); }
 
-        /* BANNER CUMPLEAÑERO VIP */
         .cumple-card { background: linear-gradient(135deg, #13423b 0%, #1f5c52 100%); color: white; border: 2px solid #ffd700; border-radius: 18px; padding: 16px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; box-shadow: 0 8px 20px rgba(19,66,59,0.18); transition: 0.3s; }
         .cumple-card:hover { transform: translateY(-2px); }
 
         .eval-select, .eval-textarea { width: 100%; padding: 13px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--border-color); font-size: 15px; background: var(--fondo-hueso); font-family: inherit; outline: none; transition: 0.3s; box-sizing: border-box; }
         .btn-eval { background: #ff9800; color: white; border: none; padding: 14px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 12px; cursor: pointer; flex: 1; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3); }
         .eval-label { margin-bottom: 0px; font-weight: 700; color: var(--texto-oscuro); text-align: left; display: block; margin-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .causa-social-box { background: linear-gradient(135deg, rgba(19, 66, 59, 0.08), rgba(201, 130, 70, 0.12)); border: 1px solid rgba(201, 130, 70, 0.35); border-radius: 16px; padding: 18px; text-align: center; margin-top: 25px; }
+        .amenidades-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
+        .amenidad-item { background: var(--fondo-tarjeta); border: 1px solid var(--border-color); border-radius: 20px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: var(--texto-claro); }
+        .causa-social-box { background: linear-gradient(135deg, rgba(19, 66, 59, 0.08), rgba(201, 130, 70, 0.12)); border: 1px solid rgba(201, 130, 70, 0.35); border-radius: 16px; padding: 18px; text-align: center; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -257,8 +265,10 @@
             <button class="lang-btn" id="btn-en" onclick="cambiarIdioma('en'); vibrar('soft');">🇺🇸 EN</button>
         </div>
 
-        <!-- INSIGNIA AUTOMÁTICA CUANDO ESCANEAN QR DE MESA (?mesa=4) -->
-        <div id="badge-mesa-activa">📍 Mesa --</div>
+        <!-- BOTÓN INTERACTIVO DE MESA / PLAQUITA (SI CAMBIAN DE MESA LO TOCAN) -->
+        <div id="badge-mesa-activa" onclick="cambiarMesaManual(); vibrar('soft');" title="Toca si te cambiaste de mesa">
+            📍 Elegir Mesa ✏️
+        </div>
 
         <div class="hamburger" onclick="abrirSidebar(); vibrar('soft');">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Opciones</span>&#9776;
@@ -294,41 +304,6 @@
         <button onclick="instalarApp(); vibrar('soft');" style="background: var(--cobre); color: white; border: none; padding: 6px 15px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">Instalar</button>
     </div>
 </div>
-
-<!-- CARRUSEL DE BANNERS FLOTANTES REDONDEADOS -->
-{% set lista_banners = anuncios_activos if anuncios_activos is defined and anuncios_activos else ([anuncio] if anuncio and anuncio.activo else []) %}
-{% if lista_banners %}
-<div class="hero-carousel-wrapper">
-    {% for ban in lista_banners %}
-    <div class="hero-banner-starbucks {% if loop.first %}slide-activo{% endif %}">
-        {% if ban.imagen_url %}
-            <img src="{{ ban.imagen_url }}" class="hero-bg" alt="Portada Quiosco Morisco">
-            <div class="hero-overlay"></div>
-        {% else %}
-            <div class="hero-bg hero-bg-gradiente"></div>
-        {% endif %}
-        
-        <div class="hero-content">
-            <span class="hero-pill-badge" data-i18n="banner_pill">✨ Especial de Hoy</span>
-            <h2 class="hero-title" data-es="{{ ban.mensaje }}" data-en="{{ ban.mensaje_en | default(ban.mensaje) }}">{{ ban.mensaje }}</h2>
-            {% if ban.texto_boton and ban.enlace %}
-                <a href="{{ ban.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
-                    <span data-es="{{ ban.texto_boton }}" data-en="{{ ban.texto_boton_en | default(ban.texto_boton) }}">{{ ban.texto_boton }}</span> <i class="fas fa-arrow-right" style="margin-left: 6px;"></i>
-                </a>
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
-
-    {% if lista_banners|length > 1 %}
-    <div class="carousel-dots">
-        {% for ban in lista_banners %}
-        <span class="carousel-dot {% if loop.first %}activo{% endif %}" data-slide-idx="{{ loop.index0 }}" onclick="irASlide(parseInt(this.getAttribute('data-slide-idx')))"></span>
-        {% endfor %}
-    </div>
-    {% endif %}
-</div>
-{% endif %}
 
 <div id="sidebar-overlay" class="sidebar-overlay" onclick="cerrarSidebar()"></div>
 <div id="miSidebar" class="sidebar">
@@ -410,7 +385,7 @@
             <div style="font-size: 22px; font-weight: 800; color: var(--cobre); margin-bottom: 15px;" id="detalle-precio"></div>
             
             <button type="button" class="btn" id="btn-agregar-desde-modal" style="margin: 0 0 15px 0;">
-                <i class="fas fa-plus-circle"></i> <span data-i18n="btn_sumar_antojo">Agregar a mi Lista de Antojos</span>
+                <i class="fas fa-plus-circle"></i> <span data-i18n="btn_sumar_antojo">Agregar a mi Pre-Orden</span>
             </button>
 
             <div id="bloque-maridaje" style="background: rgba(201,130,70,0.08); border: 1px dashed var(--cobre); border-radius: 12px; padding: 12px; text-align: left; margin-bottom: 12px;">
@@ -425,27 +400,69 @@
     </div>
 </div>
 
+<!-- MODAL DE PRE-ORDEN CON CONFIRMACIÓN PRESENCIAL DEL MESERO Y CONTROL DE CAMBIO DE MESA -->
 <div id="modal-antojos" class="modal-overlay" onclick="if(event.target===this) cerrarModalInfo('modal-antojos')">
-    <div class="modal-content" style="max-width: 380px; text-align: left;">
-        <h3 style="margin-top: 0; border: none;"><i class="fas fa-clipboard-list" style="color: var(--cobre);"></i> <span data-i18n="antojos_titulo">Mi Lista de Antojos</span></h3>
-        <p style="text-align: center; font-size: 12px; color: var(--texto-claro); margin-top: -8px;" data-i18n="antojos_sub">Muestra esta pantalla a tu mesero o envíala directo a cocina con tu número de mesa.</p>
+    <div class="modal-content" style="max-width: 390px; text-align: left;">
+        <h3 style="margin-top: 0; border: none;"><i class="fas fa-clipboard-list" style="color: var(--cobre);"></i> <span data-i18n="antojos_titulo">Mi Pre-Orden en Mesa</span></h3>
         
-        <div id="lista-antojos-items" style="max-height: 240px; overflow-y: auto; margin: 15px 0;"></div>
+        <div style="background: #fff8e1; border: 1.5px solid #ffb300; border-radius: 12px; padding: 10px 12px; font-size: 12px; color: #5d4037; line-height: 1.4; margin-bottom: 12px;">
+            ⚠️ <strong data-i18n="aviso_mesero_tit">Confirmación con Mesero:</strong>
+            <span data-i18n="aviso_mesero_txt">Tus alimentos <strong>NO se preparan automáticamente</strong>. Al enviar tu lista, nuestro mesero se acercará a tu mesa para confirmar tu orden en persona.</span>
+        </div>
+
+        <!-- PANTALLA DE FOLIO ENVIADO (OCULTA HASTA QUE ENVÍA) -->
+        <div id="bloque-folio-exito" style="display: none; background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 14px; padding: 15px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 12px; font-weight: bold; color: #2e7d32; text-transform: uppercase;">✅ Pre-Orden Recibida en Monitor</div>
+            <div id="folio-numero-grande" style="font-size: 28px; font-weight: 800; color: #13423b; margin: 4px 0;">FOLIO #--</div>
+            <p style="font-size: 12px; color: #1b5e20; margin: 0;">⏳ <strong>Espera a nuestro mesero en tu mesa.</strong> Muéstrale esta pantalla cuando llegue para confirmar y preparar tus alimentos.</p>
+        </div>
+
+        <div id="lista-antojos-items" style="max-height: 180px; overflow-y: auto; margin: 10px 0;"></div>
         
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--fondo-hueso); border-radius: 12px; font-weight: bold; font-size: 18px; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--fondo-hueso); border-radius: 12px; font-weight: bold; font-size: 17px; border: 1px solid var(--border-color); margin-bottom: 12px;">
             <span data-i18n="antojos_total">Total Estimado:</span>
             <span id="antojos-total-monto" style="color: var(--cobre);">$0</span>
         </div>
 
-        <div style="margin-top: 15px;">
-            <input type="number" id="input-mesa-antojos" placeholder="Tu Número de Mesa (Ej. 4)" style="margin-bottom: 10px;">
-            <button type="button" onclick="enviarOrdenWhatsapp()" class="btn-llamar" style="width: 100%; margin-bottom: 8px; padding: 14px;">
-                <i class="fab fa-whatsapp"></i> <span data-i18n="btn_enviar_orden_wa">Enviar Pedido al Mesero</span>
-            </button>
-            <div style="display: flex; gap: 10px;">
-                <button type="button" onclick="vaciarAntojos()" class="btn-cancelar" style="font-size: 12px;" data-i18n="btn_vaciar">Vaciar</button>
-                <button type="button" onclick="cerrarModalInfo('modal-antojos')" class="btn-cancelar" style="font-size: 12px;" data-i18n="btn_seguir_viendo">Seguir viendo</button>
+        <div id="formulario-preorden-campos">
+            <label style="font-size: 11px; font-weight: bold; color: var(--cobre); display: block; margin-bottom: 4px;" data-i18n="lbl_verifica_mesa">
+                📍 Número de Plaquita en tu mesa actual (si te cambiaste de mesa, corrígelo aquí):
+            </label>
+            <input type="number" id="input-mesa-antojos" placeholder="Ej. Plaquita / Mesa 4">
+
+            <label style="font-size: 11px; font-weight: bold; color: var(--texto-claro); display: block; margin-bottom: 4px;" data-i18n="lbl_nombre">
+                👤 Tu Nombre (para que el mesero te ubique):
+            </label>
+            <input type="text" id="input-nombre-antojos" placeholder="Ej. Brayan">
+
+            <div style="display: flex; gap: 8px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--texto-claro);">Modalidad:</label>
+                    <select id="select-modalidad-antojos">
+                        <option value="🍽️ En Mesa">🍽️ En Mesa</option>
+                        <option value="🛍️ Para Llevar">🛍️ Para Llevar</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--texto-claro);">Pago al mesero:</label>
+                    <select id="select-pago-antojos">
+                        <option value="Efectivo">💵 Efectivo</option>
+                        <option value="Terminal en Mesa">💳 Traer Terminal</option>
+                        <option value="Transferencia">📲 Transferencia</option>
+                    </select>
+                </div>
             </div>
+
+            <input type="text" id="input-notas-antojos" placeholder="Notas (Ej. Leche deslactosada, sin cebolla...)">
+
+            <button type="button" id="btn-enviar-preorden" onclick="enviarPreOrdenMonitor()" class="btn" style="margin: 6px 0 10px 0; padding: 14px;">
+                🛎️ <span data-i18n="btn_enviar_orden_wa">Enviar Pre-Orden y Llamar Mesero</span>
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="button" onclick="vaciarAntojos()" class="btn-cancelar" style="font-size: 12px;" data-i18n="btn_vaciar">Vaciar</button>
+            <button type="button" onclick="cerrarModalInfo('modal-antojos')" class="btn-cancelar" style="font-size: 12px;" data-i18n="btn_seguir_viendo">Seguir viendo</button>
         </div>
     </div>
 </div>
@@ -453,8 +470,8 @@
 <div id="modal-como-usar" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="mod_como_usar_titulo" style="border-bottom: none;"><i class="fas fa-info-circle text-warning"></i> ¿Cómo usar esta app?</h3>
-        <p data-i18n="mod_como_usar_1"><strong>1. Explora y arma tu lista:</strong> Toca el botón (+) en tus platillos favoritos para armar tu pedido en mesa.</p>
-        <p data-i18n="mod_como_usar_2"><strong>2. Llama al mesero en 1 toque:</strong> Usa el botón verde flotante para pedir la cuenta, servilletas o atención.</p>
+        <p data-i18n="mod_como_usar_1"><strong>1. Arma tu Pre-Orden:</strong> Toca el botón (+) en tus platillos favoritos y envíalos al monitor para que el mesero vaya a tu mesa a confirmar tu pedido.</p>
+        <p data-i18n="mod_como_usar_2"><strong>2. Si te cambias de mesa:</strong> Verifica siempre el número de la plaquita que tienes enfrente antes de llamar al mesero.</p>
         <p data-i18n="mod_como_usar_3"><strong>3. Sella tu visita:</strong> Escanea el QR de tu ticket impreso en caja o ingresa tu PIN en "Inicio".</p>
         <button class="btn" onclick="cerrarModalInfo('modal-como-usar'); vibrar('soft');" data-i18n="btn_entendido">Entendido</button>
     </div>
@@ -463,7 +480,8 @@
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none; margin-top: 0;"><i class="fas fa-bell text-success"></i> Asistencia en Mesa</h3>
-        <input type="number" id="input-mesa" placeholder="¿En qué número de mesa estás? (Ej. 4)">
+        <label style="font-size: 11px; font-weight: bold; color: var(--cobre); display: block; text-align: left; margin-bottom: 4px;">📍 Número de Plaquita en tu mesa actual:</label>
+        <input type="number" id="input-mesa" placeholder="¿Qué número tiene tu plaquita? (Ej. 4)">
         
         <p style="font-size: 12px; font-weight: bold; color: var(--texto-claro); text-align: left; margin: 5px 0 8px 0;" data-i18n="mesero_que_necesitas">¿Qué necesitas que llevemos a tu mesa?</p>
         
@@ -482,7 +500,7 @@
 
         <div class="modal-buttons">
             <button onclick="cerrarModalInfo('modal-mesero'); vibrar('soft');" class="btn-cancelar" data-i18n="btn_cancelar">Cancelar</button>
-            <button onclick="enviarMensajeWhatsapp(); vibrar('soft');" class="btn-llamar" data-i18n="btn_llamar">Enviar WhatsApp</button>
+            <button onclick="enviarMensajeWhatsapp(); vibrar('soft');" class="btn-llamar" data-i18n="btn_llamar">Avisar a Caja</button>
         </div>
     </div>
 </div>
@@ -573,6 +591,54 @@
 
     <!-- VISTA 1: INICIO -->
     <div id="vista-inicio" class="vista-app">
+
+        <!-- CARRUSEL DE BANNERS CON 3 ESTILOS REALES DIFERENCIADOS Y FLECHAS -->
+        {% set lista_banners = anuncios_activos if anuncios_activos is defined and anuncios_activos else ([anuncio] if anuncio and anuncio.activo else []) %}
+        {% if lista_banners %}
+        <div class="hero-carousel-wrapper">
+            {% if lista_banners|length > 1 %}
+            <div class="carousel-arrow izq" onclick="irASlide(slideIndexActual - 1); vibrar('soft');">&#10094;</div>
+            <div class="carousel-arrow der" onclick="irASlide(slideIndexActual + 1); vibrar('soft');">&#10095;</div>
+            {% endif %}
+
+            {% for ban in lista_banners %}
+            {% set es_promo = 'danger' in (ban.color or '') %}
+            {% set es_aviso = 'warning' in (ban.color or '') %}
+            <div class="hero-banner-starbucks {% if loop.first %}slide-activo{% endif %} {% if es_promo %}estilo-banner-promo{% elif es_aviso %}estilo-banner-aviso{% else %}estilo-banner-especial{% endif %}">
+                {% if ban.imagen_url %}
+                    <img src="{{ ban.imagen_url }}" class="hero-bg" alt="Portada Quiosco Morisco">
+                    <div class="hero-overlay"></div>
+                {% endif %}
+                
+                <div class="hero-content">
+                    {% if es_promo %}
+                        <span class="hero-pill-badge pill-promo">🔥 Promoción Especial</span>
+                    {% elif es_aviso %}
+                        <span class="hero-pill-badge pill-aviso">📢 Aviso / Evento</span>
+                    {% else %}
+                        <span class="hero-pill-badge pill-especial">✨ Recomendación del Chef</span>
+                    {% endif %}
+
+                    <h2 class="hero-title" data-es="{{ ban.mensaje }}" data-en="{{ ban.mensaje_en | default(ban.mensaje) }}">{{ ban.mensaje }}</h2>
+                    {% if ban.texto_boton and ban.enlace %}
+                        <a href="{{ ban.enlace }}" class="hero-btn" onclick="vibrar('soft'); return procesarEnlaceBanner(this.getAttribute('href'));">
+                            <span data-es="{{ ban.texto_boton }}" data-en="{{ ban.texto_boton_en | default(ban.texto_boton) }}">{{ ban.texto_boton }}</span> <i class="fas fa-arrow-right" style="margin-left: 6px;"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if lista_banners|length > 1 %}
+            <div class="carousel-dots">
+                {% for ban in lista_banners %}
+                <span class="carousel-dot {% if loop.first %}activo{% endif %}" data-slide-idx="{{ loop.index0 }}" onclick="irASlide(parseInt(this.getAttribute('data-slide-idx')))"></span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if cliente and progreso %}
         <div class="tarjeta-vip">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
@@ -641,7 +707,7 @@
         {% if destacados %}
         <div class="mb-4">
             <h4 style="color: var(--cobre); font-family: 'Lora', serif; font-weight: 700; margin-bottom: 12px; font-size: 20px;">
-                <i class="fas fa-fire text-danger" style="margin-right: 5px;"></i> <span data-i18n="titulo_favoritos">Favoritos de la casa</span>
+                <i class="fas fa-fire text-danger" style="margin-right: 5px;"></i> <span data-i18n="titulo_favoritos">Lo más pedido</span>
             </h4>
             <div class="carrusel-favoritos">
                 {% for p in destacados %}
@@ -661,7 +727,6 @@
         </div>
         {% endif %}
 
-        <!-- TARJETA PASE CUMPLEAÑERO VIP -->
         <div class="cumple-card" onclick="abrirPaseCumple(); vibrar('success');">
             <div>
                 <span style="background: #ffd700; color: #13423b; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;" data-i18n="cumple_badge">🎁 REGALO ESPECIAL</span>
@@ -710,16 +775,6 @@
     <div id="vista-menu" class="vista-app" style="display: none;">
         <div class="card" style="padding: 15px 5px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
             <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 15px;">Nuestro Menú</h2>
-            
-            <!-- SELECTOR INTERACTIVO DE CLIMA DE SAN CRIS -->
-            <div class="clima-bar">
-                <button type="button" class="clima-btn" id="btn-clima-frio" onclick="filtrarPorClima('frio', this); vibrar('soft');">
-                    🥶 <span data-i18n="clima_frio">Frío Coleto</span>
-                </button>
-                <button type="button" class="clima-btn" id="btn-clima-calor" onclick="filtrarPorClima('calor', this); vibrar('soft');">
-                    ☀️ <span data-i18n="clima_calor">Tarde Fresca</span>
-                </button>
-            </div>
 
             <div class="buscador-container">
                 <i class="fas fa-search buscador-icono"></i>
@@ -790,7 +845,7 @@
                                     <div class="precio precio-convertible" data-mxn="{{ producto.precio }}">${{ producto.precio }}</div>
                                     <button type="button" 
                                             class="btn-add-antojo" 
-                                            title="Agregar a mi lista"
+                                            title="Agregar a mi pre-orden"
                                             data-nom="{{ producto.nombre }}"
                                             data-pre="{{ producto.precio }}"
                                             onclick="event.stopPropagation(); agregarAAntojos(this.getAttribute('data-nom'), this.getAttribute('data-pre')); vibrar('soft');">+</button>
@@ -869,6 +924,13 @@
         </div>
     </div>
 
+    <!-- BARRA DE AMENIDADES Y MÉTODOS DE PAGO -->
+    <div class="amenidades-bar">
+        <span class="amenidad-item">🌿 Terraza al Aire Libre</span>
+        <span class="amenidad-item">💳 Efectivo, Tarjeta y Transferencia</span>
+        <span class="amenidad-item">📶 Wi-Fi Gratis</span>
+    </div>
+
     <div class="causa-social-box">
         <i class="fas fa-heart" style="color: #e63946; font-size: 20px; margin-bottom: 6px;"></i>
         <p style="margin: 0; font-size: 13px; font-weight: 700; color: var(--verde-quiosco);" data-i18n="dif_titulo">
@@ -885,60 +947,58 @@
 </footer>
 
 <script>
-    const TASA_USD = 19.5; // Conversión aproximada MXN -> USD en modo inglés
+    const TASA_USD = 19.5;
 
     const traducciones = {
         es: {
-            banner_pill: "✨ Especial de Hoy",
             menu_inicio: "Inicio", menu_ver_menu: "Menú", menu_galeria: "Galería", menu_experiencia: "Reservar", menu_wifi: "Wi-Fi Gratis",
             menu_cumple: "Pase Cumpleañero VIP", menu_como_usar: "¿Cómo usar esta app?",
             menu_admin: "Acceso Empleados", mod_como_usar_titulo: "❓ ¿Cómo usar esta app?",
-            mod_como_usar_1: "<strong>1. Explora y arma tu lista:</strong> Toca el botón (+) en tus platillos favoritos para armar tu pedido en mesa.",
-            mod_como_usar_2: "<strong>2. Llama al mesero en 1 toque:</strong> Usa el botón verde flotante para pedir la cuenta, servilletas o atención.",
+            mod_como_usar_1: "<strong>1. Arma tu Pre-Orden:</strong> Toca el botón (+) en tus platillos favoritos y envíalos al monitor para que el mesero vaya a tu mesa a confirmar tu pedido.",
+            mod_como_usar_2: "<strong>2. Si te cambias de mesa:</strong> Verifica siempre el número de la plaquita que tienes enfrente antes de llamar al mesero.",
             mod_como_usar_3: "<strong>3. Sella tu visita:</strong> Escanea el QR de tu ticket impreso en caja o ingresa tu PIN en 'Inicio'.",
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Asistencia en Mesa",
             mesero_que_necesitas: "¿Qué necesitas que llevemos a tu mesa?",
             motivo_ordenar: "Estamos listos para ordenar", motivo_cuenta: "Pedir la cuenta", motivo_cubiertos: "Servilletas, cubiertos o salsa", motivo_general: "Atención general del mesero",
-            btn_cancelar: "Cancelar", btn_llamar: "Enviar WhatsApp", btn_flotante_mesero: "Mesero", 
+            btn_cancelar: "Cancelar", btn_llamar: "Avisar a Caja", btn_flotante_mesero: "Mesero", 
             fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Escanea tu ticket en caja o ingresa tu PIN de consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo (4 Dígitos)",
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", filtro_todos: "Todos", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Opciones", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
             progreso_titulo: "Socio Oro", progreso_llevas: "Llevas", progreso_consumos: "consumos", nivel_alcanzado: "¡Meta Alcanzada! Muestra en caja:", verificado_vivo: "SELLO EN VIVO:", titulo_lista_premios: "Metas Activas",
             eval_titulo: "Déjanos tu opinión", eval_desc: "Ayúdanos a mejorar el servicio de Quiosco Morisco.", eval_ph_mesero: "Nombre de quien te atendió", eval_lbl_atencion: "Atención del mesero:", eval_lbl_limpieza: "Limpieza:", eval_lbl_comida: "Calidad de la comida:", eval_ph_comentarios: "¿Algún comentario adicional?", btn_enviar: "Enviar", btn_flotante_eval: "Califícanos", galeria_vacia: "Pronto subiremos fotos...", titulo_favoritos: "Lo más pedido", wifi_desc: "Escanea el código QR con tu cámara para conectarte o copia la contraseña.", wifi_copiar: "Copiar",
             ph_buscador: "Buscar platillos o bebidas...",
-            clima_frio: "Antojo para el Frío Coleto", clima_calor: "Antojo Refrescante",
             cumple_badge: "🎁 REGALO ESPECIAL", cumple_card_titulo: "¿Cumples años esta semana?", cumple_card_sub: "Toca aquí para activar tu Pase Cumpleañero VIP 🎂",
             cumple_modal_titulo: "¡Feliz Cumpleaños!", cumple_modal_desc: "En Quiosco Morisco queremos consentirte. Muestra este pase activo a tu mesero junto con tu identificación oficial (INE / Pasaporte) en el consumo de tu mesa para recibir tu cortesía de cumpleaños.",
-            btn_sumar_antojo: "Agregar a mi Lista de Antojos", maridaje_titulo: "Acompáñalo perfecto con:",
-            antojos_titulo: "Mi Lista de Antojos", antojos_sub: "Muestra esta pantalla a tu mesero o envíala directo con tu número de mesa.", antojos_total: "Total Estimado:", btn_enviar_orden_wa: "Enviar Pedido al Mesero", btn_vaciar: "Vaciar", btn_seguir_viendo: "Seguir viendo",
+            btn_sumar_antojo: "Agregar a mi Pre-Orden", maridaje_titulo: "Acompáñalo perfecto con:",
+            antojos_titulo: "Mi Pre-Orden en Mesa", av_mesero_tit: "Confirmación con Mesero:",
+            antojos_total: "Total Estimado:", btn_enviar_orden_wa: "Enviar Pre-Orden y Llamar Mesero", btn_vaciar: "Vaciar", btn_seguir_viendo: "Seguir viendo",
             exp_titulo: "El Corazón de San Cris", exp_frase_1: "\"El café y la vida se disfrutan más en San Cris\"", exp_historia: "En Café Quiosco Morisco Bistró cada taza y cada platillo celebran la tradición coleta y al mismo tiempo transforman vidas apoyando a las niñas y niños con cáncer del DIF Municipal.",
             res_titulo: "📅 Reservar Mesa o Evento", res_sub: "¿Vienes en grupo, celebras un cumpleaños o deseas asegurar tu mesa? Reserva directo por WhatsApp.", res_personas: "Número de Personas", res_fecha: "Fecha y Hora deseada", res_motivo: "Ocasión Especial (Opcional)", btn_confirmar_res: "Solicitar Reservación",
             dif_titulo: "UN MOMENTO PARA DISFRUTAR TAMBIÉN PUEDE SER UN MOMENTO PARA AYUDAR.",
             dif_desc: "Una parte de lo recaudado se destina a apoyar a niñas y niños con cáncer • <strong>DIF San Cristóbal de Las Casas</strong>."
         },
         en: {
-            banner_pill: "✨ Today's Special",
             menu_inicio: "Home", menu_ver_menu: "Menu", menu_galeria: "Gallery", menu_experiencia: "Book Table", menu_wifi: "Free Wi-Fi",
             menu_cumple: "VIP Birthday Pass", menu_como_usar: "How to use this app?",
             menu_admin: "Staff Access", mod_como_usar_titulo: "❓ How to use this app?",
-            mod_como_usar_1: "<strong>1. Build your order:</strong> Tap (+) on your favorite dishes to create your table list.",
-            mod_como_usar_2: "<strong>2. 1-Tap Waiter Call:</strong> Use the green button to ask for the bill, napkins, or service.",
+            mod_como_usar_1: "<strong>1. Build your Pre-Order:</strong> Tap (+) on your favorite dishes and send them so our waiter comes to confirm at your table.",
+            mod_como_usar_2: "<strong>2. Changed tables?:</strong> Always check the plaque number on your current table before calling the waiter.",
             mod_como_usar_3: "<strong>3. Stamp visit:</strong> Scan your receipt QR or enter your PIN on 'Home'.",
             btn_entendido: "Got it", btn_cerrar: "Close", modal_mesero_titulo: "🛎️ Table Assistance",
             mesero_que_necesitas: "How can we help your table?",
             motivo_ordenar: "We are ready to order", motivo_cuenta: "Request the check / bill", motivo_cubiertos: "Napkins, utensils, or salsa", motivo_general: "General server assistance",
-            btn_cancelar: "Cancel", btn_llamar: "Send WhatsApp", btn_flotante_mesero: "Waiter",
+            btn_cancelar: "Cancel", btn_llamar: "Notify Staff", btn_flotante_mesero: "Waiter",
             fidelidad_titulo: "Morisco Loyalty", fidelidad_desc: "Scan your receipt QR or enter your PIN code to earn visits.", lbl_nombre: "Your Name", lbl_telefono: "Your Phone (10 digits)", lbl_pin: "PIN Code (4 Digits)",
             btn_sellar: "Stamp Visit", menu_titulo_seccion: "Our Menu", filtro_todos: "All", menu_pronto: "Dishes coming soon...",
             btn_menu_superior: "Options", badge_estrella: "⭐ Chef's Pick", badge_agotado: "Sold Out",
             progreso_titulo: "Gold Member", progreso_llevas: "You have", progreso_consumos: "visits", nivel_alcanzado: "Goal reached! Show at register:", verificado_vivo: "LIVE STAMP:", titulo_lista_premios: "Active Goals",
             eval_titulo: "Leave your feedback", eval_desc: "Help us improve Quiosco Morisco's service.", eval_ph_mesero: "Server's name", eval_lbl_atencion: "Server attention:", eval_lbl_limpieza: "Cleanliness:", eval_lbl_comida: "Food quality:", eval_ph_comentarios: "Any additional comments?", btn_enviar: "Submit", btn_flotante_eval: "Rate Us", galeria_vacia: "Coming soon...", titulo_favoritos: "Customer Favorites", wifi_desc: "Scan the QR code with your camera to connect or copy the password.", wifi_copiar: "Copy",
             ph_buscador: "Search dishes or drinks...",
-            clima_frio: "Cozy & Warm Cravings", clima_calor: "Refreshing & Cold",
             cumple_badge: "🎁 BIRTHDAY GIFT", cumple_card_titulo: "Birthday this week?", cumple_card_sub: "Tap here to unlock your VIP Birthday Pass 🎂",
             cumple_modal_titulo: "Happy Birthday!", cumple_modal_desc: "Show this live pass and your ID to your server with your table order to receive a complimentary birthday treat!",
-            btn_sumar_antojo: "Add to my Craving List", maridaje_titulo: "Pairs perfectly with:",
-            antojos_titulo: "My Craving List", antojos_sub: "Show this screen to your waiter or send it via WhatsApp with your table number.", antojos_total: "Estimated Total:", btn_enviar_orden_wa: "Send Order to Waiter", btn_vaciar: "Clear", btn_seguir_viendo: "Keep browsing",
+            btn_sumar_antojo: "Add to Pre-Order", maridaje_titulo: "Pairs perfectly with:",
+            antojos_titulo: "My Table Pre-Order",
+            antojos_total: "Estimated Total:", btn_enviar_orden_wa: "Send Pre-Order & Call Waiter", btn_vaciar: "Clear", btn_seguir_viendo: "Keep browsing",
             exp_titulo: "The Heart of San Cris", exp_frase_1: "\"Coffee and life are enjoyed more in San Cris\"", exp_historia: "At Café Quiosco Morisco Bistró every cup and dish celebrates local tradition while supporting children with cancer through DIF San Cristóbal.",
             res_titulo: "📅 Book a Table or Event", res_sub: "Coming with a group, celebrating a birthday, or want to secure your table? Book via WhatsApp.", res_personas: "Number of Guests", res_fecha: "Preferred Date & Time", res_motivo: "Special Occasion (Optional)", btn_confirmar_res: "Request Reservation",
             dif_titulo: "A MOMENT TO ENJOY CAN ALSO BE A MOMENT TO HELP.",
@@ -959,7 +1019,28 @@
         } catch(e) {}
     }
 
-    /* --- CARRUSEL AUTOMÁTICO DE BANNERS --- */
+    function actualizarInsigniaMesa(numMesa) {
+        const badgeMesa = document.getElementById('badge-mesa-activa');
+        const inMesa1 = document.getElementById('input-mesa');
+        const inMesa2 = document.getElementById('input-mesa-antojos');
+        if (numMesa && String(numMesa).trim() !== "") {
+            sessionStorage.setItem('mesa_quiosco', String(numMesa).trim());
+            if (badgeMesa) badgeMesa.innerText = `📍 Mesa ${numMesa} ✏️`;
+            if (inMesa1) inMesa1.value = numMesa;
+            if (inMesa2) inMesa2.value = numMesa;
+        } else {
+            if (badgeMesa) badgeMesa.innerText = `📍 Elegir Mesa ✏️`;
+        }
+    }
+
+    function cambiarMesaManual() {
+        let actual = sessionStorage.getItem('mesa_quiosco') || '';
+        let nueva = prompt("¿Qué número tiene la plaquita de la mesa donde estás sentado ahorita?", actual);
+        if (nueva !== null && nueva.trim() !== "") {
+            actualizarInsigniaMesa(nueva.trim());
+        }
+    }
+
     function irASlide(n) {
         const slides = document.querySelectorAll('.hero-banner-starbucks');
         const dots = document.querySelectorAll('.carousel-dot');
@@ -971,36 +1052,14 @@
         if (dots[slideIndexActual]) dots[slideIndexActual].classList.add('activo');
     }
 
-    /* --- PASE CUMPLEAÑERO VIP --- */
     function abrirPaseCumple() {
         cerrarSidebar();
         abrirModalInfo('modal-cumple');
         confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 }, colors: ['#ffd700', '#c98246', '#13423b'] });
     }
 
-    /* --- FILTRO INTERACTIVO POR CLIMA DE SAN CRIS --- */
-    function filtrarPorClima(modo, btnEl) {
-        const yaActivo = btnEl.classList.contains('activo');
-        document.querySelectorAll('.clima-btn').forEach(b => b.classList.remove('activo'));
-        if (yaActivo) {
-            filtrarMenu('Todos', document.getElementById('btn-filtro-todos'));
-            return;
-        }
-        btnEl.classList.add('activo');
-        document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo'));
-
-        const catsFrio = ['Bebidas-Calientes', 'Infusiones', 'Postres', 'Desayunos', 'Antojitos'];
-        const catsCalor = ['Bebidas-Frías', 'Frappés', 'Jugos-Naturales', 'Aguas-Naturales', 'Refrescos'];
-        const permitidas = (modo === 'frio') ? catsFrio : catsCalor;
-
-        document.querySelectorAll('.categoria-bloque').forEach(bloque => {
-            let cat = bloque.getAttribute('data-categoria');
-            bloque.querySelectorAll('.menu-item').forEach(i => i.style.display = 'flex');
-            bloque.style.display = permitidas.includes(cat) ? 'block' : 'none';
-        });
-    }
-
     function agregarAAntojos(nombre, precio) {
+        document.getElementById('bloque-folio-exito').style.display = 'none';
         let existente = listaAntojos.find(i => i.nombre === nombre);
         if (existente) {
             existente.cantidad += 1;
@@ -1055,21 +1114,84 @@
         totalEl.innerText = `$${totalPrecio.toFixed(2)}`;
         if (totalCant > 0) {
             barra.style.display = 'flex';
-            contador.innerText = `${totalCant} (${ '$' + totalPrecio.toFixed(0) })`;
+            contador.innerText = `📋 Pre-Orden: ${totalCant} ($${totalPrecio.toFixed(0)})`;
         } else {
             barra.style.display = 'none';
         }
     }
 
-    function enviarOrdenWhatsapp() {
+    /* --- ENVIAR PRE-ORDEN DIRECTO AL MONITOR DEL RESTAURANTE (SIN WHATSAPP) --- */
+    async function enviarPreOrdenMonitor() {
         let mesa = document.getElementById('input-mesa-antojos').value.trim();
-        if (!mesa) { alert("Por favor ingresa tu número de mesa."); return; }
+        let nombre = document.getElementById('input-nombre-antojos').value.trim();
+        let modalidad = document.getElementById('select-modalidad-antojos').value;
+        let metodoPago = document.getElementById('select-pago-antojos').value;
+        let notas = document.getElementById('input-notas-antojos').value.trim();
+
+        if (!mesa) {
+            alert("Por favor verifica y escribe el número de la plaquita en tu mesa actual.");
+            document.getElementById('input-mesa-antojos').focus();
+            return;
+        }
+        if (!nombre) {
+            alert("Por favor escribe tu nombre para que el mesero te ubique al llegar a tu mesa.");
+            document.getElementById('input-nombre-antojos').focus();
+            return;
+        }
         if (listaAntojos.length === 0) return;
 
-        let resumen = listaAntojos.map(i => `• ${i.cantidad}x ${i.nombre} ($${i.precio * i.cantidad})`).join('%0A');
-        let total = document.getElementById('antojos-total-monto').innerText;
-        let url = `https://wa.me/5219671364781?text=Hola%20Quiosco%20Morisco,%20estamos%20en%20la%20*Mesa%20${mesa}*%20y%20nos%20gustar%C3%ADa%20pedir:%0A%0A${resumen}%0A%0A*Total%20estimado:%20${total}*`;
-        window.open(url, '_blank');
+        let bloqueoOrden = parseInt(sessionStorage.getItem('bloqueo_preorden_hasta') || '0');
+        let ahoraMs = new Date().getTime();
+        if (bloqueoOrden > ahoraMs) {
+            let seg = Math.ceil((bloqueoOrden - ahoraMs) / 1000);
+            alert(`Tu pre-orden ya fue enviada al monitor. Nuestro mesero va en camino (espera ${seg}s si deseas enviar otra).`);
+            return;
+        }
+
+        actualizarInsigniaMesa(mesa);
+
+        let totalMonto = listaAntojos.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+        let resumenTxt = listaAntojos.map(i => `• ${i.cantidad}x ${i.nombre} ($${i.precio * i.cantidad})`).join('\n');
+
+        const btn = document.getElementById('btn-enviar-preorden');
+        btn.disabled = true;
+        btn.innerText = "Enviando al monitor...";
+
+        try {
+            let res = await fetch('/crear_preorden', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mesa: mesa,
+                    cliente_nombre: nombre,
+                    modalidad: modalidad,
+                    metodo_pago: metodoPago,
+                    detalle_items: resumenTxt,
+                    notas: notas,
+                    total: totalMonto
+                })
+            });
+            let data = await res.json();
+            if (data.ok) {
+                vibrar('success');
+                sessionStorage.setItem('bloqueo_preorden_hasta', new Date().getTime() + (90 * 1000));
+                document.getElementById('folio-numero-grande').innerText = `FOLIO #${data.folio} • MESA ${mesa}`;
+                document.getElementById('bloque-folio-exito').style.display = 'block';
+                btn.innerText = "✅ Pre-Orden Enviada (Esperando Mesero)";
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero";
+                }, 90000);
+            } else {
+                alert("Error: " + (data.error || "Intenta de nuevo"));
+                btn.disabled = false;
+                btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero";
+            }
+        } catch(e) {
+            alert("Error de conexión. Intenta nuevamente.");
+            btn.disabled = false;
+            btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero";
+        }
     }
 
     function abrirDetallePlatillo(elemento) {
@@ -1256,7 +1378,6 @@
             if (traducciones[lang][el.getAttribute('data-i18n-placeholder')]) el.placeholder = traducciones[lang][el.getAttribute('data-i18n-placeholder')];
         });
 
-        // Conversor automático de precios a USD cuando está en Inglés
         document.querySelectorAll('.precio-convertible').forEach(el => {
             let mxn = parseFloat(el.getAttribute('data-mxn'));
             if (lang === 'en') {
@@ -1312,23 +1433,37 @@
     function abrirModalInfo(modalId) { cerrarSidebar(); document.getElementById(modalId).style.display = 'flex'; document.body.style.overflow = "hidden"; }
     function cerrarModalInfo(modalId) { document.getElementById(modalId).style.display = 'none'; document.body.style.overflow = "auto"; }
 
-    function enviarMensajeWhatsapp() {
-        let mesa = document.getElementById('input-mesa').value;
-        if (mesa && mesa.trim() !== "") {
-            localStorage.setItem('mesa_quiosco', mesa.trim());
-            let extraOrden = "";
-            if (motivoMeseroActual.includes("ordenar") && listaAntojos.length > 0) {
-                let itemsTxt = listaAntojos.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
-                extraOrden = ` (Nuestra lista: ${itemsTxt})`;
-            }
-            window.open(`https://wa.me/5219671364781?text=Hola,%20estamos%20en%20la%20*Mesa%20${mesa}*.%20${encodeURIComponent(motivoMeseroActual + extraOrden)}`, '_blank');
-            cerrarModalInfo('modal-mesero'); 
-        } else alert("Por favor, ingresa tu número de mesa.");
+    async function enviarMensajeWhatsapp() {
+        let mesa = document.getElementById('input-mesa').value.trim();
+        if (!mesa) {
+            alert("Por favor ingresa el número de la plaquita en tu mesa.");
+            return;
+        }
+        actualizarInsigniaMesa(mesa);
+        try {
+            await fetch('/crear_preorden', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mesa: mesa,
+                    cliente_nombre: "Llamado Rápido",
+                    modalidad: "Asistencia en Mesa",
+                    metodo_pago: "-",
+                    detalle_items: motivoMeseroActual,
+                    notas: "",
+                    total: 0
+                })
+            });
+            cerrarModalInfo('modal-mesero');
+            alert(`✅ Aviso enviado a Caja para la Mesa ${mesa}. Nuestro mesero se acercará en un momento.`);
+        } catch(e) {
+            window.open(`https://wa.me/5219671364781?text=Hola,%20estamos%20en%20la%20*Mesa%20${mesa}*.%20${encodeURIComponent(motivoMeseroActual)}`, '_blank');
+            cerrarModalInfo('modal-mesero');
+        }
     }
 
     function filtrarMenu(categoria, boton) {
         document.getElementById('buscador-menu').value = "";
-        document.querySelectorAll('.clima-btn').forEach(b => b.classList.remove('activo'));
         document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('activo'));
         if (boton) boton.classList.add('activo');
         document.querySelectorAll('.categoria-bloque').forEach(bloque => {
@@ -1354,7 +1489,6 @@
     document.addEventListener("DOMContentLoaded", function() {
         actualizarSaludoYHorario();
         
-        // Relojes en vivo anti-fraude
         setInterval(() => {
             const ahoraStr = new Date().toLocaleTimeString('es-MX');
             const r1 = document.getElementById('reloj-antifraude');
@@ -1363,7 +1497,6 @@
             if (r2) r2.innerText = ahoraStr;
         }, 1000);
 
-        // Auto-rotación del Carrusel de Banners cada 4.5 segundos
         const totalSlides = document.querySelectorAll('.hero-banner-starbucks').length;
         if (totalSlides > 1) {
             setInterval(() => {
@@ -1376,21 +1509,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
 
-        // DETECTOR AUTOMÁTICO DE MESA POR QR / NFC (?mesa=4)
-        let mesaParam = urlParams.get('mesa') || localStorage.getItem('mesa_quiosco');
-        if (urlParams.get('mesa')) {
-            localStorage.setItem('mesa_quiosco', urlParams.get('mesa'));
-        }
+        // DETECTOR DE PLAQUITA / MESA POR SESIÓN (PARA EVITAR QUE SE QUEDE PEGADA DE OTRO DÍA)
+        let mesaParam = urlParams.get('mesa') || sessionStorage.getItem('mesa_quiosco');
         if (mesaParam) {
-            const badgeMesa = document.getElementById('badge-mesa-activa');
-            if (badgeMesa) {
-                badgeMesa.style.display = 'inline-block';
-                badgeMesa.innerText = `📍 Mesa ${mesaParam}`;
-            }
-            const inMesa1 = document.getElementById('input-mesa');
-            const inMesa2 = document.getElementById('input-mesa-antojos');
-            if (inMesa1) inMesa1.value = mesaParam;
-            if (inMesa2) inMesa2.value = mesaParam;
+            actualizarInsigniaMesa(mesaParam);
         }
 
         let savedLang = localStorage.getItem('idioma_quiosco');
