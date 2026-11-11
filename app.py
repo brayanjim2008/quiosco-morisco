@@ -33,12 +33,21 @@ login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
 login_manager.login_message = None
 
+# --- OPTIMIZADOR AUTOMÁTICO DE FOTOS CLOUDINARY (CARGA ULTRA RÁPIDA) ---
+@app.template_filter('opt_img')
+def optimizar_imagen_cloudinary(url, ancho=500):
+    if not url:
+        return ''
+    if 'res.cloudinary.com' in url and '/upload/' in url and 'q_auto' not in url:
+        return url.replace('/upload/', f'/upload/f_auto,q_auto,w_{ancho}/')
+    return url
+
 # --- MODELOS ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False, default='cajero') 
+    role = db.Column(db.String(50), nullable=False, default='cajero') # 'admin', 'cajero', 'mesero'
 
 class CategoriaMenu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -68,7 +77,7 @@ class Galeria(db.Model):
     imagen_url = db.Column(db.String(255), nullable=False)
     titulo = db.Column(db.String(100), nullable=True)
     descripcion = db.Column(db.String(250), nullable=True)
-    fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_subida = db.Column(db.DateTime, default=datetime.now)
 
 class Publicacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -78,19 +87,24 @@ class Publicacion(db.Model):
     descripcion_en = db.Column(db.Text, nullable=True)
     categoria = db.Column(db.String(50), nullable=False) 
     imagen_url = db.Column(db.String(255), nullable=True)
-    fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_publicacion = db.Column(db.DateTime, default=datetime.now)
 
 class Cliente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     telefono = db.Column(db.String(20), unique=True, nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
     visitas = db.Column(db.Integer, default=0)
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_registro = db.Column(db.DateTime, default=datetime.now)
 
 class PinCaja(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(10), unique=True, nullable=False)
     activo = db.Column(db.Boolean, default=True)
+    creado_por = db.Column(db.String(80), nullable=True, default='caja')
+    folio_sr = db.Column(db.String(50), nullable=True, default='')
+    fecha_creacion = db.Column(db.DateTime, default=datetime.now)
+    usado_por = db.Column(db.String(120), nullable=True)
+    fecha_uso = db.Column(db.DateTime, nullable=True)
 
 class Evaluacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -99,7 +113,7 @@ class Evaluacion(db.Model):
     limpieza = db.Column(db.Integer, nullable=False)
     calidad_comida = db.Column(db.Integer, nullable=False)
     comentarios = db.Column(db.Text, nullable=True)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha = db.Column(db.DateTime, default=datetime.now)
 
 class Anuncio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -121,15 +135,16 @@ class PreOrden(db.Model):
     detalle_items = db.Column(db.Text, nullable=False)
     notas = db.Column(db.Text, nullable=True)
     total = db.Column(db.Float, nullable=False)
-    estado = db.Column(db.String(30), default="pendiente")
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    estado = db.Column(db.String(30), default="pendiente") # 'pendiente', 'atendido', 'cancelado'
+    atendido_por = db.Column(db.String(80), nullable=True)
+    fecha = db.Column(db.DateTime, default=datetime.now)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# --- AUTO-PARCHE INICIAL ---
-with app.app_context():
+# --- AUTO-PARCHE DE BASE DE DATOS Y CREACIÓN DE EMPLEADOS ---
+def inicializar_sistema():
     db.create_all()
     try:
         instrucciones = [
@@ -140,13 +155,39 @@ with app.app_context():
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton_en VARCHAR(50);",
             "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
-            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);"
+            "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS creado_por VARCHAR(80) DEFAULT 'caja';",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS folio_sr VARCHAR(50) DEFAULT '';",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS usado_por VARCHAR(120);",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS fecha_uso TIMESTAMP;",
+            "ALTER TABLE pre_orden ADD COLUMN IF NOT EXISTS atendido_por VARCHAR(80);"
         ]
         for sql in instrucciones:
             db.session.execute(text(sql))
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+    # Crear cuentas del equipo si no existen (sin borrar nada)
+    cuentas_equipo = [
+        ('raquel', 'raquel2026', 'admin'),
+        ('brayan', 'brayan123', 'cajero'),
+        ('emili', 'emili123', 'cajero'),
+        ('paola', 'paola123', 'mesero'),
+        ('daniel', 'daniel123', 'mesero')
+    ]
+    try:
+        for usr, pwd, rol in cuentas_equipo:
+            existente = User.query.filter_by(username=usr).first()
+            if not existente:
+                db.session.add(User(username=usr, password=generate_password_hash(pwd), role=rol))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+with app.app_context():
+    inicializar_sistema()
 
 def obtener_datos_menu():
     categorias_bd = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
@@ -186,11 +227,12 @@ def crear_preorden():
             detalle_items=items_txt,
             notas=notas,
             total=total,
-            estado="pendiente"
+            estado="pendiente",
+            fecha=datetime.now()
         )
         db.session.add(nueva)
         db.session.commit()
-        hora_str = datetime.now().strftime('%H:%M')
+        hora_str = nueva.fecha.strftime('%H:%M')
         return jsonify({"ok": True, "folio": nueva.id, "hora": hora_str})
     except Exception as e:
         db.session.rollback()
@@ -211,7 +253,7 @@ def api_preordenes_pendientes():
             "detalle_items": o.detalle_items,
             "notas": o.notas or "",
             "total": o.total,
-            "hora": o.fecha.strftime('%H:%M')
+            "hora": o.fecha.strftime('%H:%M') if o.fecha else ""
         })
     return jsonify({"total_pendientes": len(resultado), "ordenes": resultado})
 
@@ -219,26 +261,33 @@ def api_preordenes_pendientes():
 @login_required
 def atender_preorden(id):
     orden = PreOrden.query.get_or_404(id)
-    orden.estado = 'atendido'
+    accion = request.form.get('accion', 'atendido')
+    orden.estado = accion
+    orden.atendido_por = current_user.username
     db.session.commit()
-    flash(f'Pre-Orden #{orden.id} (Mesa {orden.mesa}) confirmada y atendida.', 'success')
+    
+    if accion == 'cancelado':
+        flash(f'Pre-Orden #{orden.id} (Mesa {orden.mesa}) marcada como cliente retirado/cancelada.', 'danger')
+    else:
+        flash(f'Pre-Orden #{orden.id} (Mesa {orden.mesa}) confirmada por {current_user.username.capitalize()}.', 'success')
+        
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
+    elif current_user.role == 'mesero':
+        return redirect(url_for('mesero_dashboard'))
     return redirect(url_for('cajero_dashboard'))
 
 # --- RUTAS PRINCIPALES ---
 @app.route('/actualizar_db')
 def actualizar_db():
     db.drop_all()
-    db.create_all()
-    db.session.add(User(username='admin', password=generate_password_hash('12345'), role='admin'))
-    db.session.add(User(username='caja1', password=generate_password_hash('caja123'), role='cajero'))
+    inicializar_sistema()
     db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
     db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
     db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
     db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
     db.session.commit()
-    return "<h1>¡BD Reconstruida!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
+    return "<h1>¡BD Reconstruida con cuentas de Raquel, Brayan, Emili, Paola y Daniel!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
 
 @app.route('/')
 def index():
@@ -267,6 +316,8 @@ def registrar_consumo():
         return redirect(url_for('index'))
         
     pin_valido.activo = False
+    pin_valido.usado_por = f"{nombre} ({telefono})"
+    pin_valido.fecha_uso = datetime.now()
     
     cliente = Cliente.query.filter_by(telefono=telefono).first()
     if not cliente:
@@ -312,18 +363,21 @@ def enviar_evaluacion():
     flash('¡Gracias por tu evaluación!', 'success')
     return redirect(url_for('index'))
 
-# --- ADMIN Y AUTENTICACIÓN ---
+# --- ADMIN, CAJA Y MESEROS (AUTENTICACIÓN POR ROL) ---
 @app.route('/admin_login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
+        username_input = request.form['username'].strip().lower()
+        user = User.query.filter(db.func.lower(User.username) == username_input).first()
         if user and check_password_hash(user.password, request.form['password']):
             login_user(user)
             if user.role == 'admin':
                 return redirect(url_for('admin_dashboard'))
+            elif user.role == 'mesero':
+                return redirect(url_for('mesero_dashboard'))
             else:
                 return redirect(url_for('cajero_dashboard'))
-        flash('Credenciales incorrectas.', 'error')
+        flash('Usuario o contraseña incorrectos.', 'error')
     return render_template('admin_login.html')
 
 @app.route('/logout')
@@ -335,6 +389,8 @@ def logout():
 @app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
+    if current_user.role == 'mesero':
+        return redirect(url_for('mesero_dashboard'))
     if current_user.role != 'admin':
         return redirect(url_for('cajero_dashboard'))
         
@@ -344,11 +400,32 @@ def admin_dashboard():
     clientes_top = Cliente.query.order_by(Cliente.visitas.desc(), Cliente.fecha_registro.desc()).limit(30).all()
     preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
 
+    # Auditoría y Corte de PINs del día por Cajero
+    hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    pins_hoy = PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).all()
+    resumen_cajeros = {}
+    for p in pins_hoy:
+        autor = (p.creado_por or 'caja').capitalize()
+        if autor not in resumen_cajeros:
+            resumen_cajeros[autor] = {'generados': 0, 'usados': 0, 'activos': 0}
+        resumen_cajeros[autor]['generados'] += 1
+        if p.activo:
+            resumen_cajeros[autor]['activos'] += 1
+        else:
+            resumen_cajeros[autor]['usados'] += 1
+
+    historial_pins = PinCaja.query.order_by(PinCaja.id.desc()).limit(50).all()
+    usuarios = User.query.order_by(User.role.asc(), User.username.asc()).all()
+
     return render_template('admin_dashboard.html', 
                            categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
                            premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
                            productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(), 
                            pins=PinCaja.query.filter_by(activo=True).all(),
+                           historial_pins=historial_pins,
+                           resumen_cajeros=resumen_cajeros,
+                           total_pins_hoy=len(pins_hoy),
+                           usuarios=usuarios,
                            preordenes=preordenes,
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(30).all(),
                            clientes_top=clientes_top,
@@ -362,11 +439,65 @@ def admin_dashboard():
 def cajero_dashboard():
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
+    if current_user.role == 'mesero':
+        return redirect(url_for('mesero_dashboard'))
         
     pins = PinCaja.query.filter_by(activo=True).all()
     preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
-    return render_template('cajero_dashboard.html', pins=pins, preordenes=preordenes)
+    hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    mis_pins_hoy = PinCaja.query.filter(PinCaja.creado_por == current_user.username, PinCaja.fecha_creacion >= hoy_inicio).count()
+    return render_template('cajero_dashboard.html', pins=pins, preordenes=preordenes, mis_pins_hoy=mis_pins_hoy)
 
+@app.route('/mesero_dashboard')
+@login_required
+def mesero_dashboard():
+    preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
+    productos = Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
+    return render_template('mesero_dashboard.html', preordenes=preordenes, productos=productos)
+
+# --- GESTIÓN DE USUARIOS Y CONTRASEÑAS (SOLO ADMIN RAQUEL) ---
+@app.route('/admin/usuario/nuevo', methods=['POST'])
+@login_required
+def nuevo_usuario():
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    username = request.form.get('username', '').strip().lower()
+    password = request.form.get('password', '').strip()
+    role = request.form.get('role', 'mesero')
+    if username and password:
+        if User.query.filter(db.func.lower(User.username) == username).first():
+            flash('Ese nombre de usuario ya existe.', 'danger')
+        else:
+            db.session.add(User(username=username, password=generate_password_hash(password), role=role))
+            db.session.commit()
+            flash(f'Usuario {username} ({role}) creado con éxito.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/usuario/cambiar_pass/<int:id>', methods=['POST'])
+@login_required
+def cambiar_pass_usuario(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    u = User.query.get_or_404(id)
+    nueva_pass = request.form.get('nueva_password', '').strip()
+    if nueva_pass:
+        u.password = generate_password_hash(nueva_pass)
+        db.session.commit()
+        flash(f'Contraseña de {u.username} actualizada.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/usuario/eliminar/<int:id>', methods=['POST'])
+@login_required
+def eliminar_usuario(id):
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    u = User.query.get_or_404(id)
+    if u.id == current_user.id:
+        flash('No puedes eliminar tu propio usuario activo.', 'danger')
+    else:
+        db.session.delete(u)
+        db.session.commit()
+        flash(f'Usuario {u.username} eliminado.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+# --- EXPORTACIÓN A EXCEL ---
 @app.route('/admin/exportar_clientes')
 @login_required
 def exportar_clientes():
@@ -489,10 +620,14 @@ def toggle_destacado(id):
 @app.route('/admin/producto/toggle_agotado/<int:id>', methods=['POST'])
 @login_required
 def toggle_agotado(id):
-    if current_user.role != 'admin': return redirect(url_for('index'))
+    if current_user.role not in ['admin', 'mesero']:
+        return redirect(url_for('index'))
     p = Producto.query.get_or_404(id)
     p.agotado = not p.agotado
     db.session.commit()
+    if current_user.role == 'mesero':
+        flash(f'{p.nombre}: {"🚫 Marcado como AGOTADO" if p.agotado else "✅ Marcado como DISPONIBLE"}', 'success')
+        return redirect(url_for('mesero_dashboard'))
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/producto/editar/<int:id>', methods=['GET', 'POST'])
@@ -525,7 +660,7 @@ def eliminar_producto(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- PUBLICACIONES Y GALERÍA ---
+# --- GALERÍA ---
 @app.route('/agregar_galeria', methods=['POST'])
 @login_required
 def agregar_galeria():
@@ -559,7 +694,7 @@ def eliminar_galeria(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- ANUNCIOS (SOPORTE MULTI-BANNER CARRUSEL) ---
+# --- ANUNCIOS (CARRUSEL MULTI-BANNER) ---
 @app.route('/admin/anuncio/nuevo', methods=['POST'])
 @login_required
 def nuevo_anuncio():
@@ -604,16 +739,28 @@ def eliminar_anuncio(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- CAJA ---
+# --- CAJA: GENERAR PIN CON AUDITORÍA DE CAJERO, HORA Y FOLIO OPCIONAL ---
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
 def generar_pin():
+    if current_user.role == 'mesero':
+        flash('Los meseros no tienen permiso para generar PINs.', 'danger')
+        return redirect(url_for('mesero_dashboard'))
+        
     cantidad = int(request.form.get('cantidad', 1))
+    folio_sr = request.form.get('folio_sr', '').strip()
+    ahora = datetime.now()
+    
     for _ in range(cantidad):
         codigo = ''.join(random.choices(string.digits, k=4))
-        db.session.add(PinCaja(codigo=codigo))
+        db.session.add(PinCaja(
+            codigo=codigo,
+            creado_por=current_user.username,
+            folio_sr=folio_sr,
+            fecha_creacion=ahora
+        ))
     db.session.commit()
-    flash(f'¡Se generaron {cantidad} PIN(s) con éxito!', 'success')
+    flash(f'¡Se generaron {cantidad} PIN(s) registrados a nombre de {current_user.username.capitalize()}!', 'success')
     
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablet Mesero | Quiosco Morisco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; }
+        .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+
+<div class="container py-3" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom bg-white p-3 rounded shadow-sm">
+        <div>
+            <h4 class="fw-bold m-0" style="color: #13423b;">
+                <i class="fas fa-utensils text-warning"></i> Tablet de Mesero
+            </h4>
+            <small class="text-muted fw-bold">👤 En turno: <span class="text-success text-uppercase">{{ current_user.username }}</span></small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/" target="_blank" class="btn btn-outline-dark btn-sm fw-bold">👁️ Ver Menú</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show shadow-sm text-center fw-bold py-2">
+            {{ message }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- MONITOR DE MESAS EN VIVO -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
+            <span>🔔 Mesas Esperando Confirmación (Capturar en Soft Restaurant)</span>
+            <span class="badge bg-warning text-dark fs-6" id="badge-total-preordenes">{{ preordenes|length }} Pendientes</span>
+        </div>
+        <div class="card-body">
+            {% if preordenes %}
+            <div class="row">
+                {% for o in preordenes %}
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-dark fs-5">📍 Plaquita / Mesa {{ o.mesa }}</span>
+                                <span class="badge bg-secondary">Folio #{{ o.id }} • {{ o.fecha.strftime('%H:%M') }}</span>
+                            </div>
+                            <h5 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">{{ o.cliente_nombre }}</span></h5>
+                            <p class="small mb-2">
+                                <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
+                                <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
+                            </p>
+                            <div class="bg-light p-2 rounded mb-2 border" style="white-space: pre-line; font-family: monospace; font-size: 14px; font-weight: bold;">{{ o.detalle_items }}</div>
+                            {% if o.notas %}
+                            <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota cocina:</strong> {{ o.notas }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mt-2 pt-2 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small fw-bold">Total estimado:</span>
+                                <span class="fw-bold fs-4 text-success">${{ o.total }}</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" class="w-75">
+                                    <input type="hidden" name="accion" value="atendido">
+                                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                                        ✅ Confirmado en Mesa
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" class="w-25" onsubmit="return confirm('¿Marcar que el cliente se retiró o canceló?');">
+                                    <input type="hidden" name="accion" value="cancelado">
+                                    <button type="submit" class="btn btn-outline-danger w-100 fw-bold py-2" title="Cliente se retiró">
+                                        🚶‍♂️❌
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle text-success fs-1 mb-2"></i>
+                <p class="text-muted m-0 fw-bold">Todas las mesas están atendidas. La pantalla sonará cuando llegue una orden.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- CONTROL RÁPIDO DE PLATILLOS AGOTADOS -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white fw-bold">
+            🚫 Marcar Platillos Agotados / Disponibles (1 Toque)
+        </div>
+        <div class="card-body">
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="buscador-mesero-prod" class="form-control" placeholder="Escribe el nombre del platillo o bebida (Ej. Motuleños, Capuchino)..." onkeyup="filtrarProdMesero()">
+            </div>
+            <div class="list-group" style="max-height: 360px; overflow-y: auto;">
+                {% for prod in productos %}
+                <div class="list-group-item item-mesero-prod d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong class="fs-6">{{ prod.nombre }}</strong>
+                        <small class="text-muted d-block">{{ prod.categoria }} • ${{ prod.precio }}</small>
+                    </div>
+                    <form action="{{ url_for('toggle_agotado', id=prod.id) }}" method="POST" style="margin:0;">
+                        {% if prod.agotado %}
+                        <button type="submit" class="btn btn-danger btn-sm fw-bold px-3">🚫 AGOTADO (Toca para activar)</button>
+                        {% else %}
+                        <button type="submit" class="btn btn-outline-success btn-sm fw-bold px-3">✅ Disponible</button>
+                        {% endif %}
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let ultimoConteo = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
+
+    function sonarAlertaMesero() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(920, ctx.currentTime);
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.4);
+        } catch(e) {}
+    }
+
+    setInterval(async () => {
+        try {
+            let res = await fetch('/api/preordenes_pendientes');
+            let data = await res.json();
+            if (data.total_pendientes !== ultimoConteo) {
+                if (data.total_pendientes > ultimoConteo) sonarAlertaMesero();
+                window.location.reload();
+            }
+        } catch(e) {}
+    }, 6000);
+
+    function filtrarProdMesero() {
+        let q = document.getElementById('buscador-mesero-prod').value.toLowerCase().trim();
+        document.querySelectorAll('.item-mesero-prod').forEach(el => {
+            el.style.display = el.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+        });
+    }
+</script>
+</body>
+</html>

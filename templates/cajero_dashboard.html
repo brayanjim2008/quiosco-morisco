@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caja & Monitor de Mesas | Quiosco Morisco</title>
+    <title>Caja | Quiosco Morisco</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -11,37 +11,14 @@
         .pin-tarjeta:hover { transform: translateY(-3px); }
         .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
         #zona-impresion-termica { display: none; }
-
         @media print {
             @page { margin: 0; size: 80mm auto; }
             body * { visibility: hidden; }
             #no-print-area { display: none !important; }
             #zona-impresion-termica, #zona-impresion-termica * { visibility: visible; }
-            #zona-impresion-termica {
-                display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 72mm;
-                margin: 0;
-                padding: 0;
-                background: white;
-                color: black;
-                font-family: 'Courier New', Courier, monospace;
-            }
-            .ticket-termico {
-                width: 100%;
-                text-align: center;
-                padding: 4mm 2mm 8mm 2mm;
-                box-sizing: border-box;
-                page-break-after: always;
-                break-after: page;
-                border-bottom: 1px dashed #000;
-            }
-            .ticket-termico:last-child {
-                page-break-after: auto;
-                break-after: auto;
-            }
+            #zona-impresion-termica { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; margin: 0; padding: 0; background: white; color: black; font-family: 'Courier New', Courier, monospace; }
+            .ticket-termico { width: 100%; text-align: center; padding: 4mm 2mm 8mm 2mm; box-sizing: border-box; page-break-after: always; break-after: page; border-bottom: 1px dashed #000; }
+            .ticket-termico:last-child { page-break-after: auto; break-after: auto; }
             .ticket-titulo { font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; }
             .ticket-sub { font-size: 11px; margin: 2px 0 6px 0; }
             .ticket-linea { border-top: 1px dashed #000; margin: 6px 0; }
@@ -55,11 +32,14 @@
 </head>
 <body style="background-color: #f4f6f9;">
 
-<div id="no-print-area" class="container py-4" style="max-width: 920px;">
+<div id="no-print-area" class="container py-4" style="max-width: 900px;">
     
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-        <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja & Monitor de Mesas</h3>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded shadow-sm">
+        <div>
+            <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja Quiosco Morisco</h3>
+            <small class="text-muted fw-bold">👤 Cajero en turno: <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs emitidos hoy por ti: <span class="badge bg-dark">{{ mis_pins_hoy }}</span></small>
+        </div>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -72,13 +52,13 @@
       {% endif %}
     {% endwith %}
 
-    <!-- MONITOR EN VIVO DE PRE-ÓRDENES DE MESAS EXTERIORES -->
+    <!-- MONITOR DE PRE-ÓRDENES EN VIVO -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
-            <span>🔔 Monitor de Pre-Órdenes en Vivo (Enviar Mesero a Confirmar)</span>
+            <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
             <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length }} Pendientes</span>
         </div>
-        <div class="card-body" id="contenedor-preordenes-vivo">
+        <div class="card-body">
             {% if preordenes %}
             <div class="row">
                 {% for o in preordenes %}
@@ -94,48 +74,59 @@
                                 <span class="badge bg-info text-dark">{{ o.modalidad }}</span>
                                 <span class="badge bg-warning text-dark">💳 {{ o.metodo_pago }}</span>
                             </p>
-                            <div class="bg-light p-2 rounded small mb-2" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
+                            <div class="bg-light p-2 rounded small mb-2 border" style="white-space: pre-line; font-family: monospace;">{{ o.detalle_items }}</div>
                             {% if o.notas %}
                             <div class="alert alert-warning py-1 px-2 small mb-2"><strong>📝 Nota:</strong> {{ o.notas }}</div>
                             {% endif %}
                         </div>
                         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                             <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
-                            <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
-                                <button type="submit" class="btn btn-success btn-sm fw-bold">
-                                    ✅ Confirmado en Mesa
-                                </button>
-                            </form>
+                            <div class="d-flex gap-1">
+                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                    <input type="hidden" name="accion" value="atendido">
+                                    <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
+                                </form>
+                                <form action="{{ url_for('atender_preorden', id=o.id) }}" method="POST" style="margin:0;">
+                                    <input type="hidden" name="accion" value="cancelado">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm fw-bold" title="Cliente se retiró">🚶‍♂️❌</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-muted text-center m-0 py-2">No hay pre-órdenes pendientes en este momento. Se actualizará automáticamente.</p>
+            <p class="text-muted text-center m-0 py-2">No hay pre-órdenes pendientes en este momento.</p>
             {% endif %}
         </div>
     </div>
 
+    <!-- GENERADOR DE PIN CON FOLIO OPCIONAL DE SOFT RESTAURANT -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4 text-center">
-            <h5 class="text-muted fw-bold mb-3">Generador e Impresor Rápido de PINs (Hora Pico)</h5>
-            <div class="d-flex flex-wrap justify-content-center gap-2">
-                <form action="{{ url_for('generar_pin') }}" method="POST" class="d-flex gap-2">
-                    <select name="cantidad" class="form-select form-select-lg" style="max-width: 190px; border: 2px solid #ffc107;">
+            <h5 class="text-muted fw-bold mb-3">Generador e Impresor Rápido de PINs (Fidelización)</h5>
+            <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 justify-content-center align-items-center mb-3">
+                <div class="col-md-5">
+                    <input type="text" name="folio_sr" class="form-control form-control-lg border-warning" placeholder="Folio Soft Restaurant (Opcional)">
+                </div>
+                <div class="col-md-3">
+                    <select name="cantidad" class="form-select form-select-lg border-warning">
                         <option value="1">1 PIN Nuevo</option>
-                        <option value="5">5 PINs Nuevos</option>
-                        <option value="10">10 PINs Nuevos</option>
+                        <option value="5">5 PINs (Hora Pico)</option>
+                        <option value="10">10 PINs (Hora Pico)</option>
                     </select>
-                    <button type="submit" class="btn btn-warning btn-lg px-4 fw-bold shadow-sm"><i class="fas fa-bolt"></i> Generar</button>
-                </form>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold shadow-sm"><i class="fas fa-bolt"></i> Generar PIN</button>
+                </div>
+            </form>
 
-                {% if pins %}
-                <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-dark btn-lg px-4 fw-bold shadow-sm">
-                    <i class="fas fa-print text-warning"></i> Imprimir Todos ({{ pins|length }}) con Auto-Corte
-                </button>
-                {% endif %}
-            </div>
+            {% if pins %}
+            <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-dark btn-lg px-4 fw-bold shadow-sm">
+                <i class="fas fa-print text-warning"></i> Imprimir Todos ({{ pins|length }}) con Auto-Corte
+            </button>
+            {% endif %}
         </div>
     </div>
     
@@ -144,14 +135,24 @@
     <div class="row">
         {% for pin in pins|reverse %}
         <div class="col-md-4 col-sm-6 mb-3">
-            <div class="card pin-tarjeta shadow-sm h-100" data-pin-activo="{{ pin.codigo }}">
+            <div class="card pin-tarjeta shadow-sm h-100" 
+                 data-pin-activo="{{ pin.codigo }}"
+                 data-cajero="{{ (pin.creado_por or current_user.username)|upper }}"
+                 data-folio="{{ pin.folio_sr or '' }}"
+                 data-hora="{{ pin.fecha_creacion.strftime('%d/%m/%Y %H:%M') if pin.fecha_creacion else '' }}">
                 <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
                     <div>
-                        <p class="text-muted small fw-bold mb-1 text-uppercase">PIN de Consumo:</p>
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>👤 {{ (pin.creado_por or 'Caja')|capitalize }}</span>
+                            <span>🕒 {{ pin.fecha_creacion.strftime('%H:%M') if pin.fecha_creacion else '' }}</span>
+                        </div>
+                        {% if pin.folio_sr %}
+                        <span class="badge bg-warning text-dark mb-1">Folio SR: {{ pin.folio_sr }}</span>
+                        {% endif %}
                         <h2 class="text-dark fw-bold mb-2" style="letter-spacing: 5px; font-size: 2.2rem;">{{ pin.codigo }}</h2>
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-thumbnail shadow-sm mb-3" style="width: 125px; height: 125px;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-thumbnail shadow-sm mb-3" style="width: 120px; height: 120px;">
                     </div>
-                    <button type="button" data-codigo="{{ pin.codigo }}" onclick="imprimirTicketUnico(this.getAttribute('data-codigo'))" class="btn btn-outline-dark fw-bold w-100">
+                    <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-outline-dark fw-bold w-100">
                         <i class="fas fa-print"></i> Imprimir Ticket
                     </button>
                 </div>
@@ -166,7 +167,6 @@
         </div>
         {% endfor %}
     </div>
-
 </div>
 
 <div id="zona-impresion-termica"></div>
@@ -199,24 +199,23 @@
                 window.location.reload();
             }
         } catch(e) {}
-    }, 8000);
+    }, 7000);
 
-    function obtenerPinsDePantalla() {
-        let elementos = document.querySelectorAll('[data-pin-activo]');
-        return Array.from(elementos).map(el => el.getAttribute('data-pin-activo'));
-    }
-
-    function crearHTMLTicket(codigo) {
-        const ahora = new Date();
-        const fechaHora = ahora.toLocaleDateString('es-MX') + ' ' + ahora.toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
+    function crearHTMLTicketDesdeElemento(el) {
+        const codigo = el.getAttribute('data-pin-activo');
+        const cajero = el.getAttribute('data-cajero') || 'CAJA';
+        const folio = el.getAttribute('data-folio') || '';
+        const hora = el.getAttribute('data-hora') || new Date().toLocaleString('es-MX');
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://quiosco-morisco.onrender.com/?pin=${codigo}`;
-        
+        const lineaFolio = folio ? `<p style="font-size:10px; margin:2px 0; font-weight:bold;">Folio Cuenta: #${folio}</p>` : '';
+
         return `
         <div class="ticket-termico">
             <p class="ticket-titulo">QUIOSCO MORISCO</p>
             <p class="ticket-sub">BISTRÓ & CAFÉ • SAN CRIS</p>
             <div class="ticket-linea"></div>
-            <p style="font-size:10px; margin:2px 0;">Fecha: ${fechaHora}</p>
+            <p style="font-size:10px; margin:2px 0;">Fecha: ${hora} | Cajero: ${cajero}</p>
+            ${lineaFolio}
             <p class="ticket-instruccion">¡SELLA TU VISITA Y GANA PREMIOS!</p>
             <p class="ticket-en">Scan QR or enter PIN to earn rewards!</p>
             <img src="${qrUrl}" class="ticket-qr" onload="verificarCargaImagenes()">
@@ -241,20 +240,20 @@
         }
     }
 
-    function imprimirTicketUnico(codigo) {
+    function imprimirTicketUnico(el) {
         const zona = document.getElementById('zona-impresion-termica');
         imagenesEsperadas = 1;
         imagenesCargadas = 0;
-        zona.innerHTML = crearHTMLTicket(codigo);
+        zona.innerHTML = crearHTMLTicketDesdeElemento(el);
     }
 
     function imprimirLoteCompleto() {
-        const lista = obtenerPinsDePantalla();
-        if (lista.length === 0) return;
+        const elementos = Array.from(document.querySelectorAll('[data-pin-activo]'));
+        if (elementos.length === 0) return;
         const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = lista.length;
+        imagenesEsperadas = elementos.length;
         imagenesCargadas = 0;
-        zona.innerHTML = lista.map(c => crearHTMLTicket(c)).join('');
+        zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
     }
 </script>
 </body>
