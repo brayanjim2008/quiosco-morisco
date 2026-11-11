@@ -96,15 +96,44 @@
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
-        if (!origen.value || destino.value) return; 
+        if (!origen || !destino || !origen.value.trim() || destino.value.trim() !== "") return; 
+        
+        let texto = origen.value.trim();
         destino.placeholder = "🤖 Traduciendo...";
+
+        // 1. Traduce a través de tu servidor Flask (sin bloqueos de navegador)
         try {
-            let res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(origen.value)}`);
-            let data = await res.json();
-            destino.value = data[0][0][0];
-        } catch(e) {
-            destino.placeholder = "Error, escribe manual";
-        }
+            let res = await fetch(`/api/traducir?q=${encodeURIComponent(texto)}`);
+            if (res.ok) {
+                let data = await res.json();
+                if (data.ok && data.traduccion) {
+                    destino.value = data.traduccion;
+                    return;
+                }
+            }
+        } catch(e) {}
+
+        // 2. Respaldo directo ocultando cabecera Referer
+        try {
+            let res2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(texto)}`, { referrerPolicy: "no-referrer" });
+            let data2 = await res2.json();
+            if (data2 && data2[0]) {
+                destino.value = data2[0].map(item => item[0]).join('');
+                return;
+            }
+        } catch(e) {}
+
+        // 3. Segundo respaldo con API pública MyMemory
+        try {
+            let res3 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=es|en`);
+            let data3 = await res3.json();
+            if (data3 && data3.responseData && data3.responseData.translatedText) {
+                destino.value = data3.responseData.translatedText;
+                return;
+            }
+        } catch(e) {}
+
+        destino.placeholder = "Escribe manual";
     }
 </script>
 

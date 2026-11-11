@@ -10,6 +10,9 @@ import random
 import string
 import csv
 from io import StringIO
+import urllib.request
+import urllib.parse
+import json
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_quiosco'
@@ -53,12 +56,28 @@ def ping_keep_alive():
     except Exception as e:
         return jsonify({"status": "error", "detail": str(e)}), 500
 
+# --- TRADUCTOR AUTOMÁTICO DESDE EL SERVIDOR (SIN BLOQUEOS DEL NAVEGADOR) ---
+@app.route('/api/traducir')
+def api_traducir():
+    texto = request.args.get('q', '').strip()
+    if not texto:
+        return jsonify({"ok": False, "traduccion": ""})
+    try:
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q={urllib.parse.quote(texto)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            traduccion = "".join([parte[0] for parte in data[0] if parte[0]])
+            return jsonify({"ok": True, "traduccion": traduccion})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 # --- MODELOS ---
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False, default='cajero') # 'admin', 'cajero', 'mesero'
+    role = db.Column(db.String(50), nullable=False, default='cajero')
 
 class CategoriaMenu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -460,7 +479,6 @@ def admin_dashboard():
     hace_7_dias = hoy_inicio - timedelta(days=7)
     hace_30_dias = hoy_inicio - timedelta(days=30)
 
-    # Estadísticas de Ventas y Pedidos (Hoy, 7 días, 30 días)
     ordenes_hoy = PreOrden.query.filter(PreOrden.fecha >= hoy_inicio, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
     ordenes_semana = PreOrden.query.filter(PreOrden.fecha >= hace_7_dias, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
     ordenes_mes = PreOrden.query.filter(PreOrden.fecha >= hace_30_dias, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
@@ -469,7 +487,6 @@ def admin_dashboard():
     ventas_semana = round(sum(o.total for o in ordenes_semana), 2)
     ventas_mes = round(sum(o.total for o in ordenes_mes), 2)
 
-    # Corte de PINs del día por Cajero
     pins_hoy = PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).all()
     resumen_cajeros = {}
     for p in pins_hoy:
