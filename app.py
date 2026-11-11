@@ -35,7 +35,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
 login_manager.login_message = None
 
-# --- OPTIMIZADOR AUTOMÁTICO DE FOTOS CLOUDINARY (CARGA ULTRA RÁPIDA) ---
+# --- OPTIMIZADOR AUTOMÁTICO DE FOTOS CLOUDINARY ---
 @app.template_filter('opt_img')
 def optimizar_imagen_cloudinary(url, ancho=500):
     if not url:
@@ -82,6 +82,16 @@ class Premio(db.Model):
     visitas_necesarias = db.Column(db.Integer, nullable=False, unique=True)
     premio_es = db.Column(db.String(150), nullable=False)
     premio_en = db.Column(db.String(150), nullable=True)
+
+class HistorialPremio(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_nombre = db.Column(db.String(100), nullable=False)
+    telefono = db.Column(db.String(20), nullable=False)
+    premio_ganado = db.Column(db.String(150), nullable=False)
+    visitas_alcanzadas = db.Column(db.Integer, nullable=False)
+    entregado = db.Column(db.Boolean, default=False)
+    entregado_por = db.Column(db.String(80), nullable=True)
+    fecha = db.Column(db.DateTime, default=datetime.now)
 
 class Galeria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -303,17 +313,14 @@ def atender_preorden(id):
         return redirect(url_for('mesero_dashboard'))
     return redirect(url_for('cajero_dashboard'))
 
-# --- RUTAS PRINCIPALES ---
+# --- RUTA PROTEGIDA CON CANDADO DE ADMINISTRADOR ---
 @app.route('/actualizar_db')
+@login_required
 def actualizar_db():
-    db.drop_all()
+    if current_user.role != 'admin' or request.args.get('confirmar') != 'si':
+        return "<h1>🔒 Ruta protegida por seguridad</h1><p>Solo el administrador puede inicializar tablas.</p>", 403
     inicializar_sistema()
-    db.session.add(CategoriaMenu(nombre="Desayunos", nombre_en="Breakfast"))
-    db.session.add(CategoriaMenu(nombre="Bebidas Calientes", nombre_en="Hot Drinks"))
-    db.session.add(Premio(visitas_necesarias=5, premio_es="Bebida Gratis", premio_en="Free Drink"))
-    db.session.add(Premio(visitas_necesarias=10, premio_es="Postre Gratis", premio_en="Free Dessert"))
-    db.session.commit()
-    return "<h1>¡BD Reconstruida con cuentas de Raquel, Brayan, Emili, Paola y Daniel!</h1><p>Vuelve al <a href='/admin_login'>login</a>.</p>"
+    return "<h1>✅ Tablas verificadas y sincronizadas sin borrar tus datos.</h1><a href='/admin_dashboard'>Volver al Panel</a>"
 
 @app.route('/')
 def index():
@@ -332,9 +339,9 @@ def index():
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
-    nombre = request.form.get('nombre')
-    telefono = request.form.get('telefono')
-    pin_ingresado = request.form.get('pin').upper().strip()
+    nombre = request.form.get('nombre', '').strip()
+    telefono = request.form.get('telefono', '').strip()
+    pin_ingresado = request.form.get('pin', '').upper().strip()
     
     pin_valido = PinCaja.query.filter_by(codigo=pin_ingresado, activo=True).first()
     if not pin_valido:
@@ -359,13 +366,23 @@ def registrar_consumo():
             if cliente.visitas > max_visitas:
                 cliente.visitas = 1 
 
-    db.session.commit()
-    
     premios_bd = Premio.query.order_by(Premio.visitas_necesarias.asc()).all()
     premio_actual = next((p for p in premios_bd if p.visitas_necesarias == cliente.visitas), None)
     
-    if premio_actual: flash(f'¡META ALCANZADA! Muestra esto en caja: {premio_actual.premio_es}', 'premio_interactivo')
-    else: flash(f'¡Visita sellada, {nombre}! Llevas {cliente.visitas} consumos.', 'success')
+    if premio_actual:
+        db.session.add(HistorialPremio(
+            cliente_nombre=nombre,
+            telefono=telefono,
+            premio_ganado=premio_actual.premio_es,
+            visitas_alcanzadas=cliente.visitas,
+            entregado=False,
+            fecha=datetime.now()
+        ))
+        flash(f'¡META ALCANZADA! Muestra esto en caja: {premio_actual.premio_es}', 'premio_interactivo')
+    else:
+        flash(f'¡Visita sellada, {nombre}! Llevas {cliente.visitas} consumos.', 'success')
+
+    db.session.commit()
         
     categorias_dict, cat_traducciones = obtener_datos_menu()
     anuncios_activos = Anuncio.query.filter_by(activo=True).order_by(Anuncio.id.desc()).all()
@@ -438,7 +455,21 @@ def admin_dashboard():
     clientes_top = Cliente.query.order_by(Cliente.visitas.desc(), Cliente.fecha_registro.desc()).limit(30).all()
     preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
 
-    hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    ahora = datetime.now()
+    hoy_inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    hace_7_dias = hoy_inicio - timedelta(days=7)
+    hace_30_dias = hoy_inicio - timedelta(days=30)
+
+    # Estadísticas de Ventas y Pedidos (Hoy, 7 días, 30 días)
+    ordenes_hoy = PreOrden.query.filter(PreOrden.fecha >= hoy_inicio, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
+    ordenes_semana = PreOrden.query.filter(PreOrden.fecha >= hace_7_dias, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
+    ordenes_mes = PreOrden.query.filter(PreOrden.fecha >= hace_30_dias, PreOrden.estado == 'atendido', PreOrden.total > 0).all()
+
+    ventas_hoy = round(sum(o.total for o in ordenes_hoy), 2)
+    ventas_semana = round(sum(o.total for o in ordenes_semana), 2)
+    ventas_mes = round(sum(o.total for o in ordenes_mes), 2)
+
+    # Corte de PINs del día por Cajero
     pins_hoy = PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).all()
     resumen_cajeros = {}
     for p in pins_hoy:
@@ -451,17 +482,22 @@ def admin_dashboard():
         else:
             resumen_cajeros[autor]['usados'] += 1
 
-    historial_pins = PinCaja.query.order_by(PinCaja.id.desc()).limit(50).all()
+    historial_pins = PinCaja.query.order_by(PinCaja.id.desc()).limit(60).all()
+    historial_premios = HistorialPremio.query.order_by(HistorialPremio.id.desc()).limit(40).all()
     usuarios = User.query.order_by(User.role.asc(), User.username.asc()).all()
 
     return render_template('admin_dashboard.html', 
                            categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
                            premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
+                           historial_premios=historial_premios,
                            productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(), 
                            pins=PinCaja.query.filter_by(activo=True).all(),
                            historial_pins=historial_pins,
                            resumen_cajeros=resumen_cajeros,
                            total_pins_hoy=len(pins_hoy),
+                           ventas_hoy=ventas_hoy, pedidos_hoy=len(ordenes_hoy),
+                           ventas_semana=ventas_semana, pedidos_semana=len(ordenes_semana),
+                           ventas_mes=ventas_mes, pedidos_mes=len(ordenes_mes),
                            usuarios=usuarios,
                            preordenes=preordenes,
                            evaluaciones=Evaluacion.query.order_by(Evaluacion.fecha.desc()).limit(30).all(),
@@ -483,7 +519,8 @@ def cajero_dashboard():
     preordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
     hoy_inicio = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     mis_pins_hoy = PinCaja.query.filter(PinCaja.creado_por == current_user.username, PinCaja.fecha_creacion >= hoy_inicio).count()
-    return render_template('cajero_dashboard.html', pins=pins, preordenes=preordenes, mis_pins_hoy=mis_pins_hoy)
+    historial_caja_hoy = PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).order_by(PinCaja.id.desc()).limit(30).all()
+    return render_template('cajero_dashboard.html', pins=pins, preordenes=preordenes, mis_pins_hoy=mis_pins_hoy, historial_caja_hoy=historial_caja_hoy)
 
 @app.route('/mesero_dashboard')
 @login_required
@@ -534,7 +571,7 @@ def eliminar_usuario(id):
         flash(f'Usuario {u.username} eliminado.', 'success')
     return redirect(url_for('admin_dashboard'))
 
-# --- EXPORTACIÓN A EXCEL ---
+# --- EXPORTACIÓN A EXCEL (CLIENTES, EVALUACIONES, PINS Y PRE-ÓRDENES) ---
 @app.route('/admin/exportar_clientes')
 @login_required
 def exportar_clientes():
@@ -544,14 +581,10 @@ def exportar_clientes():
         data = StringIO()
         writer = csv.writer(data)
         writer.writerow(('ID', 'Nombre', 'Telefono', 'Visitas', 'Fecha_Registro'))
-        yield data.getvalue()
-        data.seek(0)
-        data.truncate(0)
+        yield data.getvalue(); data.seek(0); data.truncate(0)
         for c in clientes:
             writer.writerow((c.id, c.nombre, c.telefono, c.visitas, c.fecha_registro.strftime('%Y-%m-%d')))
-            yield data.getvalue()
-            data.seek(0)
-            data.truncate(0)
+            yield data.getvalue(); data.seek(0); data.truncate(0)
     response = Response(generate(), mimetype='text/csv')
     response.headers.set("Content-Disposition", "attachment", filename="Base_Clientes_Quiosco.csv")
     return response
@@ -565,19 +598,53 @@ def exportar_evaluaciones():
         data = StringIO()
         writer = csv.writer(data)
         writer.writerow(('ID', 'Mesero', 'Calificacion', 'Limpieza', 'Comida', 'Comentarios', 'Fecha'))
-        yield data.getvalue()
-        data.seek(0)
-        data.truncate(0)
+        yield data.getvalue(); data.seek(0); data.truncate(0)
         for e in evaluaciones:
             writer.writerow((e.id, e.mesero_nombre, e.mesero_calificacion, e.limpieza, e.calidad_comida, e.comentarios, e.fecha.strftime('%Y-%m-%d')))
-            yield data.getvalue()
-            data.seek(0)
-            data.truncate(0)
+            yield data.getvalue(); data.seek(0); data.truncate(0)
     response = Response(generate(), mimetype='text/csv')
     response.headers.set("Content-Disposition", "attachment", filename="Evaluaciones_Meseros.csv")
     return response
 
-# --- RUTAS DE PREMIOS ---
+@app.route('/admin/exportar_pins')
+@login_required
+def exportar_pins():
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    todos_pins = PinCaja.query.order_by(PinCaja.id.desc()).all()
+    def generate():
+        data = StringIO()
+        writer = csv.writer(data)
+        writer.writerow(('ID', 'PIN', 'Emitido_Por', 'Folio_SoftRestaurant', 'Fecha_Creacion', 'Estado', 'Canjeado_Por', 'Fecha_Canje'))
+        yield data.getvalue(); data.seek(0); data.truncate(0)
+        for p in todos_pins:
+            estado = 'Pendiente' if p.activo else 'Sellado'
+            f_crea = p.fecha_creacion.strftime('%Y-%m-%d %H:%M') if p.fecha_creacion else ''
+            f_uso = p.fecha_uso.strftime('%Y-%m-%d %H:%M') if p.fecha_uso else ''
+            writer.writerow((p.id, p.codigo, p.creado_por or 'caja', p.folio_sr or '', f_crea, estado, p.usado_por or '', f_uso))
+            yield data.getvalue(); data.seek(0); data.truncate(0)
+    response = Response(generate(), mimetype='text/csv')
+    response.headers.set("Content-Disposition", "attachment", filename="Auditoria_PINs_Quiosco.csv")
+    return response
+
+@app.route('/admin/exportar_preordenes')
+@login_required
+def exportar_preordenes():
+    if current_user.role != 'admin': return redirect(url_for('index'))
+    ordenes = PreOrden.query.order_by(PreOrden.id.desc()).all()
+    def generate():
+        data = StringIO()
+        writer = csv.writer(data)
+        writer.writerow(('Folio', 'Mesa', 'Cliente', 'Modalidad', 'Pago', 'Detalle', 'Total', 'Estado', 'Atendido_Por', 'Fecha'))
+        yield data.getvalue(); data.seek(0); data.truncate(0)
+        for o in ordenes:
+            f_str = o.fecha.strftime('%Y-%m-%d %H:%M') if o.fecha else ''
+            writer.writerow((o.id, o.mesa, o.cliente_nombre, o.modalidad, o.metodo_pago, o.detalle_items.replace('\n', ' | '), o.total, o.estado, o.atendido_por or '', f_str))
+            yield data.getvalue(); data.seek(0); data.truncate(0)
+    response = Response(generate(), mimetype='text/csv')
+    response.headers.set("Content-Disposition", "attachment", filename="Reporte_Pedidos_Quiosco.csv")
+    return response
+
+# --- RUTAS DE PREMIOS E HISTORIAL DE CANJES ---
 @app.route('/admin/premio/nuevo', methods=['POST'])
 @login_required
 def nuevo_premio():
@@ -604,6 +671,16 @@ def eliminar_premio(id):
     flash('Meta eliminada.', 'success')
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/premio_entregado/<int:id>', methods=['POST'])
+@login_required
+def marcar_premio_entregado(id):
+    hp = HistorialPremio.query.get_or_404(id)
+    hp.entregado = True
+    hp.entregado_por = current_user.username
+    db.session.commit()
+    flash(f'Premio ({hp.premio_ganado}) de {hp.cliente_nombre} marcado como entregado.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 # --- CATEGORÍAS ---
 @app.route('/admin/categoria/nueva', methods=['POST'])
 @login_required
@@ -627,7 +704,7 @@ def eliminar_categoria(id):
         db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- PRODUCTOS Y BOTONES RÁPIDOS DE 1 CLIC (SOPORTE AJAX Y NORMAL) ---
+# --- PRODUCTOS Y BOTONES RÁPIDOS DE 1 CLIC ---
 @app.route('/admin/producto/nuevo', methods=['POST'])
 @login_required
 def nuevo_producto():
@@ -780,7 +857,7 @@ def eliminar_anuncio(id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-# --- CAJA: GENERAR PIN CON AUDITORÍA DE CAJERO, HORA Y FOLIO OPCIONAL ---
+# --- CAJA: GENERAR, ANULAR Y LIMPIAR PINs ---
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
 def generar_pin():
@@ -806,6 +883,30 @@ def generar_pin():
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
     return redirect(url_for('cajero_dashboard'))
+
+@app.route('/caja/eliminar_pin/<int:id>', methods=['POST'])
+@login_required
+def eliminar_pin_individual(id):
+    if current_user.role == 'mesero':
+        return redirect(url_for('mesero_dashboard'))
+    pin = PinCaja.query.get_or_404(id)
+    codigo_borrado = pin.codigo
+    db.session.delete(pin)
+    db.session.commit()
+    flash(f'PIN {codigo_borrado} anulado y eliminado correctamente.', 'success')
+    if current_user.role == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('cajero_dashboard'))
+
+@app.route('/admin/limpiar_pins_activos', methods=['POST'])
+@login_required
+def limpiar_pins_activos():
+    if current_user.role != 'admin':
+        return redirect(url_for('cajero_dashboard'))
+    borrados = PinCaja.query.filter_by(activo=True).delete()
+    db.session.commit()
+    flash(f'Se limpiaron {borrados} PIN(s) pendientes que no fueron utilizados.', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=10000)

@@ -51,7 +51,7 @@
         </div>
         <div class="d-flex gap-2">
             <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC / Inicio</button>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold" onclick="return confirm('¿Cerrar la sesión de caja?');"><i class="fas fa-sign-out-alt"></i> Salir</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
         </div>
     </div>
 
@@ -95,11 +95,11 @@
                         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                             <span class="fw-bold fs-5 text-success">Total: ${{ o.total }}</span>
                             <div class="d-flex gap-1">
-                                <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="m-0">
                                     <input type="hidden" name="accion" value="atendido">
                                     <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
                                 </form>
-                                <form action="/atender_preorden/{{ o.id }}" method="POST" style="margin:0;">
+                                <form action="/atender_preorden/{{ o.id }}" method="POST" class="m-0">
                                     <input type="hidden" name="accion" value="cancelado">
                                     <button type="submit" class="btn btn-outline-danger btn-sm fw-bold" title="Cliente se retiró">🚶‍♂️❌</button>
                                 </form>
@@ -145,7 +145,7 @@
     
     <h5 class="fw-bold mb-3 text-secondary"><i class="fas fa-ticket-alt"></i> PINs Activos Esperando Cliente: <span class="badge bg-success">{{ pins|length }}</span></h5>
     
-    <div class="row">
+    <div class="row mb-4">
         {% for pin in pins|reverse %}
         <div class="col-md-4 col-sm-6 mb-3">
             <div class="card pin-tarjeta shadow-sm h-100" 
@@ -165,9 +165,14 @@
                         <h2 class="text-dark fw-bold mb-2" style="letter-spacing: 5px; font-size: 2.2rem;">{{ pin.codigo }}</h2>
                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-thumbnail shadow-sm mb-3" style="width: 120px; height: 120px;">
                     </div>
-                    <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-outline-dark fw-bold w-100">
-                        <i class="fas fa-print"></i> Imprimir Ticket
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-dark fw-bold flex-grow-1">
+                            <i class="fas fa-print"></i> Imprimir
+                        </button>
+                        <form action="{{ url_for('eliminar_pin_individual', id=pin.id) }}" method="POST" class="m-0" data-pin-cod="{{ pin.codigo }}" onsubmit="return confirm('¿Anular y borrar el PIN ' + this.getAttribute('data-pin-cod') + '?');">
+                            <button type="submit" class="btn btn-outline-danger fw-bold" title="Anular PIN generado por error">🗑️</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -179,6 +184,48 @@
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- REGISTRO DE PINS GUARDADOS HOY EN CAJA -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+            <span>📜 Registro de PINs Guardados Hoy (Activos y Canjeados)</span>
+            <span class="badge bg-warning text-dark">{{ historial_caja_hoy|length }} registros hoy</span>
+        </div>
+        <div class="card-body p-0">
+            <div style="max-height: 250px; overflow-y: auto;">
+                <table class="table table-sm table-striped table-hover mb-0 small">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>PIN</th>
+                            <th>Cajero</th>
+                            <th>Folio SR</th>
+                            <th>Hora</th>
+                            <th>Estado / Cliente que lo selló</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hp in historial_caja_hoy %}
+                        <tr>
+                            <td class="fw-bold font-monospace">{{ hp.codigo }}</td>
+                            <td class="text-uppercase fw-bold">{{ hp.creado_por or 'Caja' }}</td>
+                            <td>{{ hp.folio_sr if hp.folio_sr else '-' }}</td>
+                            <td>{{ hp.fecha_creacion.strftime('%H:%M') if hp.fecha_creacion else '-' }}</td>
+                            <td>
+                                {% if hp.activo %}
+                                <span class="badge bg-warning text-dark">⏳ Esperando cliente</span>
+                                {% else %}
+                                <span class="badge bg-success">✅ Sellado por: {{ hp.usado_por or 'Cliente' }} ({{ hp.fecha_uso.strftime('%H:%M') if hp.fecha_uso else '' }})</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">Aún no se han generado PINs hoy.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -243,11 +290,11 @@
                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                         <span class="fw-bold fs-5 text-success">Total: $${o.total}</span>
                         <div class="d-flex gap-1">
-                            <form action="/atender_preorden/${o.id}" method="POST" style="margin:0;">
+                            <form action="/atender_preorden/${o.id}" method="POST" class="m-0">
                                 <input type="hidden" name="accion" value="atendido">
                                 <button type="submit" class="btn btn-success btn-sm fw-bold">✅ Confirmado</button>
                             </form>
-                            <form action="/atender_preorden/${o.id}" method="POST" style="margin:0;">
+                            <form action="/atender_preorden/${o.id}" method="POST" class="m-0">
                                 <input type="hidden" name="accion" value="cancelado">
                                 <button type="submit" class="btn btn-outline-danger btn-sm fw-bold" title="Cliente se retiró">🚶‍♂️❌</button>
                             </form>
@@ -260,7 +307,6 @@
         cont.innerHTML = html;
     }
 
-    // SINCRONIZACIÓN CADA 3 SEGUNDOS
     setInterval(async () => {
         try {
             let res = await fetch('/api/preordenes_pendientes');
@@ -273,7 +319,6 @@
         } catch(e) {}
     }, 3000);
 
-    // LATIDO ANTI-SUEÑO CADA 4 MINUTOS MIENTRAS CAJA ESTÉ ABIERTA
     setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
 
     function crearHTMLTicketDesdeElemento(el) {

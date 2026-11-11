@@ -14,8 +14,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .preorden-card { border-left: 6px solid #13423b; border-radius: 14px; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
-        
-        /* PESTAÑAS DE NAVEGACIÓN DEL PANEL ADMIN */
         .admin-nav-tabs { display: flex; flex-wrap: wrap; gap: 8px; background: white; padding: 12px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 22px; border: 1px solid #e9ecef; }
         .admin-tab-btn { flex: 1; min-width: 155px; padding: 11px 14px; border-radius: 12px; border: 1.5px solid #e9ecef; background: #f8f9fa; color: #495057; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; text-align: center; }
         .admin-tab-btn:hover { border-color: #c98246; color: #13423b; }
@@ -25,10 +23,8 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulsoVivo { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
         .punto-vivo { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; animation: pulsoVivo 1.5s infinite; margin-right: 4px; }
-
         .filtro-admin-pill { border-radius: 20px; font-weight: 700; font-size: 12px; padding: 5px 12px; cursor: pointer; border: 1px solid #ced4da; background: white; color: #495057; }
         .filtro-admin-pill.activo { background: #13423b; color: white; border-color: #13423b; }
-
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
@@ -60,7 +56,7 @@
         </div>
         <div class="d-flex gap-2">
             <a href="/" target="_blank" class="btn btn-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold" onclick="return confirm('¿Cerrar sesión de administrador?');">🚪 Cerrar Sesión</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Cerrar Sesión</a>
         </div>
     </div>
 </nav>
@@ -77,37 +73,37 @@
       {% endif %}
     {% endwith %}
 
-    <!-- TARJETAS DE RESUMEN SUPERIOR -->
-    <div class="row mb-3">
+    <!-- TARJETAS DE RESUMEN SUPERIOR + REPORTE DE VENTAS (HOY, SEMANA, MES) -->
+    <div class="row mb-2">
         <div class="col-md-3 col-6">
             <div class="card text-center text-white bg-primary mb-2 shadow-sm border-0">
                 <div class="card-body py-2">
-                    <small class="fw-bold text-uppercase opacity-75">Clientes</small>
-                    <h3 class="fw-bold m-0">{{ total_clientes }}</h3>
+                    <small class="fw-bold text-uppercase opacity-75">Clientes / Visitas</small>
+                    <h4 class="fw-bold m-0">{{ total_clientes }} <small class="fs-6">({{ total_visitas }} sellos)</small></h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="card text-center text-white bg-success mb-2 shadow-sm border-0">
                 <div class="card-body py-2">
-                    <small class="fw-bold text-uppercase opacity-75">Visitas Totales</small>
-                    <h3 class="fw-bold m-0">{{ total_visitas }}</h3>
+                    <small class="fw-bold text-uppercase opacity-75">Pre-Órdenes Hoy</small>
+                    <h4 class="fw-bold m-0">${{ ventas_hoy }} <small class="fs-6">({{ pedidos_hoy }})</small></h4>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="card text-center text-white bg-dark mb-2 shadow-sm border-0">
                 <div class="card-body py-2">
-                    <small class="fw-bold text-uppercase opacity-75">PINs Emitidos Hoy</small>
-                    <h3 class="fw-bold m-0 text-warning">{{ total_pins_hoy }}</h3>
+                    <small class="fw-bold text-uppercase opacity-75">7 Días / 30 Días</small>
+                    <h5 class="fw-bold m-0 text-warning">${{ ventas_semana }} / ${{ ventas_mes }}</h5>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="card text-center text-dark bg-warning mb-2 shadow-sm border-0">
                 <div class="card-body py-2">
-                    <small class="fw-bold text-uppercase opacity-75">Calif. Meseros</small>
-                    <h3 class="fw-bold m-0">⭐ {{ promedio_est }}</h3>
+                    <small class="fw-bold text-uppercase opacity-75">PINs Hoy • Calif.</small>
+                    <h4 class="fw-bold m-0">{{ total_pins_hoy }} PINs • ⭐ {{ promedio_est }}</h4>
                 </div>
             </div>
         </div>
@@ -126,7 +122,7 @@
             📢 Banners, Fotos y 10 Plaquitas
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-fidelidad" onclick="cambiarTabAdmin('fidelidad')">
-            🎁 Fidelidad y Clientes
+            🎁 Fidelidad y Premios
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-equipo" onclick="cambiarTabAdmin('equipo')">
             👥 Equipo y Evaluaciones
@@ -137,11 +133,13 @@
          PESTAÑA 1: OPERACIÓN EN VIVO, PINs Y CORTE
          ========================================== -->
     <div id="tab-operacion" class="seccion-tab-admin activa">
-        <!-- MONITOR DE PRE-ÓRDENES EN VIVO -->
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center" style="background: #13423b;">
+            <div class="card-header text-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: #13423b;">
                 <span>🔔 Monitor de Pre-Órdenes en Vivo (Mesas Exteriores)</span>
-                <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length if preordenes is defined else 0 }} Pendientes</span>
+                <div class="d-flex gap-2 align-items-center">
+                    <a href="{{ url_for('exportar_preordenes') }}" class="btn btn-sm btn-outline-light fw-bold">📊 Exportar Pedidos (Excel)</a>
+                    <span class="badge bg-warning text-dark" id="badge-total-preordenes">{{ preordenes|length if preordenes is defined else 0 }} Pendientes</span>
+                </div>
             </div>
             <div class="card-body" id="contenedor-preordenes-admin">
                 {% if preordenes is defined and preordenes %}
@@ -189,13 +187,18 @@
 
         <div class="row">
             <div class="col-md-5">
-                <!-- GENERADOR DE PINs -->
+                <!-- GENERADOR Y LIMPIEZA DE PINs -->
                 <div class="card shadow-sm mb-4 border-dark">
-                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-                        <span>🎟️ Generador de PINs (Caja)</span>
-                        {% if pins %}
-                        <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-sm btn-warning fw-bold">🖨️ Imprimir Todos ({{ pins|length }})</button>
-                        {% endif %}
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span>🎟️ PINs Activos ({{ pins|length }})</span>
+                        <div class="d-flex gap-1">
+                            {% if pins %}
+                            <button type="button" onclick="imprimirLoteCompleto()" class="btn btn-sm btn-warning fw-bold">🖨️ Imprimir ({{ pins|length }})</button>
+                            <form action="{{ url_for('limpiar_pins_activos') }}" method="POST" class="m-0" onsubmit="return confirm('¿Borrar todos los PINs activos que no se hayan usado?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" title="Limpiar PINs sobrantes">🧹 Limpiar</button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="card-body">
                         <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 mb-3">
@@ -224,7 +227,12 @@
                                     <small class="text-muted d-block" style="font-size:10px;">👤 {{ (pin.creado_por or 'Caja')|capitalize }} {{ ('• #' ~ pin.folio_sr) if pin.folio_sr else '' }}</small>
                                     <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
                                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
-                                    <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark w-100 fw-bold" style="font-size: 11px;">🖨️ Imprimir Ticket</button>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark flex-grow-1 fw-bold" style="font-size: 11px;">🖨️ Ticket</button>
+                                        <form action="{{ url_for('eliminar_pin_individual', id=pin.id) }}" method="POST" class="m-0" data-pin-cod="{{ pin.codigo }}" onsubmit="return confirm('¿Borrar PIN ' + this.getAttribute('data-pin-cod') + '?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" style="font-size: 11px;">🗑️</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                             {% else %}
@@ -238,9 +246,12 @@
             <div class="col-md-7">
                 <!-- AUDITORÍA Y CORTE DE PINS -->
                 <div class="card shadow-sm mb-4 border-dark">
-                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-                        <span>🧾 Auditoría y Corte de PINs del Día (Soft Restaurant)</span>
-                        <span class="badge bg-warning text-dark">Hoy: {{ total_pins_hoy }} PINs</span>
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span>🧾 Auditoría y Corte de PINs (Soft Restaurant)</span>
+                        <div class="d-flex gap-2 align-items-center">
+                            <a href="{{ url_for('exportar_pins') }}" class="btn btn-sm btn-success fw-bold">📊 Exportar PINs (Excel)</a>
+                            <span class="badge bg-warning text-dark">Hoy: {{ total_pins_hoy }}</span>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row mb-3">
@@ -302,7 +313,6 @@
     <div id="tab-menu" class="seccion-tab-admin">
         <div class="row">
             <div class="col-md-5">
-                <!-- FORMULARIO NUEVO PLATILLO -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white fw-bold">➕ Agregar Nuevo Platillo</div>
                     <div class="card-body">
@@ -356,7 +366,6 @@
                     </div>
                 </div>
 
-                <!-- CATEGORÍAS DEL MENÚ -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú ({{ categorias|length }})</div>
                     <div class="card-body">
@@ -380,7 +389,6 @@
             </div>
 
             <div class="col-md-7">
-                <!-- LISTA DE PLATILLOS CON FILTROS Y ACCIÓN INSTANTÁNEA (0 ERRORES EN VS CODE) -->
                 {% set cant_destacados_admin = productos|selectattr('destacado', 'equalto', True)|list|length %}
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
@@ -439,7 +447,6 @@
     <div id="tab-marketing" class="seccion-tab-admin">
         <div class="row">
             <div class="col-md-6">
-                <!-- CARRUSEL DE BANNERS -->
                 <div class="card shadow-sm mb-4 border-warning">
                     <div class="card-header bg-warning text-dark fw-bold">📢 Carrusel de Banners de Portada</div>
                     <div class="card-body">
@@ -524,7 +531,6 @@
             </div>
 
             <div class="col-md-6">
-                <!-- LAS 10 PLAQUITAS / MESAS OFICIALES FIJAS PARA EL NEGOCIO -->
                 <div class="card shadow-sm mb-4 border-success">
                     <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                         <span>📍 Las 10 Plaquitas Oficiales de Mesa (NFC / QR Fijos)</span>
@@ -536,7 +542,6 @@
                     </div>
                 </div>
 
-                <!-- GALERÍA DE FOTOS -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-dark text-white fw-bold">📸 Galería de Fotos</div>
                     <div class="card-body">
@@ -572,7 +577,7 @@
     </div>
 
     <!-- ==========================================
-         PESTAÑA 4: FIDELIDAD Y RANKING DE CLIENTES
+         PESTAÑA 4: FIDELIDAD, PREMIOS GANADOS Y CLIENTES
          ========================================== -->
     <div id="tab-fidelidad" class="seccion-tab-admin">
         <div class="row">
@@ -598,6 +603,42 @@
                         </ul>
                     </div>
                 </div>
+
+                <!-- HISTORIAL DE PREMIOS GANADOS Y CANJEADOS -->
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning text-dark fw-bold">🏆 Historial de Premios Ganados ({{ historial_premios|length }})</div>
+                    <div class="card-body p-0">
+                        <div style="max-height: 280px; overflow-y: auto;">
+                            <table class="table table-sm table-striped mb-0 small">
+                                <thead class="table-light sticky-top">
+                                    <tr><th>Cliente</th><th>Premio</th><th>Estado</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for hp in historial_premios %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ hp.cliente_nombre }}</strong><br>
+                                            <small class="text-muted">{{ hp.fecha.strftime('%d/%m %H:%M') }}</small>
+                                        </td>
+                                        <td class="fw-bold text-success">{{ hp.premio_ganado }} ({{ hp.visitas_alcanzadas }}v)</td>
+                                        <td>
+                                            {% if hp.entregado %}
+                                            <span class="badge bg-success">✅ Entregado</span>
+                                            {% else %}
+                                            <form action="{{ url_for('marcar_premio_entregado', id=hp.id) }}" method="POST" class="m-0">
+                                                <button type="submit" class="btn btn-sm btn-warning fw-bold" style="font-size:10px;">Entregar</button>
+                                            </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-center text-muted py-3">Aún no hay premios registrados.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-7">
@@ -607,7 +648,7 @@
                         <a href="{{ url_for('exportar_clientes') }}" class="btn btn-sm btn-light fw-bold text-primary">📊 Descargar Excel</a>
                     </div>
                     <div class="card-body p-0">
-                        <div style="max-height: 420px; overflow-y: auto;">
+                        <div style="max-height: 460px; overflow-y: auto;">
                             <table class="table table-striped table-hover mb-0 small">
                                 <thead class="table-light sticky-top">
                                     <tr><th>Cliente</th><th>Teléfono (WhatsApp)</th><th class="text-center">Visitas</th></tr>
@@ -800,7 +841,6 @@
         } catch(e) { destino.placeholder = "Escribe manual"; }
     }
 
-    // GENERADOR FIJO DE LAS 10 PLAQUITAS OFICIALES DEL RESTAURANTE
     function generarQRsMesasFijas() {
         let grid = document.getElementById('grid-qrs-mesas');
         let baseUrl = window.location.origin;
@@ -867,7 +907,6 @@
         cont.innerHTML = html;
     }
 
-    // SINCRONIZACIÓN CADA 3 SEGUNDOS EN ADMIN
     setInterval(async () => {
         try {
             let res = await fetch('/api/preordenes_pendientes');
@@ -879,7 +918,6 @@
         } catch(e) {}
     }, 3000);
 
-    // LATIDO ANTI-SUEÑO CADA 4 MINUTOS
     setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
 
     function crearHTMLTicketDesdeElemento(el) {
