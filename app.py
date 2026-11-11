@@ -364,7 +364,7 @@ def admin_login():
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('index'))
 
 @app.route('/admin_dashboard')
 @login_required
