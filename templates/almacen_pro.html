@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morisco Almacén Pro • Bodega Inteligente</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --verde-morisco: #13423b;
+    --verde-oscuro: #0b2924;
+    --cobre: #c98246;
+    --dorado: #ffd700;
+    --hueso: #fdfaf6;
+    --gris-borde: #e5dfd5;
+    --texto: #1e293b;
+  }
+
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  body { margin: 0; background: var(--hueso); color: var(--texto); min-height: 100vh; display: flex; flex-direction: column; }
+
+  .m-topbar {
+    background: var(--verde-oscuro); color: #fff; height: 52px; padding: 0 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 3px solid var(--cobre); position: sticky; top: 0; z-index: 100;
+  }
+  .m-brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 17px; font-weight: 700; }
+  .m-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
+  .m-links { display: flex; gap: 8px; align-items: center; }
+  .m-btn-top {
+    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(201,130,70,0.6);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .m-btn-top:hover { background: var(--cobre); }
+
+  /* PESTAÑAS PRINCIPALES */
+  .tabs-bar {
+    background: #fff; padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto;
+    border-bottom: 1px solid var(--gris-borde); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .tab-pill {
+    padding: 9px 18px; border-radius: 25px; border: 1.5px solid var(--gris-borde);
+    background: var(--hueso); color: var(--verde-morisco); font-weight: 800; font-size: 12.5px;
+    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .tab-pill.activo { background: var(--verde-morisco); color: #fff; border-color: var(--cobre); }
+  .tab-count { background: #ef4444; color: #fff; font-size: 10.5px; padding: 1px 7px; border-radius: 12px; }
+
+  .main-container { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 16px; }
+  .panel-card {
+    background: #fff; border-radius: 16px; border: 1.5px solid var(--gris-borde);
+    padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .panel-title {
+    margin: 0 0 12px 0; color: var(--verde-morisco); font-family: 'Lora', serif;
+    font-size: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .m-input, .m-select {
+    height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1;
+    padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff;
+  }
+  .m-btn {
+    height: 38px; padding: 0 16px; border-radius: 8px; border: none;
+    background: var(--verde-morisco); color: #fff; font-weight: 800; font-size: 12.5px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .m-btn:hover { opacity: 0.92; }
+  .m-btn.cobre { background: var(--cobre); }
+  .m-btn.verde { background: #16a34a; }
+  .m-btn.rojo { background: #dc2626; }
+  .m-btn.gris { background: #e2e8f0; color: #334155; }
+  .m-btn.sm { height: 30px; padding: 0 10px; font-size: 11px; }
+
+  /* FILTROS DE CATEGORÍA */
+  .cat-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cat-chip {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--gris-borde);
+    background: var(--hueso); color: var(--verde-morisco); font-size: 11.5px; font-weight: 800; cursor: pointer;
+  }
+  .cat-chip.activo { background: var(--cobre); color: #fff; border-color: var(--cobre); }
+
+  /* TABLAS */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-weight: 700; }
+  th { background: #f1f5f9; color: var(--verde-morisco); padding: 9px 10px; text-align: left; font-size: 11.5px; text-transform: uppercase; border-bottom: 2px solid var(--gris-borde); }
+  td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+  .badge-est { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
+  .est-pendiente { background: #fef08a; color: #854d0e; }
+  .est-entregado { background: #dcfce7; color: #166534; }
+  .est-no { background: #fee2e2; color: #991b1b; }
+  .est-alta { background: #dc2626; color: #fff; }
+  .est-media { background: #f59e0b; color: #fff; }
+
+  .toast-alm {
+    position: fixed; bottom: 18px; right: 18px; background: var(--verde-morisco); color: #fff;
+    border: 2px solid var(--dorado); padding: 10px 18px; border-radius: 12px;
+    font-weight: 800; font-size: 13px; display: none; z-index: 999; box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+
+  @media print {
+    .m-topbar, .tabs-bar, .no-print { display: none !important; }
+    .panel-card { border: none; box-shadow: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="m-topbar">
+    <div class="m-brand">
+      <span class="m-badge">ALMACÉN PRO</span>
+      <span>Bodega Inteligente • Quiosco Morisco ({{ current_user.username|upper }})</span>
+    </div>
+    <div class="m-links">
+      <a href="/pos" class="m-btn-top"><i class="fa-solid fa-cash-register"></i> Ir a Caja POS</a>
+      <a href="/mesero_dashboard" class="m-btn-top"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
+      <a href="/admin_dashboard" class="m-btn-top"><i class="fa-solid fa-gear"></i> Admin</a>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <button type="button" class="tab-pill activo" id="btnTab_bodega" onclick="cambiarTabAlm('bodega')">
+      <i class="fa-solid fa-clipboard-list"></i> 1. Pedidos a Bodega y Recepción Caja
+    </button>
+    <button type="button" class="tab-pill" id="btnTab_compras" onclick="cambiarTabAlm('compras')">
+      <i class="fa-solid fa-cart-shopping"></i> 2. Recomendación de Compras
+      <span class="tab-count" id="cntRecomendaciones">0</span>
+    </button>
+    <button type="button" class="tab-pill" id="btnTab_inventario" onclick="cambiarTabAlm('inventario')">
+      <i class="fa-solid fa-boxes-stacked"></i> 3. Inventario, Compras y Mermas
+    </button>
+    <button type="button" class="tab-pill" id="btnTab_proveedores" onclick="cambiarTabAlm('proveedores')">
+      <i class="fa-solid fa-truck"></i> 4. Proveedores y Pagos
+    </button>
+  </div>
+
+  <div class="main-container">
+
+    <!-- ===================================================================
+         TAB 1: PEDIDOS DE QUIOSCO A BODEGA (POR CATEGORÍAS + CONFIRMACIÓN CAJA)
+         =================================================================== -->
+    <div id="tab_bodega">
+      <div class="panel-card no-print">
+        <h3 class="panel-title">
+          <span><i class="fa-solid fa-paper-plane" style="color:var(--cobre);"></i> Solicitar Insumo a Bodega (Barra / Cocina)</span>
+        </h3>
+        <div class="form-row">
+          <select id="reqArea" class="m-select" style="width:130px;">
+            <option value="BARRA">☕ BARRA</option>
+            <option value="COCINA">🍳 COCINA</option>
+          </select>
+          <select id="reqInsumoId" class="m-select" style="flex:2;min-width:220px;"></select>
+          <input type="number" step="0.5" id="reqCantidad" value="1" min="0.5" class="m-input" style="width:95px;" placeholder="Cant.">
+          <input type="text" id="reqNota" class="m-input" style="flex:1;min-width:160px;" placeholder="Nota (opcional)...">
+          <button type="button" class="m-btn" onclick="enviarPedidoBodega()"><i class="fa-solid fa-plus"></i> Pedir a Bodega</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">
+          <span><i class="fa-solid fa-warehouse" style="color:var(--cobre);"></i> Lista de Entregas (Bodega ➔ Caja)</span>
+          <div class="no-print" style="display:flex;gap:8px;">
+            <button type="button" class="m-btn verde sm" onclick="marcarTodoEntregadoBodega()">
+              <i class="fa-solid fa-check-double"></i> Marcar Todo Entregado
+            </button>
+            <button type="button" class="m-btn gris sm" onclick="cargarDatosAlmacen()">
+              <i class="fa-solid fa-rotate"></i> Actualizar
+            </button>
+          </div>
+        </h3>
+
+        <div class="cat-chips no-print" id="chipsCatBodega"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Área</th>
+                <th>Categoría</th>
+                <th>Insumo</th>
+                <th>Cant.</th>
+                <th>Estado Bodega</th>
+                <th>Confirmación Caja</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRequerimientos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 2: RECOMENDACIÓN AUTOMÁTICA DE COMPRAS
+         =================================================================== -->
+    <div id="tab_compras" style="display:none;">
+      <div class="panel-card">
+        <h3 class="panel-title">
+          <span><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--cobre);"></i> Lista Inteligente de Compras Recomendadas</span>
+          <button type="button" class="m-btn cobre sm no-print" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Imprimir Lista de Compras
+          </button>
+        </h3>
+        <p style="margin:0 0 12px 0;font-size:12.5px;color:#64748b;font-weight:600;">
+          El sistema detecta automáticamente qué insumos marcó Bodega como <b>NO ENTREGADO</b> o cuáles están por debajo de su stock mínimo.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Urgencia</th>
+                <th>Categoría</th>
+                <th>Insumo a Comprar</th>
+                <th>Motivo Detectado</th>
+                <th>Cantidad Sugerida</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRecomendaciones"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 3: INVENTARIO, ENTRADAS (COMPRAS) Y MERMAS
+         =================================================================== -->
+    <div id="tab_inventario" style="display:none;">
+      <div class="panel-card no-print">
+        <h3 class="panel-title"><span>➕ Registrar Nuevo Insumo en Catálogo</span></h3>
+        <div class="form-row">
+          <input type="text" id="newInsNom" class="m-input" style="flex:2;min-width:180px;" placeholder="Nombre (Ej. Leche Deslactosada)">
+          <input type="text" id="newInsCat" class="m-input" style="width:160px;" placeholder="Categoría (Ej. LÁCTEOS)">
+          <input type="text" id="newInsUni" class="m-input" style="width:85px;" value="PZA" placeholder="Unidad">
+          <input type="number" step="0.5" id="newInsStock" class="m-input" style="width:100px;" placeholder="Stock ini">
+          <input type="number" step="0.5" id="newInsMin" class="m-input" style="width:100px;" value="5" placeholder="Mínimo">
+          <input type="number" step="0.5" id="newInsCosto" class="m-input" style="width:100px;" placeholder="Costo $">
+          <button type="button" class="m-btn" onclick="crearInsumoNuevo()">+ Guardar</button>
+        </div>
+      </div>
+
+      <div class="panel-card no-print">
+        <h3 class="panel-title"><span>🔄 Registrar Compra (Entrada) o Merma (Salida)</span></h3>
+        <div class="form-row">
+          <select id="movTipo" class="m-select" style="width:185px;">
+            <option value="ENTRADA_COMPRA">➕ ENTRADA (Compra)</option>
+            <option value="SALIDA_MERMA">➖ SALIDA (Merma / Daño)</option>
+            <option value="TRASPASO">🔁 TRASPASO</option>
+          </select>
+          <select id="movInsumoId" class="m-select" style="flex:2;min-width:200px;"></select>
+          <input type="number" step="0.5" id="movCant" class="m-input" style="width:95px;" placeholder="Cant.">
+          <input type="number" step="0.5" id="movCosto" class="m-input" style="width:105px;" placeholder="Costo tot $">
+          <input type="text" id="movNota" class="m-input" style="flex:1;min-width:140px;" placeholder="Proveedor o motivo...">
+          <button type="button" class="m-btn cobre" onclick="registrarMovimientoInv()">Registrar</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">
+          <span>📦 Existencias Actuales en Bodega</span>
+          <input type="text" id="buscadorInv" class="m-input no-print" style="width:240px;" placeholder="🔍 Buscar insumo..." oninput="renderizarInventario()">
+        </h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Categoría</th><th>Insumo</th><th>Stock Actual</th><th>Mínimo</th><th>Costo U.</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="tbodyInventario"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 4: PROVEEDORES Y PAGOS
+         =================================================================== -->
+    <div id="tab_proveedores" style="display:none;">
+      <div class="panel-card no-print">
+        <h3 class="panel-title"><span>🚚 Nuevo Proveedor</span></h3>
+        <div class="form-row">
+          <input type="text" id="provNom" class="m-input" style="flex:2;min-width:180px;" placeholder="Nombre del Proveedor">
+          <input type="text" id="provTel" class="m-input" style="width:150px;" placeholder="Teléfono / WhatsApp">
+          <input type="text" id="provCat" class="m-input" style="width:160px;" placeholder="Rubro (Ej. Lácteos)">
+          <input type="number" step="0.5" id="provSaldo" class="m-input" style="width:130px;" value="0" placeholder="Saldo por pagar $">
+          <button type="button" class="m-btn" onclick="crearProveedor()">+ Agregar</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title"><span>💳 Cuentas por Pagar a Proveedores</span></h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Proveedor</th><th>Teléfono</th><th>Categoría</th><th>Saldo Pendiente</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tbodyProveedores"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast-alm" id="toastAlm"></div>
+
+<script>
+  let datosAlmacen = { insumos: [], requerimientos: [], movimientos: [], proveedores: [], recomendaciones: [] };
+  let catBodegaActiva = 'TODAS';
+
+  function toast(msg) {
+    const el = document.getElementById('toastAlm');
+    el.innerText = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 2800);
+  }
+
+  function cambiarTabAlm(tab) {
+    ['bodega', 'compras', 'inventario', 'proveedores'].forEach(t => {
+      document.getElementById('tab_' + t).style.display = (t === tab) ? 'block' : 'none';
+      document.getElementById('btnTab_' + t).classList.toggle('activo', t === tab);
+    });
+  }
+
+  async function cargarDatosAlmacen() {
+    try {
+      const res = await fetch('/api/almacen/datos');
+      const d = await res.json();
+      if (!d.ok) return;
+      datosAlmacen = d;
+
+      document.getElementById('cntRecomendaciones').innerText = d.recomendaciones.length;
+
+      // Llenar selects de insumos
+      const opts = d.insumos.map(i => `<option value="${i.id}">[${i.categoria}] ${i.nombre} (Stock: ${i.stock_actual} ${i.unidad})</option>`).join('');
+      document.getElementById('reqInsumoId').innerHTML = opts;
+      document.getElementById('movInsumoId').innerHTML = opts;
+
+      renderizarChipsBodega();
+      renderizarRequerimientos();
+      renderizarRecomendaciones();
+      renderizarInventario();
+      renderizarProveedores();
+    } catch(e) {}
+  }
+
+  function renderizarChipsBodega() {
+    const cats = ['TODAS', ...new Set(datosAlmacen.requerimientos.map(r => r.categoria))];
+    document.getElementById('chipsCatBodega').innerHTML = cats.map(c =>
+      `<button type="button" class="cat-chip ${c === catBodegaActiva ? 'activo' : ''}" onclick="catBodegaActiva='${c}'; renderizarChipsBodega(); renderizarRequerimientos();">${c}</button>`
+    ).join('');
+  }
+
+  function renderizarRequerimientos() {
+    const lista = datosAlmacen.requerimientos.filter(r => catBodegaActiva === 'TODAS' || r.categoria === catBodegaActiva);
+    const tb = document.getElementById('tbodyRequerimientos');
+    if (!lista.length) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px;">No hay pedidos registrados en esta categoría.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = lista.map(r => {
+      let badgeBodega = '<span class="badge-est est-pendiente">⏳ PENDIENTE</span>';
+      if (r.estado_bodega === 'ENTREGADO') badgeBodega = '<span class="badge-est est-entregado">✅ ENTREGADO</span>';
+      else if (r.estado_bodega === 'NO_ENTREGADO') badgeBodega = '<span class="badge-est est-no">❌ NO ENTREGADO</span>';
+
+      const cajaHtml = r.confirmado_caja
+        ? '<span class="badge-est est-entregado">📦 RECIBIDO EN CAJA</span>'
+        : `<button type="button" class="m-btn verde sm" onclick="confirmarCaja(${r.id}, true)">✓ Recibido</button>
+           <button type="button" class="m-btn rojo sm" onclick="confirmarCaja(${r.id}, false)">✕ No llegó</button>`;
+
+      return `
+        <tr>
+          <td>${r.fecha}</td>
+          <td>${r.area}</td>
+          <td><small style="color:#64748b;">${r.categoria}</small></td>
+          <td>${r.insumo_nombre}${r.nota ? '<br><small style="color:var(--cobre);">' + r.nota + '</small>' : ''}</td>
+          <td>${r.cantidad} ${r.unidad}</td>
+          <td>
+            <div style="margin-bottom:4px;">${badgeBodega}</div>
+            <div class="no-print" style="display:flex;gap:4px;">
+              <button type="button" class="m-btn verde sm" onclick="cambiarEstadoBodega(${r.id}, 'ENTREGADO')">✓</button>
+              <button type="button" class="m-btn gris sm" onclick="cambiarEstadoBodega(${r.id}, 'PENDIENTE')">⏳</button>
+              <button type="button" class="m-btn rojo sm" onclick="cambiarEstadoBodega(${r.id}, 'NO_ENTREGADO')">✕</button>
+            </div>
+          </td>
+          <td>${cajaHtml}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderizarRecomendaciones() {
+    const tb = document.getElementById('tbodyRecomendaciones');
+    if (!datosAlmacen.recomendaciones.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#16a34a;padding:24px;">✅ Todo tu inventario está surtido. No hay compras urgentes.</td></tr>';
+      return;
+    }
+    tb.innerHTML = datosAlmacen.recomendaciones.map(r => `
+      <tr>
+        <td><span class="badge-est ${r.urgencia === 'ALTA' ? 'est-alta' : 'est-media'}">${r.urgencia}</span></td>
+        <td>${r.categoria}</td>
+        <td>${r.nombre}</td>
+        <td style="color:#475569;">${r.motivo}</td>
+        <td style="color:var(--verde-morisco);font-size:14px;">Comprar ${r.sugerido} ${r.unidad}</td>
+      </tr>`).join('');
+  }
+
+  function renderizarInventario() {
+    const q = (document.getElementById('buscadorInv')?.value || '').toLowerCase();
+    const lista = datosAlmacen.insumos.filter(i => i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q));
+    document.getElementById('tbodyInventario').innerHTML = lista.map(i => {
+      const bajo = i.stock_actual <= i.stock_minimo;
+      return `
+        <tr>
+          <td><small style="color:#64748b;">${i.categoria}</small></td>
+          <td>${i.nombre}</td>
+          <td style="font-size:14px;color:${bajo ? '#dc2626' : '#166534'};">${i.stock_actual} ${i.unidad}</td>
+          <td>${i.stock_minimo} ${i.unidad}</td>
+          <td>$${i.costo_unitario.toFixed(2)}</td>
+          <td><span class="badge-est ${bajo ? 'est-no' : 'est-entregado'}">${bajo ? '⚠️ STOCK BAJO' : '✅ OK'}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderizarProveedores() {
+    const tb = document.getElementById('tbodyProveedores');
+    if (!datosAlmacen.proveedores.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:20px;">Aún no hay proveedores registrados.</td></tr>';
+      return;
+    }
+    tb.innerHTML = datosAlmacen.proveedores.map(p => `
+      <tr>
+        <td>${p.nombre}</td>
+        <td>${p.telefono || '-'}</td>
+        <td>${p.categoria}</td>
+        <td style="color:${p.saldo_pendiente > 0 ? '#dc2626' : '#166534'};">$${p.saldo_pendiente.toFixed(2)}</td>
+        <td>
+          ${p.saldo_pendiente > 0
+            ? `<button type="button" class="m-btn verde sm" onclick="pagarProveedor(${p.id}, ${p.saldo_pendiente})">💵 Liquidar / Abonar</button>`
+            : '<span class="badge-est est-entregado">PAGADO</span>'}
+        </td>
+      </tr>`).join('');
+  }
+
+  async function enviarPedidoBodega() {
+    const insumo_id = document.getElementById('reqInsumoId').value;
+    const area = document.getElementById('reqArea').value;
+    const cantidad = parseFloat(document.getElementById('reqCantidad').value || 1);
+    const nota = document.getElementById('reqNota').value;
+    await fetch('/api/almacen/solicitar', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ insumo_id, area, cantidad, nota })
+    });
+    document.getElementById('reqNota').value = '';
+    toast('✓ Pedido enviado a Bodega');
+    cargarDatosAlmacen();
+  }
+
+  async function cambiarEstadoBodega(id, estado) {
+    await fetch('/api/almacen/estado_bodega', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id, estado })
+    });
+    toast(`Estado actualizado a ${estado}`);
+    cargarDatosAlmacen();
+  }
+
+  async function marcarTodoEntregadoBodega() {
+    await fetch('/api/almacen/estado_bodega', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ todos_entregados: true })
+    });
+    toast('✅ Todos los pendientes marcados como ENTREGADOS');
+    cargarDatosAlmacen();
+  }
+
+  async function confirmarCaja(id, recibido) {
+    await fetch('/api/almacen/confirmar_caja', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id, recibido })
+    });
+    toast(recibido ? '📦 Recepción confirmada en Caja' : '⚠️ Marcado como NO llegó (enviado a compras)');
+    cargarDatosAlmacen();
+  }
+
+  async function crearInsumoNuevo() {
+    const nombre = document.getElementById('newInsNom').value.trim();
+    if (!nombre) return;
+    await fetch('/api/almacen/insumo', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        nombre,
+        categoria: document.getElementById('newInsCat').value || 'ABARROTES',
+        unidad: document.getElementById('newInsUni').value || 'PZA',
+        stock_actual: parseFloat(document.getElementById('newInsStock').value || 0),
+        stock_minimo: parseFloat(document.getElementById('newInsMin').value || 5),
+        costo_unitario: parseFloat(document.getElementById('newInsCosto').value || 0)
+      })
+    });
+    document.getElementById('newInsNom').value = '';
+    toast('✅ Insumo agregado al catálogo');
+    cargarDatosAlmacen();
+  }
+
+  async function registrarMovimientoInv() {
+    const insumo_id = document.getElementById('movInsumoId').value;
+    const tipo = document.getElementById('movTipo').value;
+    const cantidad = parseFloat(document.getElementById('movCant').value || 0);
+    const costo_total = parseFloat(document.getElementById('movCosto').value || 0);
+    const nota = document.getElementById('movNota').value;
+    if (cantidad <= 0) return;
+    await fetch('/api/almacen/movimiento', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ insumo_id, tipo, cantidad, costo_total, proveedor: nota, nota })
+    });
+    document.getElementById('movCant').value = '';
+    document.getElementById('movCosto').value = '';
+    document.getElementById('movNota').value = '';
+    toast('✅ Movimiento registrado en inventario');
+    cargarDatosAlmacen();
+  }
+
+  async function crearProveedor() {
+    const nombre = document.getElementById('provNom').value.trim();
+    if (!nombre) return;
+    await fetch('/api/almacen/proveedor', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        nombre,
+        telefono: document.getElementById('provTel').value,
+        categoria: document.getElementById('provCat').value || 'GENERAL',
+        saldo_pendiente: parseFloat(document.getElementById('provSaldo').value || 0)
+      })
+    });
+    document.getElementById('provNom').value = '';
+    toast('✅ Proveedor registrado');
+    cargarDatosAlmacen();
+  }
+
+  async function pagarProveedor(id, saldoActual) {
+    await fetch('/api/almacen/proveedor', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ pagar_id: id, abono: saldoActual })
+    });
+    toast('💵 Saldo de proveedor liquidado');
+    cargarDatosAlmacen();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarDatosAlmacen();
+    setInterval(cargarDatosAlmacen, 10000);
+  });
+</script>
+</body>
+</html>

@@ -50,6 +50,8 @@
             </small>
         </div>
         <div class="d-flex gap-2">
+            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Abrir Soft Restaurant POS</a>
+            <a href="/almacen_requerimientos" class="btn btn-info btn-sm fw-bold">📦 Hojas Barra/Cocina y Almacén</a>
             <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC / Inicio</button>
             <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
         </div>
@@ -374,6 +376,20 @@
         imagenesEsperadas = elementos.length;
         imagenesCargadas = 0;
         zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
+    }
+    
+function imprimirLoteCompleto() {
+        const elementos = Array.from(document.querySelectorAll('[data-pin-activo]'));
+        if (elementos.length === 0) return;
+        const zona = document.getElementById('zona-impresion-termica');
+        imagenesEsperadas = elementos.length;
+        imagenesCargadas = 0;
+        zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
+    }
+
+    async function confirmarPreorden1Clic(idOrden) {
+        await fetch(`/api/pos/confirmar_preorden_1clic/${idOrden}`, { method: 'POST' });
+        location.reload();
     }
 </script>
 </body>

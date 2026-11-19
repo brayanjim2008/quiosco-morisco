@@ -1,0 +1,2465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morisco POS Pro • Quiosco Morisco Bistró</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --verde-morisco: #13423b;
+    --verde-oscuro: #0b2924;
+    --verde-medio: #1b564d;
+    --cobre: #c98246;
+    --cobre-claro: #e09b60;
+    --dorado: #ffd700;
+    --hueso: #fdfaf6;
+    --gris-borde: #d8d0c5;
+    --azul-celda: #dce6f2;
+    --texto: #1e293b;
+  }
+
+  * { box-sizing: border-box; user-select: none; font-family: 'Open Sans', Tahoma, sans-serif; }
+  body { margin: 0; background: var(--hueso); color: var(--texto); height: 100vh; width: 100vw; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* BARRA SUPERIOR EJECUTIVA */
+  .m-topbar {
+    background: var(--verde-oscuro); color: #fff; height: 34px; padding: 0 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid var(--cobre); font-size: 11.5px; font-weight: 700;
+  }
+  .m-brand { display: flex; align-items: center; gap: 8px; font-family: 'Lora', serif; font-size: 14px; color: #fff; }
+  .m-brand-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 10px; }
+  .m-top-links { display: flex; gap: 5px; align-items: center; }
+  .m-top-btn {
+    background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(201,130,70,0.5);
+    padding: 3px 10px; border-radius: 6px; font-size: 10.5px; font-weight: 700; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .m-top-btn:hover { background: var(--cobre); color: #fff; }
+
+  /* VISTA 1: PANTALLA DE INICIO */
+  #vistaHomeSR {
+    flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+    background: radial-gradient(circle at center, #1d5c52 0%, #13423b 60%, #0a2420 100%);
+    position: relative; overflow: hidden;
+  }
+  .home-nav-grid {
+    background: rgba(11, 41, 36, 0.88); padding: 6px 10px;
+    display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px;
+    border-bottom: 2px solid var(--cobre);
+  }
+  .home-mod-card {
+    height: 72px; background: linear-gradient(145deg, #1b564d, #113832);
+    border: 1px solid rgba(201,130,70,0.5); border-radius: 10px;
+    color: #fff; cursor: pointer; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; font-size: 9.5px; font-weight: 800; transition: 0.2s;
+  }
+  .home-mod-card:hover, .home-mod-card.activo {
+    background: linear-gradient(145deg, var(--cobre), #a8642c); border-color: var(--dorado);
+  }
+  .home-mod-card .fk { position: absolute; top: 3px; left: 6px; font-size: 8.5px; color: var(--dorado); font-weight: 800; }
+  .home-mod-card i { font-size: 22px; margin-bottom: 5px; color: var(--dorado); }
+
+  .home-dll-pill {
+    align-self: flex-end; margin: 10px 16px 0 0;
+    background: rgba(11, 41, 36, 0.85); border: 1px solid var(--cobre); border-radius: 8px;
+    padding: 5px 12px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 11.5px; font-weight: 700;
+  }
+  .home-dll-pill input {
+    background: #fff; color: var(--verde-oscuro); border: none; border-radius: 4px;
+    width: 70px; height: 22px; text-align: center; font-weight: 800;
+  }
+
+  .home-center-hero { text-align: center; color: #fff; margin: auto; }
+  .home-logo-circle {
+    width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 12px auto;
+    background: var(--verde-oscuro); border: 3px solid var(--cobre);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  }
+  .home-logo-circle img { width: 100%; height: 100%; object-fit: cover; }
+  .home-center-hero h1 { font-family: 'Lora', serif; font-size: 48px; font-weight: 700; margin: 0; }
+  .home-center-hero h1 span { color: var(--cobre-claro); }
+  .home-center-hero p { font-size: 13px; color: #d1fae5; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; font-weight: 700; }
+
+  .home-footer-bar { display: flex; justify-content: space-between; align-items: flex-end; padding: 12px 18px; }
+  .home-status-card {
+    background: rgba(11, 41, 36, 0.9); border: 1px solid var(--cobre); border-radius: 12px;
+    padding: 8px 24px; color: #fff; text-align: center; font-size: 11.5px; line-height: 1.4;
+  }
+  .home-quick-launch { display: flex; gap: 8px; }
+  .launch-big-btn {
+    width: 118px; height: 78px; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(145deg, #1b564d, #0f332d);
+    border: 2px solid var(--cobre); color: #fff; font-size: 10px; font-weight: 800;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+  .launch-big-btn.primario { background: linear-gradient(145deg, var(--cobre), #a35e26); border-color: var(--dorado); }
+  .launch-big-btn i { font-size: 24px; color: var(--dorado); }
+
+  /* VISTA 2: SERVICIO COMEDOR */
+  #vistaComedorSR { flex: 1; display: none; flex-direction: column; overflow: hidden; background: var(--hueso); }
+  .comedor-subbar {
+    background: var(--verde-morisco); color: #fff; height: 34px; padding: 0 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid var(--cobre); font-weight: 800; font-size: 13px;
+  }
+  .comedor-workspace { display: flex; flex: 1; height: calc(100vh - 68px); overflow: hidden; }
+
+  .comedor-sidebar {
+    width: 235px; background: #f3efe8; border-right: 1px solid var(--gris-borde);
+    display: flex; flex-direction: column; padding: 8px; gap: 6px;
+  }
+  .side-label { font-size: 10.5px; font-weight: 800; color: var(--verde-morisco); text-transform: uppercase; }
+  .side-select, .side-input {
+    width: 100%; height: 30px; border-radius: 6px; border: 1.5px solid #cbd5e1;
+    padding: 0 8px; font-weight: 700; font-size: 12px; background: #fff;
+  }
+  .side-accounts-box {
+    flex: 1; background: #fff; border-radius: 10px; border: 1px solid var(--gris-borde); overflow-y: auto;
+  }
+  .side-accounts-box table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: 700; }
+  .side-accounts-box th { background: var(--verde-morisco); color: #fff; padding: 6px; text-align: left; font-size: 10.5px; position: sticky; top: 0; }
+  .side-accounts-box td { padding: 6px; border-bottom: 1px solid #f1f5f9; }
+  .side-accounts-box tr.fila-cta { cursor: pointer; }
+  .side-accounts-box tr.fila-cta.activa { background: var(--cobre); color: #fff; }
+
+  @keyframes parpadeoCuenta {
+    0%, 100% { background: #fef08a; color: #854d0e; }
+    50% { background: #ef4444; color: #fff; }
+  }
+  .fila-cta.pide-cuenta { animation: parpadeoCuenta 1s infinite; font-weight: 900; }
+
+  .comedor-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 6px; gap: 6px; }
+  .cmd-grid-14 {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+    background: #fff; padding: 6px; border-radius: 12px; border: 1px solid var(--gris-borde);
+  }
+  .m-action-btn {
+    height: 46px; border-radius: 8px; border: 1px solid #e2e8f0;
+    background: #f8fafc; color: var(--verde-morisco); font-size: 9.5px; font-weight: 800;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; text-align: center;
+  }
+  .m-action-btn i { font-size: 16px; color: var(--cobre); }
+  .m-action-btn:hover, .m-action-btn.btn-destacado { background: var(--verde-morisco); color: #fff; border-color: var(--verde-morisco); }
+  .m-action-btn:hover i, .m-action-btn.btn-destacado i { color: var(--dorado); }
+  .m-action-btn.btn-cobrar { background: linear-gradient(135deg, var(--cobre), #a35e26); color: #fff; border: none; }
+  .m-action-btn.btn-cobrar i { color: #fff; }
+
+  #panelCentroComanda { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+  #panelCentroPagar {
+    flex: 1; display: none; flex-direction: column; background: #fff;
+    border-radius: 12px; border: 2px solid var(--cobre); padding: 10px; overflow: hidden;
+  }
+
+  .meta-info-card {
+    background: #fff; border-radius: 10px; border: 1px solid var(--gris-borde);
+    padding: 6px 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 14px;
+    font-size: 11px; font-weight: 700;
+  }
+  .meta-item { display: flex; align-items: center; justify-content: space-between; }
+  .meta-item span { color: #64748b; font-size: 10px; text-transform: uppercase; }
+  .meta-val {
+    background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 5px;
+    padding: 1px 7px; min-width: 100px; text-align: right; font-weight: 800; color: var(--verde-oscuro);
+  }
+  .meta-val.badge-mesa { background: var(--verde-morisco); color: var(--dorado); text-align: center; }
+
+  .order-table-card { flex: 1; background: #fff; border-radius: 10px; border: 1px solid var(--gris-borde); overflow-y: auto; }
+  .order-table-card table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: 700; }
+  .order-table-card th { background: #f1f5f9; color: var(--verde-morisco); padding: 6px 8px; text-align: left; border-bottom: 2px solid var(--gris-borde); font-size: 10.5px; position: sticky; top: 0; }
+  .order-table-card td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+  .order-table-card tr.fila-item { cursor: pointer; }
+  .order-table-card tr.fila-item.sel { background: var(--verde-morisco); color: #fff; }
+
+  .comedor-bottom-bar { height: 156px; display: flex; gap: 6px; }
+  .bottom-left-controls {
+    flex: 1; background: #fff; border-radius: 12px; border: 1px solid var(--gris-borde);
+    padding: 6px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .obs-row { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: var(--verde-morisco); }
+  .obs-row input { flex: 1; height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; padding: 0 8px; font-weight: 700; background: var(--hueso); }
+  .cmd-grid-12 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+
+  .totals-card {
+    width: 265px; background: linear-gradient(145deg, var(--verde-morisco), var(--verde-oscuro));
+    color: #fff; border-radius: 12px; border: 2px solid var(--cobre);
+    padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between;
+    font-size: 11.5px; font-weight: 700;
+  }
+  .tot-line { display: flex; justify-content: space-between; align-items: center; }
+  .tot-line.grand { border-top: 1px solid rgba(201,130,70,0.5); padding-top: 4px; font-size: 17px; font-weight: 800; color: var(--dorado); }
+
+  /* COBRO INTEGRADO */
+  .pay-layout { display: flex; flex: 1; gap: 10px; overflow: hidden; }
+  .pay-methods-col { width: 125px; display: flex; flex-direction: column; gap: 5px; }
+  .pm-btn {
+    flex: 1; border-radius: 8px; border: 1.5px solid var(--gris-borde);
+    background: var(--hueso); color: var(--verde-morisco); font-weight: 800; font-size: 10.5px;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .pm-btn.sel { background: var(--verde-morisco); color: #fff; border-color: var(--cobre); }
+  .pay-numpad-col { width: 205px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: #f3efe8; padding: 6px; border-radius: 10px; }
+  .p-key { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 18px; font-weight: 800; color: var(--verde-oscuro); cursor: pointer; }
+  .p-key.enter { grid-column: span 3; background: var(--verde-morisco); color: #fff; font-size: 14px; height: 38px; }
+  .pay-details-col { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .pay-summary-strip { display: flex; justify-content: space-between; background: #f8fafc; padding: 6px 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .pay-val-pill { font-size: 16px; font-weight: 800; color: var(--verde-morisco); }
+
+  /* VISTA 3: CAPTURA DE PRODUCTOS DE CAJA */
+  .sr-cap-overlay {
+    position: fixed; inset: 0; background: rgba(8, 28, 24, 0.82); z-index: 3500;
+    display: none; align-items: center; justify-content: center; padding: 8px;
+  }
+  .sr-cap-window {
+    width: 99vw; height: 97vh; background: #e8dfd1;
+    border: 3px solid var(--cobre); border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.65);
+  }
+  .sr-cap-titlebar {
+    background: linear-gradient(90deg, var(--verde-oscuro) 0%, var(--verde-morisco) 60%, var(--cobre) 100%);
+    color: #fff; height: 34px; padding: 0 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 15px; font-weight: 800; border-bottom: 2px solid var(--cobre);
+  }
+  .sr-cap-body { display: flex; flex: 1; overflow: hidden; padding: 5px; gap: 6px; }
+  .sr-cap-left { width: 40%; display: flex; flex-direction: column; gap: 4px; height: 100%; }
+  .sr-left-4grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .sr-cbtn {
+    height: 54px; background: linear-gradient(180deg, #1f6358 0%, #13423b 100%);
+    border: 1.5px solid var(--cobre); border-radius: 5px; color: #fff;
+    font-size: 9.5px; font-weight: 800; cursor: pointer; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; line-height: 1.05; padding: 2px;
+  }
+  .sr-cbtn:hover { background: var(--cobre); color: #fff; }
+  .sr-cbtn:active { transform: scale(0.97); }
+  .sr-cbtn .fk-tag { position: absolute; top: 2px; left: 4px; font-size: 8.5px; color: var(--dorado); font-weight: 900; }
+  .sr-cbtn i { font-size: 19px; margin-bottom: 3px; color: var(--dorado); }
+  .sr-cbtn.btn-aceptar { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); border-color: #86efac; }
+  .sr-cbtn.btn-aceptar i { color: #fff; }
+  .sr-cbtn.btn-cancelar { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); border-color: #fca5a5; }
+  .sr-cbtn.btn-cancelar i { color: #fff; }
+  .sr-cbtn.activo-tiempo { background: var(--cobre); border-color: var(--dorado); box-shadow: inset 0 0 8px rgba(0,0,0,0.4); }
+
+  .sr-visor-cant {
+    height: 54px; background: var(--azul-celda); border: 2px inset #7f9db9;
+    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 900; color: #0f172a;
+  }
+  .sr-left-table-wrap { flex: 1; display: flex; gap: 4px; overflow: hidden; }
+  .sr-left-white-grid { flex: 1; background: #eef3f9; border: 2px inset #94a3b8; overflow-y: auto; }
+  .sr-left-white-grid table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-weight: 800; color: #0f172a; }
+  .sr-left-white-grid th { background: #d0dceb; border-bottom: 1px solid #64748b; border-right: 1px solid #94a3b8; padding: 4px; font-size: 10px; text-align: left; position: sticky; top: 0; }
+  .sr-left-white-grid td { padding: 5px 4px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; }
+  .sr-left-white-grid tr.fila-cap-item { cursor: pointer; }
+  .sr-left-white-grid tr.fila-cap-item.sel { background: #2563eb; color: #fff; }
+
+  .sr-arrows-col { width: 38px; display: flex; flex-direction: column; gap: 4px; }
+  .sr-arrow-btn {
+    flex: 1; background: linear-gradient(180deg, var(--cobre), #9e5b24);
+    border: 1px solid var(--verde-oscuro); border-radius: 4px; color: #fff;
+    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .sr-left-bottom-bar { height: 54px; display: grid; grid-template-columns: 1.1fr 1.6fr 1.1fr; gap: 4px; }
+  .sr-barcode-box {
+    background: var(--cobre); border: 1px solid var(--verde-oscuro); border-radius: 5px;
+    padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  }
+  .sr-barcode-box input { width: 100%; height: 24px; background: var(--azul-celda); border: 1px solid #475569; font-weight: 800; font-size: 12px; padding: 0 6px; text-align: center; }
+
+  .sr-cap-right { width: 60%; display: flex; flex-direction: column; gap: 5px; height: 100%; }
+  .sr-top-6tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .sr-super-btn {
+    height: 56px; background: linear-gradient(180deg, var(--cobre), #a36129);
+    border: 1.5px solid var(--verde-oscuro); border-radius: 5px; color: #fff;
+    font-size: 9.5px; font-weight: 800; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  }
+  .sr-super-btn i { font-size: 20px; color: var(--dorado); }
+  .sr-super-btn.activo { background: var(--azul-celda); color: var(--verde-oscuro); border: 2px solid var(--verde-morisco); }
+  .sr-super-btn.activo i { color: var(--verde-morisco); }
+
+  .sr-subcats-12grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(2, 54px);
+    gap: 3px; background: #262626; padding: 3px; border: 2px solid #1e293b; border-radius: 4px;
+  }
+  .sr-subcat-cell {
+    border-radius: 2px; padding: 4px; font-size: 10px; font-weight: 800;
+    color: #fff; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; line-height: 1.1; text-transform: uppercase;
+  }
+  .sr-subcat-cell.nav-orange { background: linear-gradient(180deg, var(--cobre), #b0692f); color: #fff; }
+  .sr-subcat-cell.nav-orange i { font-size: 20px; color: var(--verde-oscuro); margin-bottom: 2px; }
+  .sr-subcat-cell.empty-slot { background: #c5d2e0; cursor: default; }
+  .sr-subcat-cell.cat-activa { outline: 3px solid var(--dorado); z-index: 2; }
+
+  .sc-color-0 { background: #d48c46; color: #111; }
+  .sc-color-1 { background: #1f7a4c; color: #fff; }
+  .sc-color-2 { background: #2b6cb0; color: #fff; }
+  .sc-color-3 { background: #9b6b9e; color: #fff; }
+  .sc-color-4 { background: #2c7a7b; color: #fff; }
+  .sc-color-5 { background: #00a3c4; color: #111; }
+  .sc-color-6 { background: #b7791f; color: #fff; }
+  .sc-color-7 { background: #13423b; color: #ffd700; }
+
+  .sr-products-20grid {
+    flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(4, 1fr);
+    gap: 3px; background: #1e293b; padding: 3px; border: 2px solid #0f172a; border-radius: 4px;
+  }
+  .sr-prod-cell {
+    background: #c5d2e0; padding: 6px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    font-size: 11px; font-weight: 800; color: #0f172a; border-radius: 2px;
+  }
+  .sr-prod-cell.con-producto {
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+    border-top: 4px solid var(--verde-morisco); cursor: pointer; justify-content: space-between;
+  }
+  .sr-prod-cell.con-producto:hover { background: #fef3c7; border-top-color: var(--cobre); }
+  .sr-prod-cell.nav-orange { background: linear-gradient(180deg, var(--cobre), #b0692f); color: #fff; cursor: pointer; }
+  .sr-prod-cell.nav-orange i { font-size: 22px; color: var(--verde-oscuro); margin-bottom: 3px; }
+  .sr-right-bottom-5grid { height: 54px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; background: #1e293b; padding: 3px; border-radius: 4px; }
+
+  /* VISTA 4: PRODUCTO COMPUESTO / MODIFICADORES */
+  .sr-comp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 3800; display: none; align-items: center; justify-content: center; padding: 18px; }
+  .sr-comp-window { width: 92vw; height: 90vh; background: #e8dfd1; border: 3px solid var(--cobre); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 70px rgba(0,0,0,0.75); }
+  .sr-comp-header { background: linear-gradient(90deg, var(--verde-morisco) 0%, var(--cobre) 100%); color: #fff; height: 42px; padding: 0 14px; display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: 900; border-bottom: 2px solid var(--verde-oscuro); }
+  .sr-comp-body { display: flex; flex: 1; padding: 6px; gap: 8px; overflow: hidden; }
+  .sr-comp-left { width: 35%; display: flex; flex-direction: column; gap: 5px; height: 100%; }
+  .sr-comp-3grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .sr-sep-bar { height: 36px; background: linear-gradient(180deg, var(--cobre), #a8642c); border: 1px solid var(--verde-oscuro); border-radius: 4px; color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .sr-comp-table-box { flex: 1; background: #eef3f9; border: 2px inset #94a3b8; overflow-y: auto; }
+  .sr-comp-table-box table { width: 100%; border-collapse: collapse; font-size: 12px; font-weight: 800; }
+  .sr-comp-table-box th { background: #d0dceb; padding: 4px 6px; border: 1px solid #94a3b8; text-align: left; }
+  .sr-comp-table-box tr.comp-header-blue td { background: #1d4ed8; color: #fff; padding: 4px 6px; }
+  .sr-comp-table-box td { padding: 5px 6px; border-bottom: 1px solid #cbd5e1; }
+  .sr-comp-table-box tr.fila-mod-sel { cursor: pointer; }
+  .sr-comp-table-box tr.fila-mod-sel.activa { background: var(--verde-morisco); color: #fff; }
+  .sr-comp-right { width: 65%; display: flex; flex-direction: column; gap: 5px; height: 100%; }
+  .sr-comp-groups-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .sr-grp-tab { height: 54px; background: #cbd5e1; border: 1.5px solid #64748b; border-radius: 4px; color: #0f172a; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; padding: 3px; }
+  .sr-grp-tab.activo { background: #fff; border: 2px solid var(--verde-morisco); color: var(--verde-morisco); }
+  .sr-comp-mult-bar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .sr-mult-btn { height: 48px; background: linear-gradient(180deg, var(--cobre), #a8642c); border: 1px solid var(--verde-oscuro); border-radius: 4px; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; position: relative; }
+  .sr-mult-btn.activo { background: var(--azul-celda); color: var(--verde-oscuro); border: 2px solid var(--verde-morisco); }
+  .sr-comp-mods-16grid { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 3px; background: #1e293b; padding: 3px; border: 2px solid #0f172a; border-radius: 4px; }
+  .sr-mod-cell { background: #c5d2e0; border-radius: 2px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 11.5px; font-weight: 800; color: #0f172a; }
+  .sr-mod-cell.con-mod { background: linear-gradient(180deg, var(--cobre-claro), var(--cobre)); color: #111; cursor: pointer; border: 1px solid #fff; }
+  .sr-mod-cell.con-mod:hover { background: var(--dorado); }
+
+  /* ABRIR TURNO Y CIERRE DE CAJA TÁCTIL ESTILO SOFT RESTAURANT */
+  .sr-cierre-win { width: 860px; max-width: 96vw; background: #f3efe8; border: 3px solid var(--cobre); border-radius: 14px; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
+  .sr-cierre-header { background: linear-gradient(90deg, var(--verde-oscuro), var(--verde-morisco), var(--cobre)); color: #fff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 15.5px; font-weight: 800; border-bottom: 2px solid var(--cobre); }
+  .sr-cierre-body { display: grid; grid-template-columns: 145px 250px 1fr; gap: 12px; padding: 14px; }
+  .sr-cierre-methods { display: flex; flex-direction: column; gap: 6px; }
+  .sr-cm-btn { height: 48px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #fff; color: var(--verde-morisco); font-size: 10.5px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .sr-cm-btn i { font-size: 16px; color: var(--cobre); }
+  .sr-cm-btn.activo { background: var(--verde-morisco); color: #fff; border-color: var(--dorado); }
+  .sr-cm-btn.activo i { color: var(--dorado); }
+  .sr-cierre-pad { display: flex; flex-direction: column; gap: 6px; }
+  .sr-cierre-visor { height: 46px; background: var(--azul-celda); border: 2px inset #94a3b8; border-radius: 8px; padding: 0 12px; font-size: 24px; font-weight: 900; color: var(--verde-oscuro); display: flex; align-items: center; justify-content: flex-end; }
+  .sr-cierre-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sr-ckey { height: 52px; border-radius: 8px; border: 1.5px solid var(--cobre); background: linear-gradient(180deg, #ffffff, #e8dfd1); color: var(--verde-oscuro); font-size: 22px; font-weight: 800; cursor: pointer; }
+  .sr-ckey:active { background: var(--cobre); color: #fff; }
+  .sr-ckey-enter { height: 50px; border-radius: 8px; border: none; background: linear-gradient(180deg, var(--cobre), #a35e26); color: #fff; font-size: 17px; font-weight: 900; letter-spacing: 1px; cursor: pointer; }
+  .sr-cierre-right { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+  .sr-cierre-table-box { flex: 1; background: #eef3f9; border: 2px inset #94a3b8; border-radius: 6px; overflow-y: auto; }
+  .sr-cierre-table-box table { width: 100%; border-collapse: collapse; font-size: 13px; font-weight: 800; }
+  .sr-cierre-table-box th { background: var(--verde-morisco); color: #fff; padding: 7px 8px; text-align: left; font-size: 11px; }
+  .sr-cierre-table-box td { padding: 8px; border-bottom: 1px solid #cbd5e1; cursor: pointer; }
+  .sr-cierre-table-box tr.fila-arq.activa { background: var(--cobre); color: #fff; }
+  .sr-cierre-footer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sr-btn-ok { height: 56px; border-radius: 10px; border: 2px solid #86efac; background: linear-gradient(180deg, #22c55e, #15803d); color: #fff; font-size: 24px; font-weight: 900; cursor: pointer; }
+  .sr-btn-cancel { height: 56px; border-radius: 10px; border: 2px solid #fca5a5; background: linear-gradient(180deg, #ef4444, #b91c1c); color: #fff; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+  /* MODALES AUXILIARES */
+  .m-modal { position: fixed; inset: 0; background: rgba(11, 41, 36, 0.75); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 4200; padding: 15px; }
+  .personas-card { background: #fff; width: 420px; border-radius: 20px; border: 2px solid var(--cobre); padding: 20px; text-align: center; box-shadow: 0 20px 45px rgba(0,0,0,0.4); }
+  .personas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+  .p-num-btn { height: 52px; border-radius: 12px; border: 1.5px solid var(--gris-borde); background: var(--hueso); color: var(--verde-morisco); font-size: 20px; font-weight: 800; cursor: pointer; }
+  .p-num-btn:hover { background: var(--verde-morisco); color: #fff; }
+  .pct-grid-8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+  .pct-btn { height: 44px; border-radius: 8px; border: 1.5px solid var(--cobre); background: var(--hueso); color: var(--verde-morisco); font-weight: 800; font-size: 15px; cursor: pointer; }
+  .pct-btn:hover, .pct-btn.activo { background: var(--verde-morisco); color: #fff; }
+  .admin-raquel-win { width: 920px; max-width: 95vw; height: 86vh; background: #fff; border-radius: 18px; border: 2px solid var(--cobre); display: flex; flex-direction: column; overflow: hidden; }
+  .raquel-tabs { display: flex; background: #f1f5f9; padding: 8px 14px; gap: 8px; border-bottom: 1px solid #e2e8f0; }
+  .r-tab-btn { padding: 8px 16px; border-radius: 8px; border: none; background: transparent; font-weight: 800; font-size: 12.5px; color: #64748b; cursor: pointer; }
+  .r-tab-btn.activo { background: var(--verde-morisco); color: #fff; }
+
+  #zona-impresion-pos { display: none; }
+  @media print {
+    @page { margin: 0; size: 80mm auto; }
+    body * { visibility: hidden; }
+    #no-print-pos { display: none !important; }
+    #zona-impresion-pos, #zona-impresion-pos * { visibility: visible; }
+    #zona-impresion-pos { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: bold; color: #000; }
+    .ticket-termico { width: 100%; padding: 4px 2px 12px 2px; page-break-after: always; break-after: page; border-bottom: 1px dashed #000; }
+  }
+</style>
+</head>
+<body>
+
+<div id="no-print-pos" style="display:flex; flex-direction:column; height:100vh;">
+
+  <!-- BARRA SUPERIOR -->
+  <div class="m-topbar">
+    <div class="m-brand">
+      <span class="m-brand-badge">MORISCO POS PRO</span>
+      <span>Quiosco Morisco Bistró & Café • Usuario: {{ current_user.username|upper }}</span>
+    </div>
+    <div class="m-top-links">
+      <button type="button" class="m-top-btn" onclick="mostrarHomeSR()"><i class="fa-solid fa-house"></i> Inicio</button>
+      <button type="button" class="m-top-btn" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-sliders"></i> Admin Raquel</button>
+      <button type="button" class="m-top-btn" onclick="abrirModalBitacora()"><i class="fa-solid fa-shield-halved"></i> Bitácora</button>
+      <a href="/mesero_dashboard" class="m-top-btn"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
+      <a href="/almacen_pro" class="m-top-btn"><i class="fa-solid fa-boxes-stacked"></i> Almacén Pro</a>
+      <a href="/nomina_creditos" class="m-top-btn"><i class="fa-solid fa-hand-holding-dollar"></i> Finanzas</a>
+      <button type="button" class="m-top-btn" style="background:var(--cobre);" onclick="activarPantallaCompleta()"><i class="fa-solid fa-expand"></i> F11</button>
+    </div>
+  </div>
+
+  <!-- VISTA 1: PANTALLA DE INICIO -->
+  <div id="vistaHomeSR">
+    <div>
+      <div class="home-nav-grid">
+        <div class="home-mod-card activo" onclick="mostrarComedorSR()"><span class="fk">F7</span><i class="fa-solid fa-utensils"></i><span>COMEDOR</span></div>
+        <div class="home-mod-card" onclick="mostrarComedorSR(); abrirModalPersonasNuevaMesa('RAPIDO');"><span class="fk">F9</span><i class="fa-solid fa-bolt"></i><span>RÁPIDO</span></div>
+        <div class="home-mod-card" onclick="abrirModalRetiroCaja()"><i class="fa-solid fa-money-bill-transfer"></i><span>RETIRO / DEPÓSITO</span></div>
+        <div class="home-mod-card" onclick="mostrarComedorSR()"><span class="fk">F5</span><i class="fa-solid fa-folder-open"></i><span>CONSULTAR CTAS</span></div>
+        <div class="home-mod-card" onclick="mostrarAvisoTurno()"><span class="fk">F2</span><i class="fa-regular fa-clock"></i><span>ABRIR TURNO</span></div>
+        <div class="home-mod-card" onclick="cerrarTurnoDefinitivoZ()"><span class="fk">F3</span><i class="fa-solid fa-clock-rotate-left"></i><span>CERRAR TURNO</span></div>
+        <div class="home-mod-card" onclick="abrirModalBitacora()"><i class="fa-solid fa-shield-halved"></i><span>BITÁCORA</span></div>
+        <div class="home-mod-card" onclick="abrirModalCorteX()"><i class="fa-solid fa-cash-register"></i><span>CORTE DE CAJA</span></div>
+        <div class="home-mod-card" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-wand-magic-sparkles"></i><span>CATÁLOGOS</span></div>
+        <div class="home-mod-card" onclick="window.location.href='/admin_dashboard'"><span class="fk">ESC</span><i class="fa-solid fa-door-open"></i><span>SALIR</span></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <div class="home-dll-pill">
+          <span>Tipo de cambio DLL:</span>
+          <input type="number" step="0.5" id="inputTipoCambioDLL" value="{{ '%.2f'|format(permisos.tipo_cambio_dll or 19.5) }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="home-center-hero">
+      <div class="home-logo-circle">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Quiosco Morisco" onerror="this.style.display='none'">
+      </div>
+      <h1>Quiosco <span>Morisco</span></h1>
+      <p>Punto de Venta & Fidelización • San Cristóbal</p>
+    </div>
+
+    <div class="home-footer-bar">
+      <div style="color:#fff;font-family:'Lora',serif;font-size:19px;font-weight:700;">
+        <i class="fa-solid fa-mug-hot" style="color:var(--cobre);"></i> Bistró & Café
+      </div>
+      <div class="home-status-card">
+        <div style="color:var(--dorado);font-weight:800;">🟢 ESTACIÓN CAJA PRINCIPAL ACTIVA</div>
+        <div>Turno #{{ turno.id }} • Cajero: {{ turno.cajero }} • Impresión Directa 80mm</div>
+      </div>
+      <div class="home-quick-launch">
+        <div class="launch-big-btn" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-sliders"></i><span>ADMINISTRACIÓN</span></div>
+        <div class="launch-big-btn primario" onclick="mostrarComedorSR()"><i class="fa-solid fa-cash-register"></i><span>PUNTO DE VENTA</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA 2: SERVICIO COMEDOR -->
+  <div id="vistaComedorSR">
+    <div class="comedor-subbar">
+      <div><i class="fa-solid fa-utensils" style="color:var(--dorado);margin-right:6px;"></i> SERVICIO COMEDOR Y TERRAZAS</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="notificacionSilenciosa" style="font-size:12px;color:#a7f3d0;"></span>
+        <button type="button" class="m-top-btn" onclick="mostrarHomeSR()"><i class="fa-solid fa-arrow-left"></i> Inicio</button>
+      </div>
+    </div>
+
+    <div class="comedor-workspace">
+      <div class="comedor-sidebar">
+        <div class="side-label">Área Activa</div>
+        <select class="side-select" id="selectAreaActiva" onchange="filtrarTablaCuentas()">
+          <option value="TODAS">(TODAS) ({{ cuentas|length }})</option>
+          <option value="T">02 TERRAZA (T01 - T12)</option>
+          <option value="M">01 COMEDOR (M1 - M6)</option>
+        </select>
+
+        <div class="side-label">Buscar o Abrir Cuenta</div>
+        <div style="display:flex;gap:4px;">
+          <input type="text" class="side-input" id="filtroCuentaInput" placeholder="Ej. T01, M3..." onkeyup="filtrarTablaCuentas()" onkeydown="if(event.key==='Enter') lanzarCuadritoDesdeBuscador()">
+          <button type="button" onclick="abrirModalPersonasNuevaMesa()" style="background:var(--verde-morisco);color:#fff;border:none;border-radius:6px;padding:0 11px;font-weight:800;cursor:pointer;">+</button>
+        </div>
+
+        <div class="side-accounts-box">
+          <table>
+            <thead>
+              <tr><th>Cuenta</th><th style="text-align:center;">Imp</th><th>Mesero</th><th>Orden</th></tr>
+            </thead>
+            <tbody id="tbodyCuentasAbiertas">
+              {% for c in cuentas %}
+              <tr class="fila-cta" id="fila_cta_{{ c.id }}" data-id="{{ c.id }}" data-mesa="{{ c.mesa }}" onclick="seleccionarCuenta(Number(this.getAttribute('data-id')), this)">
+                <td>{{ c.mesa }}</td>
+                <td style="text-align:center;">{{ '✅' if c.impresa else '⏳' }}</td>
+                <td>{{ c.mesero[:7] }}</td>
+                <td>{{ c.orden }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="comedor-main">
+        <div class="cmd-grid-14">
+          <button type="button" class="m-action-btn btn-destacado" onclick="abrirModalPersonasNuevaMesa()"><i class="fa-solid fa-plus-circle"></i><span>ABRIR CUENTA</span></button>
+          <button type="button" class="m-action-btn btn-destacado" onclick="abrirModalCaptura()"><i class="fa-solid fa-hand-pointer"></i><span>CAPTURA (F3)</span></button>
+          <button type="button" class="m-action-btn" onclick="enviarComandaCocinaBarra()"><i class="fa-solid fa-kitchen-set"></i><span>ENVIAR COMANDA</span></button>
+          <button type="button" class="m-action-btn" onclick="imprimirPrecuentaConPinInteligente()"><i class="fa-solid fa-print"></i><span>IMPRIMIR</span></button>
+          <button type="button" class="m-action-btn" onclick="imprimirSoloPinInteligente()"><i class="fa-solid fa-qrcode"></i><span>PIN CONSUMO</span></button>
+          <button type="button" class="m-action-btn" onclick="cancelarProductoSeleccionado()"><i class="fa-solid fa-trash-can"></i><span>CANCELAR PROD.</span></button>
+          <button type="button" class="m-action-btn btn-cobrar" onclick="mostrarPagarIntegrado()"><i class="fa-solid fa-cash-register"></i><span>PAGAR CUENTA</span></button>
+
+          <button type="button" class="m-action-btn" onclick="volverAComandaCentro()"><i class="fa-solid fa-list-check"></i><span>CONSULTAR CTAS</span></button>
+          <button type="button" class="m-action-btn" onclick="abrirModalCambiarPersonas()"><i class="fa-solid fa-users"></i><span>PERSONAS</span></button>
+          <button type="button" class="m-action-btn" onclick="abrirModalCambiarMesa()"><i class="fa-solid fa-arrows-left-right"></i><span>MOVER MESA</span></button>
+          <button type="button" class="m-action-btn" onclick="abrirModalDescuento()"><i class="fa-solid fa-percent"></i><span>DESCUENTO</span></button>
+          <button type="button" class="m-action-btn" onclick="dividirCuentaElegante()"><i class="fa-solid fa-scissors"></i><span>DIVIDIR CUENTA</span></button>
+          <button type="button" class="m-action-btn" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-sliders"></i><span>ADMIN RAQUEL</span></button>
+          <button type="button" class="m-action-btn" onclick="abrirModalCorteX()"><i class="fa-solid fa-file-invoice-dollar"></i><span>CORTE CAJA X</span></button>
+        </div>
+
+        <div id="panelCentroComanda">
+          <div class="meta-info-card">
+            <div class="meta-item"><span>Cuenta / Mesa</span><div class="meta-val badge-mesa" id="v_mesa">-</div></div>
+            <div class="meta-item"><span>Área</span><div class="meta-val" id="v_area">01 COMEDOR</div></div>
+            <div class="meta-item"><span>Personas</span><div class="meta-val" id="v_personas">1</div></div>
+            <div class="meta-item"><span>Orden</span><div class="meta-val" id="v_orden">-</div></div>
+            <div class="meta-item"><span>Mesero</span><div class="meta-val" id="v_mesero">-</div></div>
+            <div class="meta-item"><span>Folio</span><div class="meta-val" id="v_folio">0</div></div>
+            <div class="meta-item"><span>Apertura</span><div class="meta-val" id="v_apertura">-</div></div>
+            <div class="meta-item"><span>Impreso</span><div class="meta-val" id="v_impreso">NO</div></div>
+          </div>
+
+          <div class="order-table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:45px;">MOV</th>
+                  <th style="width:65px;">CANT</th>
+                  <th style="width:75px;">CLAVE</th>
+                  <th>DESCRIPCIÓN</th>
+                  <th style="width:90px;">ÁREA</th>
+                  <th style="width:90px;text-align:right;">PRECIO</th>
+                  <th style="width:100px;text-align:right;">IMPORTE</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyDetalleComanda"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="panelCentroPagar">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <h4 style="margin:0;color:var(--verde-morisco);font-family:'Lora',serif;">
+              <i class="fa-solid fa-cash-register" style="color:var(--cobre);"></i> Pagar Cuenta • Impresión Directa de Nota + PIN
+            </h4>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11.5px;font-weight:700;color:var(--verde-morisco);">Calc. Terminal:</span>
+              <button type="button" onclick="calcPropinaTerminal(10)" style="background:var(--hueso);border:1px solid var(--cobre);border-radius:5px;padding:2px 8px;font-weight:800;cursor:pointer;">+10%</button>
+              <button type="button" onclick="calcPropinaTerminal(15)" style="background:var(--hueso);border:1px solid var(--cobre);border-radius:5px;padding:2px 8px;font-weight:800;cursor:pointer;">+15%</button>
+              <span id="lblCobrarTerminal" style="font-weight:800;color:var(--cobre);font-size:12px;"></span>
+            </div>
+          </div>
+
+          <div class="pay-layout">
+            <div class="pay-methods-col">
+              <button type="button" class="pm-btn sel" onclick="selMetodoPago('EF', this)"><i class="fa-solid fa-money-bill-wave"></i><span>EFECTIVO</span></button>
+              <button type="button" class="pm-btn" onclick="selMetodoPago('TARJD', this)"><i class="fa-solid fa-credit-card"></i><span>TARJ. DÉBITO</span></button>
+              <button type="button" class="pm-btn" onclick="selMetodoPago('TARJC', this)"><i class="fa-regular fa-credit-card"></i><span>TARJ. CRÉDITO</span></button>
+              <button type="button" class="pm-btn" onclick="selMetodoPago('PROP', this)"><i class="fa-solid fa-coins"></i><span>PROPINA</span></button>
+            </div>
+
+            <div class="pay-numpad-col">
+              <button type="button" class="p-key" onclick="teclaPay('7')">7</button>
+              <button type="button" class="p-key" onclick="teclaPay('8')">8</button>
+              <button type="button" class="p-key" onclick="teclaPay('9')">9</button>
+              <button type="button" class="p-key" onclick="teclaPay('4')">4</button>
+              <button type="button" class="p-key" onclick="teclaPay('5')">5</button>
+              <button type="button" class="p-key" onclick="teclaPay('6')">6</button>
+              <button type="button" class="p-key" onclick="teclaPay('1')">1</button>
+              <button type="button" class="p-key" onclick="teclaPay('2')">2</button>
+              <button type="button" class="p-key" onclick="teclaPay('3')">3</button>
+              <button type="button" class="p-key" onclick="teclaPay('0')">0</button>
+              <button type="button" class="p-key" onclick="teclaPay('.')">.</button>
+              <button type="button" class="p-key" style="font-size:12px;" onclick="teclaPay('C')">Borrar</button>
+              <button type="button" class="p-key enter" onclick="enterMontoPago()">ENTER</button>
+            </div>
+
+            <div class="pay-details-col">
+              <div class="pay-summary-strip">
+                <div><small style="color:#64748b;font-weight:700;">CONSUMO</small><div class="pay-val-pill" id="p_total_mn">$0.00</div></div>
+                <div><small style="color:#64748b;font-weight:700;">TECLADO</small><div class="pay-val-pill" id="p_visor" style="color:var(--cobre);">$0.00</div></div>
+                <div><small style="color:#64748b;font-weight:700;">CAMBIO</small><div class="pay-val-pill" id="p_cambio" style="color:#16a34a;">$0.00</div></div>
+                <div><small style="color:#64748b;font-weight:700;">SALDO</small><div class="pay-val-pill" id="p_saldo" style="color:#dc2626;">$0.00</div></div>
+              </div>
+
+              <div class="order-table-card" style="margin:4px 0;">
+                <table>
+                  <thead>
+                    <tr><th>Descripción</th><th style="text-align:right;">Importe</th><th style="text-align:right;">Propina</th><th style="text-align:right;">Importe total</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>EFECTIVO</td><td style="text-align:right;" id="cel_ef">$0.00</td><td style="text-align:right;">$0.00</td><td style="text-align:right;" id="tot_ef">$0.00</td></tr>
+                    <tr><td>TARJ. DEBITO</td><td style="text-align:right;" id="cel_td">$0.00</td><td style="text-align:right;" id="prop_td">$0.00</td><td style="text-align:right;" id="tot_td">$0.00</td></tr>
+                    <tr><td>TARJ. CREDITO</td><td style="text-align:right;" id="cel_tc">$0.00</td><td style="text-align:right;">$0.00</td><td style="text-align:right;" id="tot_tc">$0.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:flex;gap:8px;">
+                <button type="button" onclick="procesarPagoDefinitivo()" style="flex:2;height:42px;background:var(--verde-morisco);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;">
+                  ✅ ACEPTAR E IMPRIMIR DIRECTO (F2)
+                </button>
+                <button type="button" onclick="volverAComandaCentro()" style="flex:1;height:42px;background:#e2e8f0;color:#334155;border:none;border-radius:8px;font-weight:800;cursor:pointer;">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comedor-bottom-bar">
+          <div class="bottom-left-controls">
+            <div class="obs-row">
+              <span>OBSERV.</span>
+              <input type="text" id="inputObservaciones" placeholder="Observaciones de la cuenta o cliente..." onchange="guardarObservacionCuenta()">
+            </div>
+            <div class="cmd-grid-12">
+              <button type="button" class="m-action-btn" onclick="abrirModalRetiroCaja()"><i class="fa-solid fa-money-bill-transfer"></i><span>RETIRO / DEP</span></button>
+              <button type="button" class="m-action-btn" onclick="document.getElementById('inputObservaciones').focus()"><i class="fa-solid fa-comment-dots"></i><span>OBSERVACIONES</span></button>
+              <button type="button" class="m-action-btn" onclick="mostrarAvisoTurno()"><i class="fa-regular fa-clock"></i><span>ABRIR TURNO</span></button>
+              <button type="button" class="m-action-btn" onclick="cerrarTurnoDefinitivoZ()"><i class="fa-solid fa-lock"></i><span>CERRAR TURNO</span></button>
+              <button type="button" class="m-action-btn" onclick="abrirModalBitacora()"><i class="fa-solid fa-shield-halved"></i><span>BITÁCORA</span></button>
+              <button type="button" class="m-action-btn" onclick="window.location.href='/almacen_pro'"><i class="fa-solid fa-boxes-stacked"></i><span>ALMACÉN</span></button>
+            </div>
+          </div>
+
+          <div class="totals-card">
+            <div class="tot-line"><span>SUBTOTAL</span><span id="t_subtotal">$0.00</span></div>
+            <div class="tot-line"><span>DESCUENTO</span><span id="t_descuento">$0.00</span></div>
+            <div class="tot-line"><span>IMPUESTOS</span><span id="t_iva">$0.00</span></div>
+            <div class="tot-line"><span>PROPINA</span><span id="t_propina">$0.00</span></div>
+            <div class="tot-line grand"><span>TOTAL</span><span id="t_total">$0.00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA 3: CAPTURA DE PRODUCTOS DE CAJA -->
+  <div class="sr-cap-overlay" id="modalCaptura">
+    <div class="sr-cap-window">
+      <div class="sr-cap-titlebar">
+        <div>
+          <i class="fa-solid fa-utensils" style="color:var(--dorado);margin-right:8px;"></i>
+          Captura de productos &nbsp; MESA: <span id="capMesaTitulo" style="color:var(--dorado);">M3</span> &nbsp; MESERO: <span id="capMeseroTitulo">03</span>
+        </div>
+        <button type="button" onclick="cerrarModal('modalCaptura')" style="background:#b91c1c;color:#fff;border:1px solid #fff;border-radius:4px;padding:2px 10px;font-weight:900;cursor:pointer;">X</button>
+      </div>
+
+      <div class="sr-cap-body">
+        <div class="sr-cap-left">
+          <div class="sr-left-4grid">
+            <button type="button" class="sr-cbtn" onclick="imprimirPrecuentaConPinInteligente()"><span class="fk-tag">F9</span><i class="fa-solid fa-magnifying-glass-dollar"></i><span>RESUMEN CUENTA</span></button>
+            <button type="button" class="sr-cbtn" onclick="cambiarNumeroComanda()"><span class="fk-tag">F10</span><i class="fa-solid fa-receipt"></i><span>COMANDA <b id="lblNumComanda">1</b></span></button>
+            <button type="button" class="sr-cbtn btn-aceptar" onclick="enviarYcerrarCapturaDirecto()"><span class="fk-tag">F2</span><i class="fa-solid fa-check"></i><span>ACEPTAR</span></button>
+            <button type="button" class="sr-cbtn btn-cancelar" onclick="cerrarModal('modalCaptura')"><span class="fk-tag">Esc</span><i class="fa-solid fa-xmark"></i><span>CANCELAR</span></button>
+          </div>
+
+          <div class="sr-left-4grid">
+            <button type="button" class="sr-cbtn" onclick="tecladoCantidadManual()"><span class="fk-tag">F12</span><i class="fa-solid fa-table-cells"></i><span>TECLADO</span></button>
+            <button type="button" class="sr-cbtn" onclick="ajustarCantCaptura(-1)"><i class="fa-solid fa-circle-minus" style="color:#f87171;font-size:24px;"></i></button>
+            <button type="button" class="sr-cbtn" onclick="ajustarCantCaptura(1)"><i class="fa-solid fa-circle-plus" style="color:#4ade80;font-size:24px;"></i></button>
+            <div class="sr-visor-cant" id="visorCantidadCaptura">1.00</div>
+          </div>
+
+          <div class="sr-left-4grid">
+            <button type="button" class="sr-cbtn activo-tiempo btn-tiempo-cap" onclick="seleccionarTiempoComanda(1, this)"><i class="fa-solid fa-plate-wheat"></i><span>SIN TIEMPO</span></button>
+            <button type="button" class="sr-cbtn btn-tiempo-cap" onclick="seleccionarTiempoComanda(1, this)"><i class="fa-solid fa-utensils"></i><span>1er. TIEMPO</span></button>
+            <button type="button" class="sr-cbtn btn-tiempo-cap" onclick="seleccionarTiempoComanda(2, this)"><i class="fa-solid fa-utensils"></i><span>2do. TIEMPO</span></button>
+            <button type="button" class="sr-cbtn btn-tiempo-cap" onclick="seleccionarTiempoComanda(3, this)"><i class="fa-solid fa-utensils"></i><span>3er. TIEMPO</span></button>
+          </div>
+
+          <div class="sr-left-4grid">
+            <button type="button" class="sr-cbtn" onclick="eliminarItemEnCaptura()"><span class="fk-tag">F3</span><i class="fa-solid fa-circle-xmark" style="color:#f87171;"></i><span>ELIMINAR PROD</span></button>
+            <button type="button" class="sr-cbtn" onclick="eliminarTodosItemsCaptura()"><i class="fa-solid fa-ban" style="color:#f87171;"></i><span>ELIMINAR TODO</span></button>
+            <button type="button" class="sr-cbtn" onclick="insertarSeparadorEnCaptura()"><span class="fk-tag">F4</span><span style="font-size:14px;font-weight:900;color:var(--dorado);">:::::</span><span>SEPARADOR</span></button>
+            <button type="button" class="sr-cbtn" onclick="abrirModalDescuento()"><span class="fk-tag">F5</span><span style="font-size:12px;font-weight:900;color:var(--dorado);">0 %</span><span>DESC. PRODUCTO</span></button>
+          </div>
+
+          <div class="sr-left-table-wrap">
+            <div class="sr-left-white-grid" id="scrollTablaCaptura">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:42px;">CMDA</th>
+                    <th style="width:45px;">CANT.</th>
+                    <th>DESCRIPCIÓN</th>
+                    <th style="width:68px;text-align:right;">IMPORTE</th>
+                    <th style="width:42px;text-align:right;">DESC</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyMiniCaptura"></tbody>
+              </table>
+            </div>
+            <div class="sr-arrows-col">
+              <button type="button" class="sr-arrow-btn" onclick="moverScrollCaptura(-250)"><i class="fa-solid fa-angles-up"></i></button>
+              <button type="button" class="sr-arrow-btn" onclick="moverScrollCaptura(-70)"><i class="fa-solid fa-arrow-up"></i></button>
+              <button type="button" class="sr-arrow-btn" onclick="moverScrollCaptura(70)"><i class="fa-solid fa-arrow-down"></i></button>
+              <button type="button" class="sr-arrow-btn" onclick="moverScrollCaptura(250)"><i class="fa-solid fa-angles-down"></i></button>
+            </div>
+          </div>
+
+          <div class="sr-left-bottom-bar">
+            <button type="button" class="sr-cbtn" onclick="activarModoConsultaPrecio()"><span class="fk-tag">F6</span><i class="fa-solid fa-tag"></i><span id="lblBtnConsultarPrecio">CONSULTAR PRECIOS</span></button>
+            <div class="sr-barcode-box">
+              <i class="fa-solid fa-barcode" style="font-size:18px;color:#111;"></i>
+              <input type="text" id="inputClaveRapidaCap" placeholder="Clave o nombre + Enter" onkeydown="if(event.key==='Enter') buscarPorClaveEnCaptura()">
+            </div>
+            <button type="button" class="sr-cbtn" onclick="reabrirUltimoCompuesto()"><span class="fk-tag">F8</span><span style="font-size:8.5px;line-height:1.1;">CONTINUAR CAPTURA DE PRODUCTO COMPUESTO</span></button>
+          </div>
+        </div>
+
+        <div class="sr-cap-right">
+          <div class="sr-top-6tabs">
+            <button type="button" class="sr-super-btn activo" onclick="filtrarSuperGrupoCaja('TODOS', this)"><i class="fa-solid fa-bowl-food"></i><span>TODOS</span></button>
+            <button type="button" class="sr-super-btn" onclick="filtrarSuperGrupoCaja('ALIMENTOS', this)"><i class="fa-solid fa-burger"></i><span>ALIMENTOS</span></button>
+            <button type="button" class="sr-super-btn" onclick="filtrarSuperGrupoCaja('BEBIDAS', this)"><i class="fa-solid fa-wine-bottle"></i><span>BEBIDAS</span></button>
+            <button type="button" class="sr-super-btn" onclick="filtrarSuperGrupoCaja('OTROS', this)"><i class="fa-solid fa-cake-candles"></i><span>OTROS</span></button>
+            <button type="button" class="sr-super-btn" onclick="repetirUltimoProductoCapturado()"><i class="fa-solid fa-rotate-right"></i><span>REPETIR PROD</span></button>
+            <button type="button" class="sr-super-btn" onclick="filtrarSuperGrupoCaja('FAVORITOS', this)"><i class="fa-solid fa-certificate"></i><span>FAVORITOS</span></button>
+          </div>
+
+          <div class="sr-subcats-12grid" id="grid12Subcategorias"></div>
+          <div class="sr-products-20grid" id="grid20Productos"></div>
+
+          <div class="sr-right-bottom-5grid">
+            <div class="sr-subcat-cell nav-orange" onclick="abrirModalComentarioCap()"><i class="fa-solid fa-message"></i><span>COMENTARIO ESCRITO</span></div>
+            <div class="sr-subcat-cell nav-orange" onclick="abrirCompuestoParaUltimoItem()"><i class="fa-solid fa-arrow-left"></i><span>MODIFICADORES</span></div>
+            <div class="sr-subcat-cell empty-slot"></div>
+            <div class="sr-subcat-cell empty-slot"></div>
+            <div class="sr-subcat-cell nav-orange" onclick="cambiarPaginaProductos(1)"><i class="fa-solid fa-arrow-right"></i><span>AVANZAR</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA 4: PRODUCTO COMPUESTO / MODIFICADORES -->
+  <div class="sr-comp-overlay" id="modalCompuesto">
+    <div class="sr-comp-window">
+      <div class="sr-comp-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="fa-solid fa-mug-hot" style="color:var(--dorado);"></i>
+          <span id="compTituloPlatillo">1 CAFE LATTE</span>
+        </div>
+        <button type="button" onclick="cancelarCompuesto()" style="background:#b91c1c;color:#fff;border:1px solid #fff;border-radius:4px;padding:2px 10px;font-weight:900;cursor:pointer;">X</button>
+      </div>
+
+      <div class="sr-comp-body">
+        <div class="sr-comp-left">
+          <div class="sr-comp-3grid">
+            <button type="button" class="sr-cbtn" onclick="eliminarModificadorSeleccionadoComp()"><span class="fk-tag">F3</span><i class="fa-solid fa-circle-xmark" style="color:#f87171;"></i><span>ELIMINAR</span></button>
+            <button type="button" class="sr-cbtn btn-aceptar" onclick="finalizarCompuestoYGuardar()"><span class="fk-tag">F2</span><i class="fa-solid fa-check"></i><span>FINALIZAR</span></button>
+            <button type="button" class="sr-cbtn btn-cancelar" onclick="cancelarCompuesto()"><i class="fa-solid fa-xmark"></i><span>CANCELAR</span></button>
+          </div>
+
+          <div class="sr-comp-3grid">
+            <button type="button" class="sr-cbtn activo-tiempo" onclick="seleccionarPorcionComp('TODO', this)"><i class="fa-solid fa-circle-dot"></i><span>TODO</span></button>
+            <button type="button" class="sr-cbtn" onclick="seleccionarPorcionComp('1RA MITAD', this)"><i class="fa-solid fa-circle-half-stroke"></i><span>PRIMERA MITAD</span></button>
+            <button type="button" class="sr-cbtn" onclick="seleccionarPorcionComp('2DA MITAD', this)"><i class="fa-solid fa-circle-half-stroke fa-flip-horizontal"></i><span>SEGUNDA MITAD</span></button>
+          </div>
+
+          <div class="sr-sep-bar" onclick="agregarSeparadorCompuesto()">
+            <span style="position:absolute;left:6px;font-size:9px;color:var(--dorado);">F4</span>
+            <span>Separador de Producto</span>
+          </div>
+
+          <div class="sr-comp-table-box">
+            <table>
+              <thead><tr><th>Descripción</th><th style="width:80px;text-align:right;">Importe</th></tr></thead>
+              <tbody id="tbodyModsEnCompuesto">
+                <tr class="comp-header-blue"><td>====== TODO ======</td><td style="text-align:right;">$0.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sr-comp-right">
+          <div class="sr-comp-groups-bar" id="barraGruposCompuesto">
+            <button type="button" class="sr-grp-tab activo" data-grp="SABORES" onclick="cambiarGrupoCompuesto('SABORES', this)">SABORES (0)</button>
+            <button type="button" class="sr-grp-tab" data-grp="CARGAS DE CAFE" onclick="cambiarGrupoCompuesto('CARGAS DE CAFE', this)">CARGAS DE CAFE (0)</button>
+            <button type="button" class="sr-grp-tab" data-grp="TIPO DE LECHE" onclick="cambiarGrupoCompuesto('TIPO DE LECHE', this)">TIPO DE LECHE (0)</button>
+            <button type="button" class="sr-grp-tab" data-grp="FRIO O CALIENTE" onclick="cambiarGrupoCompuesto('FRIO O CALIENTE', this)">FRIO O CALIENTE (0)</button>
+            <button type="button" class="sr-grp-tab" data-grp="EXTRAS ALIMENTOS" onclick="cambiarGrupoCompuesto('EXTRAS ALIMENTOS', this)">EXTRAS (0)</button>
+            <div class="sr-grp-tab" style="background:var(--cobre);color:#fff;gap:8px;"><i class="fa-solid fa-arrow-left"></i><i class="fa-solid fa-arrow-right"></i></div>
+          </div>
+
+          <div class="sr-comp-mult-bar">
+            <button type="button" class="sr-mult-btn activo" onclick="fijarMultMod(1, this)"><span style="position:absolute;top:2px;left:4px;font-size:8.5px;">F12</span>1 X</button>
+            <button type="button" class="sr-mult-btn" onclick="fijarMultMod(2, this)">2 X</button>
+            <button type="button" class="sr-mult-btn" onclick="fijarMultMod(3, this)">3 X</button>
+            <button type="button" class="sr-mult-btn" onclick="fijarMultMod(4, this)">4 X</button>
+            <button type="button" class="sr-mult-btn" onclick="fijarMultMod(5, this)">5 X</button>
+            <div class="sr-mult-btn" style="opacity:0.4;cursor:default;"></div>
+          </div>
+
+          <div class="sr-comp-mods-16grid" id="grid16ModificadoresComp"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALES AUXILIARES -->
+  <div class="m-modal" id="modalPersonasElegante">
+    <div class="personas-card">
+      <div style="font-size:11px;font-weight:800;color:var(--cobre);text-transform:uppercase;">Control de Mesa</div>
+      <h3 style="margin:6px 0 12px 0;color:var(--verde-morisco);font-family:'Lora',serif;" id="tituloModalPersonas">Selecciona Mesa y Personas</h3>
+      <div id="selectorMesaRapidaBox" style="margin-bottom:12px;text-align:left;">
+        <label style="font-size:11px;font-weight:800;color:var(--verde-morisco);">MESA / TERRAZA O CLIENTE:</label>
+        <input type="text" id="inputMesaElegante" placeholder="Ej. T01, M3 o nombre..." style="width:100%;height:38px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 10px;font-weight:800;font-size:15px;margin-top:4px;text-transform:uppercase;">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+          {% for t in range(1, 13) %}
+          <button type="button" data-mesa-cod="T{{ '%02d'|format(t) }}" onclick="document.getElementById('inputMesaElegante').value=this.getAttribute('data-mesa-cod')" style="background:var(--hueso);border:1px solid #cbd5e1;border-radius:5px;padding:4px 7px;font-size:11px;font-weight:800;cursor:pointer;">T{{ '%02d'|format(t) }}</button>
+          {% endfor %}
+          {% for m in range(1, 7) %}
+          <button type="button" data-mesa-cod="M{{ m }}" onclick="document.getElementById('inputMesaElegante').value=this.getAttribute('data-mesa-cod')" style="background:#e0f2fe;border:1px solid #7dd3fc;border-radius:5px;padding:4px 7px;font-size:11px;font-weight:800;cursor:pointer;">M{{ m }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:800;color:var(--verde-morisco);text-align:left;">¿CUÁNTAS PERSONAS SON?</div>
+      <div class="personas-grid">
+        {% for n in [1, 2, 3, 4, 5, 6, 7, 8] %}
+        <button type="button" class="p-num-btn" data-num="{{ n }}" onclick="confirmarAperturaElegante(Number(this.getAttribute('data-num')))">{{ n }}</button>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="cerrarModal('modalPersonasElegante')" style="width:100%;height:38px;border-radius:8px;border:none;background:#e2e8f0;color:#475569;font-weight:800;cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalComentarioCap">
+    <div class="personas-card">
+      <h4 style="margin:0 0 10px 0;color:var(--verde-morisco);font-family:'Lora',serif;">📝 Comentario Escrito de Cocina / Barra</h4>
+      <input type="text" id="inputComentarioEscritoCap" placeholder="Ej. SIN CEBOLLA, BIEN CALIENTE..." style="width:100%;height:42px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 12px;font-weight:800;font-size:14px;margin-bottom:12px;text-transform:uppercase;">
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="cerrarModal('modalComentarioCap')" style="flex:1;height:38px;border:none;border-radius:8px;background:#e2e8f0;font-weight:800;cursor:pointer;">Cancelar</button>
+        <button type="button" onclick="guardarComentarioEscritoCap()" style="flex:1;height:38px;border:none;border-radius:8px;background:var(--verde-morisco);color:#fff;font-weight:800;cursor:pointer;">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalCatalogosRaquel">
+    <div class="admin-raquel-win">
+      <div class="sr-cap-titlebar">
+        <span>👑 Administración de Platillos, Categorías y Modificadores (Raquel)</span>
+        <button type="button" onclick="cerrarModal('modalCatalogosRaquel')" style="background:rgba(255,255,255,0.2);color:#fff;border:none;padding:4px 12px;border-radius:6px;font-weight:800;cursor:pointer;">Cerrar</button>
+      </div>
+      <div class="raquel-tabs">
+        <button type="button" class="r-tab-btn activo" id="btntab_prods" onclick="cambiarTabRaquel('prods')">🍔 1. Platillos y Bebidas</button>
+        <button type="button" class="r-tab-btn" id="btntab_mods" onclick="cambiarTabRaquel('mods')">🥛 2. Modificadores por Grupo</button>
+        <button type="button" class="r-tab-btn" id="btntab_cats" onclick="cambiarTabRaquel('cats')">📂 3. Categorías</button>
+      </div>
+      <div style="flex:1;padding:14px;overflow-y:auto;">
+        <div id="tabRaquel_prods">
+          <div style="background:var(--hueso);border:1.5px solid var(--cobre);border-radius:10px;padding:10px;margin-bottom:10px;">
+            <div style="font-size:11.5px;font-weight:800;color:var(--verde-morisco);margin-bottom:6px;">➕ AGREGAR NUEVO PLATILLO O BEBIDA:</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <input type="text" id="r_prod_nombre" placeholder="Nombre (Ej. Café Latte)" style="flex:2;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+              <input type="number" step="0.5" id="r_prod_precio" placeholder="Precio ($)" style="width:105px;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+              <select id="r_prod_cat" style="flex:1;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+                {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
+              </select>
+              <button type="button" onclick="guardarNuevoProductoRaquel()" style="background:var(--verde-morisco);color:#fff;border:none;border-radius:6px;padding:0 16px;font-weight:800;cursor:pointer;">+ Guardar</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="filtroRaquelProd" placeholder="🔍 Buscar platillo por nombre..." oninput="filtrarTablaRaquel()" style="flex:2;height:34px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 10px;font-weight:700;">
+            <select id="filtroRaquelCat" onchange="filtrarTablaRaquel()" style="flex:1;height:34px;border-radius:8px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+              <option value="TODAS">Todas las categorías</option>
+              {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+            <thead><tr style="background:#f1f5f9;color:var(--verde-morisco);"><th style="padding:6px;">Platillo / Bebida</th><th style="padding:6px;">Categoría</th><th style="padding:6px;width:110px;">Precio ($)</th><th style="padding:6px;width:150px;">Acciones</th></tr></thead>
+            <tbody id="tbodyRaquelProductos"></tbody>
+          </table>
+        </div>
+
+        <div id="tabRaquel_mods" style="display:none;">
+          <div style="background:var(--hueso);border:1.5px solid var(--cobre);border-radius:10px;padding:10px;margin-bottom:12px;">
+            <div style="font-size:11.5px;font-weight:800;color:var(--verde-morisco);margin-bottom:6px;">➕ AGREGAR NUEVO MODIFICADOR A UN GRUPO:</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <select id="nuevoModGrupo" style="width:185px;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:800;">
+                <option value="SABORES">SABORES</option>
+                <option value="TIPO DE LECHE">TIPO DE LECHE</option>
+                <option value="CARGAS DE CAFE">CARGAS DE CAFE</option>
+                <option value="FRIO O CALIENTE">FRIO O CALIENTE</option>
+                <option value="EXTRAS ALIMENTOS">EXTRAS ALIMENTOS</option>
+              </select>
+              <input type="text" id="nuevoModNombre" placeholder="Nombre (Ej. CARAMELO, VAINILLA)" style="flex:1;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+              <input type="number" step="0.5" id="nuevoModPrecio" placeholder="Precio Extra ($0)" style="width:130px;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+              <button type="button" onclick="crearModificadorRaquel()" style="background:var(--verde-morisco);color:#fff;border:none;border-radius:6px;padding:0 16px;font-weight:800;cursor:pointer;">+ Agregar</button>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+            <thead><tr style="background:#f1f5f9;color:var(--verde-morisco);"><th style="padding:6px;">Grupo</th><th style="padding:6px;">Modificador</th><th style="padding:6px;">Precio Extra</th><th style="padding:6px;">Acción</th></tr></thead>
+            <tbody id="tbodyListaModificadoresRaquel"></tbody>
+          </table>
+        </div>
+
+        <div id="tabRaquel_cats" style="display:none;">
+          <div style="background:var(--hueso);border:1.5px solid var(--cobre);border-radius:10px;padding:10px;margin-bottom:12px;display:flex;gap:6px;">
+            <input type="text" id="r_cat_nombre" placeholder="Nueva Categoría..." style="flex:1;height:34px;border-radius:6px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+            <button type="button" onclick="crearCategoriaRaquel()" style="background:var(--verde-morisco);color:#fff;border:none;border-radius:6px;padding:0 16px;font-weight:800;cursor:pointer;">+ Crear Categoría</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+            <thead><tr style="background:#f1f5f9;color:var(--verde-morisco);"><th style="padding:6px;">Categoría</th><th style="padding:6px;width:110px;">Acción</th></tr></thead>
+            <tbody id="tbodyRaquelCategorias"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalCorteX">
+    <div class="personas-card" style="width:490px;text-align:left;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h4 style="margin:0;color:var(--verde-morisco);font-family:'Lora',serif;">📊 Corte de Caja X / Z</h4>
+        <button type="button" onclick="cerrarModal('modalCorteX')" style="border:none;background:#e2e8f0;border-radius:6px;padding:4px 10px;font-weight:800;cursor:pointer;">X</button>
+      </div>
+      <div id="papelCorteX" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;font-family:'Courier New',monospace;font-size:12px;font-weight:bold;max-height:360px;overflow-y:auto;white-space:pre-line;"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" onclick="imprimirCorteXActual()" style="flex:1;height:38px;background:var(--verde-morisco);color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer;">🖨️ Imprimir X Directo</button>
+        <button type="button" onclick="cerrarTurnoDefinitivoZ()" style="flex:1;height:38px;background:var(--cobre);color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer;">🔒 Cierre de Caja (Z)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalDescuentoAuth">
+    <div class="personas-card" style="width:450px;text-align:left;">
+      <h4 style="margin:0 0 8px 0;color:var(--verde-morisco);font-family:'Lora',serif;">🏷️ Aplicar Descuento Autorizado</h4>
+      <div class="pct-grid-8">
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(100, this)">100%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(75, this)">75%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(50, this)">50%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(25, this)">25%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(15, this)">15%</button>
+        <button type="button" class="pct-btn activo" onclick="fijarPctDesc(10, this)">10%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(5, this)">5%</button>
+        <button type="button" class="pct-btn" onclick="fijarPctDesc(0, this)">0%</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <input type="number" id="descPctInput" value="10" min="0" max="100" style="width:90px;height:36px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 8px;font-weight:800;text-align:center;">
+        <select id="descCriterio" style="flex:1;height:36px;border-radius:8px;border:1px solid #cbd5e1;padding:0 8px;font-weight:700;">
+          <option value="CORTESIA">Criterio: Cortesía</option>
+          <option value="CLIENTE FRECUENTE">Criterio: Cliente Frecuente</option>
+          <option value="ERROR COCINA/BARRA">Criterio: Error Cocina/Barra</option>
+          <option value="EMPLEADO">Criterio: Descuento Empleado</option>
+        </select>
+      </div>
+      <input type="text" id="descComentario" placeholder="Comentario o motivo (opcional)..." style="width:100%;height:36px;border-radius:8px;border:1px solid #cbd5e1;padding:0 10px;font-weight:700;margin-bottom:8px;">
+      <input type="password" id="descClaveAdmin" placeholder="🔒 Contraseña de Autorización (Raquel)..." style="width:100%;height:38px;border-radius:8px;border:1.5px solid #dc2626;padding:0 10px;font-weight:800;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="cerrarModal('modalDescuentoAuth')" style="flex:1;height:38px;border:none;border-radius:8px;background:#e2e8f0;font-weight:800;cursor:pointer;">Cancelar</button>
+        <button type="button" onclick="ejecutarDescuentoAutorizado()" style="flex:2;height:38px;border:none;border-radius:8px;background:var(--verde-morisco);color:#fff;font-weight:800;cursor:pointer;">✅ Autorizar Descuento</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalRetiroReal">
+    <div class="personas-card" style="width:420px;text-align:left;">
+      <h4 style="margin:0 0 10px 0;color:var(--verde-morisco);font-family:'Lora',serif;">💸 Movimiento de Efectivo en Caja</h4>
+      <select id="movCajaTipo" style="width:100%;height:38px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 10px;font-weight:800;margin-bottom:8px;">
+        <option value="RETIRO">➖ RETIRO DE EFECTIVO (Gasto / Compra)</option>
+        <option value="DEPOSITO">➕ DEPÓSITO / FONDO DE CAJA</option>
+      </select>
+      <input type="number" step="0.5" id="movCajaMonto" placeholder="Monto ($)" style="width:100%;height:38px;border-radius:8px;border:1px solid #cbd5e1;padding:0 10px;font-weight:800;margin-bottom:8px;">
+      <input type="text" id="movCajaConcepto" placeholder="Concepto (Ej. Hielo, Leche, Cambio)..." style="width:100%;height:38px;border-radius:8px;border:1px solid #cbd5e1;padding:0 10px;font-weight:700;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="cerrarModal('modalRetiroReal')" style="flex:1;height:38px;border:none;border-radius:8px;background:#e2e8f0;font-weight:800;cursor:pointer;">Cancelar</button>
+        <button type="button" onclick="ejecutarMovimientoCajaReal()" style="flex:2;height:38px;border:none;border-radius:8px;background:var(--verde-morisco);color:#fff;font-weight:800;cursor:pointer;">🖨️ Registrar e Imprimir Vale</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalMoverMesaPos">
+    <div class="personas-card" style="width:400px;text-align:left;">
+      <h4 style="margin:0 0 8px 0;color:var(--verde-morisco);font-family:'Lora',serif;">🔄 Mover Cuenta de Mesa</h4>
+      <p style="font-size:12px;margin:0 0 8px 0;color:#475569;">Mesa actual: <strong id="lblMesaMoverOrig">-</strong></p>
+      <input type="text" id="inputNuevaMesaMover" placeholder="Escribe nueva mesa (Ej. M3, T05)..." style="width:100%;height:40px;border-radius:8px;border:1.5px solid var(--cobre);padding:0 10px;font-weight:800;text-transform:uppercase;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="cerrarModal('modalMoverMesaPos')" style="flex:1;height:38px;border:none;border-radius:8px;background:#e2e8f0;font-weight:800;cursor:pointer;">Cancelar</button>
+        <button type="button" onclick="ejecutarMoverMesaPos()" style="flex:2;height:38px;border:none;border-radius:8px;background:var(--verde-morisco);color:#fff;font-weight:800;cursor:pointer;">✅ Mover Cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-modal" id="modalDividirReal">
+    <div class="personas-card" style="width:470px;text-align:left;">
+      <h4 style="margin:0 0 8px 0;color:var(--verde-morisco);font-family:'Lora',serif;">✂️ Dividir Cuenta (Separar Productos)</h4>
+      <p style="font-size:12px;margin:0 0 8px 0;color:#475569;">Marca los productos que pasarán a la cuenta nueva:</p>
+      <div id="listaItemsDividir" style="max-height:260px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin-bottom:12px;background:#f8fafc;"></div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="cerrarModal('modalDividirReal')" style="flex:1;height:38px;border:none;border-radius:8px;background:#e2e8f0;font-weight:800;cursor:pointer;">Cancelar</button>
+        <button type="button" onclick="ejecutarDividirCuentaReal()" style="flex:2;height:38px;border:none;border-radius:8px;background:var(--cobre);color:#fff;font-weight:800;cursor:pointer;">✂️ Crear Cuenta Separada</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CIERRE DE CAJA TÁCTIL (ESTILO SOFT RESTAURANT) -->
+  <div class="m-modal" id="modalArqueoCierre">
+    <div class="sr-cierre-win">
+      <div class="sr-cierre-header">
+        <span><i class="fa-solid fa-cash-register" style="color:var(--dorado);margin-right:8px;"></i> Ingrese los importes declarados para el cierre de caja</span>
+        <button type="button" onclick="cerrarModal('modalArqueoCierre')" style="background:#b91c1c;color:#fff;border:1px solid #fff;border-radius:5px;padding:2px 10px;font-weight:900;cursor:pointer;">X</button>
+      </div>
+      <div id="resumenEsperadoArqueo" style="background:var(--hueso);border-bottom:1px solid var(--gris-borde);padding:6px 14px;font-size:12px;font-weight:800;color:var(--verde-morisco);text-align:center;"></div>
+      <div class="sr-cierre-body">
+        <div class="sr-cierre-methods">
+          <button type="button" class="sr-cm-btn activo" data-clave="EF" onclick="selClaveArqueo('EF')"><i class="fa-solid fa-money-bill-wave"></i><span>EFECTIVO</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="TARJD" onclick="selClaveArqueo('TARJD')"><i class="fa-solid fa-credit-card"></i><span>TARJ. DÉBITO</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="TARJC" onclick="selClaveArqueo('TARJC')"><i class="fa-regular fa-credit-card"></i><span>TARJ. CRÉDITO</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="AMEX" onclick="selClaveArqueo('AMEX')"><i class="fa-brands fa-cc-amex"></i><span>AMEX</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="CR" onclick="selClaveArqueo('CR')"><i class="fa-solid fa-hand-holding-dollar"></i><span>CRÉDITO</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="DLL" onclick="selClaveArqueo('DLL')"><i class="fa-solid fa-dollar-sign"></i><span>DÓLARES</span></button>
+          <button type="button" class="sr-cm-btn" data-clave="VAL" onclick="selClaveArqueo('VAL')"><i class="fa-solid fa-ticket"></i><span>VALES</span></button>
+        </div>
+        <div class="sr-cierre-pad">
+          <div style="font-size:11px;font-weight:800;color:var(--verde-morisco);text-align:center;">CANTIDAD CAPTURADA (<span id="lblClaveArqActiva">EF</span>)</div>
+          <div class="sr-cierre-visor" id="visorArqueo">0</div>
+          <div class="sr-cierre-keys">
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('7')">7</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('8')">8</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('9')">9</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('4')">4</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('5')">5</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('6')">6</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('1')">1</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('2')">2</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('3')">3</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('0')">0</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('.')">.</button>
+            <button type="button" class="sr-ckey" onclick="teclaArqueo('BACK')"><i class="fa-solid fa-delete-left"></i></button>
+          </div>
+          <button type="button" class="sr-ckey-enter" onclick="aplicarMontoArqueo()">ENTER</button>
+        </div>
+        <div class="sr-cierre-right">
+          <div class="sr-cierre-table-box">
+            <table>
+              <thead><tr><th style="width:65px;">Clave</th><th>Descripción</th><th style="text-align:right;">Importe</th></tr></thead>
+              <tbody id="tbodyTablaArqueo"></tbody>
+            </table>
+          </div>
+          <div class="sr-cierre-footer-btns">
+            <button type="button" class="sr-btn-ok" onclick="confirmarCierreConArqueo()"><i class="fa-solid fa-check"></i></button>
+            <button type="button" class="sr-btn-cancel" onclick="cerrarModal('modalArqueoCierre')"><i class="fa-solid fa-xmark"></i> CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ABRIR TURNO TÁCTIL -->
+  <div class="m-modal" id="modalAbrirTurno">
+    <div class="sr-cierre-win" style="width:380px;">
+      <div class="sr-cierre-header">
+        <span><i class="fa-regular fa-clock" style="color:var(--dorado);margin-right:6px;"></i> Abrir Turno • Fondo Inicial</span>
+        <button type="button" onclick="cerrarModal('modalAbrirTurno')" style="background:#b91c1c;color:#fff;border:1px solid #fff;border-radius:5px;padding:2px 10px;font-weight:900;cursor:pointer;">X</button>
+      </div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:11.5px;font-weight:800;color:var(--verde-morisco);text-align:center;">EFECTIVO INICIAL EN CAJA ($):</div>
+        <div class="sr-cierre-visor" id="visorFondoTurno">0</div>
+        <div class="sr-cierre-keys">
+          <button type="button" class="sr-ckey" onclick="teclaFondo('7')">7</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('8')">8</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('9')">9</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('4')">4</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('5')">5</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('6')">6</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('1')">1</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('2')">2</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('3')">3</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('0')">0</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('.')">.</button>
+          <button type="button" class="sr-ckey" onclick="teclaFondo('BACK')"><i class="fa-solid fa-delete-left"></i></button>
+        </div>
+        <div class="sr-cierre-footer-btns" style="margin-top:4px;">
+          <button type="button" class="sr-btn-ok" onclick="confirmarAbrirTurnoReal()"><i class="fa-solid fa-check"></i></button>
+          <button type="button" class="sr-btn-cancel" onclick="cerrarModal('modalAbrirTurno')"><i class="fa-solid fa-xmark"></i> CANCELAR</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BITÁCORA DE AUDITORÍA -->
+  <div class="m-modal" id="modalBitacora">
+    <div class="admin-raquel-win" style="height:80vh;">
+      <div class="sr-cap-titlebar">
+        <span>🛡️ Bitácora de Auditoría</span>
+        <button type="button" onclick="cerrarModal('modalBitacora')" style="background:rgba(255,255,255,0.2);color:#fff;border:none;padding:4px 12px;border-radius:6px;font-weight:800;cursor:pointer;">Cerrar</button>
+      </div>
+      <div style="flex:1;padding:12px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+          <thead>
+            <tr style="background:#f1f5f9;color:var(--verde-morisco);">
+              <th style="padding:7px;text-align:left;">Fecha</th>
+              <th style="padding:7px;text-align:left;">Usuario</th>
+              <th style="padding:7px;text-align:left;">Autorizó</th>
+              <th style="padding:7px;text-align:left;">Acción</th>
+              <th style="padding:7px;text-align:left;">Mesa</th>
+              <th style="padding:7px;text-align:right;">Monto</th>
+              <th style="padding:7px;text-align:left;">Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyBitacoraAuditoria"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="zona-impresion-pos"></div>
+<script>
+  let cuentaActivaId = null;
+  let datosCuentaActiva = null;
+  let itemSeleccionadoId = null;
+  let ultimoTotalCuentaActiva = null;
+
+  // Catálogos en memoria para la Matriz 6x2 y 5x4 de Captura
+  let catCategorias = [];
+  let catProductos = [];
+  let catModificadores = [];
+
+  // Estado de Captura
+  let superGrupoActual = 'TODOS';
+  let subcatSeleccionada = '';
+  let paginaSubcats = 0;
+  let paginaProds = 0;
+  let cantidadCaptura = 1.0;
+  let comandaActivaNum = 1;
+  let modoConsultarPrecio = false;
+  let ultimoProductoCapturado = null;
+
+  // Estado de Producto Compuesto / Modificadores
+  let platilloCompuestoActual = null;
+  let modsEnCompuesto = [];
+  let idxModCompSel = -1;
+  let grupoCompuestoActivo = 'SABORES';
+  let multModificador = 1;
+  let porcionCompuesto = 'TODO';
+
+  // Estado de Personas y Pagos
+  let modoModalPersonas = 'NUEVA';
+  let metodoActual = 'EF';
+  let bufferNum = '';
+  let desglosePago = { EF: 0, TARJD: 0, TARJC: 0, PROP: 0 };
+
+  // Estado de Abrir Turno y Cierre de Caja Táctil
+  const filasArqueoDef = [
+    { clave: 'EF', desc: 'EFECTIVO' },
+    { clave: 'TARJD', desc: 'TARJ. DEBITO' },
+    { clave: 'TARJC', desc: 'TARJ. CREDITO' },
+    { clave: 'AMEX', desc: 'AMERICAN EXPRESS' },
+    { clave: 'CR', desc: 'CREDITO' },
+    { clave: 'DLL', desc: 'DOLARES' },
+    { clave: 'VAL', desc: 'VALES' }
+  ];
+  let valoresArqueo = { EF: 0, TARJD: 0, TARJC: 0, AMEX: 0, CR: 0, DLL: 0, VAL: 0 };
+  let claveArqueoActiva = 'EF';
+  let bufferArqueo = '';
+  let bufferFondo = '';
+
+  function notificarBarra(msg) {
+    const el = document.getElementById('notificacionSilenciosa');
+    if (el) {
+      el.innerText = msg;
+      setTimeout(() => { el.innerText = ''; }, 3500);
+    }
+  }
+
+  function mostrarHomeSR() {
+    document.getElementById('vistaHomeSR').style.display = 'flex';
+    document.getElementById('vistaComedorSR').style.display = 'none';
+  }
+
+  function mostrarComedorSR() {
+    document.getElementById('vistaHomeSR').style.display = 'none';
+    document.getElementById('vistaComedorSR').style.display = 'flex';
+    volverAComandaCentro();
+    const filas = document.querySelectorAll('.fila-cta');
+    if (filas.length > 0 && !cuentaActivaId) {
+      seleccionarCuenta(Number(filas[0].getAttribute('data-id')), filas[0]);
+    }
+  }
+
+  function mostrarPagarIntegrado() {
+    if (!datosCuentaActiva) return;
+    desglosePago = { EF: datosCuentaActiva.total_num, TARJD: 0, TARJC: 0, PROP: 0 };
+    bufferNum = '';
+    document.getElementById('p_total_mn').innerText = `$${datosCuentaActiva.total}`;
+    document.getElementById('lblCobrarTerminal').innerText = '';
+    refrescarTablaPago();
+    document.getElementById('panelCentroComanda').style.display = 'none';
+    document.getElementById('panelCentroPagar').style.display = 'flex';
+  }
+
+  function volverAComandaCentro() {
+    document.getElementById('panelCentroPagar').style.display = 'none';
+    document.getElementById('panelCentroComanda').style.display = 'flex';
+  }
+
+  function activarPantallaCompleta() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen().catch(() => {});
+  }
+
+  function cerrarModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+
+  // Atajos de teclado
+  document.addEventListener('keydown', function(e) {
+    const capAbierta = document.getElementById('modalCaptura').style.display === 'flex';
+    const compAbierta = document.getElementById('modalCompuesto').style.display === 'flex';
+
+    if (e.key === 'Escape') {
+      if (compAbierta) cancelarCompuesto();
+      else if (capAbierta) cerrarModal('modalCaptura');
+      else volverAComandaCentro();
+    } else if (e.key === 'F2') {
+      e.preventDefault();
+      if (compAbierta) finalizarCompuestoYGuardar();
+      else if (capAbierta) enviarYcerrarCapturaDirecto();
+      else if (document.getElementById('panelCentroPagar').style.display === 'flex') procesarPagoDefinitivo();
+      else mostrarPagarIntegrado();
+    } else if (e.key === 'F3') {
+      e.preventDefault();
+      if (compAbierta) eliminarModificadorSeleccionadoComp();
+      else if (capAbierta) eliminarItemEnCaptura();
+      else abrirModalCaptura();
+    } else if (e.key === 'F4' && capAbierta) {
+      e.preventDefault();
+      insertarSeparadorEnCaptura();
+    } else if (e.key === 'F7') {
+      e.preventDefault();
+      mostrarComedorSR();
+    }
+  });
+
+  // =========================================================================
+  // 1. SINCRONIZACIÓN EN VIVO TABLET -> CAJA (CADA 3 SEGUNDOS, SIN F5)
+  // =========================================================================
+  async function sincronizarCuentasEnVivoCaja() {
+    try {
+      const res = await fetch('/api/pos/cuentas_abiertas_vivo');
+      const d = await res.json();
+      if (!d.ok) return;
+
+      const tbody = document.getElementById('tbodyCuentasAbiertas');
+      if (!tbody) return;
+
+      const q = (document.getElementById('filtroCuentaInput')?.value || '').toUpperCase();
+      const area = document.getElementById('selectAreaActiva')?.value || 'TODAS';
+
+      const optTodas = document.querySelector('#selectAreaActiva option[value="TODAS"]');
+      if (optTodas) optTodas.innerText = `(TODAS) (${d.cuentas.length})`;
+
+      let sigueVivaActiva = false;
+      let html = '';
+
+      d.cuentas.forEach(c => {
+        const esActiva = (c.id === cuentaActivaId);
+        if (esActiva) {
+          sigueVivaActiva = true;
+          const ocupado = document.getElementById('panelCentroPagar').style.display === 'flex' ||
+                          document.getElementById('modalCaptura').style.display === 'flex';
+          if (!ocupado && ultimoTotalCuentaActiva !== null && ultimoTotalCuentaActiva !== c.total) {
+            seleccionarCuenta(c.id);
+          }
+          ultimoTotalCuentaActiva = c.total;
+        }
+
+        const visible = c.mesa.includes(q) && (area === 'TODAS' || c.mesa.startsWith(area));
+        const clases = `fila-cta ${esActiva ? 'activa' : ''} ${c.solicito_cuenta ? 'pide-cuenta' : ''}`;
+        const iconoImp = c.impresa ? '✅' : '⏳';
+
+        html += `
+          <tr class="${clases}" id="fila_cta_${c.id}" data-id="${c.id}" data-mesa="${c.mesa}"
+              style="display:${visible ? '' : 'none'};"
+              onclick="seleccionarCuenta(${c.id}, this)">
+            <td>${c.mesa}</td>
+            <td style="text-align:center;">${iconoImp}</td>
+            <td>${(c.mesero || '').slice(0, 7)}</td>
+            <td>${c.orden}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+
+      if (cuentaActivaId && !sigueVivaActiva) {
+        cuentaActivaId = null;
+        datosCuentaActiva = null;
+        ultimoTotalCuentaActiva = null;
+        if (d.cuentas.length > 0) {
+          seleccionarCuenta(d.cuentas[0].id);
+        } else {
+          document.getElementById('v_mesa').innerText = '-';
+          document.getElementById('tbodyDetalleComanda').innerHTML = '';
+          document.getElementById('t_subtotal').innerText = '$0.00';
+          document.getElementById('t_descuento').innerText = '$0.00';
+          document.getElementById('t_iva').innerText = '$0.00';
+          document.getElementById('t_total').innerText = '$0.00';
+        }
+      }
+    } catch(e) {}
+  }
+
+  // =========================================================================
+  // 2. APERTURA DE MESA Y PERSONAS
+  // =========================================================================
+  function abrirModalPersonasNuevaMesa(prefijo='') {
+    modoModalPersonas = 'NUEVA';
+    document.getElementById('tituloModalPersonas').innerText = 'Abrir Cuenta y Elegir Personas';
+    document.getElementById('selectorMesaRapidaBox').style.display = 'block';
+    const inp = document.getElementById('inputMesaElegante');
+    if (prefijo === 'RAPIDO') {
+      inp.value = 'RAP-' + Math.floor(100 + Math.random() * 900);
+    } else {
+      inp.value = document.getElementById('filtroCuentaInput').value.trim().toUpperCase() || 'T01';
+    }
+    document.getElementById('modalPersonasElegante').style.display = 'flex';
+  }
+
+  function lanzarCuadritoDesdeBuscador() { abrirModalPersonasNuevaMesa(); }
+
+  function abrirModalCambiarPersonas() {
+    if (!cuentaActivaId) return;
+    modoModalPersonas = 'CAMBIAR';
+    document.getElementById('tituloModalPersonas').innerText = `Personas en Mesa ${datosCuentaActiva.mesa}`;
+    document.getElementById('selectorMesaRapidaBox').style.display = 'none';
+    document.getElementById('modalPersonasElegante').style.display = 'flex';
+  }
+
+  async function confirmarAperturaElegante(numPersonas) {
+    cerrarModal('modalPersonasElegante');
+    if (modoModalPersonas === 'CAMBIAR' && cuentaActivaId) {
+      await fetch('/api/pos/renombrar_mesa', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ cuenta_id: cuentaActivaId, nueva_mesa: datosCuentaActiva.mesa, personas: numPersonas })
+      });
+      seleccionarCuenta(cuentaActivaId);
+      return;
+    }
+
+    const mesaNom = document.getElementById('inputMesaElegante').value.trim().toUpperCase() || 'T01';
+    const res = await fetch('/api/pos/abrir_mesa', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mesa: mesaNom, personas: numPersonas })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      await sincronizarCuentasEnVivoCaja();
+      await seleccionarCuenta(d.cuenta_id);
+      abrirModalCaptura();
+    }
+  }
+
+  async function seleccionarCuenta(id, filaEl) {
+    cuentaActivaId = id;
+    itemSeleccionadoId = null;
+    document.querySelectorAll('.fila-cta').forEach(r => r.classList.remove('activa'));
+    const target = filaEl || document.getElementById('fila_cta_' + id);
+    if (target) target.classList.add('activa');
+
+    const res = await fetch(`/api/pos/detalle_cuenta/${id}`);
+    const c = await res.json();
+    datosCuentaActiva = c;
+    ultimoTotalCuentaActiva = c.total;
+
+    document.getElementById('v_mesa').innerText = c.mesa;
+    document.getElementById('v_personas').innerText = c.personas;
+    document.getElementById('v_area').innerText = c.area;
+    document.getElementById('v_mesero').innerText = c.mesero;
+    document.getElementById('v_folio').innerText = c.folio;
+    document.getElementById('v_orden').innerText = c.orden;
+    document.getElementById('v_apertura').innerText = c.apertura;
+    document.getElementById('v_impreso').innerText = c.impresa ? 'SÍ' : 'NO';
+    document.getElementById('inputObservaciones').value = c.observaciones || '';
+
+    document.getElementById('t_subtotal').innerText = `$${c.subtotal}`;
+    document.getElementById('t_descuento').innerText = `$${c.descuento_monto}`;
+    document.getElementById('t_iva').innerText = `$${c.iva}`;
+    document.getElementById('t_total').innerText = `$${c.total}`;
+
+    const tb = document.getElementById('tbodyDetalleComanda');
+    const tbMini = document.getElementById('tbodyMiniCaptura');
+    tb.innerHTML = '';
+    if (tbMini) tbMini.innerHTML = '';
+
+    c.items.forEach(it => {
+      tb.innerHTML += `<tr class="fila-item" onclick="selFilaItem(${it.id}, this)">
+        <td>${it.mov}</td>
+        <td>${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
+        <td>${it.clave}</td>
+        <td>${it.descripcion}</td>
+        <td>${it.area_impresion}</td>
+        <td style="text-align:right;">$${it.precio}</td>
+        <td style="text-align:right;">$${it.importe}</td>
+      </tr>`;
+
+      if (tbMini) {
+        tbMini.innerHTML += `<tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}" onclick="selFilaCapItem(${it.id}, this)">
+          <td>${it.comanda}</td>
+          <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(2)}</td>
+          <td>${it.descripcion}</td>
+          <td style="text-align:right;">$${it.importe}</td>
+          <td style="text-align:right;">0%</td>
+        </tr>`;
+      }
+    });
+  }
+
+  function selFilaItem(id, trEl) {
+    itemSeleccionadoId = id;
+    document.querySelectorAll('.fila-item').forEach(r => r.classList.remove('sel'));
+    trEl.classList.add('sel');
+  }
+
+  function selFilaCapItem(id, trEl) {
+    itemSeleccionadoId = id;
+    document.querySelectorAll('.fila-cap-item').forEach(r => r.classList.remove('sel'));
+    trEl.classList.add('sel');
+  }
+
+  // =========================================================================
+  // 3. PANTALLA DE CAPTURA DE PRODUCTOS (MATRIZ 6x2 Y 5x4)
+  // =========================================================================
+  async function abrirModalCaptura() {
+    if (!cuentaActivaId) { abrirModalPersonasNuevaMesa(); return; }
+    await cargarCatalogoCompletoRaquel();
+    document.getElementById('capMesaTitulo').innerText = datosCuentaActiva.mesa;
+    document.getElementById('capMeseroTitulo').innerText = datosCuentaActiva.mesero;
+    cantidadCaptura = 1.0;
+    document.getElementById('visorCantidadCaptura').innerText = '1.00';
+    filtrarSuperGrupoCaja('TODOS', document.querySelector('.sr-super-btn'));
+    document.getElementById('modalCaptura').style.display = 'flex';
+  }
+
+  function ajustarCantCaptura(delta) {
+    cantidadCaptura = Math.max(1.0, cantidadCaptura + delta);
+    document.getElementById('visorCantidadCaptura').innerText = cantidadCaptura.toFixed(2);
+  }
+
+  function tecladoCantidadManual() {
+    cantidadCaptura = (cantidadCaptura >= 5) ? 1.0 : (cantidadCaptura + 1.0);
+    document.getElementById('visorCantidadCaptura').innerText = cantidadCaptura.toFixed(2);
+  }
+
+  function cambiarNumeroComanda() {
+    comandaActivaNum = (comandaActivaNum % 4) + 1;
+    document.getElementById('lblNumComanda').innerText = comandaActivaNum;
+  }
+
+  function seleccionarTiempoComanda(numTiempo, btnEl) {
+    document.querySelectorAll('.btn-tiempo-cap').forEach(b => b.classList.remove('activo-tiempo'));
+    btnEl.classList.add('activo-tiempo');
+    comandaActivaNum = numTiempo;
+    document.getElementById('lblNumComanda').innerText = numTiempo;
+  }
+
+  function moverScrollCaptura(px) {
+    const box = document.getElementById('scrollTablaCaptura');
+    if (box) box.scrollTop += px;
+  }
+
+  async function eliminarItemEnCaptura() {
+    if (!itemSeleccionadoId && datosCuentaActiva && datosCuentaActiva.items.length > 0) {
+      itemSeleccionadoId = datosCuentaActiva.items[datosCuentaActiva.items.length - 1].id;
+    }
+    if (!itemSeleccionadoId) return;
+    await fetch('/api/pos/cancelar_item', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ item_id: itemSeleccionadoId })
+    });
+    itemSeleccionadoId = null;
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  async function eliminarTodosItemsCaptura() {
+    if (!datosCuentaActiva || !datosCuentaActiva.items.length) return;
+    for (const it of datosCuentaActiva.items) {
+      await fetch('/api/pos/cancelar_item', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ item_id: it.id })
+      });
+    }
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  async function insertarSeparadorEnCaptura() {
+    if (!cuentaActivaId) return;
+    await fetch('/api/pos/capturar_item', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: 1, descripcion: '============', precio: 0, categoria: 'Cocina', clave: 'SEP', es_modificador: true })
+    });
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  function activarModoConsultaPrecio() {
+    modoConsultarPrecio = !modoConsultarPrecio;
+    document.getElementById('lblBtnConsultarPrecio').innerText = modoConsultarPrecio ? '🔍 TOCA UN PROD' : 'CONSULTAR PRECIOS';
+  }
+
+  function filtrarSuperGrupoCaja(grupo, btnEl) {
+    superGrupoActual = grupo;
+    paginaSubcats = 0;
+    paginaProds = 0;
+    document.querySelectorAll('.sr-super-btn').forEach(b => b.classList.remove('activo'));
+    if (btnEl) btnEl.classList.add('activo');
+
+    const listaSub = obtenerSubcategoriasFiltradas();
+    subcatSeleccionada = listaSub.length > 0 ? listaSub[0].nombre : 'TODAS';
+    renderizarMatriz12Subcategorias();
+    renderizarMatriz20Productos();
+  }
+
+  function obtenerSubcategoriasFiltradas() {
+    if (superGrupoActual === 'FAVORITOS') return [];
+    return catCategorias.filter(c => {
+      const n = c.nombre.toLowerCase();
+      const esBeb = n.includes('bebida') || n.includes('caliente') || n.includes('fría') || n.includes('fria') || n.includes('frapp') || n.includes('infus') || n.includes('jugo') || n.includes('refresco') || n.includes('agua') || n.includes('cerveza') || n.includes('coctel') || n.includes('café');
+      const esOtro = n.includes('postre') || n.includes('extra') || n.includes('modificador');
+      if (superGrupoActual === 'BEBIDAS') return esBeb;
+      if (superGrupoActual === 'ALIMENTOS') return (!esBeb && !esOtro);
+      if (superGrupoActual === 'OTROS') return esOtro;
+      return true;
+    });
+  }
+
+  function renderizarMatriz12Subcategorias() {
+    const grid = document.getElementById('grid12Subcategorias');
+    const subcats = obtenerSubcategoriasFiltradas();
+    const inicio = paginaSubcats * 10;
+    const slice = subcats.slice(inicio, inicio + 10);
+
+    let html = `<div class="sr-subcat-cell nav-orange" onclick="cambiarPaginaSubcats(-1)"><i class="fa-solid fa-arrow-left"></i><span>RETROCEDER</span></div>`;
+    for (let i = 0; i < 10; i++) {
+      if (i < slice.length) {
+        const sc = slice[i];
+        const activa = (sc.nombre === subcatSeleccionada) ? 'cat-activa' : '';
+        const colorCls = `sc-color-${(inicio + i) % 8}`;
+        html += `<div class="sr-subcat-cell ${colorCls} ${activa}" data-sc="${sc.nombre}" onclick="seleccionarSubcatCaja(this.getAttribute('data-sc'))"><span>${sc.nombre}</span></div>`;
+      } else {
+        html += `<div class="sr-subcat-cell empty-slot"></div>`;
+      }
+    }
+    html += `<div class="sr-subcat-cell nav-orange" onclick="cambiarPaginaSubcats(1)"><i class="fa-solid fa-arrow-right"></i><span>AVANZAR</span></div>`;
+    grid.innerHTML = html;
+  }
+
+  function cambiarPaginaSubcats(delta) {
+    const subcats = obtenerSubcategoriasFiltradas();
+    const maxPag = Math.max(0, Math.ceil(subcats.length / 10) - 1);
+    paginaSubcats = Math.min(maxPag, Math.max(0, paginaSubcats + delta));
+    renderizarMatriz12Subcategorias();
+  }
+
+  function seleccionarSubcatCaja(nomSubcat) {
+    subcatSeleccionada = nomSubcat;
+    paginaProds = 0;
+    renderizarMatriz12Subcategorias();
+    renderizarMatriz20Productos();
+  }
+
+  function renderizarMatriz20Productos() {
+    const grid = document.getElementById('grid20Productos');
+    let prods = [];
+    if (superGrupoActual === 'FAVORITOS') {
+      prods = catProductos.filter(p => p.destacado && !p.agotado);
+    } else {
+      prods = catProductos.filter(p => !p.agotado && (!subcatSeleccionada || subcatSeleccionada === 'TODAS' || p.categoria === subcatSeleccionada));
+    }
+
+    const inicio = paginaProds * 18;
+    const slice = prods.slice(inicio, inicio + 18);
+
+    let html = `<div class="sr-prod-cell nav-orange" onclick="cambiarPaginaProductos(-1)"><i class="fa-solid fa-arrow-left"></i><span>RETROCEDER</span></div>`;
+    for (let i = 0; i < 18; i++) {
+      if (i < slice.length) {
+        const p = slice[i];
+        html += `
+          <div class="sr-prod-cell con-producto" data-id="${p.id}" data-nom="${p.nombre}" data-pre="${p.precio}" data-cat="${p.categoria}" onclick="tocarProductoEnMatrizCaja(this)">
+            <div style="font-size:11px;line-height:1.15;">${p.nombre.toUpperCase()}</div>
+            <div style="color:var(--cobre);font-size:12px;font-weight:900;">$${p.precio.toFixed(2)}</div>
+          </div>`;
+      } else {
+        html += `<div class="sr-prod-cell"></div>`;
+      }
+    }
+    html += `<div class="sr-prod-cell nav-orange" onclick="cambiarPaginaProductos(1)"><i class="fa-solid fa-arrow-right"></i><span>AVANZAR</span></div>`;
+    grid.innerHTML = html;
+  }
+
+  function cambiarPaginaProductos(delta) {
+    paginaProds = Math.max(0, paginaProds + delta);
+    renderizarMatriz20Productos();
+  }
+
+  async function tocarProductoEnMatrizCaja(celdaEl) {
+    const id = celdaEl.getAttribute('data-id');
+    const nombre = celdaEl.getAttribute('data-nom');
+    const precio = parseFloat(celdaEl.getAttribute('data-pre') || 0);
+    const categoria = celdaEl.getAttribute('data-cat');
+
+    if (modoConsultarPrecio) {
+      modoConsultarPrecio = false;
+      document.getElementById('lblBtnConsultarPrecio').innerText = `${nombre}: $${precio.toFixed(2)}`;
+      return;
+    }
+
+    ultimoProductoCapturado = { id, nombre, precio, categoria, cantidad: cantidadCaptura };
+    abrirVentanaCompuesta(ultimoProductoCapturado);
+  }
+
+  async function repetirUltimoProductoCapturado() {
+    if (!ultimoProductoCapturado || !cuentaActivaId) return;
+    await fetch('/api/pos/capturar_item', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: cantidadCaptura,
+        descripcion: ultimoProductoCapturado.nombre, precio: ultimoProductoCapturado.precio,
+        categoria: ultimoProductoCapturado.categoria, clave: '0' + ultimoProductoCapturado.id, es_modificador: false
+      })
+    });
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  function buscarPorClaveEnCaptura() {
+    const q = document.getElementById('inputClaveRapidaCap').value.trim().toLowerCase();
+    if (!q) return;
+    const prod = catProductos.find(p => ('0' + p.id) === q || String(p.id) === q || p.nombre.toLowerCase().includes(q));
+    if (prod) {
+      document.getElementById('inputClaveRapidaCap').value = '';
+      ultimoProductoCapturado = { id: prod.id, nombre: prod.nombre, precio: prod.precio, categoria: prod.categoria, cantidad: cantidadCaptura };
+      abrirVentanaCompuesta(ultimoProductoCapturado);
+    }
+  }
+
+  // =========================================================================
+  // 4. PRODUCTO COMPUESTO / MODIFICADORES
+  // =========================================================================
+  function abrirVentanaCompuesta(prodObj) {
+    platilloCompuestoActual = prodObj;
+    modsEnCompuesto = [];
+    idxModCompSel = -1;
+    multModificador = 1;
+    porcionCompuesto = 'TODO';
+
+    document.getElementById('compTituloPlatillo').innerText = `${parseInt(prodObj.cantidad)} ${prodObj.nombre.toUpperCase()}`;
+
+    const catLow = prodObj.categoria.toLowerCase();
+    const esBeb = catLow.includes('caliente') || catLow.includes('fría') || catLow.includes('fria') || catLow.includes('frapp') || catLow.includes('bebida') || catLow.includes('café');
+    const grpInicial = esBeb ? 'SABORES' : 'EXTRAS ALIMENTOS';
+    const tabGrp = document.querySelector(`.sr-grp-tab[data-grp="${grpInicial}"]`) || document.querySelector('.sr-grp-tab');
+
+    cambiarGrupoCompuesto(grpInicial, tabGrp);
+    actualizarContadoresGruposComp();
+    renderizarTablaModsEnCompuesto();
+    document.getElementById('modalCompuesto').style.display = 'flex';
+  }
+
+  function reabrirUltimoCompuesto() { if (ultimoProductoCapturado) abrirVentanaCompuesta(ultimoProductoCapturado); }
+  function abrirCompuestoParaUltimoItem() {
+    if (ultimoProductoCapturado) abrirVentanaCompuesta(ultimoProductoCapturado);
+    else abrirVentanaCompuesta({ id: 99, nombre: 'MODIFICADOR EXTRA', precio: 0, categoria: 'Barra', cantidad: 1, soloMod: true });
+  }
+
+  function cambiarGrupoCompuesto(nombreGrupo, btnEl) {
+    grupoCompuestoActivo = nombreGrupo;
+    document.querySelectorAll('.sr-grp-tab').forEach(t => t.classList.remove('activo'));
+    if (btnEl) btnEl.classList.add('activo');
+    renderizarMatriz16ModsCompuesto();
+  }
+
+  function fijarMultMod(n, btnEl) {
+    multModificador = n;
+    document.querySelectorAll('.sr-mult-btn').forEach(b => b.classList.remove('activo'));
+    if (btnEl) btnEl.classList.add('activo');
+  }
+
+  function seleccionarPorcionComp(porcion) {
+    porcionCompuesto = porcion;
+    renderizarTablaModsEnCompuesto();
+  }
+
+  function renderizarMatriz16ModsCompuesto() {
+    const grid = document.getElementById('grid16ModificadoresComp');
+    const filtrados = catModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoCompuestoActivo);
+    const lista = filtrados.length > 0 ? filtrados : catModificadores;
+
+    let html = `<div class="sr-mod-cell con-mod" onclick="cancelarCompuesto()"><i class="fa-solid fa-arrow-left" style="font-size:20px;color:var(--verde-oscuro);margin-bottom:3px;"></i><span>RETROCEDER</span></div>`;
+    for (let i = 0; i < 14; i++) {
+      if (i < lista.length) {
+        const m = lista[i];
+        const etqPrecio = m.precio > 0 ? `<small style="color:var(--verde-oscuro);margin-top:3px;">+$${m.precio.toFixed(2)}</small>` : '';
+        html += `<div class="sr-mod-cell con-mod" onclick="agregarModAlCompuesto(${m.id})"><span>${m.nombre}</span>${etqPrecio}</div>`;
+      } else {
+        html += `<div class="sr-mod-cell"></div>`;
+      }
+    }
+    html += `<div class="sr-mod-cell con-mod" onclick="finalizarCompuestoYGuardar()"><i class="fa-solid fa-arrow-right" style="font-size:20px;color:var(--verde-oscuro);margin-bottom:3px;"></i><span>AVANZAR</span></div>`;
+    grid.innerHTML = html;
+  }
+
+  function agregarModAlCompuesto(idMod) {
+    const mod = catModificadores.find(m => m.id === idMod);
+    if (!mod) return;
+    for (let k = 0; k < multModificador; k++) {
+      modsEnCompuesto.push({ id: mod.id, clave: mod.clave, grupo: mod.grupo || 'SABORES', nombre: mod.nombre, precio: mod.precio });
+    }
+    idxModCompSel = modsEnCompuesto.length - 1;
+    actualizarContadoresGruposComp();
+    renderizarTablaModsEnCompuesto();
+  }
+
+  function actualizarContadoresGruposComp() {
+    document.querySelectorAll('.sr-grp-tab[data-grp]').forEach(tab => {
+      const g = tab.getAttribute('data-grp');
+      const cnt = modsEnCompuesto.filter(x => (x.grupo || 'SABORES').toUpperCase() === g).length;
+      const tituloCorto = g === 'EXTRAS ALIMENTOS' ? 'EXTRAS' : g;
+      tab.innerText = `${tituloCorto} (${cnt})`;
+    });
+  }
+
+  function renderizarTablaModsEnCompuesto() {
+    const tb = document.getElementById('tbodyModsEnCompuesto');
+    let html = `<tr class="comp-header-blue"><td>====== ${porcionCompuesto} ======</td><td style="text-align:right;">$0.00</td></tr>`;
+    modsEnCompuesto.forEach((m, idx) => {
+      html += `<tr class="fila-mod-sel ${idx === idxModCompSel ? 'activa' : ''}" onclick="idxModCompSel=${idx}; renderizarTablaModsEnCompuesto();">
+        <td>&gt;${m.nombre}</td><td style="text-align:right;">$${m.precio.toFixed(2)}</td>
+      </tr>`;
+    });
+    tb.innerHTML = html;
+  }
+
+  function eliminarModificadorSeleccionadoComp() {
+    if (idxModCompSel >= 0 && idxModCompSel < modsEnCompuesto.length) {
+      modsEnCompuesto.splice(idxModCompSel, 1);
+      idxModCompSel = modsEnCompuesto.length - 1;
+      actualizarContadoresGruposComp();
+      renderizarTablaModsEnCompuesto();
+    }
+  }
+
+  function agregarSeparadorCompuesto() {
+    modsEnCompuesto.push({ id: 0, clave: 'SEP', grupo: 'SABORES', nombre: '------------', precio: 0 });
+    renderizarTablaModsEnCompuesto();
+  }
+
+  function cancelarCompuesto() { document.getElementById('modalCompuesto').style.display = 'none'; }
+
+  async function finalizarCompuestoYGuardar() {
+    if (!platilloCompuestoActual || !cuentaActivaId) return;
+    document.getElementById('modalCompuesto').style.display = 'none';
+
+    if (!platilloCompuestoActual.soloMod) {
+      await fetch('/api/pos/capturar_item', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: platilloCompuestoActual.cantidad,
+          descripcion: platilloCompuestoActual.nombre, precio: platilloCompuestoActual.precio,
+          categoria: platilloCompuestoActual.categoria, clave: '0' + platilloCompuestoActual.id, es_modificador: false
+        })
+      });
+    }
+
+    for (const m of modsEnCompuesto) {
+      await fetch('/api/pos/capturar_item', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: 1,
+          descripcion: m.nombre, precio: m.precio, categoria: platilloCompuestoActual.categoria,
+          clave: m.clave, es_modificador: true
+        })
+      });
+    }
+
+    cantidadCaptura = 1.0;
+    document.getElementById('visorCantidadCaptura').innerText = '1.00';
+    await seleccionarCuenta(cuentaActivaId);
+  }
+
+  function abrirModalComentarioCap() {
+    document.getElementById('inputComentarioEscritoCap').value = '';
+    document.getElementById('modalComentarioCap').style.display = 'flex';
+  }
+
+  async function guardarComentarioEscritoCap() {
+    const txt = document.getElementById('inputComentarioEscritoCap').value.trim().toUpperCase();
+    cerrarModal('modalComentarioCap');
+    if (!txt || !cuentaActivaId) return;
+    await fetch('/api/pos/capturar_item', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: 1, descripcion: txt, precio: 0, categoria: 'Cocina', clave: 'NOTA', es_modificador: true })
+    });
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  // =========================================================================
+  // 5. ADMINISTRACIÓN DE RAQUEL + BUSCADOR INTELIGENTE
+  // =========================================================================
+  function cambiarTabRaquel(tab) {
+    ['prods', 'mods', 'cats'].forEach(t => {
+      document.getElementById('tabRaquel_' + t).style.display = (t === tab) ? 'block' : 'none';
+      document.getElementById('btntab_' + t).classList.toggle('activo', t === tab);
+    });
+  }
+
+  async function cargarCatalogoCompletoRaquel() {
+    const res = await fetch('/api/pos/catalogo_completo');
+    const d = await res.json();
+    if (!d.ok) return;
+
+    catCategorias = d.categorias;
+    catProductos = d.productos;
+    catModificadores = d.modificadores;
+
+    const tbMods = document.getElementById('tbodyListaModificadoresRaquel');
+    if (tbMods) {
+      tbMods.innerHTML = d.modificadores.map(m => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:6px;"><span style="background:var(--verde-morisco);color:#fff;padding:2px 8px;border-radius:10px;font-size:10.5px;">${m.grupo || 'SABORES'}</span></td>
+          <td style="padding:6px;">&gt;${m.nombre}</td>
+          <td style="padding:6px;">$${m.precio.toFixed(2)}</td>
+          <td style="padding:6px;"><button type="button" onclick="eliminarModificadorRaquel(${m.id})" style="background:#ef4444;color:#fff;border:none;border-radius:5px;padding:3px 9px;cursor:pointer;font-weight:700;">Eliminar</button></td>
+        </tr>`).join('');
+    }
+
+    const tbProds = document.getElementById('tbodyRaquelProductos');
+    if (tbProds) {
+      tbProds.innerHTML = d.productos.map(p => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:5px;"><input type="text" id="edit_nom_${p.id}" value="${p.nombre}" style="width:100%;padding:4px;border:1px solid #cbd5e1;border-radius:5px;font-weight:700;"></td>
+          <td style="padding:5px;">${p.categoria}</td>
+          <td style="padding:5px;"><input type="number" step="0.5" id="edit_pre_${p.id}" value="${p.precio}" style="width:85px;padding:4px;border:1px solid #cbd5e1;border-radius:5px;font-weight:700;"></td>
+          <td style="padding:5px;display:flex;gap:4px;">
+            <button type="button" onclick="actualizarProdRaquel(${p.id}, '${p.categoria}')" style="background:var(--verde-morisco);color:#fff;border:none;border-radius:5px;padding:4px 9px;cursor:pointer;font-weight:700;">Guardar</button>
+            <button type="button" onclick="borrarProdRaquel(${p.id})" style="background:#ef4444;color:#fff;border:none;border-radius:5px;padding:4px 9px;cursor:pointer;font-weight:700;">X</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    const tbCats = document.getElementById('tbodyRaquelCategorias');
+    if (tbCats) {
+      tbCats.innerHTML = d.categorias.map(c => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:6px;">${c.nombre}</td>
+          <td style="padding:6px;"><button type="button" onclick="borrarCatRaquel(${c.id})" style="background:#ef4444;color:#fff;border:none;border-radius:5px;padding:4px 9px;cursor:pointer;font-weight:700;">Borrar</button></td>
+        </tr>`).join('');
+    }
+  }
+
+  function filtrarTablaRaquel() {
+    const q = (document.getElementById('filtroRaquelProd')?.value || '').toLowerCase();
+    const cat = document.getElementById('filtroRaquelCat')?.value || 'TODAS';
+    document.querySelectorAll('#tbodyRaquelProductos tr').forEach(tr => {
+      const inp = tr.querySelector('input[type="text"]');
+      const nom = inp ? inp.value.toLowerCase() : '';
+      const tdCat = tr.children[1] ? tr.children[1].innerText : '';
+      tr.style.display = (nom.includes(q) && (cat === 'TODAS' || tdCat === cat)) ? '' : 'none';
+    });
+  }
+
+  async function guardarNuevoProductoRaquel() {
+    const nombre = document.getElementById('r_prod_nombre').value.trim();
+    const precio = parseFloat(document.getElementById('r_prod_precio').value || 0);
+    const categoria = document.getElementById('r_prod_cat').value;
+    if (!nombre) return;
+    await fetch('/api/pos/admin_producto', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nombre, precio, categoria }) });
+    document.getElementById('r_prod_nombre').value = '';
+    document.getElementById('r_prod_precio').value = '';
+    await cargarCatalogoCompletoRaquel();
+    notificarBarra("✓ Platillo agregado");
+  }
+
+  async function actualizarProdRaquel(idProd, catActual) {
+    const nombre = document.getElementById('edit_nom_' + idProd).value.trim();
+    const precio = parseFloat(document.getElementById('edit_pre_' + idProd).value || 0);
+    await fetch('/api/pos/admin_producto', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: idProd, nombre, precio, categoria: catActual }) });
+    notificarBarra("✓ Platillo actualizado");
+    cargarCatalogoCompletoRaquel();
+  }
+
+  async function borrarProdRaquel(idProd) {
+    await fetch('/api/pos/admin_producto', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: idProd }) });
+    cargarCatalogoCompletoRaquel();
+  }
+
+  async function crearModificadorRaquel() {
+    const grp = document.getElementById('nuevoModGrupo').value;
+    const nom = document.getElementById('nuevoModNombre').value.trim();
+    const pre = parseFloat(document.getElementById('nuevoModPrecio').value || 0);
+    if (!nom) return;
+    await fetch('/api/pos/modificadores', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ grupo: grp, nombre: nom, precio: pre }) });
+    document.getElementById('nuevoModNombre').value = '';
+    document.getElementById('nuevoModPrecio').value = '';
+    cargarCatalogoCompletoRaquel();
+  }
+
+  async function eliminarModificadorRaquel(idMod) {
+    await fetch('/api/pos/modificadores', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: idMod }) });
+    cargarCatalogoCompletoRaquel();
+  }
+
+  async function crearCategoriaRaquel() {
+    const nombre = document.getElementById('r_cat_nombre').value.trim();
+    if (!nombre) return;
+    await fetch('/api/pos/admin_categoria', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nombre }) });
+    document.getElementById('r_cat_nombre').value = '';
+    cargarCatalogoCompletoRaquel();
+  }
+
+  async function borrarCatRaquel(idCat) {
+    await fetch('/api/pos/admin_categoria', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: idCat }) });
+    cargarCatalogoCompletoRaquel();
+  }
+
+  function abrirModalCatalogosRaquel() {
+    cargarCatalogoCompletoRaquel();
+    document.getElementById('modalCatalogosRaquel').style.display = 'flex';
+  }
+
+  // =========================================================================
+  // 6. DESCUENTO, RETIROS, MOVER MESA, DIVIDIR, ABRIR/CERRAR TURNO Y BITÁCORA
+  // =========================================================================
+  function abrirModalDescuento() {
+    if (!cuentaActivaId) return;
+    document.getElementById('descClaveAdmin').value = '';
+    document.getElementById('descComentario').value = '';
+    document.getElementById('modalDescuentoAuth').style.display = 'flex';
+  }
+
+  function fijarPctDesc(val, btn) {
+    document.getElementById('descPctInput').value = val;
+    document.querySelectorAll('.pct-btn').forEach(b => b.classList.remove('activo'));
+    if (btn) btn.classList.add('activo');
+  }
+
+  async function ejecutarDescuentoAutorizado() {
+    const res = await fetch('/api/pos/descuento_autorizado', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cuenta_id: cuentaActivaId,
+        porcentaje: parseFloat(document.getElementById('descPctInput').value || 0),
+        criterio: document.getElementById('descCriterio').value,
+        comentario: document.getElementById('descComentario').value,
+        clave_admin: document.getElementById('descClaveAdmin').value
+      })
+    });
+    const d = await res.json();
+    if (!d.ok) notificarBarra('❌ ' + (d.msg || 'Contraseña incorrecta'));
+    else {
+      cerrarModal('modalDescuentoAuth');
+      notificarBarra('✅ Descuento autorizado y guardado en Bitácora');
+      seleccionarCuenta(cuentaActivaId);
+    }
+  }
+
+  function abrirModalRetiroCaja() {
+    document.getElementById('movCajaMonto').value = '';
+    document.getElementById('movCajaConcepto').value = '';
+    document.getElementById('modalRetiroReal').style.display = 'flex';
+  }
+
+  async function ejecutarMovimientoCajaReal() {
+    const monto = parseFloat(document.getElementById('movCajaMonto').value || 0);
+    const concepto = document.getElementById('movCajaConcepto').value.trim();
+    const tipo = document.getElementById('movCajaTipo').value;
+    if (monto <= 0 || !concepto) return;
+    cerrarModal('modalRetiroReal');
+    await fetch('/api/pos/movimiento_caja', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ tipo: tipo, monto: monto, concepto: concepto })
+    });
+    notificarBarra(`✅ ${tipo} de $${monto.toFixed(2)} registrado`);
+    revisarColaImpresion();
+  }
+
+  function abrirModalCambiarMesa() {
+    if (!datosCuentaActiva) return;
+    document.getElementById('lblMesaMoverOrig').innerText = datosCuentaActiva.mesa;
+    document.getElementById('inputNuevaMesaMover').value = '';
+    document.getElementById('modalMoverMesaPos').style.display = 'flex';
+  }
+
+  async function ejecutarMoverMesaPos() {
+    const nueva = document.getElementById('inputNuevaMesaMover').value.trim().toUpperCase();
+    if (!nueva) return;
+    const res = await fetch('/api/pos/mover_mesa_rapido', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cuenta_id: cuentaActivaId, nueva_mesa: nueva })
+    });
+    const d = await res.json();
+    if (!d.ok) notificarBarra('❌ ' + d.msg);
+    else {
+      cerrarModal('modalMoverMesaPos');
+      await sincronizarCuentasEnVivoCaja();
+      seleccionarCuenta(cuentaActivaId);
+    }
+  }
+
+  function dividirCuentaElegante() {
+    if (!datosCuentaActiva || !datosCuentaActiva.items.length) return;
+    const box = document.getElementById('listaItemsDividir');
+    box.innerHTML = datosCuentaActiva.items.map(it => `
+      <label style="display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #e2e8f0;cursor:pointer;font-size:13px;font-weight:700;">
+        <span><input type="checkbox" class="chk-dividir" value="${it.id}" style="margin-right:8px;"> ${it.es_modificador ? '>> ' : parseInt(it.cantidad) + 'x '} ${it.descripcion}</span>
+        <span style="color:var(--cobre);">$${it.importe}</span>
+      </label>`).join('');
+    document.getElementById('modalDividirReal').style.display = 'flex';
+  }
+
+  async function ejecutarDividirCuentaReal() {
+    const ids = Array.from(document.querySelectorAll('.chk-dividir:checked')).map(c => Number(c.value));
+    if (!ids.length) return;
+    const res = await fetch('/api/pos/dividir_cuenta_real', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cuenta_id: cuentaActivaId, item_ids: ids })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      cerrarModal('modalDividirReal');
+      await sincronizarCuentasEnVivoCaja();
+      seleccionarCuenta(d.nueva_cuenta_id);
+    }
+  }
+
+  // --- ABRIR TURNO TÁCTIL ---
+  function mostrarAvisoTurno() {
+    bufferFondo = '';
+    document.getElementById('visorFondoTurno').innerText = '0';
+    document.getElementById('modalAbrirTurno').style.display = 'flex';
+  }
+
+  function teclaFondo(k) {
+    if (k === 'BACK') bufferFondo = bufferFondo.slice(0, -1);
+    else if (k === '.' && bufferFondo.includes('.')) return;
+    else bufferFondo += k;
+    document.getElementById('visorFondoTurno').innerText = bufferFondo || '0';
+  }
+
+  async function confirmarAbrirTurnoReal() {
+    const fondo = parseFloat(bufferFondo || 0);
+    const res = await fetch('/api/pos/abrir_turno_real', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ fondo_inicial: fondo })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      cerrarModal('modalAbrirTurno');
+      mostrarComedorSR();
+      notificarBarra(`🟢 Turno #${d.turno_id} abierto con fondo inicial de $${d.fondo}`);
+    } else {
+      notificarBarra('❌ ' + (d.msg || 'No se pudo abrir el turno'));
+    }
+  }
+
+  // --- CORTE X Y CIERRE DE CAJA TÁCTIL (ESTILO SOFT RESTAURANT) ---
+  async function abrirModalCorteX() {
+    const res = await fetch('/api/pos/corte_caja');
+    const d = await res.json();
+    const txt = `QUIOSCO MORISCO BISTRO
+CORTE DE CAJA X
+DEL ${d.apertura}
+AL  ${d.ahora}
+======================================
++EFECTIVO VENTAS:          $${d.efectivo}
++TARJETA:                  $${d.tarjeta}
++DEPÓSITOS EFE:            $${d.depositos}
+-RETIROS EFECT:            $${d.retiros}
+-PROPINAS PAGADAS:         $${d.propinas_pagadas}
+--------------------------------------
+=SALDO FINAL:              $${d.saldo_final}
+=EFECTIVO FINAL EN CAJA:   $${d.efectivo_final}
+======================================
+TARJ. DÉBITO:              $${d.tarj_debito}
+TARJ. CRÉDITO:             $${d.tarj_credito}
+TOTAL VENTAS:              $${d.total_formas}
+(Cuentas aún abiertas: ${d.cuentas_abiertas})`;
+    document.getElementById('papelCorteX').innerText = txt;
+    document.getElementById('modalCorteX').style.display = 'flex';
+  }
+
+  function imprimirCorteXActual() {
+    const contenido = document.getElementById('papelCorteX').innerText;
+    mandarImprimirHTMLDirecto(`<div class="ticket-termico" style="white-space:pre-line;">${contenido}</div>`);
+  }
+
+  async function cerrarTurnoDefinitivoZ() {
+    cerrarModal('modalCorteX');
+    const res = await fetch('/api/pos/corte_caja');
+    const d = await res.json();
+    document.getElementById('resumenEsperadoArqueo').innerHTML =
+      `ESPERADO EN CAJA ➔ Efectivo: $${d.efectivo_final} | Débito: $${d.tarj_debito} | Crédito: $${d.tarj_credito} | Propinas: $${d.propinas_pagadas}`;
+    valoresArqueo = { EF: 0, TARJD: 0, TARJC: 0, AMEX: 0, CR: 0, DLL: 0, VAL: 0 };
+    selClaveArqueo('EF');
+    document.getElementById('modalArqueoCierre').style.display = 'flex';
+  }
+
+  function selClaveArqueo(clave) {
+    claveArqueoActiva = clave;
+    bufferArqueo = '';
+    document.getElementById('lblClaveArqActiva').innerText = clave;
+    document.getElementById('visorArqueo').innerText = '0';
+    document.querySelectorAll('.sr-cm-btn').forEach(b => {
+      b.classList.toggle('activo', b.getAttribute('data-clave') === clave);
+    });
+    renderizarTablaArqueo();
+  }
+
+  function teclaArqueo(k) {
+    if (k === 'BACK') bufferArqueo = bufferArqueo.slice(0, -1);
+    else if (k === '.' && bufferArqueo.includes('.')) return;
+    else bufferArqueo += k;
+    document.getElementById('visorArqueo').innerText = bufferArqueo || '0';
+  }
+
+  function aplicarMontoArqueo() {
+    valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
+    bufferArqueo = '';
+    document.getElementById('visorArqueo').innerText = '0';
+    const idx = filasArqueoDef.findIndex(f => f.clave === claveArqueoActiva);
+    const sig = filasArqueoDef[(idx + 1) % filasArqueoDef.length].clave;
+    selClaveArqueo(sig);
+  }
+
+  function renderizarTablaArqueo() {
+    const tb = document.getElementById('tbodyTablaArqueo');
+    tb.innerHTML = filasArqueoDef.map(f => {
+      const val = valoresArqueo[f.clave] || 0;
+      const act = f.clave === claveArqueoActiva ? 'activa' : '';
+      return `
+        <tr class="fila-arq ${act}" onclick="selClaveArqueo('${f.clave}')">
+          <td>${f.clave}</td>
+          <td>${f.desc}</td>
+          <td style="text-align:right;">$${val.toFixed(2)}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function confirmarCierreConArqueo() {
+    if (bufferArqueo !== '') {
+      valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
+      bufferArqueo = '';
+    }
+    const res = await fetch('/api/pos/cerrar_turno_arqueo', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(valoresArqueo)
+    });
+    const d = await res.json();
+    if (d.ok) {
+      cerrarModal('modalArqueoCierre');
+      const ticketZ = `<div class="ticket-termico" style="white-space:pre-line;">
+QUIOSCO MORISCO BISTRÓ - CORTE Z
+================================
+ESPERADO TOTAL:  $${d.esperado}
+DECLARADO TOTAL: $${d.declarado}
+DIFERENCIA:      $${d.diferencia}
+================================
+EFECTIVO DEC:    $${valoresArqueo.EF.toFixed(2)}
+TARJ. DÉBITO:    $${valoresArqueo.TARJD.toFixed(2)}
+TARJ. CRÉDITO:   $${valoresArqueo.TARJC.toFixed(2)}
+AMEX:            $${valoresArqueo.AMEX.toFixed(2)}
+CRÉDITO:         $${valoresArqueo.CR.toFixed(2)}
+DÓLARES:         $${valoresArqueo.DLL.toFixed(2)}
+VALES:           $${valoresArqueo.VAL.toFixed(2)}
+</div>`;
+      mandarImprimirHTMLDirecto(ticketZ);
+      setTimeout(() => location.reload(), 800);
+    } else {
+      notificarBarra('❌ ' + (d.msg || 'No se pudo cerrar el turno'));
+    }
+  }
+
+  async function abrirModalBitacora() {
+    const res = await fetch('/api/pos/bitacora_auditoria');
+    const d = await res.json();
+    if (!d.ok) return;
+    document.getElementById('tbodyBitacoraAuditoria').innerHTML = d.registros.map(r => `
+      <tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:6px;">${r.fecha}</td>
+        <td style="padding:6px;">${r.usuario}</td>
+        <td style="padding:6px;color:var(--cobre);">${r.autorizo}</td>
+        <td style="padding:6px;"><span style="background:var(--verde-morisco);color:#fff;padding:2px 7px;border-radius:8px;font-size:10px;">${r.accion}</span></td>
+        <td style="padding:6px;">${r.mesa}</td>
+        <td style="padding:6px;text-align:right;">$${r.monto}</td>
+        <td style="padding:6px;color:#475569;">${r.detalle}</td>
+      </tr>`).join('');
+    document.getElementById('modalBitacora').style.display = 'flex';
+  }
+
+  // =========================================================================
+  // 7. ENVIAR COMANDA, PIN INTELIGENTE, COBROS E IMPRESIÓN DIRECTA
+  // =========================================================================
+  async function enviarYcerrarCapturaDirecto() {
+    cerrarModal('modalCaptura');
+    await enviarComandaCocinaBarra();
+  }
+
+  async function enviarComandaCocinaBarra() {
+    if (!cuentaActivaId) return;
+    const res = await fetch(`/api/pos/enviar_comanda/${cuentaActivaId}`, { method: 'POST' });
+    const d = await res.json();
+    if (d.ok) {
+      notificarBarra("🖨️ Imprimiendo Comanda Directo...");
+      revisarColaImpresion();
+    }
+  }
+
+  async function guardarObservacionCuenta() {
+    if (!cuentaActivaId) return;
+    const obs = document.getElementById('inputObservaciones').value;
+    await fetch('/api/pos/guardar_obs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ cuenta_id: cuentaActivaId, observaciones: obs }) });
+    notificarBarra("✓ Observación guardada");
+  }
+
+  function armarBloquePinHTML(pinData) {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://quiosco-morisco.onrender.com/?pin=${pinData.codigo}`;
+    return `
+      <div style="border-top:2px dashed #000;margin:8px 0;padding-top:6px;text-align:center;">
+        <div style="font-size:13px;font-weight:900;">¡SELLA TU VISITA Y GANA PREMIOS!</div>
+        <div style="font-size:10px;">${pinData.reimpreso ? '(PIN ACTIVO NO CANJEADO)' : '(PIN DE UN SOLO USO)'}</div>
+        <img src="${qrUrl}" style="width:125px;height:125px;margin:4px auto;display:block;">
+        <div style="border:2px solid #000;padding:4px;margin:4px auto;width:80%;font-size:24px;font-weight:900;letter-spacing:5px;">${pinData.codigo}</div>
+        <div style="font-size:10px;">Wi-Fi: <b>QuioscoMoriscoB</b> | Clave: <b>Corazonsc31</b></div>
+      </div>`;
+  }
+
+  async function imprimirSoloPinInteligente() {
+    if (!cuentaActivaId) return;
+    const res = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
+    const p = await res.json();
+    if (!p.ok) return;
+    const html = `<div class="ticket-termico" style="text-align:center;"><div style="font-size:15px;font-weight:900;">QUIOSCO MORISCO BISTRÓ</div><div style="font-size:11px;">MESA: ${datosCuentaActiva.mesa} | ORDEN: ${datosCuentaActiva.orden}</div>${armarBloquePinHTML(p)}</div>`;
+    mandarImprimirConQR(html);
+    sincronizarCuentasEnVivoCaja();
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  async function imprimirPrecuentaConPinInteligente() {
+    if (!datosCuentaActiva) return;
+    const res = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
+    const p = await res.json();
+    const c = datosCuentaActiva;
+
+    let filas = '';
+    c.items.forEach(it => {
+      if (!it.es_modificador || parseFloat(it.importe) > 0) {
+        filas += `<tr><td style="width:15%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td><td style="width:60%;">${it.descripcion.replace('>', '')}</td><td style="width:25%;text-align:right;">$${it.importe}</td></tr>`;
+      }
+    });
+
+    const html = `
+      <div class="ticket-termico">
+        <div style="text-align:center;">
+          QUIOSCO MORISCO BISTRO<br>RAQUEL ABIGAIL BERMUDEZ GARCIA<br>RFC:BEGR020115TD5<br>
+          CALLE GUADALUPE VICTORIA, SIN NUM. COL. CENTRO<br>SAN CRISTOBAL DE LAS CASAS CHIAPAS CP 29200<br>TEL:9671802660
+        </div>
+        <div>======================================</div>
+        MESA:${c.mesa}<br>MESERO:${c.mesero}<br>PERSONAS:${c.personas} &nbsp;&nbsp; ORDEN:${c.orden}<br>${c.apertura}<br>
+        <div>======================================</div>
+        <table style="width:100%;">${filas}</table>
+        <div style="text-align:right;">====================</div>
+        <div style="text-align:right;font-size:16px;">TOTAL: $${c.total}</div>
+        <div style="text-align:right;">====================</div>
+        <div style="text-align:center;margin-top:4px;">SUBTOTAL:$${c.subtotal} &nbsp; IVA:$${c.iva}<br>ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
+        ${armarBloquePinHTML(p)}
+      </div>`;
+    mandarImprimirConQR(html);
+    sincronizarCuentasEnVivoCaja();
+    seleccionarCuenta(cuentaActivaId);
+  }
+
+  function selMetodoPago(m, btn) {
+    metodoActual = m;
+    bufferNum = '';
+    document.querySelectorAll('.pm-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  function teclaPay(k) {
+    if (k === 'C') bufferNum = '';
+    else bufferNum += k;
+    document.getElementById('p_visor').innerText = `$${bufferNum || '0.00'}`;
+  }
+
+  function calcPropinaTerminal(pct) {
+    const consumo = datosCuentaActiva.total_num;
+    const prop = Math.round((consumo * (pct / 100.0)) * 100) / 100;
+    document.getElementById('lblCobrarTerminal').innerText = `Cobrar en Terminal: $${(consumo + prop).toFixed(2)}`;
+    desglosePago.EF = 0;
+    desglosePago.TARJD = consumo;
+    desglosePago.PROP = prop;
+    refrescarTablaPago();
+  }
+
+  function enterMontoPago() {
+    const val = parseFloat(bufferNum || 0);
+    const consumo = datosCuentaActiva.total_num;
+    if ((metodoActual === 'TARJD' || metodoActual === 'TARJC') && val > consumo) {
+      desglosePago.EF = 0;
+      desglosePago[metodoActual] = consumo;
+      desglosePago.PROP = Math.round((val - consumo) * 100) / 100;
+    } else {
+      if (metodoActual !== 'EF') desglosePago.EF = 0;
+      desglosePago[metodoActual] = val;
+    }
+    bufferNum = '';
+    document.getElementById('p_visor').innerText = `$0.00`;
+    refrescarTablaPago();
+  }
+
+  function refrescarTablaPago() {
+    document.getElementById('cel_ef').innerText = `$${desglosePago.EF.toFixed(2)}`;
+    document.getElementById('tot_ef').innerText = `$${desglosePago.EF.toFixed(2)}`;
+    document.getElementById('cel_td').innerText = `$${desglosePago.TARJD.toFixed(2)}`;
+    document.getElementById('prop_td').innerText = `$${desglosePago.PROP.toFixed(2)}`;
+    document.getElementById('tot_td').innerText = `$${(desglosePago.TARJD + desglosePago.PROP).toFixed(2)}`;
+    document.getElementById('cel_tc').innerText = `$${desglosePago.TARJC.toFixed(2)}`;
+    document.getElementById('tot_tc').innerText = `$${desglosePago.TARJC.toFixed(2)}`;
+    document.getElementById('t_propina').innerText = `$${desglosePago.PROP.toFixed(2)}`;
+
+    const cubierto = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC;
+    const saldo = Math.max(0, datosCuentaActiva.total_num - cubierto);
+    const cambio = Math.max(0, cubierto - datosCuentaActiva.total_num);
+
+    document.getElementById('p_saldo').innerText = `$${saldo.toFixed(2)}`;
+    document.getElementById('p_cambio').innerText = `$${cambio.toFixed(2)}`;
+  }
+
+  async function procesarPagoDefinitivo() {
+    const cubierto = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC;
+    if (cubierto < datosCuentaActiva.total_num) return;
+    const cambio = Math.max(0, cubierto - datosCuentaActiva.total_num);
+
+    const resPin = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
+    const pinData = await resPin.json();
+
+    const res = await fetch('/api/pos/pagar_cuenta', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cuenta_id: cuentaActivaId, efectivo: desglosePago.EF, tarjeta_debito: desglosePago.TARJD,
+        tarjeta_credito: desglosePago.TARJC, propina: desglosePago.PROP, cambio: cambio
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      const c = datosCuentaActiva;
+      const totalTarjConProp = (desglosePago.TARJD + desglosePago.TARJC + desglosePago.PROP).toFixed(2);
+      const htmlNota = `
+        <div class="ticket-termico">
+          <div style="text-align:center;">
+            QUIOSCO MORISCO BISTRO<br>RAQUEL ABIGAIL BERMUDEZ GARCIA<br>RFC:BEGR020115TD5<br>
+            CALLE GUADALUPE VICTORIA, SIN NUM. COL. CENTRO<br>SAN CRISTOBAL DE LAS CASAS CHIAPAS CP 29200<br>
+            <span style="font-size:15px;">NOTA DE CONSUMO</span>
+          </div>
+          <div>======================================</div>
+          <div style="text-align:center;">FOLIO:${d.folio}</div>
+          MESERO:${c.mesero}<br>${new Date().toLocaleString('es-MX')}<br>PERSONAS:${c.personas}<br>ORDEN:${c.orden}<br>
+          <div style="text-align:center;">VENTA PUBLICO EN GENERAL</div>
+          <div style="text-align:right;">SUBTOTAL: $${c.subtotal}<br>IVA: $${c.iva}</div>
+          <div style="text-align:right;font-size:17px;">TOTAL: $${c.total}</div>
+          <div style="text-align:right;margin-top:4px;">
+            EF: $${desglosePago.EF.toFixed(2)}<br>
+            ${parseFloat(totalTarjConProp) > 0 ? 'TARJETA: $' + totalTarjConProp + '<br>' : ''}
+            CAMBIO: $${cambio.toFixed(2)}
+          </div>
+          ${pinData.ok ? armarBloquePinHTML(pinData) : ''}
+          <div style="text-align:center;margin-top:6px;">GRACIAS POR SU PREFERENCIA</div>
+        </div>`;
+      volverAComandaCentro();
+      mandarImprimirConQR(htmlNota, false);
+      sincronizarCuentasEnVivoCaja();
+    }
+  }
+
+  async function cancelarProductoSeleccionado() {
+    if (!itemSeleccionadoId) return;
+    const res = await fetch('/api/pos/cancelar_item', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ item_id: itemSeleccionadoId })
+    });
+    const d = await res.json();
+    if (d.ok) seleccionarCuenta(cuentaActivaId);
+  }
+
+  function filtrarTablaCuentas() {
+    const q = document.getElementById('filtroCuentaInput').value.toUpperCase();
+    const area = document.getElementById('selectAreaActiva').value;
+    document.querySelectorAll('.fila-cta').forEach(tr => {
+      const m = tr.getAttribute('data-mesa');
+      tr.style.display = (m.includes(q) && (area === 'TODAS' || m.startsWith(area))) ? '' : 'none';
+    });
+  }
+
+  function mandarImprimirHTMLDirecto(htmlStr) {
+    const z = document.getElementById('zona-impresion-pos');
+    z.innerHTML = htmlStr;
+    window.print();
+  }
+
+  function mandarImprimirConQR(htmlStr, recargarDespues=false) {
+    const z = document.getElementById('zona-impresion-pos');
+    z.innerHTML = htmlStr;
+    const img = z.querySelector('img');
+    if (img) {
+      img.onload = () => {
+        window.print();
+        if (recargarDespues) setTimeout(() => location.reload(), 500);
+      };
+      setTimeout(() => {
+        window.print();
+        if (recargarDespues) setTimeout(() => location.reload(), 500);
+      }, 800);
+    } else {
+      window.print();
+      if (recargarDespues) setTimeout(() => location.reload(), 500);
+    }
+  }
+
+  async function revisarColaImpresion() {
+    try {
+      const res = await fetch('/api/pos/cola_impresion');
+      const d = await res.json();
+      if (d.tickets && d.tickets.length > 0) {
+        mandarImprimirHTMLDirecto(d.tickets.join(''));
+      }
+    } catch(e) {}
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarCatalogoCompletoRaquel();
+    sincronizarCuentasEnVivoCaja();
+    setInterval(revisarColaImpresion, 2500);
+    setInterval(sincronizarCuentasEnVivoCaja, 3000);
+  });
+</script>
+</body>
+</html>

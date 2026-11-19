@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morisco Finanzas • Créditos, Vales y Nómina</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --verde-morisco: #13423b;
+    --verde-oscuro: #0b2924;
+    --cobre: #c98246;
+    --dorado: #ffd700;
+    --hueso: #fdfaf6;
+    --gris-borde: #e5dfd5;
+    --texto: #1e293b;
+  }
+
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  body { margin: 0; background: var(--hueso); color: var(--texto); min-height: 100vh; display: flex; flex-direction: column; }
+
+  .m-topbar {
+    background: var(--verde-oscuro); color: #fff; height: 52px; padding: 0 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 3px solid var(--cobre); position: sticky; top: 0; z-index: 100;
+  }
+  .m-brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 17px; font-weight: 700; }
+  .m-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
+  .m-links { display: flex; gap: 8px; align-items: center; }
+  .m-btn-top {
+    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(201,130,70,0.6);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .m-btn-top:hover { background: var(--cobre); }
+
+  .tabs-bar {
+    background: #fff; padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto;
+    border-bottom: 1px solid var(--gris-borde); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .tab-pill {
+    padding: 9px 18px; border-radius: 25px; border: 1.5px solid var(--gris-borde);
+    background: var(--hueso); color: var(--verde-morisco); font-weight: 800; font-size: 12.5px;
+    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .tab-pill.activo { background: var(--verde-morisco); color: #fff; border-color: var(--cobre); }
+
+  .main-container { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 16px; }
+  .panel-card {
+    background: #fff; border-radius: 16px; border: 1.5px solid var(--gris-borde);
+    padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .panel-title {
+    margin: 0 0 12px 0; color: var(--verde-morisco); font-family: 'Lora', serif;
+    font-size: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .m-input, .m-select {
+    height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1;
+    padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff;
+  }
+  .m-btn {
+    height: 38px; padding: 0 16px; border-radius: 8px; border: none;
+    background: var(--verde-morisco); color: #fff; font-weight: 800; font-size: 12.5px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .m-btn:hover { opacity: 0.92; }
+  .m-btn.cobre { background: var(--cobre); }
+  .m-btn.verde { background: #16a34a; }
+  .m-btn.rojo { background: #dc2626; }
+  .m-btn.sm { height: 30px; padding: 0 10px; font-size: 11px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-weight: 700; }
+  th { background: #f1f5f9; color: var(--verde-morisco); padding: 9px 10px; text-align: left; font-size: 11.5px; text-transform: uppercase; border-bottom: 2px solid var(--gris-borde); }
+  td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+  .badge-est { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
+  .est-pendiente { background: #fef08a; color: #854d0e; }
+  .est-pagado { background: #dcfce7; color: #166534; }
+  .est-rojo { background: #fee2e2; color: #991b1b; }
+
+  .nomina-calc-box {
+    background: var(--hueso); border: 2px solid var(--cobre); border-radius: 12px;
+    padding: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;
+    margin-bottom: 12px;
+  }
+  .calc-item label { display: block; font-size: 11px; font-weight: 800; color: var(--verde-morisco); margin-bottom: 4px; }
+  .calc-neto {
+    background: var(--verde-morisco); color: var(--dorado); border-radius: 10px;
+    padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+    font-size: 18px; font-weight: 800; margin-bottom: 12px;
+  }
+
+  .toast-fin {
+    position: fixed; bottom: 18px; right: 18px; background: var(--verde-morisco); color: #fff;
+    border: 2px solid var(--dorado); padding: 10px 18px; border-radius: 12px;
+    font-weight: 800; font-size: 13px; display: none; z-index: 999; box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+
+  #zona-impresion-fin { display: none; }
+  @media print {
+    @page { margin: 0; size: 80mm auto; }
+    body * { visibility: hidden; }
+    #zona-impresion-fin, #zona-impresion-fin * { visibility: visible; }
+    #zona-impresion-fin {
+      display: block !important; position: absolute; left: 0; top: 0; width: 72mm;
+      font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; color: #000;
+      padding: 4px;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="m-topbar">
+    <div class="m-brand">
+      <span class="m-badge">FINANZAS PRO</span>
+      <span>Créditos, Vales y Nómina • Quiosco Morisco ({{ current_user.username|upper }})</span>
+    </div>
+    <div class="m-links">
+      <a href="/pos" class="m-btn-top"><i class="fa-solid fa-cash-register"></i> Caja POS</a>
+      <a href="/almacen_pro" class="m-btn-top"><i class="fa-solid fa-boxes-stacked"></i> Almacén Pro</a>
+      <a href="/admin_dashboard" class="m-btn-top"><i class="fa-solid fa-gear"></i> Admin</a>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <button type="button" class="tab-pill activo" id="btnTab_creditos" onclick="cambiarTabFin('creditos')">
+      <i class="fa-solid fa-hand-holding-dollar"></i> 1. Créditos a Clientes
+    </button>
+    <button type="button" class="tab-pill" id="btnTab_vales" onclick="cambiarTabFin('vales')">
+      <i class="fa-solid fa-receipt"></i> 2. Vales y Consumo de Personal
+    </button>
+    <button type="button" class="tab-pill" id="btnTab_nomina" onclick="cambiarTabFin('nomina')">
+      <i class="fa-solid fa-money-check-dollar"></i> 3. Nómina y Recibos
+    </button>
+  </div>
+
+  <div class="main-container">
+
+    <!-- ===================================================================
+         TAB 1: CRÉDITOS A CLIENTES
+         =================================================================== -->
+    <div id="tab_creditos">
+      <div class="panel-card">
+        <h3 class="panel-title"><span>➕ Registrar Cuenta a Crédito (Fiado)</span></h3>
+        <div class="form-row">
+          <input type="text" id="crNombre" class="m-input" style="flex:2;min-width:180px;" placeholder="Nombre del Cliente">
+          <input type="text" id="crTel" class="m-input" style="width:140px;" placeholder="Teléfono">
+          <input type="text" id="crConcepto" class="m-input" style="flex:2;min-width:180px;" placeholder="Concepto (Ej. Mesa T04, Café y desayuno)">
+          <input type="number" step="0.5" id="crMonto" class="m-input" style="width:115px;" placeholder="Monto $">
+          <button type="button" class="m-btn" onclick="crearCreditoCliente()">+ Guardar Crédito</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title">
+          <span>📋 Cuentas por Cobrar</span>
+          <input type="text" id="buscarCredito" class="m-input" style="width:230px;" placeholder="🔍 Buscar cliente..." oninput="renderizarCreditos()">
+        </h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Monto Orig.</th><th>Saldo Pend.</th><th>Estado</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tbodyCreditos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 2: VALES Y CONSUMO DE EMPLEADOS
+         =================================================================== -->
+    <div id="tab_vales" style="display:none;">
+      <div class="panel-card">
+        <h3 class="panel-title"><span>🍽️ Registrar Consumo, Adelanto o Préstamo de Personal</span></h3>
+        <div class="form-row">
+          <select id="valEmpId" class="m-select" style="width:180px;"></select>
+          <select id="valTipo" class="m-select" style="width:145px;">
+            <option value="CONSUMO">☕ CONSUMO</option>
+            <option value="ADELANTO">💵 ADELANTO</option>
+            <option value="PRESTAMO">🤝 PRÉSTAMO</option>
+          </select>
+          <input type="text" id="valConcepto" class="m-input" style="flex:2;min-width:180px;" placeholder="Concepto (Ej. Chilaquiles + Capuchino)">
+          <input type="number" step="0.5" id="valMonto" class="m-input" style="width:110px;" placeholder="Monto $">
+          <button type="button" class="m-btn cobre" onclick="registrarConsumoEmpleado()">+ Cargar a Cuenta</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title"><span>🧾 Historial de Vales y Consumos</span></h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Empleado</th><th>Tipo</th><th>Concepto</th><th>Monto</th><th>Estado en Nómina</th></tr>
+            </thead>
+            <tbody id="tbodyConsumos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 3: NÓMINA Y RECIBOS
+         =================================================================== -->
+    <div id="tab_nomina" style="display:none;">
+      <div class="panel-card">
+        <h3 class="panel-title"><span>💰 Calcular y Pagar Nómina (Descuenta Vales Automáticamente)</span></h3>
+        <div class="nomina-calc-box">
+          <div class="calc-item">
+            <label>EMPLEADO</label>
+            <select id="nomEmpId" class="m-select" style="width:100%;" onchange="recalcularVistaNomina()"></select>
+          </div>
+          <div class="calc-item">
+            <label>PERÍODO</label>
+            <input type="text" id="nomPeriodo" class="m-input" style="width:100%;" value="SEMANA ACTUAL">
+          </div>
+          <div class="calc-item">
+            <label>SUELDO BASE ($)</label>
+            <input type="text" id="nomBase" class="m-input" style="width:100%;background:#f1f5f9;" readonly>
+          </div>
+          <div class="calc-item">
+            <label>VALES PENDIENTES (-)</label>
+            <input type="text" id="nomVales" class="m-input" style="width:100%;background:#fee2e2;color:#991b1b;" readonly>
+          </div>
+          <div class="calc-item">
+            <label>BONOS / EXTRAS (+)</label>
+            <input type="number" step="10" id="nomBonos" value="0" class="m-input" style="width:100%;" oninput="recalcularVistaNomina()">
+          </div>
+          <div class="calc-item">
+            <label>PROPINAS (+)</label>
+            <input type="number" step="10" id="nomPropinas" value="0" class="m-input" style="width:100%;" oninput="recalcularVistaNomina()">
+          </div>
+          <div class="calc-item">
+            <label>OTROS DESCUENTOS (-)</label>
+            <input type="number" step="10" id="nomOtrosDesc" value="0" class="m-input" style="width:100%;" oninput="recalcularVistaNomina()">
+          </div>
+        </div>
+
+        <div class="calc-neto">
+          <span>TOTAL NETO A PAGAR:</span>
+          <span id="lblNetoNomina">$0.00</span>
+        </div>
+        <button type="button" class="m-btn verde" style="width:100%;justify-content:center;height:44px;font-size:14px;" onclick="pagarYGenerarReciboNomina()">
+          🖨️ PAGAR NÓMINA, LIQUIDAR VALES E IMPRIMIR RECIBO
+        </button>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title"><span>👥 Plantilla de Empleados</span></h3>
+        <div class="form-row" style="margin-bottom:12px;">
+          <input type="text" id="empNom" class="m-input" style="flex:2;min-width:160px;" placeholder="Nombre">
+          <input type="text" id="empPuesto" class="m-input" style="width:150px;" placeholder="Puesto (Ej. Mesero)">
+          <input type="number" step="50" id="empSueldo" class="m-input" style="width:130px;" placeholder="Sueldo Base $">
+          <select id="empPeriodo" class="m-select" style="width:135px;">
+            <option value="SEMANAL">SEMANAL</option>
+            <option value="QUINCENAL">QUINCENAL</option>
+          </select>
+          <button type="button" class="m-btn" onclick="agregarEmpleadoNomina()">+ Agregar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Empleado</th><th>Puesto</th><th>Período</th><th>Sueldo Base</th><th>Vales Pendientes</th></tr>
+            </thead>
+            <tbody id="tbodyEmpleados"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3 class="panel-title"><span>📜 Historial de Recibos Pagados</span></h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Empleado</th><th>Período</th><th>Base</th><th>Bonos/Prop</th><th>Desc. Vales</th><th>Neto Pagado</th><th>Ticket</th></tr>
+            </thead>
+            <tbody id="tbodyRecibos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast-fin" id="toastFin"></div>
+  <div id="zona-impresion-fin"></div>
+
+<script>
+  let datosFin = { creditos: [], empleados: [], consumos: [], recibos: [] };
+
+  function toast(msg) {
+    const el = document.getElementById('toastFin');
+    el.innerText = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 2800);
+  }
+
+  function cambiarTabFin(tab) {
+    ['creditos', 'vales', 'nomina'].forEach(t => {
+      document.getElementById('tab_' + t).style.display = (t === tab) ? 'block' : 'none';
+      document.getElementById('btnTab_' + t).classList.toggle('activo', t === tab);
+    });
+  }
+
+  async function cargarDatosFinanzas() {
+    try {
+      const res = await fetch('/api/finanzas/datos');
+      const d = await res.json();
+      if (!d.ok) return;
+      datosFin = d;
+
+      const optsEmp = d.empleados.map(e => `<option value="${e.id}">${e.nombre} (${e.puesto})</option>`).join('');
+      document.getElementById('valEmpId').innerHTML = optsEmp;
+      document.getElementById('nomEmpId').innerHTML = optsEmp;
+
+      renderizarCreditos();
+      renderizarConsumos();
+      renderizarEmpleadosYRecibos();
+      recalcularVistaNomina();
+    } catch(e) {}
+  }
+
+  function renderizarCreditos() {
+    const q = (document.getElementById('buscarCredito')?.value || '').toLowerCase();
+    const lista = datosFin.creditos.filter(c => c.cliente_nombre.toLowerCase().includes(q) || c.concepto.toLowerCase().includes(q));
+    const tb = document.getElementById('tbodyCreditos');
+    if (!lista.length) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:20px;">No hay créditos registrados.</td></tr>';
+      return;
+    }
+    tb.innerHTML = lista.map(c => `
+      <tr>
+        <td>${c.fecha}</td>
+        <td>${c.cliente_nombre}${c.telefono ? '<br><small style="color:#64748b;">' + c.telefono + '</small>' : ''}</td>
+        <td>${c.concepto}</td>
+        <td>$${c.monto_total.toFixed(2)}</td>
+        <td style="color:${c.saldo_pendiente > 0 ? '#dc2626' : '#166534'};font-size:14px;">$${c.saldo_pendiente.toFixed(2)}</td>
+        <td><span class="badge-est ${c.estado === 'PAGADO' ? 'est-pagado' : 'est-pendiente'}">${c.estado}</span></td>
+        <td>
+          ${c.saldo_pendiente > 0
+            ? `<button type="button" class="m-btn verde sm" onclick="abonarCredito(${c.id}, '${c.cliente_nombre}', ${c.saldo_pendiente})">💵 Abonar / Liquidar</button>`
+            : '✅'}
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderizarConsumos() {
+    const tb = document.getElementById('tbodyConsumos');
+    if (!datosFin.consumos.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">Sin consumos o vales registrados.</td></tr>';
+      return;
+    }
+    tb.innerHTML = datosFin.consumos.map(c => `
+      <tr>
+        <td>${c.fecha}</td>
+        <td>${c.empleado_nombre}</td>
+        <td><span class="badge-est est-pendiente">${c.tipo}</span></td>
+        <td>${c.concepto}</td>
+        <td style="color:#dc2626;">$${c.monto.toFixed(2)}</td>
+        <td><span class="badge-est ${c.descontado ? 'est-pagado' : 'est-rojo'}">${c.descontado ? '✅ DESCONTADO' : '⏳ PENDIENTE'}</span></td>
+      </tr>`).join('');
+  }
+
+  function renderizarEmpleadosYRecibos() {
+    document.getElementById('tbodyEmpleados').innerHTML = datosFin.empleados.map(e => `
+      <tr>
+        <td>${e.nombre}</td>
+        <td>${e.puesto}</td>
+        <td>${e.periodo}</td>
+        <td>$${e.sueldo_base.toFixed(2)}</td>
+        <td style="color:${e.consumo_pendiente > 0 ? '#dc2626' : '#166534'};">$${e.consumo_pendiente.toFixed(2)}</td>
+      </tr>`).join('');
+
+    const tbRec = document.getElementById('tbodyRecibos');
+    if (!datosFin.recibos.length) {
+      tbRec.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:20px;">Aún no se han pagado nóminas.</td></tr>';
+      return;
+    }
+    tbRec.innerHTML = datosFin.recibos.map((r, idx) => `
+      <tr>
+        <td>${r.fecha}</td>
+        <td>${r.empleado_nombre}</td>
+        <td>${r.periodo_texto}</td>
+        <td>$${r.sueldo_base.toFixed(2)}</td>
+        <td>+$${(r.bonos + r.propinas).toFixed(2)}</td>
+        <td style="color:#dc2626;">-$${(r.descuentos_consumo + r.otros_descuentos).toFixed(2)}</td>
+        <td style="color:#166534;font-size:14px;">$${r.total_neto.toFixed(2)}</td>
+        <td><button type="button" class="m-btn sm" onclick="imprimirReciboPorIndice(${idx})">🖨️</button></td>
+      </tr>`).join('');
+  }
+
+  function recalcularVistaNomina() {
+    const idSel = Number(document.getElementById('nomEmpId').value);
+    const emp = datosFin.empleados.find(e => e.id === idSel);
+    if (!emp) return;
+    document.getElementById('nomBase').value = emp.sueldo_base.toFixed(2);
+    document.getElementById('nomVales').value = emp.consumo_pendiente.toFixed(2);
+    const bonos = parseFloat(document.getElementById('nomBonos').value || 0);
+    const prop = parseFloat(document.getElementById('nomPropinas').value || 0);
+    const otros = parseFloat(document.getElementById('nomOtrosDesc').value || 0);
+    const neto = emp.sueldo_base + bonos + prop - emp.consumo_pendiente - otros;
+    document.getElementById('lblNetoNomina').innerText = `$${neto.toFixed(2)}`;
+  }
+
+  async function crearCreditoCliente() {
+    const cliente_nombre = document.getElementById('crNombre').value.trim();
+    const monto = parseFloat(document.getElementById('crMonto').value || 0);
+    if (!cliente_nombre || monto <= 0) return;
+    await fetch('/api/finanzas/credito', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cliente_nombre,
+        telefono: document.getElementById('crTel').value,
+        concepto: document.getElementById('crConcepto').value || 'Consumo en Mesa',
+        monto
+      })
+    });
+    document.getElementById('crNombre').value = '';
+    document.getElementById('crMonto').value = '';
+    toast('✅ Crédito registrado');
+    cargarDatosFinanzas();
+  }
+
+  async function abonarCredito(id, nombre, saldoActual) {
+    const abonoStr = prompt(`Saldo de ${nombre}: $${saldoActual.toFixed(2)}\n¿Cuánto abona?`, saldoActual.toFixed(2));
+    if (abonoStr === null) return;
+    const abono = parseFloat(abonoStr || 0);
+    if (abono <= 0) return;
+    const res = await fetch('/api/finanzas/credito', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ abonar_id: id, abono })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      toast(`💵 Abono registrado. Saldo: $${d.saldo.toFixed(2)}`);
+      cargarDatosFinanzas();
+    }
+  }
+
+  async function registrarConsumoEmpleado() {
+    const empleado_id = document.getElementById('valEmpId').value;
+    const monto = parseFloat(document.getElementById('valMonto').value || 0);
+    const concepto = document.getElementById('valConcepto').value.trim() || 'Consumo personal';
+    const tipo = document.getElementById('valTipo').value;
+    if (monto <= 0) return;
+    await fetch('/api/finanzas/consumo_empleado', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ empleado_id, tipo, concepto, monto })
+    });
+    document.getElementById('valConcepto').value = '';
+    document.getElementById('valMonto').value = '';
+    toast('✓ Vale cargado a la cuenta del empleado');
+    cargarDatosFinanzas();
+  }
+
+  async function agregarEmpleadoNomina() {
+    const nombre = document.getElementById('empNom').value.trim();
+    if (!nombre) return;
+    await fetch('/api/finanzas/empleado', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        nombre,
+        puesto: document.getElementById('empPuesto').value || 'MESERO',
+        sueldo_base: parseFloat(document.getElementById('empSueldo').value || 1500),
+        periodo: document.getElementById('empPeriodo').value
+      })
+    });
+    document.getElementById('empNom').value = '';
+    toast('✅ Empleado agregado');
+    cargarDatosFinanzas();
+  }
+
+  async function pagarYGenerarReciboNomina() {
+    const empleado_id = document.getElementById('nomEmpId').value;
+    const res = await fetch('/api/finanzas/generar_nomina', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        empleado_id,
+        periodo_texto: document.getElementById('nomPeriodo').value,
+        bonos: parseFloat(document.getElementById('nomBonos').value || 0),
+        propinas: parseFloat(document.getElementById('nomPropinas').value || 0),
+        otros_descuentos: parseFloat(document.getElementById('nomOtrosDesc').value || 0)
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      document.getElementById('nomBonos').value = 0;
+      document.getElementById('nomPropinas').value = 0;
+      document.getElementById('nomOtrosDesc').value = 0;
+      imprimirReciboTermico(d.recibo);
+      cargarDatosFinanzas();
+    } else {
+      toast('❌ ' + (d.msg || 'Solo Admin puede pagar nómina'));
+    }
+  }
+
+  function imprimirReciboPorIndice(idx) {
+    const r = datosFin.recibos[idx];
+    if (r) imprimirReciboTermico(r);
+  }
+
+  function imprimirReciboTermico(r) {
+    const html = `
+      <div style="text-align:center;">
+        <b>QUIOSCO MORISCO BISTRÓ</b><br>RECIBO DE NÓMINA #${r.id}<br>
+        ================================<br>
+      </div>
+      FECHA: ${r.fecha}<br>
+      EMPLEADO: <b>${r.empleado_nombre}</b><br>
+      PUESTO: ${r.puesto}<br>
+      PERÍODO: ${r.periodo_texto}<br>
+      ================================<br>
+      SUELDO BASE:       $${r.sueldo_base.toFixed(2)}<br>
+      + BONOS:           $${r.bonos.toFixed(2)}<br>
+      + PROPINAS:        $${r.propinas.toFixed(2)}<br>
+      - VALES/CONSUMO:   $${r.descuentos_consumo.toFixed(2)}<br>
+      - OTROS DESC.:     $${r.otros_descuentos.toFixed(2)}<br>
+      ================================<br>
+      <div style="font-size:16px;text-align:right;"><b>NETO PAGADO: $${r.total_neto.toFixed(2)}</b></div>
+      <br><br><br>
+      <div style="border-top:1px solid #000;text-align:center;">FIRMA DE RECIBIDO</div>`;
+    document.getElementById('zona-impresion-fin').innerHTML = html;
+    window.print();
+  }
+
+  document.addEventListener('DOMContentLoaded', cargarDatosFinanzas);
+</script>
+</body>
+</html>
