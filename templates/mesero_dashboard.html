@@ -6,164 +6,305 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#13423b">
-<title>Comensal Conectado • Comandero ({{ sucursal }})</title>
+<title>Comandero • {{ sucursal }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   :root {
-    --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246; --dorado: #ffd700;
-    --hueso: #fdfaf6; --gris-borde: #e5dfd5; --amarillo: #eab308; --morado: #7e22ce;
+    --verde: #13423b;
+    --verde-oscuro: #0b2924;
+    --cobre: #c98246;
+    --cobre-oscuro: #a8642c;
+    --dorado: #ffd700;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --borde: #e2e8f0;
+    --texto: #1e293b;
+    --muted: #64748b;
+    --amarillo: #eab308;
+    --morado: #7e22ce;
+    --rojo: #dc2626;
+    --ok: #16a34a;
+    --fs: 1;
   }
+  body.fs-sm { --fs: 0.9; }
+  body.fs-md { --fs: 1; }
+  body.fs-lg { --fs: 1.14; }
+
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Open Sans', sans-serif; }
   input, textarea, select { user-select: text; -webkit-user-select: text; }
   button { touch-action: manipulation; }
-  body {
-    margin: 0; background-color: #12221f;
-    background-image: radial-gradient(rgba(201,130,70,0.14) 1px, transparent 1px);
-    background-size: 24px 24px; color: #fff; min-height: 100vh; overflow-x: hidden;
-  }
+  body { margin: 0; background: var(--bg); color: var(--texto); min-height: 100vh; overflow-x: hidden; }
 
+  /* ================= TOPBAR ELEGANTE ================= */
   .mob-topbar {
-    background: var(--verde); color: #fff; height: 54px; padding: 0 12px;
+    background: var(--verde); color: #fff; height: 56px; padding: 0 12px;
     display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 2px solid var(--cobre); position: sticky; top: 0; z-index: 100; gap: 6px;
+    border-bottom: 3px solid var(--cobre); position: sticky; top: 0; z-index: 100; gap: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
   }
-  .mob-user-box { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 13px; white-space: nowrap; }
+  .mob-user-box { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: calc(13px * var(--fs)); white-space: nowrap; }
   .mob-actions-right { display: flex; align-items: center; gap: 5px; overflow-x: auto; }
   .mob-pill-btn {
-    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(201,130,70,0.55);
-    padding: 5px 9px; border-radius: 18px; font-size: 10.5px; font-weight: 800;
-    cursor: pointer; position: relative; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.28);
+    padding: 6px 10px; border-radius: 18px; font-size: 11px; font-weight: 800;
+    cursor: pointer; position: relative; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
   }
+  .mob-pill-btn:hover { background: var(--cobre); border-color: var(--dorado); }
   .mob-badge-alert { position: absolute; top: -5px; right: -4px; background: #ef4444; color: #fff; font-size: 9.5px; font-weight: 900; padding: 1px 5px; border-radius: 50%; }
 
-  .mob-filters-wrap { background: rgba(11,41,36,0.94); border-bottom: 1px solid rgba(201,130,70,0.25); padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; }
+  /* ================= FILTROS ================= */
+  .mob-filters-wrap {
+    background: #ffffff; border-bottom: 1px solid var(--borde); padding: 9px 10px;
+    display: flex; flex-direction: column; gap: 7px; box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+  }
   .mob-area-pills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-  .area-pill, .estado-pill { padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(201,130,70,0.4); background: rgba(255,255,255,0.06); color: #e2e8f0; font-weight: 800; font-size: 11px; cursor: pointer; }
-  .area-pill.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
-  .estado-pill.activo { background: #fff; color: var(--verde-oscuro); border-color: #fff; }
+  .area-pill, .estado-pill {
+    padding: 6px 13px; border-radius: 20px; border: 1.5px solid #cbd5e1; background: #f8fafc;
+    color: #334155; font-weight: 800; font-size: calc(11.5px * var(--fs)); cursor: pointer;
+  }
+  .area-pill.activo { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .estado-pill.activo { background: var(--cobre); color: #fff; border-color: var(--cobre-oscuro); }
 
-  .mob-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; padding: 12px 12px 80px; max-width: 860px; margin: 0 auto; }
-  @media (max-width: 520px) { .mob-cards-grid { grid-template-columns: repeat(2, 1fr); } }
+  /* ================= GRID DE MESAS (ESTILO LIMPIO BLANCO) ================= */
+  .mob-cards-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    padding: 14px 14px 80px; max-width: 980px; margin: 0 auto;
+  }
+  @media (max-width: 760px) { .mob-cards-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 500px) { .mob-cards-grid { grid-template-columns: repeat(2, 1fr); } }
 
-  .mob-card-open { height: 150px; background: linear-gradient(145deg, #1b4d44, #0f2d28); border-radius: 14px; border: 2px solid var(--cobre); overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; }
-  .mob-card-open-icon { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--dorado); }
-  .mob-card-open-footer { background: var(--cobre); color: #fff; text-align: center; padding: 7px; font-size: 13px; font-weight: 800; }
+  .mob-card-open {
+    height: 152px; background: #ffffff; border-radius: 14px; border: 2px dashed var(--cobre);
+    overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(15,23,42,0.06);
+  }
+  .mob-card-open:hover { border-style: solid; background: #fdfaf6; }
+  .mob-card-open-icon { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 38px; color: var(--verde); }
+  .mob-card-open-footer { background: var(--verde); color: #fff; text-align: center; padding: 7px; font-size: calc(13px * var(--fs)); font-weight: 800; }
 
-  .mob-table-card { height: 150px; background: #f8fafc; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; box-shadow: 0 6px 14px rgba(0,0,0,0.35); position: relative; }
+  .mob-table-card {
+    height: 152px; background: #ffffff; border-radius: 14px; border: 1.5px solid var(--borde);
+    overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(15,23,42,0.07); position: relative; transition: transform 0.1s ease;
+  }
   .mob-table-card:active { transform: scale(0.97); }
-  .mob-tc-header { background: #334155; color: #fff; padding: 5px 8px; font-size: 10px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; }
-  .mob-tc-time { background: rgba(0,0,0,0.35); padding: 1px 6px; border-radius: 10px; font-size: 9.5px; }
-  .mob-tc-time.largo { background: #dc2626; color: #fff; }
-  .mob-tc-opts-btn { position: absolute; top: 28px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(19,66,59,0.14); color: var(--verde); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
-  .mob-tc-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #0f172a; font-size: 19px; font-weight: 800; padding: 2px; }
-  .mob-tc-center small { font-size: 10px; color: #475569; font-weight: 700; margin-top: 2px; }
-  .mob-tc-alerta { font-size: 9.5px; background: #fef08a; color: #854d0e; padding: 1px 7px; border-radius: 10px; font-weight: 800; margin-top: 3px; }
-  .mob-tc-footer { text-align: center; padding: 6px; font-size: 13px; font-weight: 800; color: #fff; }
-  .mob-tc-footer.libre { background: #16a34a; } .mob-tc-footer.ocupada { background: #dc2626; }
-  .mob-tc-footer.impresa { background: var(--amarillo); color: #1e293b; } .mob-tc-footer.dividida { background: var(--morado); color: #fff; }
+  .mob-tc-header {
+    background: #f1f5f9; color: #334155; padding: 5px 8px; font-size: 10px; font-weight: 800;
+    display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--borde);
+  }
+  .mob-tc-time { background: #e2e8f0; color: #334155; padding: 1px 6px; border-radius: 10px; font-size: 9.5px; }
+  .mob-tc-time.largo { background: #fee2e2; color: #b91c1c; }
+  .mob-tc-opts-btn {
+    position: absolute; top: 30px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--borde);
+    background: #ffffff; color: var(--verde); font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  }
+  .mob-tc-center {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--verde-oscuro); font-size: calc(20px * var(--fs)); font-weight: 800; padding: 4px;
+  }
+  .mob-tc-center small { font-size: calc(10.5px * var(--fs)); color: var(--muted); font-weight: 700; margin-top: 2px; }
+  .mob-tc-alerta { font-size: 9.5px; background: #fef08a; color: #854d0e; padding: 2px 7px; border-radius: 10px; font-weight: 800; margin-top: 3px; }
+  .mob-tc-footer { text-align: center; padding: 7px; font-size: calc(13px * var(--fs)); font-weight: 800; color: #fff; }
+  .mob-tc-footer.libre { background: var(--ok); }
+  .mob-tc-footer.ocupada { background: var(--rojo); }
+  .mob-tc-footer.impresa { background: var(--amarillo); color: #1e293b; }
+  .mob-tc-footer.dividida { background: var(--morado); color: #fff; }
 
-  .screen-layer { position: fixed; inset: 0; background-color: #12221f; background-image: radial-gradient(rgba(201,130,70,0.14) 1px, transparent 1px); background-size: 24px 24px; z-index: 400; display: none; flex-direction: column; }
-  .layer-topbar { background: #0d211d; height: 52px; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--cobre); }
-  .layer-mesa-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: #fff; cursor: pointer; }
+  /* ================= CAPAS DE PANTALLA (BLANCO ELEGANTE) ================= */
+  .screen-layer {
+    position: fixed; inset: 0; background: var(--bg); color: var(--texto);
+    z-index: 400; display: none; flex-direction: column;
+  }
+  .layer-topbar {
+    background: var(--verde); color: #fff; height: 54px; padding: 0 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 3px solid var(--cobre); flex-shrink: 0;
+  }
+  .layer-mesa-title { display: flex; align-items: center; gap: 8px; font-size: calc(16px * var(--fs)); font-weight: 800; color: #fff; cursor: pointer; }
   .layer-tools { display: flex; gap: 6px; align-items: center; }
-  .tool-ico-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(201,130,70,0.4); color: #fff; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+  .tool-ico-btn {
+    background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #fff;
+    width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+  }
   .tool-ico-btn.activo { background: var(--cobre); border-color: var(--dorado); }
-  .tool-ico-btn.rojo { background: rgba(220,38,38,0.25); border-color: #ef4444; color: #fca5a5; }
+  .tool-ico-btn.rojo { background: #dc2626; border-color: #fca5a5; }
 
-  .sent-items-list { flex: 1; padding: 10px 12px; overflow-y: auto; }
-  .sent-item-row { background: #f8fafc; color: #1e293b; border-radius: 8px; padding: 9px 12px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  /* DETALLE CUENTA */
+  .sent-items-list { flex: 1; padding: 12px; overflow-y: auto; max-width: 820px; width: 100%; margin: 0 auto; }
+  .sent-item-row {
+    background: #ffffff; color: var(--texto); border: 1px solid var(--borde); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 5px rgba(15,23,42,0.03);
+  }
   .sent-item-left { display: flex; gap: 10px; align-items: flex-start; }
-  .sent-qty { font-weight: 800; font-size: 14px; color: #0f172a; min-width: 28px; }
-  .sent-desc { font-weight: 800; font-size: 13px; color: #334155; }
-  .sent-time { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 2px; }
-  .sent-right { font-weight: 800; font-size: 14px; color: #0f172a; }
-  .badge-promo-mob { background: #dcfce7; color: #166534; font-size: 9.5px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; }
+  .sent-qty { font-weight: 800; font-size: calc(14.5px * var(--fs)); color: var(--verde); min-width: 30px; }
+  .sent-desc { font-weight: 800; font-size: calc(13.5px * var(--fs)); color: var(--texto); }
+  .sent-time { font-size: 10.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .sent-right { font-weight: 800; font-size: calc(14.5px * var(--fs)); color: var(--verde-oscuro); white-space: nowrap; }
+  .badge-promo-mob { background: #dcfce7; color: #166534; font-size: 10px; padding: 1px 6px; border-radius: 6px; margin-left: 5px; }
 
-  .banner-bloqueo-impresa { background: var(--amarillo); color: #1e293b; text-align: center; padding: 6px 12px; font-size: 12px; font-weight: 800; display: none; }
-  .account-totals-strip { background: rgba(11,41,36,0.96); padding: 8px 14px; border-top: 1px solid rgba(201,130,70,0.4); }
-  .tot-strip-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 13px; font-weight: 800; }
-  .tot-white-box { background: #e2e8f0; color: #0f172a; min-width: 115px; padding: 3px 10px; border-radius: 4px; display: flex; justify-content: space-between; font-weight: 800; }
+  .banner-bloqueo-impresa { background: #fef08a; color: #854d0e; text-align: center; padding: 7px 12px; font-size: 12px; font-weight: 800; display: none; border-bottom: 1px solid #facc15; }
+  .account-totals-strip { background: #ffffff; padding: 10px 14px; border-top: 2px solid var(--borde); }
+  .tot-strip-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 4px; font-size: calc(13px * var(--fs)); font-weight: 800; color: var(--muted); }
+  .tot-white-box { background: #f8fafc; color: var(--verde-oscuro); border: 1px solid #cbd5e1; min-width: 125px; padding: 4px 10px; border-radius: 7px; display: flex; justify-content: space-between; font-weight: 800; }
 
-  .bottom-triple-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 12px 12px; background: #0b1c19; }
-  .bottom-dual-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px 12px; background: #0b1c19; }
-  .big-outline-btn { height: 50px; background: rgba(255,255,255,0.06); border: 2px solid #cbd5e1; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; cursor: pointer; }
-  .big-outline-btn.btn-solicitar { border-color: var(--dorado); background: rgba(201,130,70,0.22); }
-  .big-outline-btn.btn-reabrir { border-color: var(--amarillo); background: rgba(234,179,8,0.2); color: var(--dorado); }
+  .bottom-triple-btns { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; padding: 10px 12px 14px; background: #ffffff; border-top: 1px solid var(--borde); }
+  .bottom-dual-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px 14px; background: #ffffff; border-top: 1px solid var(--borde); }
+  .big-action-btn {
+    height: 50px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #f8fafc;
+    color: var(--verde-oscuro); font-size: calc(12.5px * var(--fs)); font-weight: 800;
+    display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; cursor: pointer;
+  }
+  .big-action-btn.primary { background: var(--verde); color: #fff; border-color: var(--verde-oscuro); }
+  .big-action-btn.cobre { background: var(--cobre); color: #fff; border-color: var(--cobre-oscuro); }
+  .big-action-btn.verde { background: var(--ok); color: #fff; border-color: #15803d; }
+  .big-action-btn.warn { background: #fef9c3; color: #854d0e; border-color: #facc15; }
 
-  .super-tabs-bar { display: grid; grid-template-columns: repeat(6, 1fr); background: #1a2e2a; border-bottom: 2px solid var(--cobre); }
-  .super-tab { padding: 7px 3px; text-align: center; font-size: 9.5px; font-weight: 800; color: #cbd5e1; border-right: 1px solid rgba(255,255,255,0.12); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  /* ================= PANTALLA 2: CAPTURA ================= */
+  .super-tabs-bar { display: grid; grid-template-columns: repeat(6, 1fr); background: #ffffff; border-bottom: 2px solid var(--borde); }
+  .super-tab {
+    padding: 8px 3px; text-align: center; font-size: 10px; font-weight: 800; color: var(--muted);
+    border-right: 1px solid #f1f5f9; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
   .super-tab i { font-size: 15px; color: var(--cobre); }
-  .super-tab.activo { background: #334155; color: #fff; }
-  .super-tab.activo i { color: var(--dorado); }
+  .super-tab.activo { background: #fdfaf6; color: var(--verde); border-bottom: 3px solid var(--verde); }
 
-  .live-search-bar { padding: 7px 12px; background: #0f2420; border-bottom: 1px solid rgba(201,130,70,0.3); display: flex; gap: 8px; align-items: center; }
-  .live-search-bar input { flex: 1; height: 38px; border-radius: 20px; border: 1.5px solid var(--cobre); padding: 0 14px; font-size: 15px; font-weight: 700; background: #fff; color: #0f172a; }
+  .live-search-bar { padding: 8px 12px; background: #ffffff; border-bottom: 1px solid var(--borde); display: flex; gap: 8px; align-items: center; }
+  .live-search-bar input { flex: 1; height: 40px; border-radius: 22px; border: 1.5px solid #cbd5e1; padding: 0 14px; font-size: 15px; font-weight: 700; background: #f8fafc; color: var(--texto); }
+  .live-search-bar input:focus { outline: none; border-color: var(--cobre); background: #fff; }
 
-  .colorful-cats-grid { flex: 1; padding: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; }
-  .cat-color-tile { height: 96px; border-radius: 10px; padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; font-weight: 800; color: #fff; text-transform: uppercase; line-height: 1.2; border: 1px solid rgba(255,255,255,0.2); }
-  .tile-c0 { background: #d4a373; } .tile-c1 { background: #2a9d8f; } .tile-c2 { background: #b5838d; } .tile-c3 { background: #457b9d; }
-  .tile-c4 { background: #38b000; } .tile-c5 { background: #00b4d8; } .tile-c6 { background: #e07a5f; } .tile-c7 { background: #13423b; border: 2px solid var(--cobre); }
+  .colorful-cats-grid {
+    flex: 1; padding: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; align-content: start; max-width: 960px; width: 100%; margin: 0 auto;
+  }
+  .cat-color-tile {
+    height: 92px; border-radius: 12px; padding: 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: calc(13px * var(--fs)); font-weight: 800; text-transform: uppercase; line-height: 1.2;
+    background: #ffffff; color: var(--verde-oscuro); border: 1.5px solid var(--borde);
+    border-top: 5px solid var(--verde); box-shadow: 0 3px 8px rgba(15,23,42,0.05);
+  }
+  .cat-color-tile:active { transform: scale(0.97); }
+  .tile-c0 { border-top-color: #c98246; } .tile-c1 { border-top-color: #13423b; }
+  .tile-c2 { border-top-color: #0284c7; } .tile-c3 { border-top-color: #16a34a; }
+  .tile-c4 { border-top-color: #7e22ce; } .tile-c5 { border-top-color: #e11d48; }
+  .tile-c6 { border-top-color: #d97706; } .tile-c7 { border-top-color: #0f766e; }
 
-  .dishes-inside-cat { flex: 1; padding: 12px; overflow-y: auto; display: none; flex-direction: column; gap: 10px; }
+  .dishes-inside-cat { flex: 1; padding: 12px; overflow-y: auto; display: none; flex-direction: column; gap: 10px; max-width: 960px; width: 100%; margin: 0 auto; }
   .dishes-inside-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  @media (max-width: 520px) { .colorful-cats-grid, .dishes-inside-grid { grid-template-columns: repeat(2, 1fr); } }
-  .dish-touch-box { height: 88px; background: #f8fafc; color: #0f172a; border-radius: 10px; border-left: 6px solid var(--verde); padding: 8px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; font-weight: 800; font-size: 12px; }
+  @media (max-width: 540px) { .colorful-cats-grid, .dishes-inside-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .dish-touch-box {
+    min-height: 92px; background: #ffffff; color: var(--texto); border-radius: 12px;
+    border: 1.5px solid var(--borde); border-left: 5px solid var(--verde); padding: 10px;
+    cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;
+    font-weight: 800; font-size: calc(12.5px * var(--fs)); box-shadow: 0 3px 8px rgba(15,23,42,0.05);
+  }
+  .dish-touch-box:active { transform: scale(0.97); background: #fdfaf6; }
   .dish-touch-box.oculto-agotado { display: none !important; }
+  .dish-guia-tag { font-size: 9.5px; background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 3px; }
 
-  .bottom-1clic-bar { padding: 8px 12px; background: #0b1c19; border-top: 2px solid var(--cobre); display: flex; gap: 8px; align-items: center; }
-  .btn-ver-ronda { height: 48px; padding: 0 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: rgba(255,255,255,0.08); color: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
-  .btn-enviar-1clic { flex: 1; height: 48px; background: #334155; border: 2px solid #64748b; border-radius: 8px; color: #cbd5e1; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
-  .btn-enviar-1clic.listo { background: linear-gradient(135deg, #16a34a, #15803d); border-color: #86efac; color: #fff; }
+  .bottom-confirm-bar { padding: 9px 12px 13px; background: #ffffff; border-top: 2px solid var(--borde); display: flex; gap: 8px; align-items: center; }
+  .btn-revisar-enviar {
+    flex: 1; height: 50px; background: #e2e8f0; border: 1.5px solid #cbd5e1; border-radius: 10px;
+    color: #64748b; font-size: calc(14px * var(--fs)); font-weight: 800;
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  }
+  .btn-revisar-enviar.listo { background: var(--verde); border-color: var(--verde-oscuro); color: #fff; box-shadow: 0 4px 12px rgba(19,66,59,0.28); }
 
-  .mod-top-product-strip { display: grid; grid-template-columns: 1.2fr 1.1fr 0.9fr; gap: 10px; padding: 10px 12px; background: #182b27; }
-  .mod-prod-card { background: #d8dee3; color: #1e293b; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .mod-prod-price { background: #78716c; color: #fff; width: 100%; text-align: center; font-size: 18px; font-weight: 800; padding: 3px 0; margin-top: 5px; border-radius: 4px; }
-  .mod-qty-card { background: #f8fafc; color: #b45309; border-radius: 6px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
-  .mod-qty-number { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 800; color: #9a3412; }
-  .mod-qty-btns { display: grid; grid-template-columns: 1fr 1fr; height: 36px; }
+  /* ================= PANTALLA 3: MODIFICADORES GUIADOS ================= */
+  .mod-top-product-strip { display: grid; grid-template-columns: 1.2fr 1.1fr 0.9fr; gap: 10px; padding: 10px 12px; background: #ffffff; border-bottom: 1px solid var(--borde); }
+  .mod-prod-card { background: #f8fafc; color: var(--verde-oscuro); border: 1.5px solid var(--borde); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .mod-prod-price { background: var(--verde); color: #fff; width: 100%; text-align: center; font-size: calc(17px * var(--fs)); font-weight: 800; padding: 4px 0; margin-top: 6px; border-radius: 6px; }
+  .mod-qty-card { background: #ffffff; border: 1.5px solid var(--borde); border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+  .mod-qty-number { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--verde-oscuro); }
+  .mod-qty-btns { display: grid; grid-template-columns: 1fr 1fr; height: 38px; }
   .btn-q-minus { background: #ef4444; color: #fff; border: none; font-size: 20px; font-weight: 900; cursor: pointer; }
-  .btn-q-plus { background: #659b24; color: #fff; border: none; font-size: 20px; font-weight: 900; cursor: pointer; }
-  .mod-comment-card { background: rgba(255,255,255,0.06); border: 2px solid #cbd5e1; border-radius: 6px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 800; cursor: pointer; }
-  .mod-comment-card i { font-size: 26px; color: #a3e635; }
-  .red-section-banner { background: linear-gradient(90deg, #7f1d1d, #dc2626, #7f1d1d); color: #fff; text-align: center; font-size: 12px; font-weight: 800; padding: 4px 0; }
-  .mod-groups-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px 12px; }
-  .mod-group-tile { height: 58px; background: #f8fafc; color: #1e293b; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10px; font-weight: 800; cursor: pointer; }
-  .mod-group-tile.activo { background: #29b6f6; color: #fff; }
-  .mod-options-row { flex: 1; padding: 8px 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; }
-  .mod-option-tile { height: 74px; background: #f8fafc; color: #0f172a; border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 11.5px; font-weight: 800; cursor: pointer; border: 3px solid transparent; }
-  .mod-option-tile.seleccionado { background: #dcfce7; border-color: #16a34a; color: #14532d; }
+  .btn-q-plus { background: var(--ok); color: #fff; border: none; font-size: 20px; font-weight: 900; cursor: pointer; }
+  .mod-comment-card { background: #fdfaf6; border: 1.5px solid var(--cobre); border-radius: 10px; color: var(--verde-oscuro); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 800; cursor: pointer; padding: 6px; }
+  .mod-comment-card i { font-size: 24px; color: var(--cobre); }
 
-  .mob-overlay-center { position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(4px); z-index: 800; display: none; align-items: center; justify-content: center; padding: 14px; }
-  .personas-box-mob { background: #fff; color: #1e293b; width: 100%; max-width: 490px; border-radius: 18px; border: 2px solid var(--cobre); padding: 16px; max-height: 90vh; overflow-y: auto; }
+  .sec-banner { background: #f1f5f9; color: var(--verde); border-top: 1px solid var(--borde); border-bottom: 1px solid var(--borde); text-align: center; font-size: 11.5px; font-weight: 800; padding: 5px 10px; letter-spacing: 0.4px; }
+  .mod-groups-row { display: flex; gap: 7px; padding: 9px 12px; overflow-x: auto; background: #ffffff; border-bottom: 1px solid var(--borde); }
+  .mod-group-tile {
+    min-width: 118px; flex: 1; min-height: 52px; background: #f8fafc; color: var(--texto);
+    border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 6px 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    font-size: calc(11px * var(--fs)); font-weight: 800; cursor: pointer;
+  }
+  .mod-group-tile.activo { background: var(--verde); color: #fff; border-color: var(--verde-oscuro); }
+  .mod-group-tile.oblig-falta { background: #fef2f2; color: #b91c1c; border-color: #dc2626; }
+  .mod-group-tile.oblig-falta.activo { background: #dc2626; color: #fff; border-color: #991b1b; }
+  .mod-group-tile.oblig-ok { background: #dcfce7; color: #166534; border-color: #16a34a; }
+  .mod-group-tile.oblig-ok.activo { background: var(--verde); color: #fff; border-color: var(--dorado); }
+
+  .mod-options-row { flex: 1; padding: 12px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; align-content: start; max-width: 900px; width: 100%; margin: 0 auto; }
+  @media (max-width: 520px) { .mod-options-row { grid-template-columns: repeat(2, 1fr); } }
+  .mod-option-tile {
+    min-height: 76px; background: #ffffff; color: var(--texto); border-radius: 10px; padding: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    font-size: calc(12px * var(--fs)); font-weight: 800; cursor: pointer; border: 2px solid var(--borde);
+    box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+  }
+  .mod-option-tile.seleccionado { background: #dcfce7; border-color: var(--ok); color: #14532d; }
+  .tag-area-mod { font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 8px; margin-top: 4px; background: #e0f2fe; color: #0369a1; }
+
+  .mod-resumen-bar { background: #fdfaf6; border-top: 1px solid var(--borde); padding: 7px 12px; font-size: 12px; font-weight: 700; color: var(--verde-oscuro); display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .mod-chip-sel { background: #ffffff; border: 1px solid var(--cobre); border-radius: 14px; padding: 2px 9px; font-size: 11px; font-weight: 800; color: var(--verde); }
+
+  /* ================= PANTALLA 4: CONFIRMAR COMANDA (DESGLOSE + NOTAS) ================= */
+  .conf-toolbar {
+    background: #ffffff; border-bottom: 1px solid var(--borde); padding: 8px 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .t-pill { padding: 5px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; font-weight: 800; font-size: 11.5px; cursor: pointer; color: var(--texto); }
+  .t-pill.activo { background: var(--cobre); color: #fff; border-color: var(--cobre-oscuro); }
+  .conf-list { flex: 1; overflow-y: auto; padding: 12px; max-width: 820px; width: 100%; margin: 0 auto; }
+  .conf-card {
+    background: #ffffff; border: 1.5px solid var(--borde); border-left: 5px solid var(--verde);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 9px; box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+  }
+  .conf-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .conf-mods { margin: 5px 0 6px 14px; font-size: calc(12px * var(--fs)); color: #475569; font-weight: 700; }
+  .conf-nota-box { background: #fefce8; border: 1px dashed #eab308; color: #854d0e; border-radius: 8px; padding: 5px 8px; font-size: 11.5px; font-weight: 800; margin-top: 5px; }
+  .conf-card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* ================= MODALES Y CAJONES ================= */
+  .mob-overlay-center { position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(3px); z-index: 800; display: none; align-items: center; justify-content: center; padding: 14px; }
+  .personas-box-mob { background: #ffffff; color: var(--texto); width: 100%; max-width: 490px; border-radius: 16px; border: 2px solid var(--cobre); padding: 16px; max-height: 90vh; overflow-y: auto; box-shadow: 0 18px 40px rgba(0,0,0,0.25); }
   .personas-nums-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
-  .p-btn-mob { height: 46px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: var(--hueso); color: var(--verde); font-size: 15px; font-weight: 800; cursor: pointer; }
+  .p-btn-mob { height: 48px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #f8fafc; color: var(--verde); font-size: 16px; font-weight: 800; cursor: pointer; }
+  .p-btn-mob:hover { background: var(--verde); color: #fff; border-color: var(--verde); }
   .menu-2seg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-  .menu-2seg-btn { height: 58px; border-radius: 12px; border: 1.5px solid var(--cobre); background: var(--verde); color: #fff; font-weight: 800; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
-  .menu-2seg-btn i { font-size: 17px; color: var(--dorado); }
-  .chip-nota { padding: 6px 10px; border-radius: 16px; border: 1px solid var(--cobre); background: var(--hueso); color: var(--verde); font-size: 11px; font-weight: 800; cursor: pointer; }
-  .m-inp { width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 15px; }
+  .menu-2seg-btn { height: 58px; border-radius: 12px; border: 1.5px solid var(--borde); background: #f8fafc; color: var(--verde-oscuro); font-weight: 800; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+  .menu-2seg-btn i { font-size: 17px; color: var(--cobre); }
+  .menu-2seg-btn.danger { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+  .menu-2seg-btn.danger i { color: #dc2626; }
+  .chip-nota { padding: 6px 11px; border-radius: 16px; border: 1px solid var(--cobre); background: #fdfaf6; color: var(--verde); font-size: 11.5px; font-weight: 800; cursor: pointer; }
+  .m-inp { width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 15px; background: #fff; color: var(--texto); }
   .btn-m { height: 38px; padding: 0 12px; border-radius: 8px; border: none; background: var(--verde); color: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
-  .btn-m.cobre { background: var(--cobre); } .btn-m.rojo { background: #dc2626; } .btn-m.gris { background: #e2e8f0; color: #334155; } .btn-m.sm { height: 30px; padding: 0 9px; font-size: 11px; }
+  .btn-m.cobre { background: var(--cobre); } .btn-m.rojo { background: var(--rojo); } .btn-m.gris { background: #e2e8f0; color: #334155; } .btn-m.sm { height: 30px; padding: 0 10px; font-size: 11.5px; }
   .tab-bar-mob { display: flex; gap: 6px; background: #f1f5f9; padding: 6px; border-radius: 10px; margin-bottom: 10px; }
   .tab-btn-mob { flex: 1; height: 34px; border: none; border-radius: 8px; background: transparent; font-weight: 800; font-size: 12px; color: #64748b; cursor: pointer; }
   .tab-btn-mob.activo { background: var(--verde); color: #fff; }
 
-  .mob-drawer { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 750; display: none; flex-direction: column; padding: 14px; overflow-y: auto; }
-  .mob-drawer-box { background: #fff; color: #1e293b; border-radius: 18px; padding: 16px; max-width: 720px; width: 100%; margin: 0 auto; border: 2px solid var(--cobre); }
+  .mob-drawer { position: fixed; inset: 0; background: rgba(15,23,42,0.7); z-index: 750; display: none; flex-direction: column; padding: 14px; overflow-y: auto; }
+  .mob-drawer-box { background: #fff; color: var(--texto); border-radius: 16px; padding: 16px; max-width: 720px; width: 100%; margin: 0 auto; border: 2px solid var(--cobre); }
   .btn-toggle-ag { color: #fff; border: none; padding: 6px 12px; border-radius: 20px; font-weight: 800; cursor: pointer; font-size: 11.5px; }
   .btn-ag-rojo { background: #ef4444; } .btn-ag-verde { background: #16a34a; }
-  .toast-tablet { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 18px; border-radius: 30px; font-weight: 800; font-size: 12.5px; z-index: 999; display: none; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+  .toast-tablet { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 18px; border-radius: 30px; font-weight: 800; font-size: 12.5px; z-index: 999; display: none; box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
 
   #zona-impresion-tablet { display: none; }
   @media print {
-    @page { margin: 0; size: 80mm auto; }
+    @page { margin: 2mm; size: 80mm auto; }
     #no-print-tablet { display: none !important; }
-    #zona-impresion-tablet { display: block !important; width: 72mm; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; color: #000; background: #fff; }
+    #zona-impresion-tablet { display: block !important; width: 72mm; margin: 0 auto; font-family: 'Courier New', monospace; font-size: 12px; color: #000; background: #fff; line-height: 1.25; }
   }
 </style>
 </head>
-<body>
+<body class="fs-md">
 
 <div id="no-print-tablet">
   <div class="mob-topbar">
@@ -172,6 +313,7 @@
       <span>{{ current_user.username|upper }} • {{ sucursal }}</span>
     </div>
     <div class="mob-actions-right">
+      <button type="button" class="mob-pill-btn" onclick="ciclarTamanoLetra()" title="Tamaño de letra">Aa</button>
       {% if current_user.role == 'admin' %}
       <select class="mob-pill-btn" style="background:var(--verde-oscuro);" onchange="cambiarSucursalTablet(this.value)">
         {% for s in sucursales %}<option value="{{ s }}" {% if s == sucursal %}selected{% endif %}>{{ s }}</option>{% endfor %}
@@ -180,7 +322,7 @@
       <button type="button" class="mob-pill-btn" onclick="abrirMiVenta()"><i class="fa-solid fa-chart-line"></i> Mi Venta</button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalPreordenesNFC()">🔔 Plaquitas <span class="mob-badge-alert" id="badgePreordenesTablet">{{ preordenes|length }}</span></button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalAgotadosTablet()">🚫 Agotados</button>
-      {% if current_user.role in ['admin', 'cajero', 'sucursal'] %}
+      {% if current_user.role in ['admin', 'gerente', 'cajero', 'sucursal'] %}
       <a href="/pos" class="mob-pill-btn">🖥️ POS</a>
       {% endif %}
       <a href="{{ url_for('logout') }}" class="mob-pill-btn" style="background:#ef4444;border-color:#ef4444;"><i class="fa-solid fa-power-off"></i></a>
@@ -189,7 +331,7 @@
 
   <div class="mob-filters-wrap">
     <div class="mob-area-pills">
-      <button type="button" class="area-pill activo" onclick="cambiarFiltroAreaTablet('TODAS', this)">Todas</button>
+      <button type="button" class="area-pill activo" onclick="cambiarFiltroAreaTablet('TODAS', this)">Todas las Áreas</button>
       <button type="button" class="area-pill" onclick="cambiarFiltroAreaTablet('T', this)">🌿 Terrazas (T01-T12)</button>
       <button type="button" class="area-pill" onclick="cambiarFiltroAreaTablet('M', this)">🍽️ Comedor (M1-M6)</button>
     </div>
@@ -208,43 +350,43 @@
   <div class="screen-layer" id="screenDetalleCuenta">
     <div class="layer-topbar">
       <div class="layer-mesa-title" onclick="cerrarTodasLasCapas()">
-        <i class="fa-solid fa-chevron-left" style="color:var(--cobre);"></i>
+        <i class="fa-solid fa-chevron-left" style="color:var(--dorado);"></i>
         <span id="detNombreMesa">-</span>
         <small id="detRelojEstancia" style="font-size:11px;color:var(--dorado);font-weight:700;"></small>
       </div>
       <div class="layer-tools">
-        <button type="button" class="tool-ico-btn" id="btnResumenCuenta" onclick="toggleResumenCuenta()" title="Resumen"><i class="fa-solid fa-magnifying-glass-chart"></i></button>
+        <button type="button" class="tool-ico-btn" id="btnResumenCuenta" onclick="toggleResumenCuenta()" title="Resumen"><i class="fa-solid fa-list-check"></i></button>
         <button type="button" class="tool-ico-btn rojo" onclick="abrirModalCancelarProdsMob()" title="Cancelar productos"><i class="fa-solid fa-ban"></i></button>
         <button type="button" class="tool-ico-btn" onclick="abrirModalReimprimirProds()" title="Reimprimir productos"><i class="fa-solid fa-print"></i></button>
         <button type="button" class="tool-ico-btn" onclick="abrirMenuCuentaActiva()" title="Opciones"><i class="fa-solid fa-ellipsis-vertical"></i></button>
       </div>
     </div>
-    <div class="banner-bloqueo-impresa" id="bannerCuentaImpresa">🟡 CUENTA IMPRESA (LISTA PARA COBRO EN CAJA) — Reábrela con clave de Raquel para agregar más productos.</div>
+    <div class="banner-bloqueo-impresa" id="bannerCuentaImpresa">🟡 CUENTA IMPRESA (LISTA PARA COBRO EN CAJA) — Reábrela con clave de Admin o Gerente para agregar más productos.</div>
     <div class="sent-items-list" id="listaProductosYaEnviados"></div>
     <div class="account-totals-strip">
       <div class="tot-strip-row"><span>SUBTOTAL:</span><div class="tot-white-box"><span>$</span><span id="detSubtotal">0.00</span></div></div>
       <div class="tot-strip-row"><span>IMPUESTOS:</span><div class="tot-white-box"><span>$</span><span id="detIva">0.00</span></div></div>
-      <div class="tot-strip-row"><span>TOTAL DE CUENTA:</span><div class="tot-white-box" style="background:#fff;border:2px solid var(--cobre);"><span>$</span><span id="detTotal">0.00</span></div></div>
+      <div class="tot-strip-row" style="color:var(--verde-oscuro);"><span>TOTAL DE CUENTA:</span><div class="tot-white-box" style="background:#fff;border:2px solid var(--cobre);"><span>$</span><span id="detTotal">0.00</span></div></div>
     </div>
     <div class="bottom-triple-btns" id="btnsCuentaOcupada">
-      <button type="button" class="big-outline-btn btn-solicitar" onclick="solicitarCuentaACaja()"><i class="fa-solid fa-bell" style="color:var(--dorado);"></i><span>PEDIR CTA</span></button>
-      <button type="button" class="big-outline-btn" onclick="imprimirCuentaConPinDesdeTablet()"><i class="fa-solid fa-print" style="color:#38bdf8;"></i><span>IMPRIMIR</span></button>
-      <button type="button" class="big-outline-btn" onclick="irAPantallaCategorias()"><i class="fa-solid fa-hand-pointer" style="color:var(--cobre);"></i><span>CAPTURAR</span></button>
+      <button type="button" class="big-action-btn warn" onclick="solicitarCuentaACaja()"><i class="fa-solid fa-bell"></i><span>PEDIR CTA</span></button>
+      <button type="button" class="big-action-btn" onclick="imprimirCuentaConPinDesdeTablet()"><i class="fa-solid fa-print" style="color:var(--cobre);"></i><span>IMPRIMIR</span></button>
+      <button type="button" class="big-action-btn primary" onclick="irAPantallaCategorias()"><i class="fa-solid fa-plus-circle"></i><span>CAPTURAR</span></button>
     </div>
     <div class="bottom-dual-btns" id="btnsCuentaImpresa" style="display:none;">
-      <button type="button" class="big-outline-btn btn-reabrir" onclick="abrirModalReabrirCuenta()"><i class="fa-solid fa-lock-open"></i><span>REABRIR CUENTA</span></button>
-      <button type="button" class="big-outline-btn" onclick="imprimirCuentaConPinDesdeTablet()"><i class="fa-solid fa-print" style="color:#38bdf8;"></i><span>REIMPRIMIR</span></button>
+      <button type="button" class="big-action-btn warn" onclick="abrirModalReabrirCuenta()"><i class="fa-solid fa-lock-open"></i><span>REABRIR CUENTA</span></button>
+      <button type="button" class="big-action-btn primary" onclick="imprimirCuentaConPinDesdeTablet()"><i class="fa-solid fa-print"></i><span>REIMPRIMIR</span></button>
     </div>
   </div>
 
-  <!-- PANTALLA 2: CAPTURA -->
+  <!-- PANTALLA 2: CAPTURA DE PRODUCTOS -->
   <div class="screen-layer" id="screenCategoriasCaptura">
     <div class="layer-topbar">
       <div class="layer-mesa-title" onclick="volverADetalleCuenta()">
-        <i class="fa-solid fa-chevron-left" style="color:var(--cobre);"></i>
+        <i class="fa-solid fa-chevron-left" style="color:var(--dorado);"></i>
         <span id="capNombreMesa">-</span>
       </div>
-      <span id="badgeCarritopendiente" style="background:var(--cobre);padding:4px 12px;border-radius:14px;font-size:12px;font-weight:800;">0 en ronda</span>
+      <span id="badgeCarritopendiente" style="background:var(--cobre);padding:4px 12px;border-radius:14px;font-size:12px;font-weight:800;cursor:pointer;" onclick="abrirPantallaConfirmarComanda()">0 en ronda</span>
     </div>
     <div class="super-tabs-bar">
       <div class="super-tab activo" onclick="filtrarSuperFamilia('TODOS', this)"><i class="fa-solid fa-utensils"></i><span>TODOS</span></div>
@@ -252,12 +394,12 @@
       <div class="super-tab" onclick="filtrarSuperFamilia('BEBIDAS', this)"><i class="fa-solid fa-mug-hot"></i><span>BEBIDAS</span></div>
       <div class="super-tab" onclick="filtrarSuperFamilia('OTROS', this)"><i class="fa-solid fa-ice-cream"></i><span>POSTRES</span></div>
       <div class="super-tab" onclick="filtrarSuperFamilia('FAVORITOS', this)"><i class="fa-solid fa-star"></i><span>FAVS</span></div>
-      <div class="super-tab" onclick="abrirRepetirProducto(this)"><i class="fa-solid fa-rotate-right" style="color:#38bdf8;"></i><span>REPETIR</span></div>
+      <div class="super-tab" onclick="abrirRepetirProducto(this)"><i class="fa-solid fa-rotate-right" style="color:#0284c7;"></i><span>REPETIR</span></div>
     </div>
     <div class="live-search-bar">
-      <i class="fa-solid fa-magnifying-glass" style="color:var(--dorado);font-size:15px;"></i>
-      <input type="text" id="inputBuscadorVivoTablet" placeholder="Buscar platillo o bebida..." oninput="buscarPlatilloEnVivo()">
-      <button type="button" onclick="limpiarBuscadorVivo()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:30px;height:30px;font-weight:800;cursor:pointer;">✕</button>
+      <i class="fa-solid fa-magnifying-glass" style="color:var(--cobre);font-size:15px;"></i>
+      <input type="text" id="inputBuscadorVivoTablet" placeholder="Buscar platillo, paquete o bebida..." oninput="buscarPlatilloEnVivo()">
+      <button type="button" onclick="limpiarBuscadorVivo()" style="background:#e2e8f0;color:#334155;border:none;border-radius:50%;width:32px;height:32px;font-weight:800;cursor:pointer;">✕</button>
     </div>
     <div class="colorful-cats-grid" id="gridCuadrosCategorias">
       {% for cat in productos|groupby('categoria') %}
@@ -267,8 +409,8 @@
     </div>
     <div class="dishes-inside-cat" id="vistaPlatillosDeCat">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <button type="button" onclick="limpiarBuscadorVivo()" style="background:var(--cobre);color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:800;cursor:pointer;"><i class="fa-solid fa-arrow-left"></i> Categorías</button>
-        <strong id="tituloCatAbierta" style="color:var(--dorado);font-size:13px;text-transform:uppercase;"></strong>
+        <button type="button" onclick="limpiarBuscadorVivo()" class="btn-m sm cobre"><i class="fa-solid fa-arrow-left"></i> Categorías</button>
+        <strong id="tituloCatAbierta" style="color:var(--verde);font-size:13.5px;text-transform:uppercase;"></strong>
       </div>
       <div class="dishes-inside-grid" id="gridBotonesPlatillos">
         {% for p in productos %}
@@ -276,62 +418,86 @@
              data-pid="{{ p.id }}" data-cat="{{ p.categoria }}" data-fav="{{ '1' if p.destacado else '0' }}"
              data-nom="{{ p.nombre }}" data-pre="{{ p.precio }}" data-clv="0{{ p.id }}"
              onclick="tocarPlatilloParaModificar(this)">
-          <div>{{ p.nombre|upper }}</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            {{ p.nombre|upper }}
+            <div class="dish-guia-slot" data-guia-nom="{{ p.nombre|upper }}"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
             <small style="color:#64748b;">0{{ p.id }}</small>
-            <span style="color:var(--verde);font-size:14px;">${{ "%.2f"|format(p.precio) }}</span>
+            <span style="color:var(--cobre);font-size:14.5px;">${{ "%.2f"|format(p.precio) }}</span>
           </div>
         </div>
         {% endfor %}
       </div>
     </div>
-    <div class="bottom-1clic-bar">
-      <button type="button" class="btn-ver-ronda" onclick="abrirModalRevisarRonda()">📋 Ver (<span id="cntRondaMini">0</span>)</button>
-      <button type="button" class="btn-enviar-1clic" id="btnEnviar1Clic" onclick="dispararComandaACajaDirecto()">
-        <i class="fa-solid fa-paper-plane"></i><span id="txtBtnEnviar1Clic">ENVIAR COMANDA (1 CLIC)</span>
+    <div class="bottom-confirm-bar">
+      <button type="button" class="btn-revisar-enviar" id="btnRevisarComanda" onclick="abrirPantallaConfirmarComanda()">
+        <i class="fa-solid fa-clipboard-check"></i><span id="txtBtnRevisarComanda">REVISAR Y ENVIAR COMANDA (0)</span>
       </button>
     </div>
   </div>
 
-  <!-- PANTALLA 3: MODIFICADORES -->
+  <!-- PANTALLA 3: ASISTENTE DE MODIFICADORES GUIADOS -->
   <div class="screen-layer" id="screenAsistenteModificadores">
     <div class="layer-topbar">
       <div class="layer-mesa-title" onclick="cerrarAsistenteModificadores()">
-        <i class="fa-solid fa-chevron-left" style="color:var(--cobre);"></i>
+        <i class="fa-solid fa-chevron-left" style="color:var(--dorado);"></i>
         <span id="modNombrePlatillo">PLATILLO</span>
       </div>
+      <span id="lblPasoModInfo" style="font-size:11px;font-weight:800;color:var(--dorado);"></span>
     </div>
     <div class="mod-top-product-strip">
       <div class="mod-prod-card">
-        <i class="fa-solid fa-utensils" style="font-size:26px;color:#64748b;"></i>
-        <small style="color:#64748b;font-weight:700;margin-top:4px;">Comensal Conectado</small>
+        <i class="fa-solid fa-utensils" style="font-size:22px;color:var(--cobre);"></i>
+        <small style="color:#64748b;font-weight:700;margin-top:3px;" id="modCatEtiqueta">Quiosco</small>
         <div class="mod-prod-price" id="modPrecioUnitario">$ 0.00</div>
       </div>
       <div class="mod-qty-card">
         <div class="mod-qty-number" id="modCantidadActual">1.0</div>
         <div class="mod-qty-btns">
-          <button type="button" class="btn-q-minus" onclick="cambiarCantModificador(-1)">-</button>
+          <button type="button" class="btn-q-minus" onclick="cambiarCantModificador(-1)">−</button>
           <button type="button" class="btn-q-plus" onclick="cambiarCantModificador(1)">+</button>
         </div>
       </div>
       <div class="mod-comment-card" onclick="abrirCuadritoComentarioPlatillo()">
         <i class="fa-solid fa-file-pen"></i><span>NOTA</span>
-        <small id="indicadorComentarioProd" style="color:var(--dorado);font-size:10px;text-align:center;"></small>
+        <small id="indicadorComentarioProd" style="color:var(--cobre);font-size:10px;text-align:center;"></small>
       </div>
     </div>
-    <div class="red-section-banner">GRUPOS</div>
-    <div class="mod-groups-row">
-      <div class="mod-group-tile" data-grp="TIPO DE LECHE" onclick="seleccionarGrupoMod('TIPO DE LECHE', this)">LECHE</div>
-      <div class="mod-group-tile" data-grp="CARGAS DE CAFE" onclick="seleccionarGrupoMod('CARGAS DE CAFE', this)">CARGAS</div>
-      <div class="mod-group-tile activo" data-grp="SABORES" onclick="seleccionarGrupoMod('SABORES', this)">SABORES</div>
-      <div class="mod-group-tile" data-grp="FRIO O CALIENTE" onclick="seleccionarGrupoMod('FRIO O CALIENTE', this)">TEMP</div>
-      <div class="mod-group-tile" data-grp="EXTRAS ALIMENTOS" onclick="seleccionarGrupoMod('EXTRAS ALIMENTOS', this)">EXTRAS</div>
-    </div>
-    <div class="red-section-banner">MODIFICADORES</div>
+    <div class="sec-banner" id="bannerPasosMod">SELECCIONA LAS OPCIONES DEL PLATILLO</div>
+    <div class="mod-groups-row" id="contenedorGruposMod"></div>
+    <div class="sec-banner" id="bannerOpcionesMod">OPCIONES</div>
     <div class="mod-options-row" id="contenedorOpcionesMod"></div>
+    <div class="mod-resumen-bar" id="resumenModsSeleccionados"></div>
     <div class="bottom-dual-btns">
-      <button type="button" class="big-outline-btn" onclick="cerrarAsistenteModificadores()"><i class="fa-solid fa-xmark" style="color:#ef4444;"></i><span>CANCELAR</span></button>
-      <button type="button" class="big-outline-btn" onclick="confirmarPlatilloConSusModificadores()"><i class="fa-solid fa-check" style="color:#22c55e;"></i><span>AGREGAR</span></button>
+      <button type="button" class="big-action-btn" onclick="cerrarAsistenteModificadores()"><i class="fa-solid fa-xmark" style="color:var(--rojo);"></i><span>CANCELAR</span></button>
+      <button type="button" class="big-action-btn verde" onclick="confirmarPlatilloConSusModificadores()"><i class="fa-solid fa-check"></i><span>AGREGAR A RONDA</span></button>
+    </div>
+  </div>
+
+  <!-- PANTALLA 4: CONFIRMACIÓN Y DESGLOSE DE COMANDA ANTES DE ENVIAR -->
+  <div class="screen-layer" id="screenConfirmarComanda" style="z-index:420;">
+    <div class="layer-topbar">
+      <div class="layer-mesa-title" onclick="cerrarPantallaConfirmarComanda()">
+        <i class="fa-solid fa-chevron-left" style="color:var(--dorado);"></i>
+        <span>Confirmar Comanda • <span id="confNombreMesa">-</span></span>
+      </div>
+      <strong id="confTotalBadge" style="color:var(--dorado);font-size:15px;">$0.00</strong>
+    </div>
+    <div class="conf-toolbar">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span style="font-size:11px;font-weight:800;color:var(--muted);">Tiempo:</span>
+        <button type="button" class="t-pill activo" data-t="1" onclick="fijarTiempoRonda(1, this)">T1</button>
+        <button type="button" class="t-pill" data-t="2" onclick="fijarTiempoRonda(2, this)">T2</button>
+        <button type="button" class="t-pill" data-t="3" onclick="fijarTiempoRonda(3, this)">T3</button>
+        <button type="button" class="t-pill" data-t="4" onclick="fijarTiempoRonda(4, this)">T4</button>
+      </div>
+      <button type="button" class="btn-m sm gris" onclick="agregarSeparadorRonda()">+ Separador (===)</button>
+    </div>
+    <div class="conf-list" id="listaConfirmarComanda"></div>
+    <div class="bottom-dual-btns">
+      <button type="button" class="big-action-btn" onclick="cerrarPantallaConfirmarComanda()"><i class="fa-solid fa-plus"></i><span>SEGUIR CAPTURANDO</span></button>
+      <button type="button" class="big-action-btn verde" id="btnEnviarDefinitivo" onclick="dispararComandaConfirmada()"><i class="fa-solid fa-paper-plane"></i><span id="txtBtnEnviarDefinitivo">CONFIRMAR Y ENVIAR</span></button>
     </div>
   </div>
 
@@ -356,8 +522,8 @@
         <button type="button" class="menu-2seg-btn" onclick="abrirModalMoverMesa()"><i class="fa-solid fa-arrows-left-right"></i><span>CAMBIAR MESA</span></button>
         <button type="button" class="menu-2seg-btn" onclick="abrirModalCambiarMesero()"><i class="fa-solid fa-user-tag"></i><span>CAMBIAR MESERO</span></button>
         <button type="button" class="menu-2seg-btn" onclick="cerrarModalMob('modalMenuCuenta2Seg'); abrirCuadritoCambiarPersonas();"><i class="fa-solid fa-users"></i><span>PERSONAS</span></button>
-        <button type="button" class="menu-2seg-btn" style="background:#991b1b;border-color:#fca5a5;" onclick="cerrarModalMob('modalMenuCuenta2Seg'); abrirModalCancelarProdsMob(cuentaMenu2SegId);"><i class="fa-solid fa-ban"></i><span>CANCELAR PROD.</span></button>
-        <button type="button" class="menu-2seg-btn" style="background:#b91c1c;border-color:#fca5a5;" onclick="abrirModalCancelarCuentaMob()"><i class="fa-solid fa-trash-can"></i><span>ELIMINAR CTA</span></button>
+        <button type="button" class="menu-2seg-btn danger" onclick="cerrarModalMob('modalMenuCuenta2Seg'); abrirModalCancelarProdsMob(cuentaMenu2SegId);"><i class="fa-solid fa-ban"></i><span>CANCELAR PROD.</span></button>
+        <button type="button" class="menu-2seg-btn danger" onclick="abrirModalCancelarCuentaMob()"><i class="fa-solid fa-trash-can"></i><span>ELIMINAR CTA</span></button>
       </div>
       <button type="button" class="btn-m gris" style="width:100%;" onclick="cerrarModalMob('modalMenuCuenta2Seg')">Cerrar</button>
     </div>
@@ -430,7 +596,7 @@
             <div style="font-size:10.5px;font-weight:800;color:#64748b;margin-bottom:4px;">ORIGEN (Toca para mover)</div>
             <div id="listaOrigenDivProdsMob"></div>
           </div>
-          <div style="border:1px solid var(--cobre);border-radius:8px;padding:6px;max-height:210px;overflow-y:auto;background:var(--hueso);">
+          <div style="border:1px solid var(--cobre);border-radius:8px;padding:6px;max-height:210px;overflow-y:auto;background:#fdfaf6;">
             <div style="font-size:10.5px;font-weight:800;color:var(--cobre);margin-bottom:4px;">SUBCUENTA <span id="lblSubDestMobActual">A</span></div>
             <div id="listaDestinoDivProdsMob"></div>
           </div>
@@ -448,7 +614,7 @@
       <h4 style="margin:0 0 8px;color:#b91c1c;font-family:'Lora',serif;">🚫 Cancelar Productos</h4>
       <div id="listaCancelarProdsMob" style="max-height:220px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:8px;padding:6px;margin-bottom:8px;"></div>
       <input type="text" id="cancMobMotivo" class="m-inp" placeholder="Motivo de cancelación..." style="margin-bottom:6px;">
-      <input type="password" id="cancMobClave" class="m-inp" placeholder="🔒 Contraseña de Raquel (Admin)..." style="margin-bottom:10px;border-color:#dc2626;">
+      <input type="password" id="cancMobClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente..." style="margin-bottom:10px;border-color:#dc2626;">
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn-m gris" style="flex:1;" onclick="cerrarModalMob('modalCancelarProdsMob')">Cerrar</button>
         <button type="button" class="btn-m rojo" style="flex:2;" onclick="ejecutarCancelarProdsMob()">✅ Confirmar Cancelación</button>
@@ -461,7 +627,7 @@
       <h4 style="margin:0 0 8px;color:#b91c1c;font-family:'Lora',serif;">🗑️ Eliminar / Cancelar Cuenta</h4>
       <p style="font-size:12px;margin:0 0 8px;">Cuenta: <b id="lblMesaCancCtaMob">-</b></p>
       <input type="text" id="cancCtaMobMotivo" class="m-inp" placeholder="Motivo (si tiene productos)..." style="margin-bottom:6px;">
-      <input type="password" id="cancCtaMobClave" class="m-inp" placeholder="🔒 Contraseña de Raquel (Admin)..." style="margin-bottom:10px;border-color:#dc2626;">
+      <input type="password" id="cancCtaMobClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente..." style="margin-bottom:10px;border-color:#dc2626;">
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn-m gris" style="flex:1;" onclick="cerrarModalMob('modalCancelarCuentaMob')">Cancelar</button>
         <button type="button" class="btn-m rojo" style="flex:2;" onclick="ejecutarCancelarCuentaMob()">🗑️ Eliminar Cuenta</button>
@@ -481,7 +647,7 @@
   <div class="mob-overlay-center" id="modalClaveAuthTablet">
     <div class="personas-box-mob">
       <h4 style="margin:0 0 8px;color:var(--verde);font-family:'Lora',serif;" id="tituloClaveAuth">🔒 Contraseña de Autorización</h4>
-      <input type="password" id="inputClaveAuthTablet" class="m-inp" placeholder="Clave de Raquel (Admin)..." style="border-color:#dc2626;margin-bottom:12px;">
+      <input type="password" id="inputClaveAuthTablet" class="m-inp" placeholder="Clave de Admin o Gerente..." style="border-color:#dc2626;margin-bottom:12px;">
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn-m gris" style="flex:1;" onclick="cerrarModalMob('modalClaveAuthTablet')">Cancelar</button>
         <button type="button" class="btn-m" style="flex:1;" onclick="ejecutarAccionConClave()">Aceptar</button>
@@ -491,18 +657,20 @@
 
   <div class="mob-overlay-center" id="modalComentarioElegante">
     <div class="personas-box-mob" style="text-align:center;">
-      <h4 style="margin:0 0 8px;color:var(--verde);font-family:'Lora',serif;">📝 Nota de Preparación</h4>
+      <h4 style="margin:0 0 8px;color:var(--verde);font-family:'Lora',serif;" id="tituloModalComentario">📝 Nota de Preparación</h4>
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px;">
-        <button type="button" class="chip-nota" onclick="document.getElementById('inputComentarioTexto').value='SIN CEBOLLA'">SIN CEBOLLA</button>
-        <button type="button" class="chip-nota" onclick="document.getElementById('inputComentarioTexto').value='BIEN CALIENTE'">BIEN CALIENTE</button>
-        <button type="button" class="chip-nota" onclick="document.getElementById('inputComentarioTexto').value='PARA LLEVAR'">PARA LLEVAR</button>
-        <button type="button" class="chip-nota" onclick="document.getElementById('inputComentarioTexto').value='SIN HIELO'">SIN HIELO</button>
-        <button type="button" class="chip-nota" onclick="document.getElementById('inputComentarioTexto').value='POCO HIELO'">POCO HIELO</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('SIN CEBOLLA')">SIN CEBOLLA</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('BIEN CALIENTE')">BIEN CALIENTE</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('PARA LLEVAR')">PARA LLEVAR</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('SIN HIELO')">SIN HIELO</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('POCO HIELO')">POCO HIELO</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('SIN CREMA')">SIN CREMA</button>
+        <button type="button" class="chip-nota" onclick="anexarChipNota('SALSA APARTE')">SALSA APARTE</button>
       </div>
-      <input type="text" id="inputComentarioTexto" class="m-inp" placeholder="O escribe una nota..." style="margin-bottom:12px;text-transform:uppercase;">
+      <input type="text" id="inputComentarioTexto" class="m-inp" placeholder="Escribe instrucciones para cocina o barra..." style="margin-bottom:12px;text-transform:uppercase;">
       <div style="display:flex;gap:8px;">
         <button type="button" class="btn-m gris" style="flex:1;" onclick="cerrarModalMob('modalComentarioElegante')">Cancelar</button>
-        <button type="button" class="btn-m" style="flex:1;" onclick="guardarComentarioElegante()">Aceptar</button>
+        <button type="button" class="btn-m" style="flex:1;" onclick="guardarComentarioElegante()">Guardar Nota</button>
       </div>
     </div>
   </div>
@@ -542,7 +710,7 @@
       </div>
       <div id="contenedorPreordenesDrawer">
         {% for o in preordenes %}
-        <div style="background:var(--hueso);padding:12px;border-radius:12px;margin-bottom:10px;border-left:5px solid var(--verde);border:1px solid var(--gris-borde);">
+        <div style="background:#fdfaf6;padding:12px;border-radius:12px;margin-bottom:10px;border-left:5px solid var(--verde);border:1px solid var(--borde);">
           <div style="display:flex;justify-content:space-between;font-weight:800;color:var(--verde);">
             <span>📍 Plaquita / Mesa {{ o.mesa }} • {{ o.cliente_nombre }}</span>
             <span style="color:var(--cobre);">${{ o.total }}</span>
@@ -595,13 +763,22 @@
   let cuentaTabletId = null, datosCuentaActual = null, tarjetasCache = [];
   let filtroAreaTablet = 'TODAS', filtroEstadoTablet = 'TODOS';
   let mesaPendienteAbrir = '', modoPersonas = 'ABRIR';
-  let catalogoModificadores = [], grupoModActivo = 'SABORES';
+  let catalogoModificadores = [], catalogoFlujos = {}, pasosModActuales = [], grupoModActivo = 'SABORES';
   let platilloEnEdicion = null, modsSeleccionadosPlatillo = [], comentarioPlatilloTemp = '', rondaPendiente = [];
+  let tiempoRondaActual = 1, indiceComentarioRonda = -1;
   let vistaResumenActiva = false, accionClavePendiente = '', itemsReimpPendientes = [];
   let cuentaMenu2SegId = null, cuentaMenu2SegMesa = '', cuentaCancProdsId = null;
   let datosCuentaDivMob = null, numPartesMob = 2, subDestMobActiva = 'A', subcuentasDivMob = { A: [], B: [], C: [] };
   let datosMiVentaCache = null, timerPresionLarga = null, fuePresionLarga = false;
   let ultimoTotalPreordenes = Number($('badgePreordenesTablet')?.innerText || 0);
+
+  const GRUPOS_DEFAULT_MOB = [
+    { grupo: 'TIPO DE LECHE', etiqueta: 'LECHE', obligatorio: false, max_seleccion: 1 },
+    { grupo: 'CARGAS DE CAFE', etiqueta: 'CARGAS', obligatorio: false, max_seleccion: 0 },
+    { grupo: 'SABORES', etiqueta: 'SABORES', obligatorio: false, max_seleccion: 0 },
+    { grupo: 'FRIO O CALIENTE', etiqueta: 'TEMP', obligatorio: false, max_seleccion: 1 },
+    { grupo: 'EXTRAS ALIMENTOS', etiqueta: 'EXTRAS', obligatorio: false, max_seleccion: 0 }
+  ];
 
   async function apiPost(url, payload = {}) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -611,7 +788,31 @@
   function mostrarToast(msg) { const el = $('toastTablet'); el.innerText = msg; el.style.display = 'block'; setTimeout(() => { if (el.innerText === msg) el.style.display = 'none'; }, 2800); }
   function cerrarModalMob(id) { const el = $(id); if (el) el.style.display = 'none'; }
   async function cambiarSucursalTablet(suc) { await apiPost('/api/pos/cambiar_sucursal', { sucursal: suc }); location.reload(); }
-  async function cargarCatalogoModsInicial() { try { const d = await (await fetch('/api/pos/modificadores')).json(); if (d.ok) catalogoModificadores = d.modificadores || []; } catch {} }
+
+  function ciclarTamanoLetra() {
+    const orden = ['fs-sm', 'fs-md', 'fs-lg'];
+    const cur = orden.find(c => document.body.classList.contains(c)) || 'fs-md';
+    const sig = orden[(orden.indexOf(cur) + 1) % orden.length];
+    document.body.classList.remove(...orden);
+    document.body.classList.add(sig);
+    localStorage.setItem('tablet_fs_quiosco', sig);
+    mostrarToast(sig === 'fs-sm' ? 'Letra: Compacta' : (sig === 'fs-lg' ? 'Letra: Grande' : 'Letra: Normal'));
+  }
+
+  async function cargarCatalogoModsInicial() {
+    try {
+      const d = await (await fetch('/api/pos/modificadores')).json();
+      if (d.ok) {
+        catalogoModificadores = d.modificadores || [];
+        catalogoFlujos = d.flujos || {};
+        document.querySelectorAll('.dish-guia-slot').forEach(slot => {
+          const nom = (slot.dataset.guiaNom || '').trim();
+          const fl = catalogoFlujos[nom];
+          if (fl && fl.length) slot.innerHTML = `<span class="dish-guia-tag">⚡ ${fl.length} paso${fl.length > 1 ? 's' : ''}</span>`;
+        });
+      }
+    } catch {}
+  }
 
   // 1. MAPA DE MESAS + PRE-ÓRDENES EN VIVO
   async function cargarTarjetasMesas() {
@@ -638,7 +839,7 @@
       const cont = $('contenedorPreordenesDrawer');
       if (!cont) return;
       cont.innerHTML = (d.ordenes || []).map(o => `
-        <div style="background:var(--hueso);padding:12px;border-radius:12px;margin-bottom:10px;border-left:5px solid var(--verde);border:1px solid var(--gris-borde);">
+        <div style="background:#fdfaf6;padding:12px;border-radius:12px;margin-bottom:10px;border-left:5px solid var(--verde);border:1px solid var(--borde);">
           <div style="display:flex;justify-content:space-between;font-weight:800;color:var(--verde);">
             <span>📍 Plaquita / Mesa ${escHtml(o.mesa)} • ${escHtml(o.cliente_nombre)}</span>
             <span style="color:var(--cobre);">$${o.total}</span>
@@ -710,7 +911,7 @@
   function abrirSelectorSubcuentasDividida(t) {
     $('tituloSubcuentasDiv').innerText = `Subcuentas de ${t.codigo}`;
     $('listaSubcuentasDiv').innerHTML = t.subcuentas.map(s => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;border:1.5px solid ${s.impresa ? 'var(--amarillo)' : 'var(--cobre)'};background:${s.impresa ? '#fefce8' : 'var(--hueso)'};cursor:pointer;"
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;border:1.5px solid ${s.impresa ? 'var(--amarillo)' : 'var(--cobre)'};background:${s.impresa ? '#fefce8' : '#fdfaf6'};cursor:pointer;"
            onclick="cerrarModalMob('modalSubcuentasDividida'); abrirDetalleCuentaPorId(${s.cuenta_id});">
         <div><strong style="font-size:15px;color:var(--verde);">${escHtml(s.mesa)}</strong><small style="display:block;color:#64748b;font-weight:700;">${s.impresa ? '🟡 IMPRESA' : '🔴 ABIERTA'} • ${escHtml(s.mesero)}</small></div>
         <strong style="font-size:16px;color:var(--cobre);">$${s.total}</strong>
@@ -719,7 +920,7 @@
   }
 
   async function abrirDetalleCuentaPorId(idCta) {
-    cuentaTabletId = idCta; rondaPendiente = []; vistaResumenActiva = false;
+    cuentaTabletId = idCta; rondaPendiente = []; tiempoRondaActual = 1; vistaResumenActiva = false;
     $('btnResumenCuenta').classList.remove('activo');
     await cargarCuentaSeleccionada();
     $('screenDetalleCuenta').style.display = 'flex';
@@ -773,18 +974,18 @@
   function toggleResumenCuenta() { vistaResumenActiva = !vistaResumenActiva; $('btnResumenCuenta').classList.toggle('activo', vistaResumenActiva); renderizarItemsDetalle(); }
   function renderizarItemsDetalle() {
     const c = datosCuentaActual, cont = $('listaProductosYaEnviados');
-    if (!c || !c.items.length) { cont.innerHTML = `<div style="text-align:center;padding:40px;color:#cbd5e1;font-weight:700;">Cuenta abierta sin productos.<br>Toca <b>CAPTURAR</b> abajo a la derecha.</div>`; return; }
+    if (!c || !c.items.length) { cont.innerHTML = `<div style="text-align:center;padding:48px 20px;color:#64748b;font-weight:700;">Cuenta abierta sin productos.<br>Toca <b>CAPTURAR</b> abajo a la derecha.</div>`; return; }
     if (vistaResumenActiva) {
       const agr = {};
       c.items.forEach(it => { const k = it.descripcion; if (!agr[k]) agr[k] = { cant: 0, importe: 0, es_mod: it.es_modificador, desc: it.descripcion }; agr[k].cant += parseFloat(it.cantidad); agr[k].importe += parseFloat(it.importe); });
       cont.innerHTML = Object.values(agr).map(g => `<div class="sent-item-row"><div class="sent-item-left"><div class="sent-qty">${g.es_mod ? '' : g.cant.toFixed(1)}</div><div class="sent-desc">${g.es_mod ? '>> ' : ''}${escHtml(g.desc.replace(/^>+/, ''))}</div></div><div class="sent-right">$ ${g.importe.toFixed(2)}</div></div>`).join('');
       return;
     }
-    cont.innerHTML = c.items.map(it => `<div class="sent-item-row"><div class="sent-item-left"><div class="sent-qty">${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</div><div><div class="sent-desc" style="${it.es_modificador ? 'padding-left:10px;color:#64748b;' : ''}">${it.es_modificador ? '>> ' : ''}${escHtml(it.descripcion.replace(/^>+/, ''))}${it.promo_aplicada ? `<span class="badge-promo-mob">🎉 ${escHtml(it.promo_aplicada)}</span>` : ''}</div><div class="sent-time">${c.apertura}</div></div></div><div class="sent-right">$ ${it.importe}</div></div>`).join('');
+    cont.innerHTML = c.items.map(it => `<div class="sent-item-row"><div class="sent-item-left"><div class="sent-qty">${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</div><div><div class="sent-desc" style="${it.es_modificador ? 'padding-left:10px;color:#64748b;' : ''}">${it.es_modificador ? '>> ' : ''}${escHtml(it.descripcion.replace(/^>+/, ''))}${it.promo_aplicada ? `<span class="badge-promo-mob">🎉 ${escHtml(it.promo_aplicada)}</span>` : ''}</div><div class="sent-time">${c.apertura} • ${escHtml(it.area_impresion)}</div></div></div><div class="sent-right">$ ${it.importe}</div></div>`).join('');
   }
 
-  // 3. CAPTURA, MODIFICADORES Y ENVÍO 1 CLIC
-  function irAPantallaCategorias() { if (datosCuentaActual?.impresa) return mostrarToast('🟡 Cuenta impresa. Reábrela primero.'); actualizarBoton1Clic(); limpiarBuscadorVivo(); $('screenCategoriasCaptura').style.display = 'flex'; }
+  // 3. CAPTURA + MODIFICADORES GUIADOS PASO A PASO
+  function irAPantallaCategorias() { if (datosCuentaActual?.impresa) return mostrarToast('🟡 Cuenta impresa. Reábrela primero.'); actualizarBotonRevisar(); limpiarBuscadorVivo(); $('screenCategoriasCaptura').style.display = 'flex'; }
   function volverADetalleCuenta() { $('screenCategoriasCaptura').style.display = 'none'; cargarCuentaSeleccionada(); $('screenDetalleCuenta').style.display = 'flex'; }
   function limpiarBuscadorVivo() { $('inputBuscadorVivoTablet').value = ''; $('vistaPlatillosDeCat').style.display = 'none'; $('gridCuadrosCategorias').style.display = 'grid'; }
   function buscarPlatilloEnVivo() {
@@ -811,7 +1012,7 @@
     }
     limpiarBuscadorVivo();
     document.querySelectorAll('.item-cuadro-cat').forEach(c => {
-      const nom = c.dataset.catNom.toLowerCase(), esBeb = /bebida|caliente|fría|fria|frapp|infus|jugo|refresco|agua|cerveza|coctel|café|cafe/.test(nom), esPos = /postre/.test(nom);
+      const nom = c.dataset.catNom.toLowerCase(), esBeb = /bebida|caliente|fría|fria|frapp|infus|jugo|refresco|agua|cerveza|coctel|cóctel|vino|café|cafe/.test(nom), esPos = /postre/.test(nom);
       c.style.display = (fam === 'BEBIDAS' ? esBeb : fam === 'ALIMENTOS' ? (!esBeb && !esPos) : fam === 'OTROS' ? esPos : true) ? 'flex' : 'none';
     });
   }
@@ -821,90 +1022,302 @@
   }
 
   function tocarPlatilloParaModificar(b) {
-    platilloEnEdicion = { nombre: b.dataset.nom, precio: parseFloat(b.dataset.pre || 0), categoria: b.dataset.cat, clave: b.dataset.clv, cantidad: 1 };
-    modsSeleccionadosPlatillo = []; comentarioPlatilloTemp = '';
-    $('modNombrePlatillo').innerText = platilloEnEdicion.nombre.toUpperCase();
-    $('modPrecioUnitario').innerText = `$ ${platilloEnEdicion.precio.toFixed(2)}`;
-    $('modCantidadActual').innerText = '1.0'; $('indicadorComentarioProd').innerText = '';
-    const grp = /caliente|fría|fria|frapp|bebida|café|cafe/.test((platilloEnEdicion.categoria || '').toLowerCase()) ? 'SABORES' : 'EXTRAS ALIMENTOS';
-    seleccionarGrupoMod(grp, document.querySelector(`.mod-group-tile[data-grp="${grp}"]`));
-    $('screenAsistenteModificadores').style.display = 'flex';
+    platilloEnEdicion = { nombre: b.dataset.nom, precio: parseFloat(b.dataset.pre || 0), categoria: b.dataset.cat, clave: b.dataset.clv, cantidad: 1, soloMod: false };
+    modsSeleccionadosPlatillo = [];
+    comentarioPlatilloTemp = '';
+    abrirAsistenteModificadores();
   }
   function abrirModificadoresSueltos() {
     platilloEnEdicion = { nombre: 'MODIFICADOR EXTRA', precio: 0, categoria: 'Barra', clave: 'MOD', cantidad: 1, soloMod: true };
-    modsSeleccionadosPlatillo = []; comentarioPlatilloTemp = '';
-    $('modNombrePlatillo').innerText = 'MODIFICADORES'; $('modPrecioUnitario').innerText = '$ 0.00'; $('modCantidadActual').innerText = '1.0'; $('indicadorComentarioProd').innerText = '';
-    seleccionarGrupoMod('SABORES', document.querySelector('.mod-group-tile[data-grp="SABORES"]'));
+    modsSeleccionadosPlatillo = [];
+    comentarioPlatilloTemp = '';
+    abrirAsistenteModificadores();
+  }
+
+  function abrirAsistenteModificadores() {
+    $('modNombrePlatillo').innerText = platilloEnEdicion.nombre.toUpperCase();
+    $('modCatEtiqueta').innerText = platilloEnEdicion.categoria || 'Quiosco';
+    $('modPrecioUnitario').innerText = `$ ${platilloEnEdicion.precio.toFixed(2)}`;
+    $('modCantidadActual').innerText = platilloEnEdicion.cantidad.toFixed(1);
+    $('indicadorComentarioProd').innerText = '';
+
+    const nomKey = (platilloEnEdicion.nombre || '').trim().toUpperCase();
+    const flujo = (!platilloEnEdicion.soloMod && catalogoFlujos[nomKey] && catalogoFlujos[nomKey].length)
+      ? catalogoFlujos[nomKey]
+      : (platilloEnEdicion.soloMod
+          ? GRUPOS_DEFAULT_MOB
+          : [{ grupo: 'EXTRAS ALIMENTOS', etiqueta: 'EXTRAS / OPCIONES', obligatorio: false, max_seleccion: 0 }]);
+
+    pasosModActuales = flujo;
+    const esGuiado = Boolean(!platilloEnEdicion.soloMod && catalogoFlujos[nomKey]?.length);
+    $('lblPasoModInfo').innerText = esGuiado ? `${flujo.length} paso${flujo.length > 1 ? 's' : ''}` : 'Opcional';
+    $('bannerPasosMod').innerText = esGuiado ? 'PASOS GUIADOS DEL PLATILLO (* OBLIGATORIO)' : 'EXTRAS OPCIONALES (O TOCA AGREGAR DIRECTO)';
+
+    renderizarBarraGruposMod();
+    seleccionarGrupoMod(flujo[0].grupo);
+    renderizarResumenMods();
     $('screenAsistenteModificadores').style.display = 'flex';
   }
+
+  function renderizarBarraGruposMod() {
+    $('contenedorGruposMod').innerHTML = pasosModActuales.map(p => {
+      const cnt = modsSeleccionadosPlatillo.filter(x => (x.grupo || '').toUpperCase() === p.grupo).length;
+      const clsAct = (p.grupo === grupoModActivo) ? 'activo' : '';
+      const clsObl = p.obligatorio ? (cnt > 0 ? 'oblig-ok' : 'oblig-falta') : '';
+      return `<div class="mod-group-tile ${clsAct} ${clsObl}" onclick="seleccionarGrupoMod('${p.grupo.replace(/'/g, '')}')">
+        <span>${escHtml(p.etiqueta)}${p.obligatorio ? ' *' : ''}</span>
+        <small style="font-size:10px;opacity:0.85;">${cnt > 0 ? '✓ ' + cnt : (p.obligatorio ? 'Pendiente' : 'Opcional')}</small>
+      </div>`;
+    }).join('');
+  }
+
   function cambiarCantModificador(d) { if (!platilloEnEdicion) return; platilloEnEdicion.cantidad = Math.max(1, platilloEnEdicion.cantidad + d); $('modCantidadActual').innerText = platilloEnEdicion.cantidad.toFixed(1); }
-  function seleccionarGrupoMod(g, el) { grupoModActivo = g; document.querySelectorAll('.mod-group-tile').forEach(t => t.classList.remove('activo')); el?.classList.add('activo'); renderizarOpcionesModificador(); }
+
+  function seleccionarGrupoMod(g) {
+    grupoModActivo = g;
+    const paso = pasosModActuales.find(p => p.grupo === g);
+    $('bannerOpcionesMod').innerText = paso ? paso.etiqueta.toUpperCase() : g;
+    renderizarBarraGruposMod();
+    renderizarOpcionesModificador();
+  }
+
   function renderizarOpcionesModificador() {
     const f = catalogoModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoModActivo);
     const lista = f.length ? f : catalogoModificadores;
-    $('contenedorOpcionesMod').innerHTML = lista.map(m => `<div class="mod-option-tile ${modsSeleccionadosPlatillo.some(x => x.id === m.id) ? 'seleccionado' : ''}" onclick="toggleSeleccionMod(${m.id})"><div>${escHtml(m.nombre)}</div><div style="margin-top:4px;color:#475569;">$ ${m.precio.toFixed(2)}</div></div>`).join('');
+    $('contenedorOpcionesMod').innerHTML = lista.map(m => {
+      const sel = modsSeleccionadosPlatillo.some(x => x.id === m.id);
+      const areaTag = m.area_impresion === 'BARRA' ? `<span class="tag-area-mod">☕ BARRA</span>` : '';
+      return `<div class="mod-option-tile ${sel ? 'seleccionado' : ''}" onclick="toggleSeleccionMod(${m.id})">
+        <div>${escHtml(m.nombre)}</div>
+        ${m.precio > 0 ? `<div style="margin-top:3px;color:var(--cobre);">+$ ${m.precio.toFixed(2)}</div>` : ''}
+        ${areaTag}
+      </div>`;
+    }).join('');
   }
-  function toggleSeleccionMod(id) { const m = catalogoModificadores.find(x => x.id === id); if (!m) return; const i = modsSeleccionadosPlatillo.findIndex(x => x.id === id); if (i >= 0) modsSeleccionadosPlatillo.splice(i, 1); else modsSeleccionadosPlatillo.push(m); renderizarOpcionesModificador(); }
-  function abrirCuadritoComentarioPlatillo() { $('inputComentarioTexto').value = comentarioPlatilloTemp; $('modalComentarioElegante').style.display = 'flex'; }
-  function guardarComentarioElegante() { comentarioPlatilloTemp = ($('inputComentarioTexto').value || '').trim().toUpperCase(); cerrarModalMob('modalComentarioElegante'); $('indicadorComentarioProd').innerText = comentarioPlatilloTemp ? ('✓ ' + comentarioPlatilloTemp) : ''; }
+
+  function toggleSeleccionMod(id) {
+    const m = catalogoModificadores.find(x => x.id === id);
+    if (!m) return;
+    const pasoAct = pasosModActuales.find(p => p.grupo === grupoModActivo);
+    const idxEx = modsSeleccionadosPlatillo.findIndex(x => x.id === id);
+
+    if (idxEx >= 0) {
+      modsSeleccionadosPlatillo.splice(idxEx, 1);
+    } else if (pasoAct && pasoAct.max_seleccion === 1) {
+      modsSeleccionadosPlatillo = modsSeleccionadosPlatillo.filter(x => (x.grupo || '').toUpperCase() !== grupoModActivo);
+      modsSeleccionadosPlatillo.push(m);
+      // Auto-avanzar al siguiente paso pendiente
+      const idxCur = pasosModActuales.findIndex(p => p.grupo === grupoModActivo);
+      const sig = pasosModActuales.slice(idxCur + 1).find(p =>
+        !modsSeleccionadosPlatillo.some(x => (x.grupo || '').toUpperCase() === p.grupo)
+      );
+      renderizarResumenMods();
+      if (sig) { seleccionarGrupoMod(sig.grupo); return; }
+    } else {
+      modsSeleccionadosPlatillo.push(m);
+    }
+    renderizarBarraGruposMod();
+    renderizarOpcionesModificador();
+    renderizarResumenMods();
+  }
+
+  function renderizarResumenMods() {
+    const cont = $('resumenModsSeleccionados');
+    if (!modsSeleccionadosPlatillo.length && !comentarioPlatilloTemp) {
+      cont.innerHTML = '<span style="color:#64748b;">Sin selecciones aún</span>';
+      return;
+    }
+    let html = modsSeleccionadosPlatillo.map(m => `<span class="mod-chip-sel">✓ ${escHtml(m.nombre)}${m.precio > 0 ? ' +$' + m.precio : ''}</span>`).join('');
+    if (comentarioPlatilloTemp) html += `<span class="mod-chip-sel" style="background:#fefce8;border-color:#eab308;color:#854d0e;">📝 ${escHtml(comentarioPlatilloTemp)}</span>`;
+    cont.innerHTML = html;
+  }
+
+  function abrirCuadritoComentarioPlatillo() {
+    indiceComentarioRonda = -1;
+    $('tituloModalComentario').innerText = `📝 Nota para: ${platilloEnEdicion?.nombre || 'Platillo'}`;
+    $('inputComentarioTexto').value = comentarioPlatilloTemp;
+    $('modalComentarioElegante').style.display = 'flex';
+  }
+  function abrirComentarioParaItemRonda(idx) {
+    const it = rondaPendiente[idx]; if (!it) return;
+    indiceComentarioRonda = idx;
+    $('tituloModalComentario').innerText = `📝 Nota para: ${it.descripcion}`;
+    $('inputComentarioTexto').value = it.comentario || '';
+    $('modalComentarioElegante').style.display = 'flex';
+  }
+  function anexarChipNota(txt) {
+    const inp = $('inputComentarioTexto');
+    const cur = (inp.value || '').trim();
+    inp.value = cur ? `${cur}, ${txt}` : txt;
+  }
+  function guardarComentarioElegante() {
+    const txt = ($('inputComentarioTexto').value || '').trim().toUpperCase();
+    cerrarModalMob('modalComentarioElegante');
+    if (indiceComentarioRonda >= 0 && rondaPendiente[indiceComentarioRonda]) {
+      rondaPendiente[indiceComentarioRonda].comentario = txt;
+      indiceComentarioRonda = -1;
+      renderizarListaConfirmar();
+    } else {
+      comentarioPlatilloTemp = txt;
+      $('indicadorComentarioProd').innerText = comentarioPlatilloTemp ? ('✓ ' + comentarioPlatilloTemp) : '';
+      renderizarResumenMods();
+    }
+  }
   function cerrarAsistenteModificadores() { $('screenAsistenteModificadores').style.display = 'none'; }
 
   function confirmarPlatilloConSusModificadores() {
     if (!platilloEnEdicion) return;
-    const mods = modsSeleccionadosPlatillo.map(m => ({ clave: m.clave, nombre: m.nombre, precio: m.precio, cantidad: 1 }));
-    if (comentarioPlatilloTemp) mods.push({ clave: 'NOTA', nombre: comentarioPlatilloTemp, precio: 0, cantidad: 1 });
-    if (platilloEnEdicion.soloMod) {
-      mods.forEach(m => rondaPendiente.push({ descripcion: m.nombre, precio: m.precio, cantidad: 1, categoria: 'Barra', clave: m.clave, es_modificador: true, modificadores: [] }));
-    } else {
-      const igual = !mods.length && rondaPendiente.find(x => !x.es_modificador && !x.modificadores.length && x.descripcion === platilloEnEdicion.nombre && x.precio === platilloEnEdicion.precio);
-      if (igual) igual.cantidad += platilloEnEdicion.cantidad;
-      else rondaPendiente.push({ descripcion: platilloEnEdicion.nombre, precio: platilloEnEdicion.precio, cantidad: platilloEnEdicion.cantidad, categoria: platilloEnEdicion.categoria, clave: platilloEnEdicion.clave, es_modificador: false, modificadores: mods });
-    }
-    cerrarAsistenteModificadores(); actualizarBoton1Clic(); limpiarBuscadorVivo();
-  }
-
-  function actualizarBoton1Clic() {
-    const total = rondaPendiente.reduce((a, it) => a + (it.precio * it.cantidad) + (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad, 0), 0);
-    const cnt = rondaPendiente.reduce((a, it) => a + it.cantidad, 0);
-    $('badgeCarritopendiente').innerText = `${cnt} en ronda`; $('cntRondaMini').innerText = cnt;
-    $('btnEnviar1Clic').classList.toggle('listo', rondaPendiente.length > 0);
-    $('txtBtnEnviar1Clic').innerText = rondaPendiente.length > 0 ? `ENVIAR AHORA ($${total.toFixed(2)})` : 'ENVIAR COMANDA (1 CLIC)';
-  }
-  function quitarDeRonda(idx) {
-    const it = rondaPendiente[idx]; if (!it) return;
-    if (it.cantidad > 1) {
-      const s = prompt(`¿Cuántos "${it.descripcion}" quitar de la ronda? (hay ${it.cantidad})`, 1);
-      if (s === null) return;
-      const q = parseFloat(s || 0); if (q <= 0) return;
-      if (q >= it.cantidad) rondaPendiente.splice(idx, 1); else it.cantidad = Math.round((it.cantidad - q) * 100) / 100;
-    } else rondaPendiente.splice(idx, 1);
-    actualizarBoton1Clic(); abrirModalRevisarRonda();
-  }
-  function abrirModalRevisarRonda() {
-    $('tituloListaDinamica').innerText = '📋 Productos en esta ronda';
-    $('cuerpoListaDinamica').innerHTML = rondaPendiente.length ? rondaPendiente.map((it, idx) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:13px;">
-        <div><span>${it.cantidad}x ${it.es_modificador ? '>> ' : ''}${escHtml(it.descripcion)}</span>${(it.modificadores || []).map(m => `<div style="font-size:11px;color:#64748b;padding-left:14px;">&gt;&gt; ${escHtml(m.nombre)}${m.precio > 0 ? ' +$' + m.precio.toFixed(2) : ''}</div>`).join('')}</div>
-        <button type="button" class="btn-m sm rojo" onclick="quitarDeRonda(${idx})">✕</button>
-      </div>`).join('') : '<p style="text-align:center;color:#64748b;font-weight:700;">Aún no agregas platillos.</p>';
-    $('piesListaDinamica').innerHTML = `<button type="button" class="btn-m gris" style="flex:1;" onclick="cerrarModalMob('modalListaDinamica')">Seguir</button><button type="button" class="btn-m" style="flex:2;background:#16a34a;" onclick="cerrarModalMob('modalListaDinamica'); dispararComandaACajaDirecto();">🖨️ Enviar Ahora</button>`;
-    $('modalListaDinamica').style.display = 'flex';
-  }
-  async function dispararComandaACajaDirecto() {
-    if (!cuentaTabletId || !rondaPendiente.length) return;
-    const btn = $('btnEnviar1Clic'); btn.disabled = true; $('txtBtnEnviar1Clic').innerText = '⏳ ENVIANDO A IMPRESORA...';
-    try {
-      for (const it of rondaPendiente) {
-        const d = await apiPost('/api/pos/capturar_item', { cuenta_id: cuentaTabletId, cantidad: it.cantidad, descripcion: it.descripcion, precio: it.precio, categoria: it.categoria, clave: it.clave, es_modificador: it.es_modificador, modificadores: it.modificadores || [] });
-        if (!d.ok) throw new Error(d.msg || 'Error al capturar');
+    if (!platilloEnEdicion.soloMod) {
+      const faltante = pasosModActuales.find(p => p.obligatorio && !modsSeleccionadosPlatillo.some(x => (x.grupo || '').toUpperCase() === p.grupo));
+      if (faltante) {
+        seleccionarGrupoMod(faltante.grupo);
+        return mostrarToast(`⚠️ Falta elegir: ${faltante.etiqueta}`);
       }
-      await apiPost(`/api/pos/enviar_comanda/${cuentaTabletId}`);
-      rondaPendiente = []; mostrarToast('🖨️ Comanda enviada directo a impresora'); cerrarTodasLasCapas();
-    } catch (e) { mostrarToast('❌ ' + (e.message || 'Error de conexión')); }
-    finally { btn.disabled = false; actualizarBoton1Clic(); }
+    }
+    const mods = modsSeleccionadosPlatillo.map(m => ({ id: m.id, clave: m.clave, nombre: m.nombre, precio: m.precio, area_impresion: m.area_impresion || '', cantidad: 1 }));
+    if (platilloEnEdicion.soloMod) {
+      mods.forEach(m => rondaPendiente.push({
+        descripcion: m.nombre, precio: m.precio, cantidad: 1, categoria: 'Barra', clave: m.clave,
+        es_modificador: true, modificadores: [], comentario: comentarioPlatilloTemp, comanda: tiempoRondaActual
+      }));
+    } else {
+      const igual = !mods.length && !comentarioPlatilloTemp && rondaPendiente.find(x =>
+        !x.es_modificador && x.clave !== 'SEP' && !x.modificadores.length && !x.comentario &&
+        x.comanda === tiempoRondaActual && x.descripcion === platilloEnEdicion.nombre && x.precio === platilloEnEdicion.precio
+      );
+      if (igual) igual.cantidad += platilloEnEdicion.cantidad;
+      else rondaPendiente.push({
+        descripcion: platilloEnEdicion.nombre, precio: platilloEnEdicion.precio, cantidad: platilloEnEdicion.cantidad,
+        categoria: platilloEnEdicion.categoria, clave: platilloEnEdicion.clave, es_modificador: false,
+        modificadores: mods, comentario: comentarioPlatilloTemp, comanda: tiempoRondaActual
+      });
+    }
+    cerrarAsistenteModificadores();
+    actualizarBotonRevisar();
+    limpiarBuscadorVivo();
+    mostrarToast(`✓ ${platilloEnEdicion.nombre} agregado a ronda`);
   }
 
-  // 4. MENÚ DE CUENTA Y DIVIDIR
+  function calcularTotalesRonda() {
+    let total = 0, cnt = 0;
+    rondaPendiente.forEach(it => {
+      if (it.clave === 'SEP') return;
+      cnt += it.cantidad;
+      total += (it.precio * it.cantidad) + (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad, 0);
+    });
+    return { total, cnt };
+  }
+
+  function actualizarBotonRevisar() {
+    const { total, cnt } = calcularTotalesRonda();
+    $('badgeCarritopendiente').innerText = `${cnt} en ronda`;
+    $('btnRevisarComanda').classList.toggle('listo', cnt > 0);
+    $('txtBtnRevisarComanda').innerText = cnt > 0
+      ? `REVISAR Y ENVIAR COMANDA (${cnt} • $${total.toFixed(2)})`
+      : 'REVISAR Y ENVIAR COMANDA (0)';
+  }
+
+  // 4. PANTALLA DE CONFIRMACIÓN Y DESGLOSE DE COMANDA
+  function abrirPantallaConfirmarComanda() {
+    if (!rondaPendiente.length) return mostrarToast('Agrega al menos un platillo primero.');
+    $('confNombreMesa').innerText = datosCuentaActual?.mesa || '';
+    renderizarListaConfirmar();
+    $('screenConfirmarComanda').style.display = 'flex';
+  }
+  function cerrarPantallaConfirmarComanda() { $('screenConfirmarComanda').style.display = 'none'; }
+
+  function fijarTiempoRonda(t, btn) {
+    tiempoRondaActual = t;
+    document.querySelectorAll('.t-pill').forEach(b => b.classList.remove('activo'));
+    btn?.classList.add('activo');
+    mostrarToast(`Tiempo activo: T${t}`);
+  }
+  function agregarSeparadorRonda() {
+    rondaPendiente.push({ clave: 'SEP', descripcion: '============', cantidad: 1, precio: 0, comanda: tiempoRondaActual, modificadores: [], comentario: '' });
+    renderizarListaConfirmar();
+  }
+  function cambiarCantItemRonda(idx, delta) {
+    const it = rondaPendiente[idx]; if (!it) return;
+    it.cantidad = Math.round((it.cantidad + delta) * 100) / 100;
+    if (it.cantidad <= 0) rondaPendiente.splice(idx, 1);
+    actualizarBotonRevisar();
+    renderizarListaConfirmar();
+  }
+  function quitarItemRonda(idx) {
+    rondaPendiente.splice(idx, 1);
+    actualizarBotonRevisar();
+    renderizarListaConfirmar();
+  }
+
+  function renderizarListaConfirmar() {
+    const { total } = calcularTotalesRonda();
+    $('confTotalBadge').innerText = `$${total.toFixed(2)}`;
+    const cont = $('listaConfirmarComanda');
+    if (!rondaPendiente.length) {
+      cont.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;font-weight:700;">Tu ronda está vacía. Toca <b>SEGUIR CAPTURANDO</b>.</div>';
+      $('btnEnviarDefinitivo').disabled = true;
+      return;
+    }
+    $('btnEnviarDefinitivo').disabled = false;
+    cont.innerHTML = rondaPendiente.map((it, idx) => {
+      if (it.clave === 'SEP') {
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:8px;background:#e2e8f0;border-radius:8px;font-weight:800;font-size:12px;color:#475569;">
+          <span>======== SEPARADOR DE COMANDA ========</span>
+          <button type="button" class="btn-m sm rojo" onclick="quitarItemRonda(${idx})">✕</button>
+        </div>`;
+      }
+      const subMods = (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad, 0);
+      const impLinea = (it.precio * it.cantidad) + subMods;
+      const modsHtml = (it.modificadores || []).map(m =>
+        `<div>&gt;&gt; ${escHtml(m.nombre)}${m.precio > 0 ? ' <span style="color:var(--cobre);">+$' + m.precio.toFixed(2) + '</span>' : ''}${m.area_impresion === 'BARRA' ? ' <span class="tag-area-mod">BARRA</span>' : ''}</div>`
+      ).join('');
+      const notaHtml = it.comentario ? `<div class="conf-nota-box">📝 NOTA: ${escHtml(it.comentario)}</div>` : '';
+
+      return `<div class="conf-card">
+        <div class="conf-card-head">
+          <div>
+            <span style="background:var(--verde);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;margin-right:5px;">T${it.comanda || 1}</span>
+            <strong style="font-size:calc(14.5px * var(--fs));color:var(--verde-oscuro);">${it.cantidad}x ${escHtml(it.descripcion)}</strong>
+          </div>
+          <strong style="font-size:calc(15px * var(--fs));color:var(--cobre);">$${impLinea.toFixed(2)}</strong>
+        </div>
+        ${modsHtml ? `<div class="conf-mods">${modsHtml}</div>` : ''}
+        ${notaHtml}
+        <div class="conf-card-actions">
+          <button type="button" class="btn-m sm cobre" onclick="abrirComentarioParaItemRonda(${idx})">✎ ${it.comentario ? 'Editar Nota' : 'Agregar Nota'}</button>
+          <button type="button" class="btn-m sm gris" onclick="cambiarCantItemRonda(${idx}, -1)">−</button>
+          <button type="button" class="btn-m sm gris" onclick="cambiarCantItemRonda(${idx}, 1)">+</button>
+          <button type="button" class="btn-m sm rojo" style="margin-left:auto;" onclick="quitarItemRonda(${idx})">🗑️ Quitar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function dispararComandaConfirmada() {
+    if (!cuentaTabletId || !rondaPendiente.length) return;
+    const btn = $('btnEnviarDefinitivo');
+    btn.disabled = true;
+    $('txtBtnEnviarDefinitivo').innerText = '⏳ ENVIANDO A IMPRESORA...';
+    try {
+      const d = await apiPost('/api/pos/enviar_ronda_lote', {
+        cuenta_id: cuentaTabletId,
+        items: rondaPendiente
+      });
+      if (!d.ok) throw new Error(d.msg || 'Error al enviar la comanda');
+      rondaPendiente = [];
+      tiempoRondaActual = 1;
+      actualizarBotonRevisar();
+      mostrarToast('🖨️ Comanda confirmada y enviada a impresora');
+      cerrarTodasLasCapas();
+    } catch (e) {
+      alert('❌ ' + (e.message || 'Error de conexión'));
+    } finally {
+      btn.disabled = false;
+      $('txtBtnEnviarDefinitivo').innerText = 'CONFIRMAR Y ENVIAR';
+    }
+  }
+
+  // 5. MENÚ DE CUENTA Y DIVIDIR
   function abrirMenuOpcionesCuenta(idCta, mesaNom, esImpresa) {
     cuentaMenu2SegId = idCta; cuentaMenu2SegMesa = mesaNom;
     $('lblTituloMenu2Seg').innerText = `CUENTA: ${mesaNom}`;
@@ -1035,7 +1448,7 @@
     cerrarModalMob('modalDividirMob'); mostrarToast('✂️ Cuenta dividida por productos'); cerrarTodasLasCapas();
   }
 
-  // 5. CANCELAR, REABRIR, REIMPRIMIR, IMPRESIÓN 80MM Y MI VENTA
+  // 6. CANCELAR, REABRIR, REIMPRIMIR, IMPRESIÓN 80MM OFICIAL Y MI VENTA
   async function abrirModalCancelarProdsMob(idOp) {
     const idObj = idOp || cuentaTabletId; if (!idObj) return;
     cuentaCancProdsId = idObj;
@@ -1049,14 +1462,14 @@
     const items = []; document.querySelectorAll('.inp-canc-mob').forEach(inp => { const v = parseFloat(inp.value || 0); if (v > 0) items.push({ id: Number(inp.dataset.id), cantidad: v }); });
     if (!items.length) return alert('Indica la cantidad a cancelar en al menos un producto.');
     const d = await apiPost('/api/pos/cancelar_items_lote', { cuenta_id: cuentaCancProdsId, items, motivo_general: $('cancMobMotivo').value, clave_admin: $('cancMobClave').value });
-    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Raquel.'));
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
     cerrarModalMob('modalCancelarProdsMob'); mostrarToast('✓ Productos cancelados'); cargarTarjetasMesas();
     if ($('screenDetalleCuenta').style.display === 'flex') cargarCuentaSeleccionada();
   }
   function abrirModalCancelarCuentaMob() { cerrarModalMob('modalMenuCuenta2Seg'); $('lblMesaCancCtaMob').innerText = cuentaMenu2SegMesa; $('cancCtaMobMotivo').value = ''; $('cancCtaMobClave').value = ''; $('modalCancelarCuentaMob').style.display = 'flex'; }
   async function ejecutarCancelarCuentaMob() {
     const d = await apiPost('/api/pos/cancelar_cuenta_abierta', { cuenta_id: cuentaMenu2SegId, motivo: $('cancCtaMobMotivo').value, clave_admin: $('cancCtaMobClave').value });
-    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Raquel.'));
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
     cerrarModalMob('modalCancelarCuentaMob'); mostrarToast('🗑️ Cuenta eliminada'); cerrarTodasLasCapas();
   }
   function abrirModalReabrirCuenta() { accionClavePendiente = 'REABRIR'; cuentaMenu2SegId = cuentaTabletId; $('tituloClaveAuth').innerText = '🔓 Reabrir Cuenta Impresa'; $('inputClaveAuthTablet').value = ''; $('modalClaveAuthTablet').style.display = 'flex'; }
@@ -1085,14 +1498,42 @@
   }
 
   async function solicitarCuentaACaja() { if (!cuentaTabletId) return; const d = await apiPost(`/api/pos/solicitar_cuenta/${cuentaTabletId}`); if (d.ok) { mostrarToast(`🔔 Caja avisada: Mesa ${d.mesa} pidió cuenta`); cargarTarjetasMesas(); } }
+
   async function imprimirCuentaConPinDesdeTablet() {
     if (!cuentaTabletId || !datosCuentaActual) return;
     const p = await apiPost(`/api/pos/pin_inteligente/${cuentaTabletId}`);
     if (!p.ok) return mostrarToast('❌ No se pudo generar el PIN');
-    const c = datosCuentaActual, qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/?pin=' + p.codigo)}`;
-    const filas = c.items.filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it => `<tr><td>${it.es_modificador ? '' : parseInt(it.cantidad)}</td><td>${escHtml(it.descripcion.replace(/^>+/, ''))}</td><td style="text-align:right;">$${it.importe}</td></tr>`).join('');
+    const c = datosCuentaActual;
+    const dt = c.datos_ticket || { nombre_comercial: 'QUIOSCO MORISCO BISTRO', razon_social: 'RAQUEL ABIGAIL BERMUDEZ GARCIA', rfc: 'BEGR020115TD5', direccion: 'CALLE GUADALUPE VICTORIA, SIN NUM. COL. CENTRO', ciudad: 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200', telefono: '9671802660', wifi_red: 'QuioscoMoriscoB', wifi_clave: 'Corazonsc31' };
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/?pin=' + p.codigo)}`;
+    const filas = c.items.filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it =>
+      `<tr><td style="width:14%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td><td style="width:62%;">${escHtml(it.descripcion.replace(/^>+/, ''))}</td><td style="width:24%;text-align:right;">$${it.importe}</td></tr>`
+    ).join('');
     const zona = $('zona-impresion-tablet');
-    zona.innerHTML = `<div style="text-align:center;"><b>COMENSAL CONECTADO</b><br>${escHtml((c.sucursal || SUCURSAL_TABLET).toUpperCase())}<br>MESA: ${escHtml(c.mesa)} | MESERO: ${escHtml(c.mesero)}<br>================================<br><table style="width:100%;font-size:12px;">${filas}</table>================================<br><div style="text-align:right;">SUBTOTAL: $${c.subtotal} | IVA: $${c.iva}</div>${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}<div style="text-align:right;font-size:15px;"><b>TOTAL: $${c.total}</b></div><div style="border-top:1px dashed #000;margin-top:6px;padding-top:4px;"><b>PIN DE FIDELIDAD: ${p.codigo}</b><br><img src="${qrUrl}" style="width:115px;height:115px;margin:4px auto;display:block;"><div style="font-size:10px;">Wi-Fi: <b>QuioscoMoriscoB</b> | Clave: <b>Corazonsc31</b></div></div></div>`;
+    zona.innerHTML = `
+      <div style="text-align:center;">
+        <b>${escHtml(dt.nombre_comercial)}</b><br>${escHtml(dt.razon_social)}<br>RFC: ${escHtml(dt.rfc)}<br>${escHtml(dt.direccion)}<br>${escHtml(dt.ciudad)}<br>TEL: ${escHtml(dt.telefono)}
+      </div>
+      <div>================================</div>
+      MESA: <b>${escHtml(c.mesa)}</b><br>MESERO: ${escHtml(c.mesero)}<br>PERSONAS: ${c.personas} &nbsp; ORDEN: <b>${escHtml(c.orden)}</b><br>${escHtml(c.apertura)}<br>${new Date().toLocaleString('es-MX')}<br>
+      <div>================================</div>
+      <table style="width:100%;font-size:11.5px;">
+        <tr><td><b>CANT.</b></td><td><b>DESCRIPCION</b></td><td style="text-align:right;"><b>IMPORTE</b></td></tr>
+        ${filas}
+      </table>
+      <div>================================</div>
+      ${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}
+      <div style="text-align:right;font-size:17px;font-weight:900;margin:4px 0;">TOTAL: &nbsp; $${c.total}</div>
+      <div>================================</div>
+      ${c.total_letras ? `<div style="font-size:10.5px;margin:4px 0;">${escHtml(c.total_letras)}</div>` : ''}
+      <div style="text-align:center;font-size:11px;">SUBTOTAL: $${c.subtotal} &nbsp; IVA: $${c.iva}</div>
+      <div style="text-align:center;font-size:10px;">ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
+      <div style="border-top:2px dashed #000;margin-top:8px;padding-top:6px;text-align:center;">
+        <b>¡SELLA TU VISITA Y GANA PREMIOS!</b><br>
+        <img src="${qrUrl}" style="width:118px;height:118px;margin:4px auto;display:block;">
+        <div style="border:2px solid #000;padding:4px;margin:4px auto;width:82%;font-size:21px;font-weight:900;letter-spacing:4px;">${escHtml(p.codigo)}</div>
+        <div style="font-size:10px;">Wi-Fi: <b>${escHtml(dt.wifi_red)}</b> | Clave: <b>${escHtml(dt.wifi_clave)}</b></div>
+      </div>`;
     const img = zona.querySelector('img'); let ya = false;
     const disparar = () => { if (!ya) { ya = true; window.print(); cargarCuentaSeleccionada(); cargarTarjetasMesas(); } };
     if (img) { img.onload = disparar; img.onerror = disparar; setTimeout(disparar, 1200); } else disparar();
@@ -1101,7 +1542,7 @@
   async function abrirMiVenta() { const d = await (await fetch('/api/pos/mi_venta')).json(); if (!d.ok) return; datosMiVentaCache = d; $('lblGranTotalMiVenta').innerText = `$${d.gran_total}`; verTabMiVenta('abiertas'); $('drawerMiVenta').style.display = 'flex'; }
   function verTabMiVenta(tab) {
     const lista = datosMiVentaCache?.[tab] || [];
-    $('listaMiVentaCont').innerHTML = lista.length ? lista.map(c => `<div style="background:var(--hueso);border:1px solid var(--gris-borde);border-left:5px solid var(--verde);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><strong style="color:var(--verde);font-size:15px;">${escHtml(c.mesa)}</strong> <small style="color:#64748b;">(${escHtml(c.area)} • ${escHtml(c.orden)})</small><br><small style="color:#475569;font-weight:700;">Mesero: ${escHtml(c.mesero)} ${c.cierre ? '• ' + c.cierre : ''}</small></div><strong style="color:var(--cobre);font-size:16px;">$${c.total}</strong></div>`).join('') : '<p style="text-align:center;color:#64748b;font-weight:700;padding:20px;">No hay cuentas en esta sección.</p>';
+    $('listaMiVentaCont').innerHTML = lista.length ? lista.map(c => `<div style="background:#fdfaf6;border:1px solid var(--borde);border-left:5px solid var(--verde);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><div><strong style="color:var(--verde);font-size:15px;">${escHtml(c.mesa)}</strong> <small style="color:#64748b;">(${escHtml(c.area)} • ${escHtml(c.orden)})</small><br><small style="color:#475569;font-weight:700;">Mesero: ${escHtml(c.mesero)} ${c.cierre ? '• ' + c.cierre : ''}</small></div><strong style="color:var(--cobre);font-size:16px;">$${c.total}</strong></div>`).join('') : '<p style="text-align:center;color:#64748b;font-weight:700;padding:20px;">No hay cuentas en esta sección.</p>';
   }
   function abrirModalPreordenesNFC() { $('drawerPreordenesNFC').style.display = 'flex'; }
   function abrirModalAgotadosTablet() { $('drawerAgotadosTablet').style.display = 'flex'; }
@@ -1126,13 +1567,13 @@
   }
 
   let syncTabletEnCurso = false;
-
   async function cicloSyncTablet() {
     if (document.hidden || syncTabletEnCurso) return;
     syncTabletEnCurso = true;
     try {
       const enCaptura = $('screenCategoriasCaptura')?.style.display === 'flex' ||
-                        $('screenAsistenteModificadores')?.style.display === 'flex';
+                        $('screenAsistenteModificadores')?.style.display === 'flex' ||
+                        $('screenConfirmarComanda')?.style.display === 'flex';
       const tareas = [sincronizarPreordenesVivo()];
       if (!enCaptura) tareas.push(cargarTarjetasMesas());
       await Promise.all(tareas);
@@ -1142,6 +1583,11 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    const savedFs = localStorage.getItem('tablet_fs_quiosco');
+    if (savedFs && ['fs-sm', 'fs-md', 'fs-lg'].includes(savedFs)) {
+      document.body.classList.remove('fs-sm', 'fs-md', 'fs-lg');
+      document.body.classList.add(savedFs);
+    }
     cargarCatalogoModsInicial();
     cargarTarjetasMesas();
     sincronizarPreordenesVivo();

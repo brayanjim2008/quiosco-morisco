@@ -300,6 +300,10 @@
   .sr-grp-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
   .sr-grp-tab { padding: 6px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; font-size: 11px; font-weight: 800; cursor: pointer; }
   .sr-grp-tab.activo { background: var(--verde); color: #fff; border-color: var(--dorado); }
+  .sr-grp-tab.oblig-falta { background: #fef2f2; color: #b91c1c; border-color: #dc2626; }
+  .sr-grp-tab.oblig-falta.activo { background: #dc2626; color: #fff; border-color: #991b1b; }
+  .sr-grp-tab.oblig-ok { background: #dcfce7; color: #166534; border-color: #16a34a; }
+  .sr-grp-tab.oblig-ok.activo { background: var(--verde); color: #fff; border-color: var(--dorado); }
   .sr-mult-bar { display: flex; gap: 5px; margin-bottom: 8px; }
   .sr-mult-btn { flex: 1; padding: 6px; border-radius: 7px; border: 1.5px solid #cbd5e1; background: #fff; font-weight: 800; cursor: pointer; font-size: 12px; }
   .sr-mult-btn.activo { background: var(--cobre); color: #fff; border-color: var(--cobre-oscuro); }
@@ -393,18 +397,22 @@
         <i class="fa-solid fa-file-invoice-dollar"></i>
         <span>CORTE X / CIERRE Z</span>
       </div>
+      {% if current_user.role == 'admin' %}
       <div class="home-tile" onclick="abrirModalCatalogosRaquel()">
         <i class="fa-solid fa-sliders"></i>
         <span>CATÁLOGOS / ADMIN</span>
       </div>
+      {% endif %}
       <div class="home-tile" onclick="abrirModalBitacora()">
         <i class="fa-solid fa-shield-halved"></i>
         <span>BITÁCORA AUDITORÍA</span>
       </div>
+      {% if current_user.role == 'admin' %}
       <a class="home-tile" href="/industrial">
         <i class="fa-solid fa-chart-column"></i>
         <span>PANEL INDUSTRIAL</span>
       </a>
+      {% endif %}
       <a class="home-tile" href="/mesero_dashboard">
         <i class="fa-solid fa-tablet-screen-button"></i>
         <span>TABLET MESERO</span>
@@ -442,7 +450,7 @@
       {% endif %}
       <button type="button" class="pos-top-btn" onclick="sincronizarCuentasEnVivoCaja()"><i class="fa-solid fa-rotate"></i></button>
       <button type="button" class="pos-top-btn" onclick="activarPantallaCompleta()"><i class="fa-solid fa-expand"></i></button>
-      <a href="/industrial" class="pos-top-btn"><i class="fa-solid fa-chart-line"></i> Panel</a>
+      {% if current_user.role == 'admin' %}<a href="/industrial" class="pos-top-btn"><i class="fa-solid fa-chart-line"></i> Panel</a>{% endif %}
       <a href="/logout" class="pos-top-btn salir"><i class="fa-solid fa-door-open"></i></a>
     </div>
   </div>
@@ -640,8 +648,12 @@
       <button type="button" class="act-btn" onclick="mostrarAvisoTurno()"><i class="fa-solid fa-key"></i>TURNO</button>
       <button type="button" class="act-btn" onclick="abrirModalCorteX()"><i class="fa-solid fa-file-invoice-dollar"></i>CORTE X/Z</button>
 
+      {% if current_user.role == 'admin' %}
       <button type="button" class="act-btn" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-sliders"></i>CATÁLOGOS</button>
       <button type="button" class="act-btn" onclick="abrirModalBitacora()"><i class="fa-solid fa-shield-halved"></i>BITÁCORA</button>
+      {% else %}
+      <button type="button" class="act-btn span2" onclick="abrirModalBitacora()"><i class="fa-solid fa-shield-halved"></i>BITÁCORA</button>
+      {% endif %}
     </aside>
   </div>
 </div>
@@ -777,13 +789,7 @@
         </div>
 
         <div>
-          <div class="sr-grp-bar">
-            <button type="button" class="sr-grp-tab activo" data-grp="SABORES" onclick="cambiarGrupoCompuesto('SABORES', this)">SABORES (0)</button>
-            <button type="button" class="sr-grp-tab" data-grp="TIPO DE LECHE" onclick="cambiarGrupoCompuesto('TIPO DE LECHE', this)">LECHE (0)</button>
-            <button type="button" class="sr-grp-tab" data-grp="CARGAS DE CAFE" onclick="cambiarGrupoCompuesto('CARGAS DE CAFE', this)">CARGAS (0)</button>
-            <button type="button" class="sr-grp-tab" data-grp="FRIO O CALIENTE" onclick="cambiarGrupoCompuesto('FRIO O CALIENTE', this)">TEMP (0)</button>
-            <button type="button" class="sr-grp-tab" data-grp="EXTRAS ALIMENTOS" onclick="cambiarGrupoCompuesto('EXTRAS ALIMENTOS', this)">EXTRAS (0)</button>
-          </div>
+          <div class="sr-grp-bar" id="barGruposCompuesto"></div>
           <div class="sr-mult-bar">
             <button type="button" class="sr-mult-btn activo" onclick="fijarMultMod(1, this)">x1</button>
             <button type="button" class="sr-mult-btn" onclick="fijarMultMod(2, this)">x2</button>
@@ -916,7 +922,7 @@
     <div class="modal-body" style="display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:13px;font-weight:800;color:#991b1b;">Se cancelará completamente: <span id="lblMesaCancCuenta">-</span></div>
       <input type="text" id="cancCtaMotivo" class="m-inp" placeholder="Motivo de eliminación...">
-      <input type="password" id="cancCtaClave" class="m-inp" placeholder="🔒 Contraseña de Raquel...">
+      <input type="password" id="cancCtaClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente...">
     </div>
     <div class="modal-foot">
       <button type="button" class="btn-p gris" onclick="cerrarModal('modalCancelarCuenta')">Volver</button>
@@ -1011,7 +1017,7 @@
       <div><label style="font-size:11px;font-weight:800;">Transferencia</label><input type="number" step="0.01" id="cp_tr" class="m-inp"></div>
       <div><label style="font-size:11px;font-weight:800;">Propina Tarj.</label><input type="number" step="0.01" id="cp_prop" class="m-inp"></div>
       <div><label style="font-size:11px;font-weight:800;">Últimos 4 Tarj.</label><input type="text" maxlength="4" id="cp_ult4" class="m-inp"></div>
-      <div style="grid-column:span 2;"><input type="password" id="cp_clave" class="m-inp" placeholder="🔒 Contraseña de Raquel (si aplica)..."></div>
+      <div style="grid-column:span 2;"><input type="password" id="cp_clave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente..."></div>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn-p gris" onclick="cerrarModal('modalCambiarPago')">Cancelar</button>
@@ -1030,12 +1036,13 @@
       <button type="button" class="btn-p sm gris" onclick="cerrarModal('modalRetiroReal')">✕</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:8px;">
-      <select id="movCajaTipo" class="m-inp">
+      <select id="movCajaTipo" class="m-inp" onchange="actualizarCampoClaveRetiro()">
         <option value="RETIRO">🔴 RETIRO DE EFECTIVO</option>
         <option value="DEPOSITO">🟢 DEPÓSITO / INGRESO A CAJA</option>
       </select>
       <input type="number" step="0.5" id="movCajaMonto" class="m-inp" placeholder="Monto ($)...">
       <input type="text" id="movCajaConcepto" class="m-inp" placeholder="Concepto (ej. Pago hielo, cambio...)...">
+      <input type="password" id="movCajaClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente (requerida en retiros)..." style="border-color:#dc2626;">
     </div>
     <div class="modal-foot">
       <button type="button" class="btn-p gris" onclick="cerrarModal('modalRetiroReal')">Cancelar</button>
@@ -1290,18 +1297,31 @@
 
       <!-- TAB PERMISOS CAJA -->
       <div id="tabRaquel_permisos" style="display:none;">
-        <div style="display:flex;flex-direction:column;gap:10px;padding:8px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:13px;font-weight:700;">
+        <div style="display:flex;flex-direction:column;gap:10px;padding:10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:13px;font-weight:700;">
+          <div style="font-size:11.5px;color:#64748b;">Por seguridad, todas las opciones inician bloqueadas (piden contraseña de Admin o Gerente).</div>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="sw_cancelar" style="width:18px;height:18px;">
-            Permitir cancelar productos / cuentas sin contraseña de Raquel
+            Permitir a cajeros cancelar productos enviados sin contraseña
           </label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="sw_descontar" style="width:18px;height:18px;">
-            Permitir aplicar descuentos sin contraseña de Raquel
+            Permitir a cajeros aplicar descuentos sin contraseña
           </label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="sw_pago" style="width:18px;height:18px;">
-            Permitir cambiar forma de pago en cuentas cerradas sin contraseña
+            Permitir a cajeros cambiar forma de pago en cuentas cerradas sin contraseña
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="sw_reimprimir" style="width:18px;height:18px;">
+            Permitir a cajeros reimprimir comandas sin contraseña
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="sw_retirar" style="width:18px;height:18px;">
+            Permitir a cajeros hacer retiros de efectivo sin contraseña
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="sw_ver_esperado_z" style="width:18px;height:18px;">
+            Mostrar saldo esperado al cajero durante el Arqueo Z (desmarcado = Arqueo Ciego)
           </label>
           <button type="button" class="btn-p cobre" style="align-self:flex-start;" onclick="guardarPermisosRaquel()">💾 Guardar Permisos</button>
         </div>
@@ -1312,9 +1332,14 @@
 
 <!-- ZONA OCULTA DE IMPRESIÓN TÉRMICA 80MM -->
 <div id="zona-impresion-pos"></div>
+<script id="datos-ticket-json" type="application/json">{{ datos_ticket|tojson }}</script>
 
 <script>
   const SUCURSAL_POS = "{{ sucursal }}";
+  const ROL_POS = "{{ current_user.role }}";
+  const USUARIO_POS = "{{ current_user.username|upper }}";
+  let DATOS_TICKET_DEF = {};
+  try { DATOS_TICKET_DEF = JSON.parse(document.getElementById('datos-ticket-json').textContent || '{}'); } catch (e) {}
 
   let cuentaActivaId = null;
   let datosCuentaActiva = null;
@@ -1326,7 +1351,9 @@
   let catCategorias = [];
   let catProductos = [];
   let catModificadores = [];
+  let catFlujos = {};
   let catPromos = [];
+  let flujoCompuestoActual = [];
 
   let superGrupoActual = 'TODOS';
   let subcatSeleccionada = '';
@@ -1681,7 +1708,7 @@
     });
     const d = await res.json();
     if (!d.ok && d.requiere_admin) {
-      const clave = prompt('🔒 Producto ya enviado. Ingresa contraseña de Raquel:');
+      const clave = prompt('🔒 Producto ya enviado. Ingresa contraseña de Admin o Gerente:');
       if (!clave) return;
       const res2 = await fetch('/api/pos/cancelar_item', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1828,15 +1855,38 @@
     seleccionarCuenta(cuentaActivaId);
   }
 
+  const GRUPOS_DEFAULT_POS = [
+    { grupo: 'SABORES', etiqueta: 'SABORES', obligatorio: false, max_seleccion: 0 },
+    { grupo: 'TIPO DE LECHE', etiqueta: 'LECHE', obligatorio: false, max_seleccion: 1 },
+    { grupo: 'CARGAS DE CAFE', etiqueta: 'CARGAS', obligatorio: false, max_seleccion: 0 },
+    { grupo: 'FRIO O CALIENTE', etiqueta: 'TEMP', obligatorio: false, max_seleccion: 1 },
+    { grupo: 'EXTRAS ALIMENTOS', etiqueta: 'EXTRAS', obligatorio: false, max_seleccion: 0 }
+  ];
+
   function abrirVentanaCompuesta(prodObj) {
     platilloCompuestoActual = prodObj;
     modsEnCompuesto = [];
     idxModCompSel = -1;
     multModificador = 1;
     document.getElementById('compTituloPlatillo').innerText = `${parseInt(prodObj.cantidad)} ${prodObj.nombre.toUpperCase()}`;
-    const esBeb = /caliente|fría|fria|frapp|bebida|café|cafe/.test((prodObj.categoria || '').toLowerCase());
-    const grp = esBeb ? 'SABORES' : 'EXTRAS ALIMENTOS';
-    cambiarGrupoCompuesto(grp, document.querySelector(`.sr-grp-tab[data-grp="${grp}"]`));
+
+    const claveNorm = (prodObj.nombre || '').trim().toUpperCase();
+    const flujo = (!prodObj.soloMod && catFlujos[claveNorm] && catFlujos[claveNorm].length)
+      ? catFlujos[claveNorm]
+      : GRUPOS_DEFAULT_POS;
+    flujoCompuestoActual = flujo;
+
+    const bar = document.getElementById('barGruposCompuesto');
+    bar.innerHTML = flujo.map((st, idx) =>
+      `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${st.grupo}" data-etq="${st.etiqueta}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto('${st.grupo.replace(/'/g, '')}', this)">${st.etiqueta} (0)</button>`
+    ).join('');
+
+    let grpInicial = flujo[0].grupo;
+    if (flujo === GRUPOS_DEFAULT_POS) {
+      const esBeb = /caliente|fría|fria|frapp|bebida|café|cafe|infus|cerveza/.test((prodObj.categoria || '').toLowerCase());
+      grpInicial = esBeb ? 'SABORES' : 'EXTRAS ALIMENTOS';
+    }
+    cambiarGrupoCompuesto(grpInicial, document.querySelector(`.sr-grp-tab[data-grp="${grpInicial}"]`));
     actualizarContadoresGruposComp();
     renderizarTablaModsEnCompuesto();
     document.getElementById('modalCompuesto').style.display = 'flex';
@@ -1866,33 +1916,53 @@
     for (let i = 0; i < 14; i++) {
       if (i < lista.length) {
         const m = lista[i];
+        const tagArea = m.area_impresion === 'BARRA' ? ' <span style="color:#0284c7;font-size:9px;">[BARRA]</span>' : '';
         html += `<div class="sr-mod-cell con-mod" onclick="agregarModAlCompuesto(${m.id})">
-          ${m.nombre}${m.precio > 0 ? `<small>+$${m.precio.toFixed(2)}</small>` : ''}
+          <div>${m.nombre}${tagArea}</div>${m.precio > 0 ? `<small>+$${m.precio.toFixed(2)}</small>` : ''}
         </div>`;
       } else {
         html += `<div class="sr-mod-cell"></div>`;
       }
     }
-    html += `<div class="sr-mod-cell con-mod" onclick="finalizarCompuestoYGuardar()">AGREGAR ▶</div>`;
+    html += `<div class="sr-mod-cell con-mod" style="background:#dcfce7;border-color:#16a34a;color:#166534;" onclick="finalizarCompuestoYGuardar()">AGREGAR ▶</div>`;
     document.getElementById('grid16ModificadoresComp').innerHTML = html;
   }
 
   function agregarModAlCompuesto(idMod) {
     const m = catModificadores.find(x => x.id === idMod);
     if (!m) return;
-    for (let k = 0; k < multModificador; k++) modsEnCompuesto.push({ ...m });
+    const pasoAct = flujoCompuestoActual.find(s => s.grupo === grupoCompuestoActivo);
+    if (pasoAct && pasoAct.max_seleccion === 1) {
+      modsEnCompuesto = modsEnCompuesto.filter(x => (x.grupo || '').toUpperCase() !== grupoCompuestoActivo);
+      modsEnCompuesto.push({ ...m });
+    } else {
+      for (let k = 0; k < multModificador; k++) modsEnCompuesto.push({ ...m });
+    }
     idxModCompSel = modsEnCompuesto.length - 1;
     actualizarContadoresGruposComp();
     renderizarTablaModsEnCompuesto();
+
+    // Avance automático al siguiente paso pendiente si es selección única
+    if (pasoAct && pasoAct.max_seleccion === 1) {
+      const idxCur = flujoCompuestoActual.findIndex(s => s.grupo === grupoCompuestoActivo);
+      const sig = flujoCompuestoActual.slice(idxCur + 1).find(s =>
+        modsEnCompuesto.filter(x => (x.grupo || '').toUpperCase() === s.grupo).length === 0
+      );
+      if (sig) {
+        cambiarGrupoCompuesto(sig.grupo, document.querySelector(`.sr-grp-tab[data-grp="${sig.grupo}"]`));
+      }
+    }
   }
 
   function actualizarContadoresGruposComp() {
     document.querySelectorAll('.sr-grp-tab[data-grp]').forEach(t => {
       const g = t.getAttribute('data-grp');
+      const etq = t.getAttribute('data-etq') || g;
+      const oblig = t.getAttribute('data-oblig') === '1';
       const cnt = modsEnCompuesto.filter(x => (x.grupo || 'SABORES').toUpperCase() === g).length;
-      const corto = g.replace('EXTRAS ALIMENTOS', 'EXTRAS').replace('TIPO DE LECHE', 'LECHE')
-        .replace('CARGAS DE CAFE', 'CARGAS').replace('FRIO O CALIENTE', 'TEMP');
-      t.innerText = `${corto} (${cnt})`;
+      t.innerText = `${etq}${oblig ? '*' : ''} (${cnt})`;
+      t.classList.toggle('oblig-falta', oblig && cnt === 0);
+      t.classList.toggle('oblig-ok', oblig && cnt > 0);
     });
   }
 
@@ -1902,7 +1972,7 @@
           onclick="idxModCompSel=${i}; renderizarTablaModsEnCompuesto();">
         <td>&gt;${m.nombre}</td>
         <td style="text-align:right;">$${m.precio.toFixed(2)}</td>
-      </tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#64748b;padding:10px;">Sin modificadores (toca AGREGAR para solo el platillo)</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#64748b;padding:10px;">Selecciona las opciones del platillo</td></tr>';
   }
 
   function eliminarModificadorSeleccionadoComp() {
@@ -1918,6 +1988,13 @@
 
   async function finalizarCompuestoYGuardar() {
     if (!platilloCompuestoActual || !cuentaActivaId) return;
+    if (!platilloCompuestoActual.soloMod) {
+      const faltante = flujoCompuestoActual.find(s => s.obligatorio && !modsEnCompuesto.some(x => (x.grupo || '').toUpperCase() === s.grupo));
+      if (faltante) {
+        cambiarGrupoCompuesto(faltante.grupo, document.querySelector(`.sr-grp-tab[data-grp="${faltante.grupo}"]`));
+        return alert(`⚠️ Falta elegir opción obligatoria: ${faltante.etiqueta}`);
+      }
+    }
     document.getElementById('modalCompuesto').style.display = 'none';
     if (platilloCompuestoActual.soloMod) {
       for (const m of modsEnCompuesto) {
@@ -1957,8 +2034,10 @@
     await fetch('/api/pos/capturar_item', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: 1,
-        descripcion: txt, precio: 0, categoria: 'Cocina', clave: 'NOTA', es_modificador: true
+        cuenta_id: cuentaActivaId,
+        parent_detalle_id: itemSeleccionadoId || null,
+        comanda: comandaActivaNum, cantidad: 1,
+        descripcion: `NOTA: ${txt}`, precio: 0, clave: 'NOTA', es_modificador: true
       })
     });
     seleccionarCuenta(cuentaActivaId);
@@ -2157,7 +2236,7 @@
       })
     });
     const d = await res.json();
-    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere clave de Raquel.'));
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
     cerrarModal('modalCancelarProds');
     notificarBarra('✓ Productos cancelados');
     seleccionarCuenta(cuentaActivaId);
@@ -2181,7 +2260,7 @@
       })
     });
     const d = await res.json();
-    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere clave de Raquel.'));
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
     cerrarModal('modalCancelarCuenta');
     notificarBarra('🗑️ Cuenta eliminada');
     cuentaActivaId = null;
@@ -2233,7 +2312,7 @@
       });
     }
     const d = await res.json();
-    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere clave de Raquel.'));
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
     cerrarModal('modalDescuentoAuth');
     notificarBarra('✓ Descuento aplicado');
     seleccionarCuenta(cuentaActivaId);
@@ -2312,7 +2391,7 @@
   function abrirModalReabrirCuenta() {
     if (!datosCuentaActiva?.impresa) return notificarBarra('La cuenta ya está abierta.');
     document.getElementById('tituloAccionSimple').innerText = `🔓 Reabrir Cuenta Impresa (${datosCuentaActiva.mesa})`;
-    document.getElementById('cuerpoAccionSimple').innerHTML = `<input type="password" id="inpClaveReabrir" class="m-inp" placeholder="🔒 Contraseña de Raquel...">`;
+    document.getElementById('cuerpoAccionSimple').innerHTML = `<input type="password" id="inpClaveReabrir" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente...">`;
     document.getElementById('piesAccionSimple').innerHTML = `
       <button type="button" class="btn-p gris" style="flex:1;" onclick="cerrarModal('modalAccionSimple')">Cancelar</button>
       <button type="button" class="btn-p" style="flex:2;" onclick="ejecutarReabrir()">🔓 Reabrir</button>`;
@@ -2501,23 +2580,37 @@
   // =========================================================================
   // 6. IMPRESIÓN TÉRMICA 80MM (1 SOLA IMPRESIÓN + PLATILLOS + QR DINÁMICO)
   // =========================================================================
-  function armarBloquePinHTML(pinData) {
+  function _encabezadoFiscalHTML(c, subtitulo = '') {
+    const dt = (c && c.datos_ticket) ? c.datos_ticket : DATOS_TICKET_DEF;
+    return `<div style="text-align:center;line-height:1.25;">
+      <b>${dt.nombre_comercial}</b><br>
+      ${dt.razon_social}<br>
+      RFC: ${dt.rfc}<br>
+      ${dt.direccion}<br>
+      ${dt.ciudad}<br>
+      TEL: ${dt.telefono}
+      ${subtitulo ? `<div style="font-size:14px;font-weight:900;margin-top:4px;">${subtitulo}</div>` : ''}
+    </div>`;
+  }
+
+  function armarBloquePinHTML(pinData, c) {
     if (!pinData || !pinData.ok) return '';
+    const dt = (c && c.datos_ticket) ? c.datos_ticket : DATOS_TICKET_DEF;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(window.location.origin + '/?pin=' + pinData.codigo)}`;
     return `<div style="border-top:2px dashed #000;margin:8px 0;padding-top:6px;text-align:center;">
-      <div style="font-size:12px;font-weight:900;">¡SELLA TU VISITA Y GANA PREMIOS!</div>
-      <img src="${qrUrl}" style="width:120px;height:120px;margin:4px auto;display:block;">
-      <div style="border:2px solid #000;padding:4px;margin:4px auto;width:80%;font-size:22px;font-weight:900;letter-spacing:5px;">${pinData.codigo}</div>
-      <div style="font-size:10px;">Wi-Fi: <b>QuioscoMoriscoB</b> | Clave: <b>Corazonsc31</b></div>
+      <div style="font-size:11.5px;font-weight:900;">¡SELLA TU VISITA Y GANA PREMIOS!</div>
+      <img src="${qrUrl}" style="width:118px;height:118px;margin:4px auto;display:block;">
+      <div style="border:2px solid #000;padding:4px;margin:4px auto;width:82%;font-size:21px;font-weight:900;letter-spacing:4px;">${pinData.codigo}</div>
+      <div style="font-size:10px;">Wi-Fi: <b>${dt.wifi_red}</b> | Clave: <b>${dt.wifi_clave}</b></div>
     </div>`;
   }
 
   function filasTicketItems(items) {
     return (items || []).filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it =>
       `<tr>
-        <td style="width:15%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
-        <td style="width:60%;">${it.descripcion.replace(/^>+/, '')}</td>
-        <td style="width:25%;text-align:right;">$${it.importe}</td>
+        <td style="width:14%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
+        <td style="width:62%;">${it.descripcion.replace(/^>+/, '')}</td>
+        <td style="width:24%;text-align:right;">$${it.importe}</td>
       </tr>`
     ).join('');
   }
@@ -2525,25 +2618,34 @@
   function construirHTMLNotaFinal(c, folio, pago, cambio, ult4, pinData) {
     const tarjTot = (pago.TARJD || 0) + (pago.TARJC || 0) + (pago.PROP || 0);
     return `<div class="ticket-termico">
-      <div style="text-align:center;"><b>COMENSAL CONECTADO</b><br>${(c.sucursal || SUCURSAL_POS).toUpperCase()}<br>NOTA DE CONSUMO</div>
+      ${_encabezadoFiscalHTML(c, 'NOTA DE CONSUMO')}
       <div>================================</div>
-      FOLIO: <b>${folio}</b> | MESA: <b>${c.mesa}</b><br>
-      MESERO: ${c.mesero} | ${new Date().toLocaleString('es-MX')}<br>
+      FOLIO: <b>${folio}</b><br>
+      MESERO: ${c.mesero}<br>
+      ${new Date().toLocaleString('es-MX')}<br>
+      PERSONAS: ${c.personas} &nbsp;&nbsp; MESA: <b>${c.mesa}</b><br>
+      ORDEN: <b>${c.orden}</b> &nbsp;&nbsp; CAJERO: ${USUARIO_POS}<br>
+      <div style="text-align:center;font-weight:bold;margin:4px 0;">VENTA PUBLICO EN GENERAL</div>
       <div>================================</div>
-      <table style="width:100%;font-size:11.5px;">${filasTicketItems(c.items)}</table>
+      <table style="width:100%;font-size:11.5px;">
+        <tr><td style="width:14%;"><b>CANT.</b></td><td style="width:62%;"><b>DESCRIPCION</b></td><td style="width:24%;text-align:right;"><b>IMPORTE</b></td></tr>
+        ${filasTicketItems(c.items)}
+      </table>
       <div>================================</div>
-      <div style="text-align:right;">SUBTOTAL: $${c.subtotal} | IVA: $${c.iva}</div>
+      <div style="text-align:right;">SUBTOTAL: $${c.subtotal}</div>
       ${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}
-      <div style="text-align:right;font-size:16px;font-weight:900;">TOTAL: $${c.total}</div>
-      <div style="text-align:right;font-size:11px;margin-top:4px;">
-        ${pago.EF > 0 ? `EFECTIVO: $${pago.EF.toFixed(2)}<br>` : ''}
+      <div style="text-align:right;">IVA: $${c.iva}</div>
+      <div style="text-align:right;font-size:17px;font-weight:900;margin:3px 0;">TOTAL: $${c.total}</div>
+      ${c.total_letras ? `<div style="font-size:10.5px;margin:4px 0;">${c.total_letras}</div>` : ''}
+      <div style="text-align:right;font-size:11.5px;margin-top:4px;">
+        ${pago.EF > 0 ? `EF: $${pago.EF.toFixed(2)}<br>` : ''}
         ${tarjTot > 0 ? `TARJETA${ult4 ? ' (***' + ult4 + ')' : ''}: $${tarjTot.toFixed(2)}<br>` : ''}
         ${pago.TRANS > 0 ? `TRANSFERENCIA: $${pago.TRANS.toFixed(2)}<br>` : ''}
         ${pago.VALE > 0 ? `VALE EMPLEADO: $${pago.VALE.toFixed(2)}<br>` : ''}
         CAMBIO: $${(cambio || 0).toFixed(2)}
       </div>
-      ${armarBloquePinHTML(pinData)}
-      <div style="text-align:center;margin-top:6px;">¡GRACIAS POR SU PREFERENCIA!</div>
+      ${armarBloquePinHTML(pinData, c)}
+      <div style="text-align:center;margin-top:6px;font-weight:bold;">GRACIAS POR SU PREFERENCIA</div>
     </div>`;
   }
 
@@ -2553,15 +2655,28 @@
     const p = await res.json();
     const c = datosCuentaActiva;
     const html = `<div class="ticket-termico">
-      <div style="text-align:center;"><b>COMENSAL CONECTADO</b><br>${(c.sucursal || SUCURSAL_POS).toUpperCase()}<br>PRECUENTA</div>
+      ${_encabezadoFiscalHTML(c, '')}
       <div>================================</div>
-      MESA: <b>${c.mesa}</b> | ORDEN: <b>${c.orden}</b><br>MESERO: ${c.mesero} | PERS: ${c.personas}<br>${c.apertura}<br>
+      MESA: <b>${c.mesa}</b><br>
+      MESERO: ${c.mesero}<br>
+      PERSONAS: ${c.personas} &nbsp;&nbsp; ORDEN: <b>${c.orden}</b><br>
+      FOLIO: <b>${c.folio !== '0' ? c.folio : c.orden}</b><br>
+      ${c.apertura}<br>
+      ${new Date().toLocaleString('es-MX')}<br>
+      CAJERO: ${USUARIO_POS}<br>
       <div>================================</div>
-      <table style="width:100%;font-size:11.5px;">${filasTicketItems(c.items)}</table>
+      <table style="width:100%;font-size:11.5px;">
+        <tr><td style="width:14%;"><b>CANT.</b></td><td style="width:62%;"><b>DESCRIPCION</b></td><td style="width:24%;text-align:right;"><b>IMPORTE</b></td></tr>
+        ${filasTicketItems(c.items)}
+      </table>
       <div>================================</div>
-      <div style="text-align:right;font-size:16px;font-weight:900;">TOTAL: $${c.total}</div>
-      <div style="text-align:center;font-size:10px;">SUBTOTAL:$${c.subtotal} | IVA:$${c.iva}<br>PROPINA NO INCLUIDA</div>
-      ${armarBloquePinHTML(p)}
+      ${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}
+      <div style="text-align:right;font-size:17px;font-weight:900;margin:4px 0;">TOTAL: &nbsp;&nbsp; $${c.total}</div>
+      <div>================================</div>
+      ${c.total_letras ? `<div style="font-size:10.5px;margin:4px 0;">${c.total_letras}</div>` : ''}
+      <div style="text-align:center;font-size:11px;margin:4px 0;">SUBTOTAL: $${c.subtotal} &nbsp;&nbsp; IVA: $${c.iva}</div>
+      <div style="text-align:center;font-size:10px;">ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
+      ${armarBloquePinHTML(p, c)}
     </div>`;
     mandarImprimirConQR(html);
     sincronizarCuentasEnVivoCaja();
@@ -2572,7 +2687,7 @@
     if (!cuentaActivaId) return;
     const res = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
     const p = await res.json();
-    mandarImprimirConQR(`<div class="ticket-termico" style="text-align:center;"><b>COMENSAL CONECTADO</b><br>MESA: ${datosCuentaActiva.mesa}${armarBloquePinHTML(p)}</div>`);
+    mandarImprimirConQR(`<div class="ticket-termico" style="text-align:center;"><b>COMENSAL CONECTADO</b><br>MESA: ${datosCuentaActiva.mesa}${armarBloquePinHTML(p, datosCuentaActiva)}</div>`);
   }
 
   function mandarImprimirHTMLDirecto(htmlStr) {
@@ -2603,21 +2718,34 @@
   // =========================================================================
   // 7. TURNO, RETIROS, CORTE X / Z, BITÁCORA Y ADMIN RAQUEL
   // =========================================================================
+  function actualizarCampoClaveRetiro() {
+    const tipo = document.getElementById('movCajaTipo').value;
+    const inp = document.getElementById('movCajaClave');
+    if (inp) inp.style.display = (tipo === 'RETIRO' && ROL_POS !== 'admin' && ROL_POS !== 'gerente') ? 'block' : 'none';
+  }
+
   function abrirModalRetiroCaja() {
     document.getElementById('movCajaMonto').value = '';
     document.getElementById('movCajaConcepto').value = '';
+    const inpC = document.getElementById('movCajaClave');
+    if (inpC) inpC.value = '';
+    actualizarCampoClaveRetiro();
     document.getElementById('modalRetiroReal').style.display = 'flex';
   }
 
   async function ejecutarMovimientoCajaReal() {
     const monto = parseFloat(document.getElementById('movCajaMonto').value || 0);
     const concepto = document.getElementById('movCajaConcepto').value.trim();
+    const clave_admin = (document.getElementById('movCajaClave')?.value || '').trim();
     if (monto <= 0 || !concepto) return alert('Ingresa monto y concepto.');
-    cerrarModal('modalRetiroReal');
-    await fetch('/api/pos/movimiento_caja', {
+    const res = await fetch('/api/pos/movimiento_caja', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: document.getElementById('movCajaTipo').value, monto, concepto })
+      body: JSON.stringify({ tipo: document.getElementById('movCajaTipo').value, monto, concepto, clave_admin })
     });
+    const d = await res.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
+    cerrarModal('modalRetiroReal');
+    notificarBarra('✓ Movimiento registrado');
     revisarColaImpresion();
   }
 
@@ -2635,16 +2763,26 @@
   }
 
   async function confirmarAbrirTurnoReal() {
-    const res = await fetch('/api/pos/abrir_turno_real', {
+    let payload = { fondo_inicial: parseFloat(bufferFondo || 0) };
+    let res = await fetch('/api/pos/abrir_turno_real', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fondo_inicial: parseFloat(bufferFondo || 0) })
+      body: JSON.stringify(payload)
     });
-    const d = await res.json();
-    if (d.ok) {
-      cerrarModal('modalAbrirTurno');
-      mostrarComedorSR();
-      notificarBarra(`🟢 Turno #${d.turno_id} abierto ($${d.fondo})`);
+    let d = await res.json();
+    if (!d.ok && d.requiere_admin) {
+      const clave = prompt('🔒 ' + (d.msg || 'Ingresa contraseña de Admin o Gerente:'));
+      if (!clave) return;
+      payload.clave_admin = clave;
+      res = await fetch('/api/pos/abrir_turno_real', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      d = await res.json();
     }
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No autorizado.'));
+    cerrarModal('modalAbrirTurno');
+    mostrarComedorSR();
+    notificarBarra(`🟢 Turno #${d.turno_id} abierto ($${d.fondo})`);
   }
 
   async function abrirModalCorteX() {
@@ -2684,8 +2822,9 @@ ${meserosTxt}
     cerrarModal('modalCorteX');
     const res = await fetch('/api/pos/corte_caja');
     const d = await res.json();
-    document.getElementById('resumenEsperadoArqueo').innerHTML =
-      `ESPERADO ➔ Efectivo: $${d.efectivo_final} | Débito: $${d.tarj_debito} | Crédito: $${d.tarj_credito} | Transf: $${d.transferencia}`;
+    document.getElementById('resumenEsperadoArqueo').innerHTML = d.ver_esperado
+      ? `ESPERADO ➔ Efectivo: $${d.efectivo_final} | Débito: $${d.tarj_debito} | Crédito: $${d.tarj_credito} | Transf: $${d.transferencia} | Vales: $${d.vales_empleado}`
+      : `🔒 ARQUEO CIEGO: Captura el monto real contado en caja por cada forma de pago.`;
     valoresArqueo = { EF: 0, TARJD: 0, TARJC: 0, TRANS: 0, VAL: 0 };
     selClaveArqueo('EF');
     document.getElementById('modalArqueoCierre').style.display = 'flex';
@@ -2761,6 +2900,7 @@ DIFERENCIA:$${d.diferencia}
   }
 
   function abrirModalCatalogosRaquel() {
+    if (ROL_POS !== 'admin') return notificarBarra('🔒 Solo Administración puede editar catálogos.');
     cargarCatalogoCompletoRaquel();
     document.getElementById('modalCatalogosRaquel').style.display = 'flex';
   }
@@ -2772,6 +2912,7 @@ DIFERENCIA:$${d.diferencia}
     catCategorias = d.categorias || [];
     catProductos = d.productos || [];
     catModificadores = d.modificadores || [];
+    catFlujos = d.flujos || {};
     catPromos = d.promociones || [];
 
     const selCatR = document.getElementById('r_prod_cat');
@@ -2782,12 +2923,15 @@ DIFERENCIA:$${d.diferencia}
     }
 
     if (d.permisos) {
-      const swC = document.getElementById('sw_cancelar');
-      const swD = document.getElementById('sw_descontar');
-      const swP = document.getElementById('sw_pago');
-      if (swC) swC.checked = d.permisos.cancelar;
-      if (swD) swD.checked = d.permisos.descontar;
-      if (swP) swP.checked = d.permisos.cambiar_pago;
+      const mapSw = [
+        ['sw_cancelar', d.permisos.cancelar],
+        ['sw_descontar', d.permisos.descontar],
+        ['sw_pago', d.permisos.cambiar_pago],
+        ['sw_reimprimir', d.permisos.reimprimir],
+        ['sw_retirar', d.permisos.retirar],
+        ['sw_ver_esperado_z', d.permisos.ver_esperado_z]
+      ];
+      mapSw.forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.checked = Boolean(val); });
     }
 
     document.getElementById('tbodyRaquelProductos').innerHTML = catProductos.map(p => `
@@ -2930,7 +3074,10 @@ DIFERENCIA:$${d.diferencia}
       body: JSON.stringify({
         cancelar: document.getElementById('sw_cancelar').checked,
         descontar: document.getElementById('sw_descontar').checked,
-        cambiar_pago: document.getElementById('sw_pago').checked
+        cambiar_pago: document.getElementById('sw_pago').checked,
+        reimprimir: document.getElementById('sw_reimprimir').checked,
+        retirar: document.getElementById('sw_retirar').checked,
+        ver_esperado_z: document.getElementById('sw_ver_esperado_z').checked
       })
     });
     notificarBarra('🔒 Permisos de caja guardados');
