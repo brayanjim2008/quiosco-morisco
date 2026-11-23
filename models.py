@@ -61,6 +61,53 @@ MAPA_SUCURSAL_USUARIO = {
     'caminante3': 'Caminante 3'
 }
 
+DATOS_TICKET_SUCURSAL = {
+    'Quiosco Morisco (Matriz)': {
+        'nombre_comercial': 'QUIOSCO MORISCO BISTRO',
+        'razon_social': 'RAQUEL ABIGAIL BERMUDEZ GARCIA',
+        'rfc': 'BEGR020115TD5',
+        'direccion': 'CALLE GUADALUPE VICTORIA, SIN NUM. COL. CENTRO',
+        'ciudad': 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200',
+        'telefono': '9671802660',
+        'wifi_red': 'QuioscoMoriscoB',
+        'wifi_clave': 'Corazonsc31'
+    },
+    'Caminante 1': {
+        'nombre_comercial': 'CAMINANTE 1',
+        'razon_social': 'RAQUEL ABIGAIL BERMUDEZ GARCIA',
+        'rfc': 'BEGR020115TD5',
+        'direccion': 'COL. CENTRO',
+        'ciudad': 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200',
+        'telefono': '9671802660',
+        'wifi_red': 'Caminante1',
+        'wifi_clave': 'Corazonsc31'
+    },
+    'Caminante 2': {
+        'nombre_comercial': 'CAMINANTE 2',
+        'razon_social': 'RAQUEL ABIGAIL BERMUDEZ GARCIA',
+        'rfc': 'BEGR020115TD5',
+        'direccion': 'COL. CENTRO',
+        'ciudad': 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200',
+        'telefono': '9671802660',
+        'wifi_red': 'Caminante2',
+        'wifi_clave': 'Corazonsc31'
+    },
+    'Caminante 3': {
+        'nombre_comercial': 'CAMINANTE 3',
+        'razon_social': 'RAQUEL ABIGAIL BERMUDEZ GARCIA',
+        'rfc': 'BEGR020115TD5',
+        'direccion': 'COL. CENTRO',
+        'ciudad': 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200',
+        'telefono': '9671802660',
+        'wifi_red': 'Caminante3',
+        'wifi_clave': 'Corazonsc31'
+    }
+}
+
+
+def obtener_datos_ticket(sucursal):
+    return DATOS_TICKET_SUCURSAL.get(sucursal, DATOS_TICKET_SUCURSAL['Quiosco Morisco (Matriz)'])
+
 
 def ahora_local():
     """Fecha y hora actual de San Cristóbal de las Casas (naive para PostgreSQL)."""
@@ -188,9 +235,12 @@ class PreOrden(db.Model):
 class ConfigPermisosPOS(db.Model):
     __tablename__ = 'config_permisos_pos'
     id = db.Column(db.Integer, primary_key=True)
-    cajero_puede_cancelar = db.Column(db.Boolean, default=True)
-    cajero_puede_descontar = db.Column(db.Boolean, default=True)
-    cajero_puede_cambiar_pago = db.Column(db.Boolean, default=True)
+    cajero_puede_cancelar = db.Column(db.Boolean, default=False)
+    cajero_puede_descontar = db.Column(db.Boolean, default=False)
+    cajero_puede_cambiar_pago = db.Column(db.Boolean, default=False)
+    cajero_puede_reimprimir = db.Column(db.Boolean, default=False)
+    cajero_puede_retirar = db.Column(db.Boolean, default=False)
+    cajero_ver_esperado_z = db.Column(db.Boolean, default=False)
 
 
 class TurnoPOS(db.Model):
@@ -291,7 +341,19 @@ class ModificadorPOS(db.Model):
     grupo = db.Column(db.String(50), nullable=False, default='SABORES')
     nombre = db.Column(db.String(100), nullable=False)
     precio = db.Column(db.Float, default=0.0)
+    area_impresion = db.Column(db.String(20), nullable=True)  # None = hereda del platillo; 'BARRA' o 'COCINA' fuerza área
     activo = db.Column(db.Boolean, default=True)
+
+
+class ProductoGrupoMod(db.Model):
+    __tablename__ = 'producto_grupo_mod'
+    id = db.Column(db.Integer, primary_key=True)
+    platillo_nombre = db.Column(db.String(150), nullable=False)
+    grupo = db.Column(db.String(50), nullable=False)
+    etiqueta = db.Column(db.String(80), nullable=False)
+    orden = db.Column(db.Integer, default=1)
+    obligatorio = db.Column(db.Boolean, default=True)
+    max_seleccion = db.Column(db.Integer, default=1)  # 1 = opción única con avance automático; 0 = múltiple
 
 
 class PromocionPOS(db.Model):
@@ -504,13 +566,74 @@ def obtener_sucursal_activa(session_obj=None):
 
 
 def validar_clave_admin(clave_ingresada):
+    """Autoriza operaciones sensibles con la contraseña de cualquier Admin o Gerente."""
     clave = str(clave_ingresada or '').strip()
     if not clave:
         return None
-    for adm in User.query.filter_by(role='admin').all():
-        if check_password_hash(adm.password, clave):
-            return adm.username.upper()
+    for auth_u in User.query.filter(User.role.in_(['admin', 'gerente'])).all():
+        if check_password_hash(auth_u.password, clave):
+            return f"{auth_u.username.upper()} ({auth_u.role.upper()})"
     return None
+
+
+def numero_a_letras_mxn(monto):
+    monto = round(float(monto or 0.0), 2)
+    entero = int(monto)
+    centavos = int(round((monto - entero) * 100))
+    if centavos == 100:
+        entero += 1
+        centavos = 0
+
+    unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE']
+    especiales = {
+        10: 'DIEZ', 11: 'ONCE', 12: 'DOCE', 13: 'TRECE', 14: 'CATORCE', 15: 'QUINCE',
+        16: 'DIECISEIS', 17: 'DIECISIETE', 18: 'DIECIOCHO', 19: 'DIECINUEVE',
+        20: 'VEINTE', 21: 'VEINTIUN', 22: 'VEINTIDOS', 23: 'VEINTITRES', 24: 'VEINTICUATRO',
+        25: 'VEINTICINCO', 26: 'VEINTISEIS', 27: 'VEINTISIETE', 28: 'VEINTIOCHO', 29: 'VEINTINUEVE'
+    }
+    decenas = ['', '', '', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA']
+    centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS',
+                'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS']
+
+    def _menor_1000(n):
+        if n == 0:
+            return ''
+        if n == 100:
+            return 'CIEN'
+        c, r = divmod(n, 100)
+        partes = []
+        if c > 0:
+            partes.append(centenas[c])
+        if r > 0:
+            if r < 10:
+                partes.append(unidades[r])
+            elif r < 30:
+                partes.append(especiales[r])
+            else:
+                d, u = divmod(r, 10)
+                partes.append(f"{decenas[d]} Y {unidades[u]}" if u else decenas[d])
+        return ' '.join(partes)
+
+    if entero == 0:
+        texto = 'CERO'
+    else:
+        millones, resto = divmod(entero, 1_000_000)
+        miles, unidades_mil = divmod(resto, 1000)
+        partes = []
+        if millones == 1:
+            partes.append('UN MILLON')
+        elif millones > 1:
+            partes.append(f"{_menor_1000(millones)} MILLONES")
+        if miles == 1:
+            partes.append('MIL')
+        elif miles > 1:
+            partes.append(f"{_menor_1000(miles)} MIL")
+        if unidades_mil > 0:
+            partes.append(_menor_1000(unidades_mil))
+        texto = ' '.join(partes)
+
+    moneda = 'PESO' if entero == 1 else 'PESOS'
+    return f"SON: {texto} {moneda} {centavos:02d}/100 M.N." 
 
 
 def registrar_bitacora(accion, mesa='', monto=0.0, detalle='', autorizo='', sucursal=None):
@@ -532,11 +655,12 @@ def registrar_bitacora(accion, mesa='', monto=0.0, detalle='', autorizo='', sucu
 
 
 def generar_pin_unico():
-    """Genera un PIN único en TODA la tabla PinCaja (activos y usados) sin error IntegrityError."""
-    for _ in range(150):
-        cod = ''.join(random.choices(string.digits, k=4))
-        if not PinCaja.query.filter_by(codigo=cod).first():
-            return cod
+    """Genera PIN numérico único; salta a 6 dígitos automáticamente para evitar saturación a largo plazo."""
+    if PinCaja.query.count() < 6000:
+        for _ in range(25):
+            cod = ''.join(random.choices(string.digits, k=4))
+            if not PinCaja.query.filter_by(codigo=cod).first():
+                return cod
     while True:
         cod = ''.join(random.choices(string.digits, k=6))
         if not PinCaja.query.filter_by(codigo=cod).first():
@@ -547,7 +671,8 @@ def detectar_area_impresion(categoria_nombre):
     cat = (categoria_nombre or '').lower()
     palabras_barra = [
         'caliente', 'fría', 'fria', 'frapp', 'infus', 'jugo',
-        'refresco', 'agua', 'postre', 'cerveza', 'coctel', 'café', 'cafe', 'bebida'
+        'refresco', 'agua', 'postre', 'cerveza', 'coctel', 'cóctel', 'vino',
+        'café', 'cafe', 'bebida', 'barra', 'fruta', 'té', 'te refill'
     ]
     for p in palabras_barra:
         if p in cat:
@@ -749,6 +874,10 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
             "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS trans_declarado DOUBLE PRECISION DEFAULT 0.0;",
             "ALTER TABLE modificadores_pos ADD COLUMN IF NOT EXISTS grupo VARCHAR(50) DEFAULT 'SABORES';",
+            "ALTER TABLE modificadores_pos ADD COLUMN IF NOT EXISTS area_impresion VARCHAR(20);",
+            "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_puede_reimprimir BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_puede_retirar BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_ver_esperado_z BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_entregada DOUBLE PRECISION;"
         ]
@@ -775,7 +904,8 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_pin_caja_activo ON pin_caja (activo);",
             "CREATE INDEX IF NOT EXISTS idx_producto_cat_agot ON producto (categoria, agotado);",
             "CREATE INDEX IF NOT EXISTS idx_stock_suc_suc_ins ON stock_sucursal (sucursal, insumo_id);",
-            "CREATE INDEX IF NOT EXISTS idx_consumo_emp_desc ON consumos_empleados_pos (descontado, empleado_id);"
+            "CREATE INDEX IF NOT EXISTS idx_consumo_emp_desc ON consumos_empleados_pos (descontado, empleado_id);",
+            "CREATE INDEX IF NOT EXISTS idx_prod_grupo_mod_plat ON producto_grupo_mod (platillo_nombre, orden);"
         ]
         for sql in indices:
             try:
@@ -790,6 +920,7 @@ def inicializar_sistema(app_obj):
 
         cuentas_equipo = [
             ('raquel', 'raquel2026', 'admin', 'Quiosco Morisco (Matriz)'),
+            ('gerente', 'gerente2026', 'gerente', 'Quiosco Morisco (Matriz)'),
             ('almacen', 'almacen123', 'almacen', 'Quiosco Morisco (Matriz)'),
             ('quiosco', 'quiosco123', 'sucursal', 'Quiosco Morisco (Matriz)'),
             ('caminante1', 'caminante1123', 'sucursal', 'Caminante 1'),
@@ -848,3 +979,297 @@ def inicializar_sistema(app_obj):
             for nom, pue, sue, per in base_emp:
                 db.session.add(EmpleadoNominaPOS(nombre=nom, puesto=pue, sueldo_base=sue, periodo=per, activo=True))
             db.session.commit()
+
+        if ProductoGrupoMod.query.count() == 0:
+            sincronizar_modificadores_guiados_quiosco()
+
+def sincronizar_modificadores_guiados_quiosco():
+    """Asegura modificadores y flujos guiados paso a paso para Quiosco Morisco (con ruteo Cocina/Barra)."""
+    mods_def = [
+        # --- BEBIDAS CALIENTES / FRÍAS ---
+        ('03001', 'TIPO DE LECHE', 'ENTERA', 0.0, 'BARRA'),
+        ('03002', 'TIPO DE LECHE', 'DESLACTOSADA', 0.0, 'BARRA'),
+        ('03003', 'TIPO DE LECHE', 'ALMENDRAS', 15.0, 'BARRA'),
+        ('03010', 'CARGAS DE CAFE', 'CARGA NORMAL', 0.0, 'BARRA'),
+        ('03011', 'CARGAS DE CAFE', 'EXTRA SHOT CAFE', 18.0, 'BARRA'),
+        ('03012', 'CARGAS DE CAFE', 'DESCAFEINADO', 0.0, 'BARRA'),
+        ('03020', 'SABORES LATTE', 'NORMAL', 0.0, 'BARRA'),
+        ('03021', 'SABORES LATTE', 'VAINILLA', 15.0, 'BARRA'),
+        ('03022', 'SABORES LATTE', 'CARAMELO', 15.0, 'BARRA'),
+        ('03023', 'SABORES', 'NORMAL', 0.0, 'BARRA'),
+        ('03024', 'SABORES', 'VAINILLA', 15.0, 'BARRA'),
+        ('03025', 'SABORES', 'CARAMELO', 15.0, 'BARRA'),
+        ('03026', 'SABORES', 'MOKA', 15.0, 'BARRA'),
+        ('03027', 'EXTRA CHAI', 'CHAI NORMAL', 0.0, 'BARRA'),
+        ('03028', 'EXTRA CHAI', 'CHAI SUCIO', 10.0, 'BARRA'),
+        ('03030', 'FRIO O CALIENTE', 'CALIENTE', 0.0, 'BARRA'),
+        ('03031', 'FRIO O CALIENTE', 'VERSION FRIA', 5.0, 'BARRA'),
+        # --- CERVEZAS ---
+        ('03035', 'PREP CERVEZA', 'SOLA', 0.0, 'BARRA'),
+        ('03036', 'PREP CERVEZA', 'CHELADA', 25.0, 'BARRA'),
+        ('03037', 'PREP CERVEZA', 'MICHELADA', 30.0, 'BARRA'),
+        # --- DESAYUNOS Y ALIMENTOS ---
+        ('03050', 'PREP HUEVOS', 'CON CHORIZO', 0.0, 'COCINA'),
+        ('03051', 'PREP HUEVOS', 'CON JAMON', 0.0, 'COCINA'),
+        ('03052', 'PREP HUEVOS', 'CON TOCINO', 0.0, 'COCINA'),
+        ('03053', 'PREP HUEVOS', 'RANCHEROS', 0.0, 'COCINA'),
+        ('03054', 'PREP HUEVOS', 'ESTRELLADOS', 0.0, 'COCINA'),
+        ('03055', 'PREP HUEVOS', 'A LA MEXICANA', 0.0, 'COCINA'),
+        ('03060', 'ING OMELETE', 'CHAMPINONES Y QUESO', 0.0, 'COCINA'),
+        ('03061', 'ING OMELETE', 'JAMON Y QUESO', 0.0, 'COCINA'),
+        ('03062', 'ING OMELETE', 'TOCINO Y QUESO', 0.0, 'COCINA'),
+        ('03063', 'ING OMELETE', 'CHORIZO Y QUESO', 0.0, 'COCINA'),
+        ('03065', 'SALSA CHILAQUILES', 'SALSA VERDE', 0.0, 'COCINA'),
+        ('03066', 'SALSA CHILAQUILES', 'SALSA ROJA', 0.0, 'COCINA'),
+        ('03068', 'PROT CHILAQUILES', 'POLLO DESHEBRADO', 0.0, 'COCINA'),
+        ('03069', 'PROT CHILAQUILES', 'HUEVOS ESTRELLADOS', 0.0, 'COCINA'),
+        # --- PAQUETES (PLATILLOS EN COCINA, BEBIDAS/FRUTA EN BARRA) ---
+        ('03070', 'PLAT PAQ BOLERO', 'HUEVOS MOTULENOS', 0.0, 'COCINA'),
+        ('03071', 'PLAT PAQ BOLERO', 'OMELETE CHAMPINONES', 0.0, 'COCINA'),
+        ('03072', 'PLAT PAQ BOLERO', 'OMELETE CHORIZO', 0.0, 'COCINA'),
+        ('03073', 'PLAT PAQ BOLERO', 'OMELETE TOCINO', 0.0, 'COCINA'),
+        ('03074', 'PLAT PAQ BOLERO', 'OMELETE JAMON Y QUESO', 0.0, 'COCINA'),
+        ('03075', 'BEB CAL PAQUETE', 'CAFE TRADICIONAL REFILL', 0.0, 'BARRA'),
+        ('03076', 'BEB CAL PAQUETE', 'TE REFILL', 0.0, 'BARRA'),
+        ('03078', 'ACOMP PAQ DESAYUNO', 'AGUA DEL DIA', 0.0, 'BARRA'),
+        ('03079', 'ACOMP PAQ DESAYUNO', 'FRUTA', 0.0, 'BARRA'),
+        ('03080', 'PLAT PAQ MORISCO', 'SANDWICH DE POLLO', 0.0, 'COCINA'),
+        ('03081', 'PLAT PAQ MORISCO', 'CUERNITO POMPOSO', 0.0, 'COCINA'),
+        ('03082', 'PLAT PAQ MORISCO', 'HAMBURGUESA MORISCO', 0.0, 'COCINA'),
+        ('03083', 'PLAT PAQ MARIMBERO', 'TOSTADAS DE POLLO', 0.0, 'COCINA'),
+        ('03084', 'PLAT PAQ MARIMBERO', 'QUESADILLAS', 0.0, 'COCINA'),
+        ('03085', 'PLAT PAQ PORTALES', 'ENCHILADAS COLETAS', 0.0, 'COCINA'),
+        ('03086', 'PLAT PAQ PORTALES', 'SANDWICH MORISCO', 0.0, 'COCINA'),
+        ('03087', 'BEB PAQ DIA', 'COCA COLA 355ML', 0.0, 'BARRA'),
+        ('03088', 'BEB PAQ DIA', 'SPRITE 355ML', 0.0, 'BARRA'),
+        ('03089', 'BEB PAQ DIA', 'SIDRAL 355ML', 0.0, 'BARRA'),
+        ('03090', 'BEB PAQ DIA', 'AGUA DEL DIA', 0.0, 'BARRA'),
+        # --- EXTRAS ESPECÍFICOS ---
+        ('03091', 'EXTRAS NACHOS', 'CON CHORIZO FRITO', 25.0, 'COCINA'),
+        ('03092', 'EXTRAS NACHOS', 'SIN JALAPENO', 0.0, 'COCINA'),
+        ('03093', 'EXTRAS NACHOS', 'SIN FRIJOLES', 0.0, 'COCINA'),
+        ('03094', 'ACOMP PLATANOS', 'CON QUESO Y CREMA', 0.0, 'COCINA'),
+        ('03095', 'ACOMP PLATANOS', 'CON LECHERA', 0.0, 'COCINA'),
+        ('03096', 'EXTRAS ALIMENTOS', 'SIN CEBOLLA', 0.0, None),
+        ('03097', 'EXTRAS ALIMENTOS', 'SIN HIELO', 0.0, 'BARRA'),
+        ('03098', 'EXTRAS ALIMENTOS', 'PARA LLEVAR', 0.0, None),
+    ]
+    for clv, grp, nom, pre, area in mods_def:
+        ex = ModificadorPOS.query.filter_by(grupo=grp, nombre=nom).first()
+        if not ex:
+            db.session.add(ModificadorPOS(clave=clv, grupo=grp, nombre=nom, precio=pre, area_impresion=area, activo=True))
+        else:
+            ex.precio = pre
+            ex.area_impresion = area
+            ex.activo = True
+
+    flujos = [
+        # Desayunos individuales
+        ('HUEVOS REVUELTOS AL GUSTO', 'PREP HUEVOS', '1. Preparación de huevos', 1, True, 1),
+        ('OMELETE', 'ING OMELETE', '1. Ingrediente del omelete', 1, True, 1),
+        ('CHILAQUILES', 'SALSA CHILAQUILES', '1. Salsa', 1, True, 1),
+        ('CHILAQUILES', 'PROT CHILAQUILES', '2. Acompañados con', 2, True, 1),
+        # Paquetes desayunos
+        ('PAQUETE QUIOSCO', 'SALSA CHILAQUILES', '1. Salsa chilaquiles', 1, True, 1),
+        ('PAQUETE QUIOSCO', 'PROT CHILAQUILES', '2. Proteína', 2, True, 1),
+        ('PAQUETE QUIOSCO', 'BEB CAL PAQUETE', '3. Café o Té (Barra)', 3, True, 1),
+        ('PAQUETE QUIOSCO', 'ACOMP PAQ DESAYUNO', '4. Agua o Fruta (Barra)', 4, True, 1),
+        ('PAQUETE DEL PARQUE', 'PREP HUEVOS', '1. Huevos al gusto', 1, True, 1),
+        ('PAQUETE DEL PARQUE', 'BEB CAL PAQUETE', '2. Café o Té (Barra)', 2, True, 1),
+        ('PAQUETE DEL PARQUE', 'ACOMP PAQ DESAYUNO', '3. Agua o Fruta (Barra)', 3, True, 1),
+        ('PAQUETE BOLERO', 'PLAT PAQ BOLERO', '1. Motuleños u Omelete', 1, True, 1),
+        ('PAQUETE BOLERO', 'BEB CAL PAQUETE', '2. Café o Té (Barra)', 2, True, 1),
+        ('PAQUETE BOLERO', 'ACOMP PAQ DESAYUNO', '3. Agua o Fruta (Barra)', 3, True, 1),
+        # Paquetes durante el día
+        ('PAQUETE MORISCO', 'PLAT PAQ MORISCO', '1. Platillo principal', 1, True, 1),
+        ('PAQUETE MORISCO', 'BEB PAQ DIA', '2. Bebida (Barra)', 2, True, 1),
+        ('PAQUETE MARIMBERO', 'PLAT PAQ MARIMBERO', '1. Platillo principal', 1, True, 1),
+        ('PAQUETE MARIMBERO', 'BEB PAQ DIA', '2. Bebida (Barra)', 2, True, 1),
+        ('PAQUETE PORTALES', 'PLAT PAQ PORTALES', '1. Platillo principal', 1, True, 1),
+        ('PAQUETE PORTALES', 'BEB PAQ DIA', '2. Bebida (Barra)', 2, True, 1),
+        # Especiales y Postres
+        ('NACHOS', 'EXTRAS NACHOS', '1. Extras / Modificadores', 1, False, 0),
+        ('PLÁTANOS FRITOS', 'ACOMP PLATANOS', '1. Acompañamiento', 1, True, 1),
+        ('PLATANOS FRITOS', 'ACOMP PLATANOS', '1. Acompañamiento', 1, True, 1),
+        # Bebidas calientes e infusiones
+        ('LATTE', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('LATTE', 'SABORES LATTE', '2. Sabor (+$15)', 2, False, 1),
+        ('LATTE', 'FRIO O CALIENTE', '3. Temperatura', 3, True, 1),
+        ('LATTE', 'CARGAS DE CAFE', '4. Cargas', 4, False, 1),
+        ('CAPUCHINO', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('CAPUCHINO', 'SABORES', '2. Sabor (+$15)', 2, False, 1),
+        ('CAPUCHINO', 'FRIO O CALIENTE', '3. Temperatura', 3, True, 1),
+        ('CAPUCHINO', 'CARGAS DE CAFE', '4. Cargas', 4, False, 1),
+        ('CHAI LATTE', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('CHAI LATTE', 'EXTRA CHAI', '2. Chai Sucio (+$10)', 2, False, 1),
+        ('CHAI LATTE', 'FRIO O CALIENTE', '3. Temperatura', 3, True, 1),
+        ('MOCHA', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('MOCHA', 'FRIO O CALIENTE', '2. Temperatura', 2, True, 1),
+        ('CHOCOLATE', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('CHOCOLATE', 'FRIO O CALIENTE', '2. Temperatura', 2, True, 1),
+        ('LECHE DORADA', 'TIPO DE LECHE', '1. Tipo de leche', 1, True, 1),
+        ('LECHE DORADA', 'FRIO O CALIENTE', '2. Temperatura', 2, True, 1),
+        ('MARACUYÁ', 'FRIO O CALIENTE', '1. Temperatura', 1, True, 1),
+        ('FRUTOS ROJOS', 'FRIO O CALIENTE', '1. Temperatura', 1, True, 1),
+        # Cervezas
+        ('XX LAGER', 'PREP CERVEZA', '1. Preparación', 1, True, 1),
+        ('XX ÁMBAR', 'PREP CERVEZA', '1. Preparación', 1, True, 1),
+        ('BOHEMIA OSCURA', 'PREP CERVEZA', '1. Preparación', 1, True, 1),
+        ('BOHEMIA CLARA', 'PREP CERVEZA', '1. Preparación', 1, True, 1),
+    ]
+    for plat, grp, etiq, ord_n, oblig, max_s in flujos:
+        ex = ProductoGrupoMod.query.filter_by(platillo_nombre=plat, grupo=grp).first()
+        if not ex:
+            db.session.add(ProductoGrupoMod(
+                platillo_nombre=plat, grupo=grp, etiqueta=etiq,
+                orden=ord_n, obligatorio=oblig, max_seleccion=max_s
+            ))
+        else:
+            ex.etiqueta = etiq
+            ex.orden = ord_n
+            ex.obligatorio = oblig
+            ex.max_seleccion = max_s
+    db.session.commit()
+
+
+def cargar_menu_quiosco_oficial():
+    """Actualiza el menú oficial de Quiosco Morisco (67 ítems en 18 categorías) conservando fotos de Cloudinary."""
+    categorias_def = [
+        ('Desayunos Individuales', 'Individual Breakfasts'),
+        ('Paquetes Desayunos', 'Breakfast Packages'),
+        ('Paquetes Durante el Día', 'Daytime Packages'),
+        ('Entradas', 'Starters'),
+        ('Hamburguesas', 'Burgers'),
+        ('Sándwiches Bistró', 'Bistro Sandwiches'),
+        ('Antojitos', 'Mexican Specialties'),
+        ('Platillos Bistró', 'Bistro Dishes'),
+        ('Postres', 'Desserts'),
+        ('Bebidas Calientes', 'Hot Drinks'),
+        ('Infusiones', 'Herbal Infusions'),
+        ('Frappes', 'Frappes'),
+        ('Jugos Naturales', 'Natural Juices'),
+        ('Aguas Naturales', 'Fresh Waters'),
+        ('Refrescos', 'Soft Drinks'),
+        ('Cócteles', 'Cocktails'),
+        ('Vino', 'Wine'),
+        ('Cervezas', 'Beers'),
+    ]
+    for nom_es, nom_en in categorias_def:
+        c = CategoriaMenu.query.filter_by(nombre=nom_es).first()
+        if not c:
+            db.session.add(CategoriaMenu(nombre=nom_es, nombre_en=nom_en))
+        elif not c.nombre_en:
+            c.nombre_en = nom_en
+
+    # (categoria, nombre_es, nombre_en, desc_es, desc_en, precio)
+    productos_def = [
+        # Desayunos Individuales
+        ('Desayunos Individuales', 'Huevos Revueltos al Gusto', 'Scrambled Eggs Your Way', 'Chorizo, jamón, tocino, rancheros, estrellados o a la mexicana. Acompañado de chilaquiles, ensalada y frijoles fritos.', 'Chorizo, ham, bacon, ranchero, fried or Mexican style. Served with chilaquiles, salad and refried beans.', 85.0),
+        ('Desayunos Individuales', 'Huevos Motuleños', 'Motuleños Eggs', 'Estrellados sobre tortilla frita bañados con salsa de tomate, jamón, queso amarillo, chícharos, aguacate y crema, con plátanos fritos.', 'Fried eggs on crispy tortilla with tomato sauce, ham, cheese, peas, avocado, cream and fried plantains.', 165.0),
+        ('Desayunos Individuales', 'Huevos Divorciados', 'Divorced Eggs', 'Estrellados sobre tortilla frita cubiertos con salsa roja y verde, acompañados de frijoles fritos y ensalada.', 'Fried eggs on crispy tortilla topped with red and green salsa, served with refried beans and salad.', 109.0),
+        ('Desayunos Individuales', 'Tosta de Jamón Serrano', 'Serrano Ham Toast', 'Aguacate, jamón serrano, huevo estrellado, tomates cherry y alfalfa.', 'Avocado, Serrano ham, fried egg, cherry tomatoes and alfalfa sprouts.', 175.0),
+        ('Desayunos Individuales', 'Omelete', 'Omelette', 'Omelete de champiñones, jamón, tocino o chorizo y queso, servido con frijoles refritos y guarnición de chilaquiles.', 'Mushrooms, ham, bacon or chorizo & cheese omelette, served with refried beans and chilaquiles.', 155.0),
+        ('Desayunos Individuales', 'Chilaquiles', 'Chilaquiles', 'Totopos en salsa verde o roja, con crema, queso y cebolla morada. Acompañados con huevos estrellados o pollo deshebrado.', 'Tortilla chips in green or red salsa with cream, cheese and red onion. Topped with fried eggs or shredded chicken.', 150.0),
+        ('Desayunos Individuales', 'Hot Cakes', 'Pancakes', 'Espolvoreados con azúcar, acompañados de frutos rojos.', 'Dusted with sugar and served with mixed berries.', 125.0),
+        ('Desayunos Individuales', 'Pan Francés', 'French Toast', 'Espolvoreados con azúcar, acompañados de frutos rojos.', 'Dusted with sugar and served with mixed berries.', 125.0),
+        # Paquetes Desayunos
+        ('Paquetes Desayunos', 'Paquete Quiosco', 'Quiosco Package', 'Chilaquiles en salsa verde o roja (pollo o huevos estrellados) + Café tradicional o té refill + Agua del día o fruta.', 'Chilaquiles (chicken or fried eggs) + Refill coffee or tea + Fresh water or fruit.', 185.0),
+        ('Paquetes Desayunos', 'Paquete Del Parque', 'Del Parque Package', 'Huevos al gusto con chilaquiles, ensalada y frijoles refritos con queso + Café tradicional o té refill + Agua del día o fruta.', 'Eggs your way with chilaquiles, salad and beans + Refill coffee or tea + Fresh water or fruit.', 125.0),
+        ('Paquetes Desayunos', 'Paquete Bolero', 'Bolero Package', 'Huevos motuleños u omelete al gusto + Café tradicional o té refill + Agua del día o fruta.', 'Motuleños eggs or omelette your way + Refill coffee or tea + Fresh water or fruit.', 198.0),
+        # Paquetes Durante el Día
+        ('Paquetes Durante el Día', 'Paquete Morisco', 'Morisco Package', 'Sándwich de pollo, cuernito pomposo o hamburguesa (a elegir) + Papas fritas + Refresco 355 ml o agua del día.', 'Chicken sandwich, croissant or burger + French fries + 355ml soda or fresh water.', 165.0),
+        ('Paquetes Durante el Día', 'Paquete Marimbero', 'Marimbero Package', 'Tostadas de pollo o quesadillas + Papas fritas + Refresco 355 ml o agua del día.', 'Chicken tostadas or quesadillas + French fries + 355ml soda or fresh water.', 140.0),
+        ('Paquetes Durante el Día', 'Paquete Portales', 'Portales Package', 'Enchiladas coletas o sándwich morisco (a elegir) + Postre del día + Refresco 355 ml o agua del día.', 'Coleta enchiladas or Morisco sandwich + Dessert of the day + 355ml soda or fresh water.', 185.0),
+        # Entradas
+        ('Entradas', 'Papas Gajo', 'Potato Wedges', 'Crujientes papas gajo sazonadas.', 'Crispy seasoned potato wedges.', 65.0),
+        ('Entradas', 'Tapitas del Quiosco', 'Quiosco Tapas', 'Tapas de pan artesanal inspiradas en nuestros sándwiches bistró.', 'Artisanal bread tapas inspired by our bistro sandwiches.', 89.0),
+        ('Entradas', 'Nachos', 'Nachos', 'Con frijoles, queso amarillo, chile jalapeño, queso y crema (+$25 con chorizo frito).', 'With beans, cheddar cheese, jalapeño, cheese and cream (+$25 with fried chorizo).', 95.0),
+        # Hamburguesas
+        ('Hamburguesas', 'Hamburguesa Morisco', 'Morisco Burger', 'Carne de res, tocineta, ensalada, aderezo de mayonesa y queso mozzarella.', 'Beef patty, bacon, salad, mayo dressing and mozzarella cheese.', 118.0),
+        # Sándwiches Bistró
+        ('Sándwiches Bistró', 'Sándwich Morisco', 'Morisco Sandwich', 'Jamón serrano, aderezo de queso de cabra, frutos rojos, arúgula y vinagreta.', 'Serrano ham, goat cheese dressing, berries, arugula and vinaigrette.', 132.0),
+        ('Sándwiches Bistró', 'Sándwich de Pollo', 'Chicken Sandwich', 'Pechuga de pollo, tomate cherry, arúgula, aderezo de aguacate y vinagreta.', 'Chicken breast, cherry tomatoes, arugula, avocado dressing and vinaigrette.', 118.0),
+        ('Sándwiches Bistró', 'Cuernito Pomposo', 'Pomposo Croissant', 'Jamón serrano, aderezo de queso, arúgula, tomate cherry y queso mozzarella.', 'Serrano ham, cheese dressing, arugula, cherry tomatoes and mozzarella.', 125.0),
+        # Antojitos
+        ('Antojitos', 'Tostadas de Pollo', 'Chicken Tostadas', 'Tostadas doradas cubiertas con lechuga, queso, crema, aguacate y pollo. Acompañadas de pico de gallo.', 'Crispy tostadas topped with lettuce, cheese, cream, avocado and chicken. Served with pico de gallo.', 98.0),
+        ('Antojitos', 'Quesadillas', 'Quesadillas', 'Orden de 3 quesadillas, acompañadas de ensalada.', 'Order of 3 quesadillas, served with salad.', 105.0),
+        # Platillos Bistró
+        ('Platillos Bistró', 'Enchiladas Coletas', 'Coleta Enchiladas', 'Enchiladas de pollo bañadas en mole tradicional coleto, acompañadas con queso y crema.', 'Chicken enchiladas bathed in traditional San Cristobal mole with cheese and cream.', 155.0),
+        # Postres (Pay de Queso = Cheesecake)
+        ('Postres', 'Plátanos Fritos', 'Fried Plantains', 'Con queso y crema o lechera.', 'With cheese & cream or condensed milk.', 60.0),
+        ('Postres', 'Pan Regional', 'Regional Sweet Bread', 'Orden de 6 piezas.', 'Order of 6 pieces.', 35.0),
+        ('Postres', 'Pay de Queso', 'Cheesecake', 'Pay de queso artesanal de la casa.', 'House-made cheesecake.', 55.0),
+        ('Postres', 'Flan Napolitano', 'Neapolitan Flan', 'Flan napolitano casero.', 'Homemade Neapolitan flan.', 65.0),
+        # Bebidas Calientes
+        ('Bebidas Calientes', 'Espresso', 'Espresso', 'Shot de espresso chiapaneco.', 'Chiapas espresso shot.', 40.0),
+        ('Bebidas Calientes', 'Americano', 'Americano', 'Café americano recién extraído.', 'Freshly brewed Americano.', 55.0),
+        ('Bebidas Calientes', 'Mocha', 'Mocha', 'Espresso, chocolate y leche vaporizada.', 'Espresso, chocolate and steamed milk.', 75.0),
+        ('Bebidas Calientes', 'Latte', 'Latte', 'Vainilla o caramelo +$15.', 'Vanilla or caramel +$15.', 65.0),
+        ('Bebidas Calientes', 'Capuchino', 'Cappuccino', 'Vainilla, moka o caramelo +$15.', 'Vanilla, mocha or caramel +$15.', 65.0),
+        ('Bebidas Calientes', 'Chai Latte', 'Chai Latte', 'Sucio +$10.', 'Dirty +$10.', 65.0),
+        ('Bebidas Calientes', 'Chocolate', 'Hot Chocolate', 'Chocolate tradicional caliente.', 'Traditional hot chocolate.', 70.0),
+        ('Bebidas Calientes', 'Leche Dorada', 'Golden Milk', 'Infusión especiada de cúrcuma y leche.', 'Spiced turmeric golden milk.', 70.0),
+        ('Bebidas Calientes', 'Café Tradicional Refill', 'Traditional Refill Coffee', 'Café de olla / americano tradicional con refill.', 'Traditional coffee with refill.', 50.0),
+        # Infusiones
+        ('Infusiones', 'Maracuyá', 'Passion Fruit Infusion', 'Infusión natural (versión fría +$5).', 'Natural infusion (iced +$5).', 65.0),
+        ('Infusiones', 'Frutos Rojos', 'Red Berries Infusion', 'Infusión natural (versión fría +$5).', 'Natural infusion (iced +$5).', 70.0),
+        # Frappes
+        ('Frappes', 'Frappe Chocolate', 'Chocolate Frappe', 'Bebida helada cremosa de chocolate.', 'Creamy iced chocolate frappe.', 90.0),
+        ('Frappes', 'Frappe Café', 'Coffee Frappe', 'Bebida helada de café de altura.', 'Iced highland coffee frappe.', 85.0),
+        ('Frappes', 'Frappe Taro', 'Taro Frappe', 'Bebida helada cremosa de taro.', 'Creamy iced taro frappe.', 90.0),
+        ('Frappes', 'Bubba Ti', 'Bubba Ti', 'Cold brew, té negro, lácteos y tapioca.', 'Cold brew, black tea, milk and tapioca pearls.', 95.0),
+        # Jugos Naturales
+        ('Jugos Naturales', 'Agua Moriska', 'Moriska Juice', 'Fresa, pepino y menta.', 'Strawberry, cucumber and mint.', 80.0),
+        ('Jugos Naturales', 'Vergel', 'Vergel Juice', 'Piña, naranja y arúgula.', 'Pineapple, orange and arugula.', 70.0),
+        ('Jugos Naturales', 'Rosal', 'Rosal Juice', 'Té negro, mora y miel.', 'Black tea, blackberry and honey.', 85.0),
+        # Aguas Naturales
+        ('Aguas Naturales', 'Jamaica', 'Hibiscus Water', 'Agua fresca natural de jamaica.', 'Fresh hibiscus water.', 40.0),
+        ('Aguas Naturales', 'Horchata', 'Horchata', 'Agua fresca tradicional de horchata.', 'Traditional horchata.', 40.0),
+        ('Aguas Naturales', 'Naranjada', 'Orangeade', 'Naranjada natural.', 'Fresh orangeade.', 40.0),
+        ('Aguas Naturales', 'Naranjada Mineral', 'Sparkling Orangeade', 'Naranjada con agua mineral.', 'Sparkling fresh orangeade.', 52.0),
+        ('Aguas Naturales', 'Limonada', 'Lemonade', 'Limonada natural.', 'Fresh lemonade.', 40.0),
+        ('Aguas Naturales', 'Limonada Mineral', 'Sparkling Lemonade', 'Limonada con agua mineral.', 'Sparkling fresh lemonade.', 52.0),
+        # Refrescos
+        ('Refrescos', 'Coca Cola Lata', 'Coca Cola Can', 'Lata 355 ml.', '355 ml can.', 50.0),
+        ('Refrescos', 'Sprite Lata', 'Sprite Can', 'Lata 355 ml.', '355 ml can.', 50.0),
+        ('Refrescos', 'Sidral Lata', 'Sidral Can', 'Lata 355 ml.', '355 ml can.', 50.0),
+        ('Refrescos', 'Agua Ciel 600 ml', 'Ciel Water 600ml', 'Botella 600 ml.', '600 ml bottle.', 30.0),
+        ('Refrescos', 'Agua Mineral Lata', 'Sparkling Water Can', 'Lata 355 ml.', '355 ml can.', 45.0),
+        # Cócteles
+        ('Cócteles', 'Guabi', 'Guabi Cocktail', 'Ron, chocolate blanco y guanábana.', 'Rum, white chocolate and soursop.', 160.0),
+        ('Cócteles', 'Naked Mumo', 'Naked Mumo Cocktail', 'Mezcal, mumo y curacao.', 'Mezcal, mumo and curacao.', 160.0),
+        ('Cócteles', 'Morajillo', 'Morajillo Cocktail', 'Posh, cacao y licor de café.', 'Posh, cacao and coffee liqueur.', 140.0),
+        ('Cócteles', 'Negroni', 'Negroni', 'Vermouth, gin y Campari.', 'Vermouth, gin and Campari.', 155.0),
+        # Vino
+        ('Vino', 'Vino de la Casa (Por Copeo)', 'House Wine (Glass)', 'Copa de vino de la casa.', 'Glass of house wine.', 80.0),
+        ('Vino', 'Vino de la Casa (Por Botella)', 'House Wine (Bottle)', 'Botella de vino de la casa.', 'Bottle of house wine.', 320.0),
+        # Cervezas
+        ('Cervezas', 'XX Lager', 'XX Lager Beer', 'Cerveza XX Lager (+$25 chelada, +$30 michelada).', 'XX Lager beer (+$25 chelada, +$30 michelada).', 48.0),
+        ('Cervezas', 'XX Ámbar', 'XX Ambar Beer', 'Cerveza XX Ámbar (+$25 chelada, +$30 michelada).', 'XX Ambar beer (+$25 chelada, +$30 michelada).', 48.0),
+        ('Cervezas', 'Bohemia Oscura', 'Bohemia Dark Beer', 'Cerveza Bohemia Oscura (+$25 chelada, +$30 michelada).', 'Bohemia Dark beer (+$25 chelada, +$30 michelada).', 55.0),
+        ('Cervezas', 'Bohemia Clara', 'Bohemia Light Beer', 'Cerveza Bohemia Clara (+$25 chelada, +$30 michelada).', 'Bohemia Light beer (+$25 chelada, +$30 michelada).', 55.0),
+    ]
+
+    creados, actualizados = 0, 0
+    for cat, nom, nom_en, desc, desc_en, pre in productos_def:
+        p = Producto.query.filter(db.func.lower(Producto.nombre) == nom.lower()).first()
+        if not p:
+            db.session.add(Producto(
+                categoria=cat, nombre=nom, nombre_en=nom_en,
+                descripcion=desc, descripcion_en=desc_en, precio=pre
+            ))
+            creados += 1
+        else:
+            p.categoria = cat
+            p.precio = pre
+            p.descripcion = desc
+            if not p.nombre_en:
+                p.nombre_en = nom_en
+            if not p.descripcion_en:
+                p.descripcion_en = desc_en
+            actualizados += 1
+
+    db.session.commit()
+    sincronizar_modificadores_guiados_quiosco()
+    invalidar_cache_publico()
+    return creados, actualizados

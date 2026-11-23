@@ -16,7 +16,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     db, login_manager, inicializar_sistema, ahora_local, inicio_hoy_local,
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
-    cache_get, cache_set, invalidar_cache_publico,
+    cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -70,6 +70,8 @@ def optimizar_imagen_cloudinary(url, ancho=500):
 def redirigir_segun_rol(user):
     if user.role == 'admin':
         return redirect('/industrial')
+    if user.role == 'gerente':
+        return redirect('/pos')
     if user.role == 'almacen':
         return redirect('/almacen_pro')
     if user.role == 'sucursal':
@@ -221,7 +223,7 @@ def crear_preorden():
 @app.route('/api/preordenes_pendientes')
 @login_required
 def api_preordenes_pendientes():
-    if current_user.role not in ['admin', 'cajero', 'mesero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'cajero', 'mesero', 'sucursal']:
         return jsonify({"total_pendientes": 0, "ordenes": []}), 403
     ordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
     resultado = [{
@@ -241,7 +243,7 @@ def api_preordenes_pendientes():
 @app.route('/atender_preorden/<int:id>', methods=['POST'])
 @login_required
 def atender_preorden(id):
-    if current_user.role not in ['admin', 'cajero', 'mesero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'cajero', 'mesero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     orden = PreOrden.query.get_or_404(id)
     accion = request.form.get('accion', 'atendido')
@@ -349,6 +351,16 @@ def logout():
     return resp
 
 
+@app.route('/admin/cargar_menu_quiosco', methods=['GET', 'POST'])
+@login_required
+def admin_cargar_menu_quiosco():
+    if current_user.role != 'admin':
+        return redirigir_segun_rol(current_user)
+    creados, actualizados = cargar_menu_quiosco_oficial()
+    flash(f'✅ Menú Quiosco Morisco sincronizado: {creados} nuevos, {actualizados} actualizados + modificadores guiados listos.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
 @app.route('/actualizar_db')
 @login_required
 def actualizar_db():
@@ -408,7 +420,7 @@ def admin_dashboard():
 @app.route('/cajero_dashboard')
 @login_required
 def cajero_dashboard():
-    if current_user.role not in ['cajero', 'sucursal']:
+    if current_user.role not in ['gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     hoy_inicio = inicio_hoy_local()
     return render_template(
@@ -424,7 +436,7 @@ def cajero_dashboard():
 @app.route('/mesero_dashboard')
 @login_required
 def mesero_dashboard():
-    if current_user.role not in ['admin', 'cajero', 'mesero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'cajero', 'mesero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     return render_template(
         'mesero_dashboard.html',
@@ -582,7 +594,7 @@ def eliminar_premio(id):
 @app.route('/admin/premio_entregado/<int:id>', methods=['POST'])
 @login_required
 def marcar_premio_entregado(id):
-    if current_user.role not in ['admin', 'cajero']:
+    if current_user.role not in ['admin', 'gerente', 'cajero']:
         return redirigir_segun_rol(current_user)
     hp = HistorialPremio.query.get_or_404(id)
     hp.entregado = True
@@ -655,7 +667,7 @@ def toggle_destacado(id):
 @app.route('/admin/producto/toggle_agotado/<int:id>', methods=['POST'])
 @login_required
 def toggle_agotado(id):
-    if current_user.role not in ['admin', 'mesero', 'cajero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'mesero', 'cajero', 'sucursal']:
         return jsonify({"ok": False}), 403
     p = Producto.query.get_or_404(id)
     p.agotado = not p.agotado
@@ -785,7 +797,7 @@ def eliminar_anuncio(id):
 @app.route('/caja/generar_pin', methods=['POST'])
 @login_required
 def generar_pin():
-    if current_user.role not in ['admin', 'cajero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     cantidad = max(1, min(30, int(request.form.get('cantidad', 1))))
     folio_sr = request.form.get('folio_sr', '').strip()
@@ -803,7 +815,7 @@ def generar_pin():
 @app.route('/caja/eliminar_pin/<int:id>', methods=['POST'])
 @login_required
 def eliminar_pin_individual(id):
-    if current_user.role not in ['admin', 'cajero', 'sucursal']:
+    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     pin = PinCaja.query.get_or_404(id)
     cod = pin.codigo

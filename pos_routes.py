@@ -1,31 +1,72 @@
 import re
+from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session
 from flask_login import login_required, current_user
-from werkzeug.security import check_password_hash
 
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
-    obtener_sucursal_activa, validar_clave_admin, registrar_bitacora,
+    obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
     generar_pin_unico, detectar_area_impresion, obtener_turno_activo,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
+    numero_a_letras_mxn,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
     ConfigPermisosPOS, TurnoPOS, MovimientoCajaPOS, CuentaPOS, DetallePOS,
-    ColaImpresionPOS, ModificadorPOS, PromocionPOS, BitacoraPOS,
+    ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
     AlertaMesaPOS, ArqueoTurnoPOS, EmpleadoNominaPOS, ConsumoEmpleadoPOS
 )
 
 pos_bp = Blueprint('pos', __name__)
-ROLES_POS = ('admin', 'cajero', 'mesero', 'sucursal')
-ROLES_CAJA = ('admin', 'cajero', 'sucursal')
+ROLES_POS = ('admin', 'gerente', 'cajero', 'mesero', 'sucursal')
+ROLES_CAJA = ('admin', 'gerente', 'cajero', 'sucursal')
+ROLES_AUTH = ('admin', 'gerente')
 
 
 def _autorizar_operacion(clave_admin='', permitir_si_flag=False):
-    """Valida si el usuario es admin, si el permiso está habilitado o si ingresó clave de Raquel."""
-    if current_user.role == 'admin':
-        return current_user.username.upper()
+    """Valida si es Admin/Gerente, si el permiso está habilitado o si ingresó contraseña de Admin/Gerente."""
+    if current_user.role in ROLES_AUTH:
+        return f"{current_user.username.upper()} ({current_user.role.upper()})"
     if permitir_si_flag and current_user.role in ROLES_CAJA:
         return current_user.username.upper()
     return validar_clave_admin(clave_admin)
+
+
+def _cuenta_permitida(c):
+    """Evita que un usuario de una sucursal opere cuentas de otra sucursal."""
+    if current_user.role == 'admin':
+        return True
+    return (c.sucursal or 'Quiosco Morisco (Matriz)') == obtener_sucursal_activa(session)
+
+
+def _mapa_flujos_modificadores():
+    flujos = {}
+    for fg in ProductoGrupoMod.query.order_by(ProductoGrupoMod.orden.asc(), ProductoGrupoMod.id.asc()).all():
+        key = fg.platillo_nombre.strip().upper()
+        flujos.setdefault(key, []).append({
+            'grupo': fg.grupo,
+            'etiqueta': fg.etiqueta,
+            'orden': fg.orden,
+            'obligatorio': bool(fg.obligatorio),
+            'max_seleccion': int(fg.max_seleccion or 0)
+        })
+    return flujos
+
+
+def _resolver_area_modificador(mod_obj, area_padre):
+    """Permite que modificadores como Fruta o Café Refill de un paquete salgan directo en BARRA."""
+    area_ex = (mod_obj.get('area_impresion') or '').strip().upper()
+    if area_ex in ('BARRA', 'COCINA'):
+        return area_ex
+    mod_id = mod_obj.get('id')
+    if mod_id:
+        m_bd = ModificadorPOS.query.get(int(mod_id))
+        if m_bd and m_bd.area_impresion in ('BARRA', 'COCINA'):
+            return m_bd.area_impresion
+    nom = str(mod_obj.get('nombre') or mod_obj.get('descripcion') or '').strip().upper().lstrip('>')
+    if nom:
+        m_bd = ModificadorPOS.query.filter(db.func.upper(ModificadorPOS.nombre) == nom).first()
+        if m_bd and m_bd.area_impresion in ('BARRA', 'COCINA'):
+            return m_bd.area_impresion
+    return area_padre
 
 
 def _siguiente_folio_sucursal(sucursal):
@@ -44,28 +85,47 @@ def _siguiente_folio_sucursal(sucursal):
 
 
 def _armar_ticket_precuenta_html(c):
+    dt = obtener_datos_ticket(c.sucursal)
     filas = "".join([
-        f"<tr><td style='width:16%;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
-        f"<td style='width:58%;'>{it.descripcion.lstrip('>')}</td>"
-        f"<td style='width:26%;text-align:right;'>${it.importe:.2f}</td></tr>"
+        f"<tr><td style='width:14%;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
+        f"<td style='width:62%;'>{it.descripcion.lstrip('>')}</td>"
+        f"<td style='width:24%;text-align:right;'>${it.importe:.2f}</td></tr>"
         for it in c.detalles if (not it.es_modificador or it.importe > 0)
     ])
+    apertura_str = c.apertura.strftime('%d/%m/%Y %I:%M:%S %p') if c.apertura else ''
+    ahora_str = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
+    cajero_nom = current_user.username.upper() if current_user.is_authenticated else ''
+    letras = numero_a_letras_mxn(c.total)
     return f"""
     <div class='ticket-termico'>
-      <div style='text-align:center;font-weight:bold;'>
-        COMENSAL CONECTADO<br>{(c.sucursal or '').upper()}<br>PRECUENTA
+      <div style='text-align:center;line-height:1.25;'>
+        <b>{dt['nombre_comercial']}</b><br>
+        {dt['razon_social']}<br>
+        RFC: {dt['rfc']}<br>
+        {dt['direccion']}<br>
+        {dt['ciudad']}<br>
+        TEL: {dt['telefono']}
       </div>
       <div>================================</div>
-      MESA: <b>{c.mesa}</b> | ORDEN: <b>{c.orden}</b><br>
-      MESERO: {c.mesero} | PERS: {c.personas}<br>
-      {ahora_local().strftime('%d/%m/%Y %I:%M %p')}<br>
+      MESA: <b>{c.mesa}</b><br>
+      MESERO: {c.mesero}<br>
+      PERSONAS: {c.personas} &nbsp;&nbsp; ORDEN: <b>{c.orden}</b><br>
+      FOLIO: <b>{c.folio or c.orden}</b><br>
+      {apertura_str}<br>
+      {ahora_str}<br>
+      CAJERO: {cajero_nom}<br>
       <div>================================</div>
-      <table style='width:100%;font-size:12px;'>{filas}</table>
+      <table style='width:100%;font-size:11.5px;'>
+        <tr><td style='width:14%;'><b>CANT.</b></td><td style='width:62%;'><b>DESCRIPCION</b></td><td style='width:24%;text-align:right;'><b>IMPORTE</b></td></tr>
+        {filas}
+      </table>
       <div>================================</div>
-      <div style='text-align:right;'>SUBTOTAL: ${c.subtotal:.2f} | IVA: ${c.iva:.2f}</div>
       {f"<div style='text-align:right;'>DESCUENTO: -${c.descuento_monto:.2f}</div>" if c.descuento_monto > 0 else ""}
-      <div style='text-align:right;font-size:16px;font-weight:900;'>TOTAL: ${c.total:.2f}</div>
-      <div style='text-align:center;font-size:10px;margin-top:4px;'>PROPINA NO INCLUIDA</div>
+      <div style='text-align:right;font-size:17px;font-weight:900;margin:4px 0;'>TOTAL: &nbsp;&nbsp; ${c.total:.2f}</div>
+      <div>================================</div>
+      <div style='font-size:10.5px;margin:4px 0;'>{letras}</div>
+      <div style='text-align:center;font-size:11px;margin:4px 0;'>SUBTOTAL: ${c.subtotal:.2f} &nbsp;&nbsp; IVA: ${c.iva:.2f}</div>
+      <div style='text-align:center;font-size:10px;'>ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
     </div>"""
 
 
@@ -92,6 +152,7 @@ def vista_pos_soft():
     return render_template(
         'pos_soft.html',
         sucursal=suc, sucursales=SUCURSALES_OFICIALES,
+        datos_ticket=obtener_datos_ticket(suc),
         turno=turno, permisos=permisos, cuentas=cuentas,
         categorias=categorias_bd, productos=productos, empleados=empleados
     )
@@ -192,6 +253,8 @@ def api_pos_detalle_cuenta(cuenta_id):
     if current_user.role not in ROLES_POS:
         return jsonify({'ok': False}), 403
     c = CuentaPOS.query.get_or_404(cuenta_id)
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     detalles_ord = DetallePOS.query.filter_by(cuenta_id=c.id).order_by(DetallePOS.id.asc()).all()
     items = [{
         'id': d.id,
@@ -223,6 +286,8 @@ def api_pos_detalle_cuenta(cuenta_id):
         'subtotal': f"{c.subtotal:.2f}", 'descuento_pct': c.descuento_pct or 0.0,
         'descuento_monto': f"{(c.descuento_monto or 0.0):.2f}", 'iva': f"{c.iva:.2f}",
         'total': f"{c.total:.2f}", 'total_num': c.total,
+        'total_letras': numero_a_letras_mxn(c.total),
+        'datos_ticket': obtener_datos_ticket(c.sucursal),
         'pago_efectivo': c.pago_efectivo or 0.0,
         'pago_tarjeta_debito': c.pago_tarjeta_debito or 0.0,
         'pago_tarjeta_credito': c.pago_tarjeta_credito or 0.0,
@@ -362,6 +427,8 @@ def api_pos_capturar_item():
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
     if c.impresa:
@@ -395,15 +462,18 @@ def api_pos_capturar_item():
                     db.session.commit()
                     return jsonify({'ok': True, 'agrupado': True, 'detalle_id': d.id})
 
-    # Si llega un modificador suelto, ligarlo al último producto principal si no trae parent_detalle_id
+    # Si llega un modificador o comentario suelto, ligarlo al producto indicado o al último principal
     parent_id = data.get('parent_detalle_id')
-    if es_mod and not parent_id and clave != 'SEP':
-        ultimo_prod = DetallePOS.query.filter_by(
-            cuenta_id=c.id, es_modificador=False
-        ).order_by(DetallePOS.id.desc()).first()
-        if ultimo_prod:
-            parent_id = ultimo_prod.id
-            area_imp = ultimo_prod.area_impresion
+    area_explicita = str(data.get('area_impresion', '')).strip().upper()
+    if area_explicita in ('BARRA', 'COCINA'):
+        area_imp = area_explicita
+    elif es_mod and clave != 'SEP':
+        ref_prod = DetallePOS.query.filter_by(id=int(parent_id), cuenta_id=c.id).first() if parent_id else None
+        if not ref_prod:
+            ref_prod = DetallePOS.query.filter_by(cuenta_id=c.id, es_modificador=False).order_by(DetallePOS.id.desc()).first()
+        if ref_prod:
+            parent_id = ref_prod.id
+            area_imp = _resolver_area_modificador({'nombre': desc_limpia}, ref_prod.area_impresion)
 
     nuevo_item = DetallePOS(
         cuenta_id=c.id,
@@ -421,19 +491,23 @@ def api_pos_capturar_item():
     db.session.add(nuevo_item)
     db.session.flush()
 
-    # Si el frontend mandó modificadores anidados en un solo JSON, guardarlos ligados al padre
+    # Si el frontend mandó modificadores/comentarios anidados, respetar área propia (ej. FRUTA/CAFÉ -> BARRA)
     for m in mods_hijos:
         m_cant = float(m.get('cantidad', 1))
         m_pre = float(m.get('precio', 0))
-        m_desc = f">{str(m.get('nombre') or m.get('descripcion') or '').strip().upper().lstrip('>')}"
+        m_desc_raw = str(m.get('nombre') or m.get('descripcion') or '').strip().upper().lstrip('>')
+        if not m_desc_raw:
+            continue
+        m_clave = str(m.get('clave', 'MOD')).strip().upper()
+        m_area = area_imp if m_clave == 'NOTA' else _resolver_area_modificador(m, area_imp)
         db.session.add(DetallePOS(
             cuenta_id=c.id,
             parent_detalle_id=nuevo_item.id,
             num_comanda=comanda,
             cantidad=m_cant,
-            clave=str(m.get('clave', 'MOD')),
-            descripcion=m_desc,
-            area_impresion=area_imp,
+            clave=m_clave,
+            descripcion=f">{m_desc_raw}",
+            area_impresion=m_area,
             es_modificador=True,
             precio_unitario=m_pre,
             importe=round(m_cant * m_pre, 2),
@@ -446,46 +520,157 @@ def api_pos_capturar_item():
     return jsonify({'ok': True, 'detalle_id': nuevo_item.id})
 
 
-@pos_bp.route('/api/pos/enviar_comanda/<int:cuenta_id>', methods=['POST'])
-@login_required
-def api_pos_enviar_comanda(cuenta_id):
-    if current_user.role not in ROLES_POS:
-        return jsonify({'ok': False}), 403
-    c = CuentaPOS.query.get_or_404(cuenta_id)
+def _generar_comandas_pendientes(c):
     pendientes = DetallePOS.query.filter_by(cuenta_id=c.id, impreso_comanda=False).order_by(DetallePOS.id.asc()).all()
     if not pendientes:
-        return jsonify({'ok': False, 'msg': 'No hay productos nuevos por enviar a cocina/barra.'})
+        return False
 
+    ya_tenia_enviados = DetallePOS.query.filter_by(cuenta_id=c.id, impreso_comanda=True).count() > 0
+    titulo_estado = "== ADICIONAL ==" if ya_tenia_enviados else "== CUENTA NUEVA =="
+
+    padres_map = {d.id: d for d in DetallePOS.query.filter_by(cuenta_id=c.id, es_modificador=False).all()}
     por_area = {'BARRA': [], 'COCINA': []}
     for d in pendientes:
         area = d.area_impresion if d.area_impresion in por_area else 'COCINA'
         por_area[area].append(d)
         d.impreso_comanda = True
 
+    area_mesa_limpia = re.sub(r'^\d+\s*', '', (c.area or 'COMEDOR')).upper()
     ahora_str = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
-    for area_nom, lista in por_area.items():
+
+    for area_nom in ('BARRA', 'COCINA'):
+        lista = por_area[area_nom]
         if not lista:
             continue
-        filas_html = "".join([
-            f"<tr><td style='width:20%;font-weight:bold;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
-            f"<td style='width:80%;font-weight:bold;{'padding-left:10px;font-size:13px;' if it.es_modificador else ''}'>{it.descripcion}</td></tr>"
-            for it in lista
-        ])
+        filas = []
+        tiempo_actual = None
+        for it in lista:
+            if not it.es_modificador and (it.num_comanda or 1) > 1 and it.num_comanda != tiempo_actual:
+                tiempo_actual = it.num_comanda
+                filas.append(f"<tr><td colspan='2' style='font-size:12px;padding-top:4px;'>--- TIEMPO {tiempo_actual} ---</td></tr>")
+            if it.clave == 'SEP':
+                filas.append("<tr><td colspan='2' style='text-align:center;font-size:12px;'>================================</td></tr>")
+                continue
+            texto_item = it.descripcion
+            # Si es un modificador de paquete ruteado a otra área (ej. FRUTA/CAFE en BARRA de un PAQUETE de COCINA), agregar referencia
+            if it.es_modificador and it.parent_detalle_id and it.parent_detalle_id in padres_map:
+                padre = padres_map[it.parent_detalle_id]
+                if padre.area_impresion != area_nom:
+                    texto_item = f"{it.descripcion.lstrip('>')} ({padre.descripcion})"
+            if it.es_modificador and not (it.parent_detalle_id in padres_map and padres_map[it.parent_detalle_id].area_impresion != area_nom):
+                filas.append(f"<tr><td style='width:14%;'></td><td style='width:86%;font-size:13px;padding-left:6px;'>{texto_item}</td></tr>")
+            else:
+                cant_txt = int(it.cantidad) if float(it.cantidad).is_integer() else f"{it.cantidad:g}"
+                filas.append(f"<tr><td style='width:14%;font-size:16px;font-weight:900;'>{cant_txt}</td><td style='width:86%;font-size:16px;font-weight:900;'>{texto_item}</td></tr>")
+
+        filas_html = "".join(filas)
         html_ticket = f"""
-        <div class='ticket-termico'>
-            <div style='font-size:17px;font-weight:900;text-align:center;'>*** ORDEN {area_nom} ***</div>
-            <div style='text-align:center;font-size:11px;'>{(c.sucursal or '').upper()}</div>
-            <div style='text-align:center;font-size:12px;'>MESA: <b>{c.mesa}</b> | ORDEN: <b>{c.orden}</b></div>
-            <div style='text-align:center;font-size:11px;'>MESERO: {c.mesero} | {ahora_str}</div>
-            <div style='border-top:2px dashed #000;margin:6px 0;'></div>
-            <table style='width:100%;font-size:15px;'>{filas_html}</table>
-            {f"<div style='margin-top:6px;font-size:12px;'><b>NOTA:</b> {c.observaciones}</div>" if c.observaciones else ""}
-            <div style='border-top:2px dashed #000;margin:8px 0;'></div>
+        <div class='ticket-termico' style='page-break-after:always;break-after:page;'>
+            <div style='font-size:13px;font-weight:bold;'>{titulo_estado}</div>
+            <div style='font-size:14px;font-weight:900;'>{area_nom} ({area_mesa_limpia}) ORDEN: {c.orden}</div>
+            <div style='font-size:12px;'>{ahora_str}</div>
+            <div style='font-size:13px;font-weight:bold;'>MESA: {c.mesa} - PERSONAS: {c.personas} &nbsp;MESERO: {c.mesero}</div>
+            <div>================================</div>
+            <table style='width:100%;border-collapse:collapse;'>{filas_html}</table>
+            {f"<div style='margin-top:6px;font-size:12px;'><b>NOTA CUENTA:</b> {c.observaciones}</div>" if c.observaciones else ""}
+            <div>================================</div>
         </div>"""
         db.session.add(ColaImpresionPOS(sucursal=c.sucursal, tipo=f"COMANDA_{area_nom}", contenido_html=html_ticket, fecha=ahora_local()))
+    return True
 
+
+@pos_bp.route('/api/pos/enviar_comanda/<int:cuenta_id>', methods=['POST'])
+@login_required
+def api_pos_enviar_comanda(cuenta_id):
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False}), 403
+    c = CuentaPOS.query.get_or_404(cuenta_id)
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+    if not _generar_comandas_pendientes(c):
+        return jsonify({'ok': False, 'msg': 'No hay productos nuevos por enviar a cocina/barra.'})
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@pos_bp.route('/api/pos/enviar_ronda_lote', methods=['POST'])
+@login_required
+def api_pos_enviar_ronda_lote():
+    """Guarda toda la ronda confirmada por el mesero y genera comandas BARRA/COCINA en 1 sola petición atómica."""
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    data = request.json or {}
+    c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+    if c.estado != 'ABIERTA':
+        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    if c.impresa:
+        return jsonify({'ok': False, 'msg': 'Cuenta impresa. Reábrela con clave de Admin/Gerente.'}), 400
+
+    items = data.get('items') or []
+    if not items:
+        return jsonify({'ok': False, 'msg': 'No hay platillos en la ronda.'}), 400
+
+    for it in items:
+        clave = str(it.get('clave', '02001')).strip().upper()
+        comanda = max(1, min(4, int(it.get('comanda', 1))))
+        if clave == 'SEP':
+            db.session.add(DetallePOS(
+                cuenta_id=c.id, num_comanda=comanda, cantidad=1.0, clave='SEP',
+                descripcion='============', area_impresion='COCINA',
+                es_modificador=True, precio_unitario=0.0, importe=0.0, impreso_comanda=False
+            ))
+            continue
+
+        cant = float(it.get('cantidad', 1))
+        precio = float(it.get('precio', 0))
+        es_mod = bool(it.get('es_modificador', False))
+        desc_limpia = str(it.get('descripcion', '')).strip().upper().lstrip('>')
+        if not desc_limpia:
+            continue
+        desc = f">{desc_limpia}" if es_mod else desc_limpia
+        area_imp = str(it.get('area_impresion', '')).strip().upper()
+        if area_imp not in ('BARRA', 'COCINA'):
+            area_imp = detectar_area_impresion(it.get('categoria', 'Barra'))
+
+        nuevo_item = DetallePOS(
+            cuenta_id=c.id, num_comanda=comanda, cantidad=cant, clave=clave,
+            descripcion=desc, area_impresion=area_imp, es_modificador=es_mod,
+            precio_unitario=precio, importe=round(cant * precio, 2), impreso_comanda=False
+        )
+        db.session.add(nuevo_item)
+        db.session.flush()
+
+        for m in (it.get('modificadores') or []):
+            m_desc = str(m.get('nombre') or m.get('descripcion') or '').strip().upper().lstrip('>')
+            if not m_desc:
+                continue
+            m_cant = float(m.get('cantidad', 1))
+            m_pre = float(m.get('precio', 0))
+            m_clave = str(m.get('clave', 'MOD')).strip().upper()
+            m_area = area_imp if m_clave == 'NOTA' else _resolver_area_modificador(m, area_imp)
+            db.session.add(DetallePOS(
+                cuenta_id=c.id, parent_detalle_id=nuevo_item.id, num_comanda=comanda,
+                cantidad=m_cant, clave=m_clave, descripcion=f">{m_desc}",
+                area_impresion=m_area, es_modificador=True, precio_unitario=m_pre,
+                importe=round(m_cant * m_pre, 2), impreso_comanda=False
+            ))
+
+        nota_txt = str(it.get('comentario') or '').strip().upper()
+        if nota_txt:
+            db.session.add(DetallePOS(
+                cuenta_id=c.id, parent_detalle_id=nuevo_item.id, num_comanda=comanda,
+                cantidad=1.0, clave='NOTA', descripcion=f">NOTA: {nota_txt}",
+                area_impresion=area_imp, es_modificador=True, precio_unitario=0.0,
+                importe=0.0, impreso_comanda=False
+            ))
+
+    db.session.flush()
+    recalcular_totales_cuenta(c)
+    _generar_comandas_pendientes(c)
+    db.session.commit()
+    return jsonify({'ok': True, 'total': f"{c.total:.2f}"})
 
 
 # ==============================================================================
@@ -508,7 +693,7 @@ def api_pos_cancelar_item():
         permitir = bool(permisos and permisos.cajero_puede_cancelar)
         autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
         if not autorizo:
-            return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de autorización (Raquel).'}), 403
+            return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
 
     cant_quitar = float(data.get('cantidad', item.cantidad))
     motivo = str(data.get('motivo', '')).strip()
@@ -605,7 +790,7 @@ def api_pos_cancelar_cuenta_abierta():
     motivo = str(data.get('motivo', '')).strip()
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
     if not autorizo:
-        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Se requiere contraseña de Raquel (Admin).'}), 403
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Se requiere contraseña de Admin o Gerente.'}), 403
 
     if tiene_prods and not motivo:
         motivo = 'Cuenta cancelada por Administración'
@@ -897,6 +1082,8 @@ def api_pos_pagar_cuenta():
 
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'Esta cuenta ya fue cerrada.'}), 400
 
@@ -982,7 +1169,7 @@ def api_pos_cambiar_forma_pago():
     permitir = bool(permisos and permisos.cajero_puede_cambiar_pago)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
-        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de autorización (Raquel).'}), 403
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
 
     ef = float(data.get('efectivo', 0))
     td = float(data.get('tarjeta_debito', 0))
@@ -1013,14 +1200,21 @@ def api_pos_cambiar_forma_pago():
 @login_required
 def api_pos_abrir_turno_real():
     if current_user.role not in ROLES_CAJA:
-        return jsonify({'ok': False, 'msg': 'Solo Caja o Admin pueden abrir turno.'}), 403
+        return jsonify({'ok': False, 'msg': 'Solo Caja, Gerente o Admin pueden abrir turno.'}), 403
+    data = request.json or {}
     suc = obtener_sucursal_activa(session)
-    fondo = float((request.json or {}).get('fondo_inicial', 0))
+    fondo = max(0.0, float(data.get('fondo_inicial', 0)))
     turno = obtener_turno_activo(suc)
+    autorizo = current_user.username.upper()
+    # Si ya había un fondo capturado en el turno actual, modificarlo requiere clave de Admin o Gerente
+    if turno.fondo_inicial and turno.fondo_inicial > 0 and abs(turno.fondo_inicial - fondo) > 0.01:
+        autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
+        if not autorizo:
+            return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Modificar el fondo de un turno ya abierto requiere clave de Admin o Gerente.'}), 403
     turno.fondo_inicial = fondo
     turno.cajero = current_user.username.upper()
     db.session.commit()
-    registrar_bitacora('ABRIR_TURNO', f'TURNO #{turno.id}', fondo, f'Fondo inicial: ${fondo:.2f}', sucursal=suc)
+    registrar_bitacora('ABRIR_TURNO', f'TURNO #{turno.id}', fondo, f'Fondo inicial: ${fondo:.2f}', autorizo=autorizo, sucursal=suc)
     return jsonify({'ok': True, 'turno_id': turno.id, 'fondo': f"{fondo:.2f}"})
 
 
@@ -1037,6 +1231,14 @@ def api_pos_movimiento_caja():
     concepto = str(data.get('concepto', 'COMPRA DE INSUMOS')).strip().upper()
     if monto <= 0:
         return jsonify({'ok': False, 'msg': 'Monto inválido'}), 400
+
+    autorizo = current_user.username.upper()
+    if tipo == 'RETIRO':
+        perm = ConfigPermisosPOS.query.first()
+        permitir = bool(perm and perm.cajero_puede_retirar)
+        autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
+        if not autorizo:
+            return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Retirar efectivo requiere contraseña de Admin o Gerente.'}), 403
 
     db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto, usuario=current_user.username.upper(), fecha=ahora_local()))
     if tipo == 'RETIRO':
@@ -1058,6 +1260,7 @@ def api_pos_movimiento_caja():
     </div>"""
     db.session.add(ColaImpresionPOS(sucursal=suc, tipo='VALE_CAJA', contenido_html=html_vale, fecha=ahora_local()))
     db.session.commit()
+    registrar_bitacora(f'CAJA_{tipo}', f'TURNO #{turno.id}', monto, concepto, autorizo=autorizo, sucursal=suc)
     return jsonify({'ok': True})
 
 
@@ -1080,7 +1283,9 @@ def api_pos_corte_caja():
     propinas_tarj = round(sum(c.propina_tarjeta or 0.0 for c in cuentas_pagadas), 2)
 
     efectivo_final = round(turno.fondo_inicial + ef_ventas + turno.depositos_efectivo - turno.retiros_efectivo - propinas_tarj, 2)
-    saldo_final = round(efectivo_final + total_tarjeta + transferencia, 2)
+    saldo_final = round(efectivo_final + total_tarjeta + transferencia + vales_emp, 2)
+    perm_cx = ConfigPermisosPOS.query.first()
+    ver_esperado = bool(current_user.role in ROLES_AUTH or (perm_cx and perm_cx.cajero_ver_esperado_z))
 
     # Desglose de ventas y propinas con tarjeta por mesero
     por_mesero = {}
@@ -1109,6 +1314,7 @@ def api_pos_corte_caja():
         'efectivo_final': f"{efectivo_final:.2f}",
         'total_formas': f"{(ef_ventas + total_tarjeta + transferencia + vales_emp):.2f}",
         'cuentas_abiertas': cuentas_abiertas,
+        'ver_esperado': ver_esperado,
         'por_mesero': [{'mesero': k, **v} for k, v in sorted(por_mesero.items())]
     })
 
@@ -1155,6 +1361,9 @@ def api_pos_cerrar_turno_arqueo():
     for ca in CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').all():
         ca.turno_id = nuevo_turno.id
 
+    # Limpieza automática de cola de impresión vieja (>7 días) para mantener BD rápida por años
+    limite_limpieza = ahora_local() - timedelta(days=7)
+    ColaImpresionPOS.query.filter(ColaImpresionPOS.impreso == True, ColaImpresionPOS.fecha < limite_limpieza).delete(synchronize_session=False)
     db.session.commit()
     registrar_bitacora('CIERRE_CAJA', f'TURNO #{turno.id}', declarado_total, f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}', sucursal=suc)
     return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}"})
@@ -1255,7 +1464,7 @@ def api_pos_reabrir_cuenta():
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
     if not autorizo:
-        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Raquel (Admin).'}), 403
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
     c.impresa = False
     al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
     if al:
@@ -1275,7 +1484,9 @@ def api_pos_reimprimir_productos():
     item_ids = [int(x) for x in data.get('item_ids', [])]
     if not item_ids:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
-    autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=(current_user.role in ROLES_CAJA))
+    perm = ConfigPermisosPOS.query.first()
+    permitir = bool(perm and perm.cajero_puede_reimprimir)
+    autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de autorización.'}), 403
 
@@ -1325,7 +1536,7 @@ def api_pos_mi_venta():
             por_pagar.append(obj)
         else:
             abiertas.append(obj)
-    meseros = [u.username.upper() for u in User.query.filter(User.role.in_(['mesero', 'cajero', 'admin'])).all()]
+    meseros = [u.username.upper() for u in User.query.filter(User.role.in_(['mesero', 'cajero', 'gerente', 'admin'])).all()]
     return jsonify({
         'ok': True, 'sucursal': suc,
         'abiertas': abiertas, 'por_pagar': por_pagar, 'pagadas': pagadas,
@@ -1433,9 +1644,14 @@ def api_confirmar_preorden_1clic(preorden_id):
 def api_pos_modificadores():
     if request.method == 'GET':
         mods = ModificadorPOS.query.filter_by(activo=True).order_by(ModificadorPOS.id.asc()).all()
-        return jsonify({'ok': True, 'modificadores': [
-            {'id': m.id, 'clave': m.clave, 'grupo': m.grupo or 'SABORES', 'nombre': m.nombre, 'precio': m.precio} for m in mods
-        ]})
+        return jsonify({
+            'ok': True,
+            'modificadores': [
+                {'id': m.id, 'clave': m.clave, 'grupo': m.grupo or 'SABORES', 'nombre': m.nombre, 'precio': m.precio, 'area_impresion': m.area_impresion or ''}
+                for m in mods
+            ],
+            'flujos': _mapa_flujos_modificadores()
+        })
     if current_user.role != 'admin':
         return jsonify({'ok': False, 'msg': 'Solo Raquel (Admin) puede modificar catálogos.'}), 403
     data = request.json or {}
@@ -1443,10 +1659,13 @@ def api_pos_modificadores():
         nom = str(data.get('nombre', '')).strip().upper().lstrip('>')
         if not nom:
             return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
+        area_m = str(data.get('area_impresion', '')).strip().upper()
         db.session.add(ModificadorPOS(
             clave=str(data.get('clave', f"030{ModificadorPOS.query.count() + 20}")).strip(),
             grupo=str(data.get('grupo', 'SABORES')).strip().upper(),
-            nombre=nom, precio=float(data.get('precio', 0)), activo=True
+            nombre=nom, precio=float(data.get('precio', 0)),
+            area_impresion=area_m if area_m in ('BARRA', 'COCINA') else None,
+            activo=True
         ))
         db.session.commit()
         return jsonify({'ok': True})
@@ -1508,12 +1727,16 @@ def api_pos_catalogo_completo():
         'ok': True,
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or ''} for c in cats],
         'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado} for p in prods],
-        'modificadores': [{'id': m.id, 'clave': m.clave, 'grupo': m.grupo or 'SABORES', 'nombre': m.nombre, 'precio': m.precio} for m in mods],
+        'modificadores': [{'id': m.id, 'clave': m.clave, 'grupo': m.grupo or 'SABORES', 'nombre': m.nombre, 'precio': m.precio, 'area_impresion': m.area_impresion or ''} for m in mods],
+        'flujos': _mapa_flujos_modificadores(),
         'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa} for pr in promos],
         'permisos': {
-            'cancelar': bool(perm.cajero_puede_cancelar) if perm else True,
-            'descontar': bool(perm.cajero_puede_descontar) if perm else True,
-            'cambiar_pago': bool(perm.cajero_puede_cambiar_pago) if perm else True
+            'cancelar': bool(perm.cajero_puede_cancelar) if perm else False,
+            'descontar': bool(perm.cajero_puede_descontar) if perm else False,
+            'cambiar_pago': bool(perm.cajero_puede_cambiar_pago) if perm else False,
+            'reimprimir': bool(perm.cajero_puede_reimprimir) if perm else False,
+            'retirar': bool(perm.cajero_puede_retirar) if perm else False,
+            'ver_esperado_z': bool(perm.cajero_ver_esperado_z) if perm else False
         }
     })
 
@@ -1573,13 +1796,24 @@ def api_pos_admin_categoria():
 def api_permisos_raquel():
     p = ConfigPermisosPOS.query.first()
     if request.method == 'GET':
-        return jsonify({'ok': True, 'cancelar': p.cajero_puede_cancelar, 'descontar': p.cajero_puede_descontar, 'cambiar_pago': p.cajero_puede_cambiar_pago})
+        return jsonify({
+            'ok': True,
+            'cancelar': bool(p.cajero_puede_cancelar),
+            'descontar': bool(p.cajero_puede_descontar),
+            'cambiar_pago': bool(p.cajero_puede_cambiar_pago),
+            'reimprimir': bool(p.cajero_puede_reimprimir),
+            'retirar': bool(p.cajero_puede_retirar),
+            'ver_esperado_z': bool(p.cajero_ver_esperado_z)
+        })
     if current_user.role != 'admin':
         return jsonify({'ok': False}), 403
     data = request.json or {}
-    p.cajero_puede_cancelar = bool(data.get('cancelar', True))
-    p.cajero_puede_descontar = bool(data.get('descontar', True))
-    p.cajero_puede_cambiar_pago = bool(data.get('cambiar_pago', True))
+    p.cajero_puede_cancelar = bool(data.get('cancelar', False))
+    p.cajero_puede_descontar = bool(data.get('descontar', False))
+    p.cajero_puede_cambiar_pago = bool(data.get('cambiar_pago', False))
+    p.cajero_puede_reimprimir = bool(data.get('reimprimir', False))
+    p.cajero_puede_retirar = bool(data.get('retirar', False))
+    p.cajero_ver_esperado_z = bool(data.get('ver_esperado_z', False))
     db.session.commit()
     return jsonify({'ok': True})
 
