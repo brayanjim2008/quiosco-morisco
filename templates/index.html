@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#13423b">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
     <link rel="manifest" href='data:application/manifest+json,{"name":"Quiosco Morisco","short_name":"Morisco","display":"standalone","background_color":"%23fdfaf6","theme_color":"%2313423b"}'>
-    
+
     <meta property="og:title" content="Menú Digital | Quiosco Morisco">
     <meta property="og:description" content="Descubre nuestros platillos, bebidas y sella tu tarjeta de lealtad digital.">
     <meta property="og:image" content="{{ url_for('static', filename='logo.jpg') }}">
@@ -30,7 +30,7 @@
         body.dark-mode .logo-container img, body.dark-mode .sidebar-header img { background: #121212; border-color: var(--verde-quiosco); }
 
         body { font-family: 'Open Sans', sans-serif; background-color: var(--fondo-hueso); margin: 0; padding: 0 0 110px 0; color: var(--texto-oscuro); transition: background 0.3s; }
-        
+
         .header-wrapper { position: sticky; top: 0; z-index: 2000; background: rgba(253, 250, 246, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color); transition: 0.3s; }
         body.dark-mode .header-wrapper { background: rgba(18, 18, 18, 0.92); }
         .navbar-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; max-width: 500px; margin: auto; }
@@ -42,7 +42,7 @@
         #badge-mesa-activa { display: inline-block; background: linear-gradient(135deg, var(--cobre), #b06d35); color: white; font-size: 11px; font-weight: 800; padding: 5px 11px; border-radius: 20px; box-shadow: 0 3px 10px rgba(201,130,70,0.35); cursor: pointer; }
         .hamburger { font-size: 20px; cursor: pointer; color: var(--verde-quiosco); background: var(--fondo-tarjeta); padding: 5px 14px; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
         .hamburger-texto { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        
+
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0 12px 0; z-index: 2500; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(10px); }
         body.dark-mode .bottom-nav { background: rgba(30, 30, 30, 0.95); border-color: #333; box-shadow: 0 -4px 15px rgba(0,0,0,0.4); }
         .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--texto-claro); font-size: 10px; font-weight: 600; gap: 3px; transition: 0.3s; width: 25%; }
@@ -64,15 +64,14 @@
         .sidebar-links a .icon { font-size: 19px; margin-right: 15px; width: 25px; text-align: center; color: var(--cobre); }
         .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-color); }
         .btn-admin-sidebar { background: var(--cobre); color: white !important; border-radius: 8px; justify-content: center; text-transform: uppercase; font-size: 13px !important; padding: 12px; display: flex; text-decoration: none; font-weight: bold; }
-        
+
         .container { max-width: 500px; margin: auto; padding: 0 15px; }
         h1, h2, h3 { font-family: 'Lora', serif; text-align: center; color: var(--verde-quiosco); font-weight: 700; }
         .logo-container { text-align: center; margin-bottom: 10px; margin-top: 18px; }
         .logo-container img { width: 105px; border-radius: 50%; border: 3px solid var(--cobre); background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         h1 { border-bottom: 2px solid var(--cobre); padding-bottom: 8px; margin-bottom: 8px; font-size: 25px; text-transform: uppercase; letter-spacing: 2px; }
         .card { background: var(--fondo-tarjeta); padding: 25px 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.03); }
-        
-        /* CARRUSEL DE BANNERS CON 3 ESTILOS REALES */
+
         .hero-carousel-wrapper { position: relative; width: 100%; margin: 0 auto 24px auto; }
         .hero-banner-starbucks { position: relative; width: 100%; min-height: 245px; border-radius: 22px; display: none; align-items: flex-end; justify-content: center; text-align: center; overflow: hidden; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16); animation: fadeIn 0.45s ease; }
         .hero-banner-starbucks.slide-activo { display: flex; }
@@ -105,183 +104,31 @@
         .vista-app { display: none; animation: fadeIn 0.35s ease; }
         #vista-inicio { display: block; }
 
-        /* ==============================================================
-           DISEÑO ESTILO STARBUCKS (OPCIÓN B: CÍRCULOS + TARJETAS LIMPIAS)
-           ============================================================== */
-        .sbux-cats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 18px 14px;
-            margin-top: 12px;
-            margin-bottom: 24px;
-        }
-        .sbux-cat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.25s ease;
-        }
-        .sbux-cat-item:active, .sbux-cat-item:hover {
-            transform: scale(1.04);
-        }
-        .sbux-cat-circle {
-            width: 112px;
-            height: 112px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #13423b 0%, #1d5f55 100%);
-            border: 3px solid var(--cobre);
-            box-shadow: 0 8px 20px rgba(19, 66, 59, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            margin-bottom: 8px;
-            position: relative;
-        }
-        .sbux-cat-circle img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .sbux-cat-emoji {
-            font-size: 44px;
-            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25));
-        }
-        .sbux-cat-name {
-            font-family: 'Lora', serif;
-            font-weight: 700;
-            font-size: 15px;
-            color: var(--verde-quiosco);
-            line-height: 1.2;
-            margin-bottom: 3px;
-        }
-        .sbux-cat-count {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--cobre);
-        }
+        .sbux-cats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 14px; margin-top: 12px; margin-bottom: 24px; }
+        .sbux-cat-item { display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; transition: transform 0.25s ease; }
+        .sbux-cat-item:active, .sbux-cat-item:hover { transform: scale(1.04); }
+        .sbux-cat-circle { width: 112px; height: 112px; border-radius: 50%; background: linear-gradient(135deg, #13423b 0%, #1d5f55 100%); border: 3px solid var(--cobre); box-shadow: 0 8px 20px rgba(19, 66, 59, 0.2); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 8px; position: relative; }
+        .sbux-cat-circle img { width: 100%; height: 100%; object-fit: cover; }
+        .sbux-cat-emoji { font-size: 44px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.25)); }
+        .sbux-cat-name { font-family: 'Lora', serif; font-weight: 700; font-size: 15px; color: var(--verde-quiosco); line-height: 1.2; margin-bottom: 3px; }
+        .sbux-cat-count { font-size: 11px; font-weight: 700; color: var(--cobre); }
 
-        /* TARJETAS DE PRODUCTO ESTILO STARBUCKS (FOTO + NOMBRE + PRECIO + BOTÓN +) */
-        .sbux-products-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 14px;
-            margin-bottom: 22px;
-        }
-        .sbux-prod-card {
-            background: var(--fondo-tarjeta);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            position: relative;
-            cursor: pointer;
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-        .sbux-prod-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 24px rgba(19, 66, 59, 0.12);
-        }
-        .sbux-prod-card.platillo-estrella {
-            border: 1.8px solid var(--cobre);
-        }
-        .sbux-img-box {
-            width: 100%;
-            height: 142px;
-            position: relative;
-            background: linear-gradient(135deg, #13423b 0%, #1f5c52 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .sbux-img-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.4s ease;
-        }
-        .sbux-prod-card:hover .sbux-img-box img {
-            transform: scale(1.05);
-        }
-        .sbux-placeholder-icon {
-            font-size: 46px;
-            opacity: 0.9;
-        }
-        .sbux-badge-top {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(201, 130, 70, 0.95);
-            color: white;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 3px 9px;
-            border-radius: 20px;
-            z-index: 4;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
-        }
-        .sbux-prod-body {
-            padding: 11px 12px 13px 12px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            justify-content: space-between;
-        }
-        .sbux-prod-title {
-            font-family: 'Lora', serif;
-            font-size: 14.5px;
-            font-weight: 700;
-            color: var(--verde-quiosco);
-            line-height: 1.25;
-            margin-bottom: 10px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        
-        .sbux-prod-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: auto;
-        }
-        .sbux-prod-price {
-            font-weight: 800;
-            color: var(--cobre);
-            font-size: 15px;
-        }
-        .sbux-btn-plus {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--verde-quiosco);
-            color: white;
-            border: none;
-            font-size: 18px;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(19, 66, 59, 0.3);
-            transition: 0.2s;
-        }
-        .sbux-btn-plus.con-cantidad {
-            background: var(--cobre);
-            font-size: 14px;
-            border: 2px solid #fff;
-        }
-        .sbux-btn-plus:active {
-            transform: scale(0.86);
-        }
+        .sbux-products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 22px; }
+        .sbux-prod-card { background: var(--fondo-tarjeta); border: 1px solid var(--border-color); border-radius: 20px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; position: relative; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+        .sbux-prod-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(19, 66, 59, 0.12); }
+        .sbux-prod-card.platillo-estrella { border: 1.8px solid var(--cobre); }
+        .sbux-img-box { width: 100%; height: 142px; position: relative; background: linear-gradient(135deg, #13423b 0%, #1f5c52 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .sbux-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+        .sbux-prod-card:hover .sbux-img-box img { transform: scale(1.05); }
+        .sbux-placeholder-icon { font-size: 46px; opacity: 0.9; }
+        .sbux-badge-top { position: absolute; top: 8px; left: 8px; background: rgba(201, 130, 70, 0.95); color: white; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 20px; z-index: 4; box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
+        .sbux-prod-body { padding: 11px 12px 13px 12px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+        .sbux-prod-title { font-family: 'Lora', serif; font-size: 14.5px; font-weight: 700; color: var(--verde-quiosco); line-height: 1.25; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .sbux-prod-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+        .sbux-prod-price { font-weight: 800; color: var(--cobre); font-size: 15px; }
+        .sbux-btn-plus { width: 36px; height: 36px; border-radius: 50%; background: var(--verde-quiosco); color: white; border: none; font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(19, 66, 59, 0.3); transition: 0.2s; }
+        .sbux-btn-plus.con-cantidad { background: var(--cobre); font-size: 14px; border: 2px solid #fff; }
+        .sbux-btn-plus:active { transform: scale(0.86); }
 
         .barra-volver-cats { position: sticky; top: 61px; z-index: 1800; background: var(--fondo-hueso); padding: 10px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 14px; display: none; align-items: center; justify-content: space-between; gap: 10px; }
         .btn-volver-grid { background: var(--verde-quiosco); color: white; border: none; padding: 9px 16px; border-radius: 25px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(19,66,59,0.25); }
@@ -339,11 +186,11 @@
         .flash { padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-weight: bold; font-family: 'Lora', serif; }
         .flash.premio_interactivo { background: var(--verde-quiosco); color: #fff; border: 2px solid var(--cobre); font-size: 1.2em; animation: latido 1.5s infinite; }
         .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
-        
+
         .formulario-normal input { width: 100%; padding: 14px; margin: 8px 0 20px 0; background: var(--fondo-hueso); border: 1px solid var(--border-color); border-radius: 10px; box-sizing: border-box; }
         .formulario-normal label { color: var(--texto-claro); font-size: 12px; font-weight: 700; text-transform: uppercase; }
         .categoria-titulo { color: var(--cobre); padding: 6px 0; border-bottom: 2px solid var(--cobre); margin-bottom: 14px; font-family: 'Lora', serif; font-size: 22px; font-weight: 700; display: inline-block; }
-        
+
         .platillo-agotado { opacity: 0.45; filter: grayscale(100%); pointer-events: none; }
         .overlay-agotado { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.82); color: white; padding: 6px 16px; border-radius: 30px; font-weight: bold; z-index: 10; font-size: 11px; text-transform: uppercase; }
 
@@ -374,7 +221,7 @@
         <div id="badge-mesa-activa" onclick="abrirModalInfo('modal-mesero'); vibrar('soft');" title="Solicitar asistencia en tu mesa">
             <i class="fas fa-bell"></i> Asistencia en Mesa
         </div>
-        
+
         <div class="hamburger" onclick="abrirSidebar(); vibrar('soft');">
             <span class="hamburger-texto" data-i18n="btn_menu_superior">Opciones</span>&#9776;
         </div>
@@ -463,7 +310,6 @@
     </div>
 </div>
 
-<!-- MODAL DE DETALLE COMPLETO AL TOCAR UN PLATILLO ESTILO STARBUCKS -->
 <div id="modal-detalle-platillo" class="modal-overlay" onclick="if(event.target===this) cerrarModalInfo('modal-detalle-platillo')">
     <div class="modal-content" style="padding: 0; overflow: hidden; max-width: 380px;">
         <img id="detalle-img" src="" style="width: 100%; height: 230px; object-fit: cover; display: none;">
@@ -486,7 +332,6 @@
     </div>
 </div>
 
-<!-- MODAL DE PRE-ORDEN CON SELECTOR FIJO DE LAS 10 PLAQUITAS DE MESA -->
 <div id="modal-antojos" class="modal-overlay" onclick="if(event.target===this) cerrarModalInfo('modal-antojos')">
     <div class="modal-content" style="max-width: 390px; text-align: left;">
         <h3 style="margin-top: 0; border: none;"><i class="fas fa-clipboard-list" style="color: var(--cobre);"></i> <span data-i18n="antojos_titulo">Mi Pre-Orden en Mesa</span></h3>
@@ -557,7 +402,6 @@
     </div>
 </div>
 
-<!-- MODAL DE ASISTENCIA EN MESA CON LAS 10 PLAQUITAS FIJAS -->
 <div id="modal-mesero" class="modal-overlay">
     <div class="modal-content">
         <h3 data-i18n="modal_mesero_titulo" style="border-bottom: none; margin-top: 0;"><i class="fas fa-bell text-success"></i> Asistencia en Mesa</h3>
@@ -581,7 +425,7 @@
     </div>
 </div>
 
-<!-- MODAL DE EVALUACIÓN EXCLUSIVO PARA PAOLA Y DANIEL -->
+<!-- MODAL DE EVALUACIÓN DINÁMICO (USA meseros_eval DE app.py) -->
 <div id="modal-evaluacion" class="modal-overlay">
     <div class="modal-content" style="padding: 25px; text-align: left;">
         <h3 style="color: #ff9800; text-align: center; margin-top: 0; border: none;"><i class="fas fa-star"></i> <span data-i18n="eval_titulo">Déjanos tu opinión</span></h3>
@@ -590,8 +434,9 @@
             <label class="eval-label">👤 ¿Qué mesero te atendió en tu mesa?</label>
             <select name="mesero_nombre" class="eval-select" required>
                 <option value="" disabled selected>Selecciona a tu mesero...</option>
-                <option value="Paola">👩🏻 Paola</option>
-                <option value="Daniel">👨🏻 Daniel</option>
+                {% for m in meseros_eval %}
+                <option value="{{ m }}">👤 {{ m }}</option>
+                {% endfor %}
             </select>
 
             <label class="eval-label" data-i18n="eval_lbl_atencion">Atención del mesero:</label>
@@ -619,7 +464,7 @@
                 <option value="1">⭐ - Pésimo</option>
             </select>
             <textarea name="comentarios" class="eval-textarea" placeholder="¿Algún comentario adicional?" data-i18n-placeholder="eval_ph_comentarios" rows="2"></textarea>
-            
+
             <div id="impulso-google-maps" style="background: #fff8e1; border: 1px solid #ffca28; border-radius: 12px; padding: 10px; text-align: center; margin-top: 8px;">
                 <span style="font-size: 12px; font-weight: bold; color: #5d4037; display: block; margin-bottom: 6px;">🌟 ¡Gracias por tus 5 estrellas! ¿Nos regalas una reseña en Google Maps?</span>
                 <a href="https://share.google/g7hYq0hAgNAgyfS4l" target="_blank" style="display: inline-block; background: #ea4335; color: white; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 20px; text-decoration: none;"><i class="fas fa-map-marker-alt"></i> Calificar en Google Maps</a>
@@ -792,7 +637,7 @@
             <ul style="list-style: none; padding-left: 0; margin: 15px 0 0 0;">
                 {% for p in premios %}
                 <li style="margin-bottom: 10px; display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
-                    <span style="font-weight: 600; color: var(--texto-claro);">🎯 {{ p.visitas_necesarias }} <span data-i18n="progreso_consumos">visitas</span></span> 
+                    <span style="font-weight: 600; color: var(--texto-claro);">🎯 {{ p.visitas_necesarias }} <span data-i18n="progreso_consumos">visitas</span></span>
                     <span style="color: var(--verde-quiosco); font-weight: 700;" data-es="{{ p.premio_es }}" data-en="{{ p.premio_en | default(p.premio_es) }}">{{ p.premio_es }}</span>
                 </li>
                 {% endfor %}
@@ -800,7 +645,7 @@
         </div>
         {% endif %}
 
-        <div class="card formulario-normal">
+        <div class="card formulario-normal" id="tarjeta-fidelidad-form">
             <h3 data-i18n="fidelidad_titulo" style="border: none; padding: 0;">Fidelidad Morisco</h3>
             <p style="text-align: center; color: var(--texto-claro); font-size: 13px; margin-bottom: 20px;" data-i18n="fidelidad_desc">Escanea tu ticket en caja o ingresa tu PIN de consumo para sumar visitas.</p>
             <div id="alerta-fraude" style="display: none; color: #d32f2f; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 15px; background: #ffebee; padding: 12px; border-radius: 8px;">
@@ -812,15 +657,13 @@
                 <label data-i18n="lbl_telefono">Tu Teléfono (10 dígitos)</label>
                 <input type="tel" name="telefono" id="fidelidad-telefono" required pattern="[0-9]{10}" maxlength="10" placeholder="Ej. 9671234567">
                 <label data-i18n="lbl_pin">PIN de Consumo (4 Dígitos)</label>
-                <input type="number" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; border: 2px dashed var(--cobre);">
+                <input type="tel" inputmode="numeric" maxlength="6" name="pin" id="input-pin" required style="font-family: monospace; letter-spacing: 15px; font-size: 28px; text-align: center; color: var(--verde-quiosco); font-weight: bold; border: 2px dashed var(--cobre);">
                 <button type="submit" class="btn mt-3" id="btn-sellar" data-i18n="btn_sellar">Sellar Visita</button>
             </form>
         </div>
     </div>
 
-    <!-- ==========================================================
-         VISTA 2: MENÚ ESTILO STARBUCKS (CÍRCULOS + TARJETAS FOTO)
-         ========================================================== -->
+    <!-- VISTA 2: MENÚ ESTILO STARBUCKS -->
     <div id="vista-menu" class="vista-app" style="display: none;">
         <div class="card" style="padding: 10px 5px; background: transparent; border: none; box-shadow: none; margin-bottom: 0;">
             <h2 data-i18n="menu_titulo_seccion" style="border: none; margin-bottom: 12px;">Nuestro Menú</h2>
@@ -831,7 +674,6 @@
             </div>
 
             {% if categorias %}
-            <!-- NIVEL 1: CÍRCULOS DE CATEGORÍAS ESTILO STARBUCKS -->
             <div id="vista-cuadricula-cats">
                 <p style="text-align: center; font-size: 13px; color: var(--texto-claro); margin-top: 0; margin-bottom: 14px; font-weight: 600;" data-i18n="sub_cuadricula">
                     👇 Toca una categoría para explorar:
@@ -856,7 +698,6 @@
                 </div>
             </div>
 
-            <!-- BARRA SUPERIOR PARA VOLVER A LOS CÍRCULOS DE CATEGORÍAS -->
             <div id="barra-volver-categorias" class="barra-volver-cats">
                 <button type="button" class="btn-volver-grid" onclick="mostrarCuadriculaCategorias(); vibrar('soft');">
                     <i class="fas fa-arrow-left"></i> <span data-i18n="btn_volver_cats">Categorías</span>
@@ -864,21 +705,20 @@
                 <span id="nombre-cat-actual" style="font-family: 'Lora', serif; font-weight: bold; color: var(--cobre); font-size: 16px;"></span>
             </div>
 
-            <!-- NIVEL 2: TARJETAS DE PLATILLOS ESTILO STARBUCKS (FOTO + PRECIO + BOTÓN +) -->
             <div id="contenedor-menu" style="display: none;">
                 {% for cat_nombre, lista in categorias.items() %}
                     {% set cl = cat_nombre|lower %}
                     {% set icono_cat = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else '🍽️')))))))))))) %}
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}" data-titulo-natural="{{ cat_nombre }}">
                         <div class="categoria-titulo" data-es="{{ cat_nombre }}" data-en="{{ cat_traducciones[cat_nombre] if cat_traducciones and cat_nombre in cat_traducciones else cat_nombre }}">{{ cat_nombre }}</div>
-                        
+
                         {% if 'Desayuno' in cat_nombre %}
                         <div><span id="badge-horario-desayuno" class="horario-badge horario-abierto">⏰ Horario de Desayunos: 8:00 am a 12:30 pm</span></div>
                         {% endif %}
 
                         <div class="sbux-products-grid">
                             {% for producto in lista %}
-                            <div class="sbux-prod-card menu-item {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}" 
+                            <div class="sbux-prod-card menu-item {% if producto.destacado %}platillo-estrella{% endif %} {% if producto.agotado %}platillo-agotado{% endif %}"
                                  id="prod-{{ producto.nombre|replace(' ', '-')|lower }}"
                                  data-nombre-es="{{ producto.nombre }}"
                                  data-nombre-en="{{ producto.nombre_en | default(producto.nombre) }}"
@@ -889,7 +729,7 @@
                                  data-cat-slug="{{ cat_nombre|replace(' ', '-') }}"
                                  data-img="{{ (producto.imagen_url|opt_img(600)) if producto.imagen_url else '' }}"
                                  onclick="abrirDetallePlatillo(this)">
-                                
+
                                 {% if producto.agotado %}<div class="overlay-agotado" data-i18n="badge_agotado">Agotado</div>{% endif %}
 
                                 <div class="sbux-img-box">
@@ -908,11 +748,11 @@
                                     <span style="display:none;">{{ producto.descripcion }}</span>
                                     <div class="sbux-prod-footer">
                                         <span class="sbux-prod-price precio-convertible" data-mxn="{{ producto.precio }}">${{ producto.precio }}</span>
-                                        <button type="button" 
-                                                class="sbux-btn-plus" 
+                                        <button type="button"
+                                                class="sbux-btn-plus"
                                                 data-btn-nom="{{ producto.nombre }}"
-                                                data-nom="{{ producto.nombre }}" 
-                                                data-pre="{{ producto.precio }}" 
+                                                data-nom="{{ producto.nombre }}"
+                                                data-pre="{{ producto.precio }}"
                                                 onclick="event.stopPropagation(); agregarAAntojos(this.getAttribute('data-nom'), this.getAttribute('data-pre')); vibrar('soft');">+</button>
                                     </div>
                                 </div>
@@ -1002,7 +842,7 @@
             btn_entendido: "Entendido", btn_cerrar: "Cerrar", modal_mesero_titulo: "🛎️ Asistencia en Mesa",
             mesero_que_necesitas: "¿Qué necesitas que llevemos a tu mesa?",
             motivo_ordenar: "Estamos listos para ordenar", motivo_cuenta: "Pedir la cuenta", motivo_cubiertos: "Servilletas, cubiertos o salsa", motivo_general: "Atención general del mesero",
-            btn_cancelar: "Cancelar", btn_llamar: "Avisar a Mesero", btn_flotante_mesero: "Mesero", 
+            btn_cancelar: "Cancelar", btn_llamar: "Avisar a Mesero", btn_flotante_mesero: "Mesero",
             fidelidad_titulo: "Fidelidad Morisco", fidelidad_desc: "Escanea tu ticket en caja o ingresa tu PIN de consumo para sumar visitas.", lbl_nombre: "Tu Nombre", lbl_telefono: "Tu Teléfono (10 dígitos)", lbl_pin: "PIN de Consumo (4 Dígitos)",
             btn_sellar: "Sellar Visita", menu_titulo_seccion: "Nuestro Menú", sub_cuadricula: "👇 Toca una categoría para explorar:", btn_volver_cats: "Categorías", menu_pronto: "Pronto verás nuestros platillos aquí...",
             btn_menu_superior: "Opciones", badge_estrella: "⭐ Recomendación", badge_agotado: "Agotado",
@@ -1124,7 +964,7 @@
             if (inMesa2) inMesa2.value = String(n);
         }
     }
-    
+
     function irASlide(n) {
         const slides = document.querySelectorAll('.hero-banner-starbucks');
         const dots = document.querySelectorAll('.carousel-dot');
@@ -1242,6 +1082,9 @@
                 document.getElementById('bloque-folio-exito').style.display = 'block';
                 btn.innerText = "✅ Enviado (Esperando Mesero en Mesa)";
                 setTimeout(() => { btn.disabled = false; btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero"; }, 60000);
+            } else {
+                alert(data.error || "No se pudo enviar tu pre-orden.");
+                btn.disabled = false; btn.innerText = "🛎️ Enviar Pre-Orden y Llamar Mesero";
             }
         } catch(e) {
             alert("Error de conexión. Intenta nuevamente.");
@@ -1439,11 +1282,16 @@
         if (btnSubir) btnSubir.style.display = (window.scrollY > 380) ? 'flex' : 'none';
     });
 
-    // SINCRONIZACIÓN DE AGOTADOS EN TIEMPO REAL CADA 4 SEGUNDOS EN EL CELULAR DEL CLIENTE
-    setInterval(async () => {
+    let syncAgotadosEnCurso = false;
+    let ultimoSyncAgotadosMs = 0;
+
+    async function sincronizarAgotadosPublico() {
+        if (document.hidden || syncAgotadosEnCurso) return;
+        syncAgotadosEnCurso = true;
         try {
             let res = await fetch('/api/estado_menu_publico');
             let data = await res.json();
+            ultimoSyncAgotadosMs = Date.now();
             if (!data.agotados_nombres) return;
             document.querySelectorAll('.sbux-prod-card').forEach(card => {
                 let nomEs = card.getAttribute('data-nombre-es');
@@ -1463,7 +1311,15 @@
                 }
             });
         } catch(e) {}
-    }, 4000);
+        finally { syncAgotadosEnCurso = false; }
+    }
+
+    setInterval(sincronizarAgotadosPublico, 30000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && (Date.now() - ultimoSyncAgotadosMs) > 15000) {
+            sincronizarAgotadosPublico();
+        }
+    });
 
     document.addEventListener("DOMContentLoaded", function() {
         actualizarSaludoYHorario();
@@ -1479,12 +1335,7 @@
         }
         if (localStorage.getItem('darkMode') === 'yes') toggleDarkMode();
 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('pin')) document.getElementById('input-pin').value = urlParams.get('pin');
-        let mesaParam = urlParams.get('mesa') || sessionStorage.getItem('mesa_quiosco');
-        if (mesaParam) actualizarInsigniaMesa(mesaParam);
-
-        // AUTOGUARDADO DE NOMBRE Y TELÉFONO PARA QUE EL CLIENTE NO ESCRIBA TODO DE NUEVO
+        // Autoguardado primero para enfocar el campo exacto cuando llega ?pin=
         const inNomFid = document.getElementById('fidelidad-nombre');
         const inTelFid = document.getElementById('fidelidad-telefono');
         const inNomAnt = document.getElementById('input-nombre-antojos');
@@ -1495,6 +1346,31 @@
         if (localStorage.getItem('cliente_tel_quiosco') && inTelFid) {
             inTelFid.value = localStorage.getItem('cliente_tel_quiosco');
         }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const pinUrl = urlParams.get('pin');
+        if (pinUrl) {
+            const inpPin = document.getElementById('input-pin');
+            if (inpPin) inpPin.value = pinUrl.trim();
+            cambiarVista('inicio');
+            const cardFid = document.getElementById('tarjeta-fidelidad-form');
+            if (cardFid) {
+                setTimeout(() => {
+                    cardFid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    cardFid.classList.add('highlight-focus');
+                    setTimeout(() => cardFid.classList.remove('highlight-focus'), 3500);
+                    if (inNomFid && !inNomFid.value.trim()) inNomFid.focus();
+                    else if (inTelFid && !inTelFid.value.trim()) inTelFid.focus();
+                    else {
+                        const btnS = document.getElementById('btn-sellar');
+                        if (btnS) btnS.focus();
+                    }
+                }, 350);
+            }
+        }
+
+        let mesaParam = urlParams.get('mesa') || sessionStorage.getItem('mesa_quiosco');
+        if (mesaParam) actualizarInsigniaMesa(mesaParam);
 
         const formPin = document.getElementById('form-pin');
         if (formPin) {

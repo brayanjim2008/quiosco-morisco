@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="Caja Morisco">
     <meta name="theme-color" content="#13423b">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Caja - Quiosco Morisco","short_name":"Caja Morisco","start_url":"/cajero_dashboard","display":"standalone","background_color":"%23f4f6f9","theme_color":"%2313423b"}'>
-    <title>Caja | Quiosco Morisco</title>
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Caja - Comensal Conectado","short_name":"Caja Morisco","start_url":"/cajero_dashboard","display":"standalone","background_color":"%23f4f6f9","theme_color":"%2313423b"}'>
+    <title>Caja | Comensal Conectado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -21,10 +21,8 @@
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
-            body * { visibility: hidden; }
             #no-print-area { display: none !important; }
-            #zona-impresion-termica, #zona-impresion-termica * { visibility: visible; }
-            #zona-impresion-termica { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; margin: 0; padding: 0; background: white; color: black; font-family: 'Courier New', Courier, monospace; }
+            #zona-impresion-termica { display: block !important; width: 72mm; margin: 0; padding: 0; background: white; color: black; font-family: 'Courier New', Courier, monospace; }
             .ticket-termico { width: 100%; text-align: center; padding: 4mm 2mm 8mm 2mm; box-sizing: border-box; page-break-after: always; break-after: page; border-bottom: 1px dashed #000; }
             .ticket-termico:last-child { page-break-after: auto; break-after: auto; }
             .ticket-titulo { font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase; }
@@ -40,19 +38,23 @@
 </head>
 <body style="background-color: #f4f6f9;">
 
-<div id="no-print-area" class="container py-4" style="max-width: 900px;">
-    
+<div id="no-print-area" class="container py-4" style="max-width: 920px;">
+
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded shadow-sm flex-wrap gap-2">
         <div>
-            <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja Quiosco Morisco</h3>
+            <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja • Comensal Conectado</h3>
             <small class="text-muted fw-bold">
-                <span class="punto-vivo"></span> En vivo cada 3s • 👤 Cajero: <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs emitidos hoy por ti: <span class="badge bg-dark">{{ mis_pins_hoy }}</span>
+                <span class="punto-vivo"></span> En vivo cada 3s • 📍 {{ sucursal }} • 👤 <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs hoy: <span class="badge bg-dark">{{ mis_pins_hoy }}</span>
             </small>
         </div>
-        <div class="d-flex gap-2">
-            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Abrir Soft Restaurant POS</a>
-            <a href="/almacen_requerimientos" class="btn btn-info btn-sm fw-bold">📦 Hojas Barra/Cocina y Almacén</a>
-            <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC / Inicio</button>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Abrir Comensal Conectado POS</a>
+            <a href="/mesero_dashboard" class="btn btn-outline-dark btn-sm fw-bold">📱 Tablet</a>
+            <a href="/nomina_creditos" class="btn btn-outline-primary btn-sm fw-bold">🍽️ Vales</a>
+            {% if current_user.role == 'sucursal' %}
+            <a href="/pedidos_sucursal" class="btn btn-info btn-sm fw-bold">📦 Pedidos Bodega</a>
+            {% endif %}
+            <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC</button>
             <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
         </div>
     </div>
@@ -117,13 +119,13 @@
         </div>
     </div>
 
-    <!-- GENERADOR DE PIN CON FOLIO OPCIONAL DE SOFT RESTAURANT -->
+    <!-- GENERADOR DE PIN CON FOLIO OPCIONAL DE CAJA -->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4 text-center">
             <h5 class="text-muted fw-bold mb-3">Generador e Impresor Rápido de PINs (Fidelización)</h5>
             <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 justify-content-center align-items-center mb-3">
                 <div class="col-md-5">
-                    <input type="text" name="folio_sr" class="form-control form-control-lg border-warning" placeholder="Folio Soft Restaurant (Opcional)">
+                    <input type="text" name="folio_sr" class="form-control form-control-lg border-warning" placeholder="Folio Caja (Opcional)">
                 </div>
                 <div class="col-md-3">
                     <select name="cantidad" class="form-select form-select-lg border-warning">
@@ -144,13 +146,13 @@
             {% endif %}
         </div>
     </div>
-    
+
     <h5 class="fw-bold mb-3 text-secondary"><i class="fas fa-ticket-alt"></i> PINs Activos Esperando Cliente: <span class="badge bg-success">{{ pins|length }}</span></h5>
-    
+
     <div class="row mb-4">
         {% for pin in pins|reverse %}
         <div class="col-md-4 col-sm-6 mb-3">
-            <div class="card pin-tarjeta shadow-sm h-100" 
+            <div class="card pin-tarjeta shadow-sm h-100"
                  data-pin-activo="{{ pin.codigo }}"
                  data-cajero="{{ (pin.creado_por or current_user.username)|upper }}"
                  data-folio="{{ pin.folio_sr or '' }}"
@@ -162,10 +164,10 @@
                             <span>🕒 {{ pin.fecha_creacion.strftime('%H:%M') if pin.fecha_creacion else '' }}</span>
                         </div>
                         {% if pin.folio_sr %}
-                        <span class="badge bg-warning text-dark mb-1">Folio SR: {{ pin.folio_sr }}</span>
+                        <span class="badge bg-warning text-dark mb-1">Folio Caja: {{ pin.folio_sr }}</span>
                         {% endif %}
                         <h2 class="text-dark fw-bold mb-2" style="letter-spacing: 5px; font-size: 2.2rem;">{{ pin.codigo }}</h2>
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-thumbnail shadow-sm mb-3" style="width: 120px; height: 120px;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={{ (request.host_url ~ '?pin=' ~ pin.codigo)|urlencode }}" class="img-thumbnail shadow-sm mb-3" style="width: 120px; height: 120px;">
                     </div>
                     <div class="d-flex gap-2">
                         <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-dark fw-bold flex-grow-1">
@@ -201,7 +203,7 @@
                         <tr>
                             <th>PIN</th>
                             <th>Cajero</th>
-                            <th>Folio SR</th>
+                            <th>Folio Caja</th>
                             <th>Hora</th>
                             <th>Estado / Cliente que lo selló</th>
                         </tr>
@@ -328,19 +330,19 @@
         const cajero = el.getAttribute('data-cajero') || 'CAJA';
         const folio = el.getAttribute('data-folio') || '';
         const hora = el.getAttribute('data-hora') || new Date().toLocaleString('es-MX');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://quiosco-morisco.onrender.com/?pin=${codigo}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.origin + '/?pin=' + codigo)}`;
         const lineaFolio = folio ? `<p style="font-size:10px; margin:2px 0; font-weight:bold;">Folio Cuenta: #${folio}</p>` : '';
 
         return `
         <div class="ticket-termico">
-            <p class="ticket-titulo">QUIOSCO MORISCO</p>
-            <p class="ticket-sub">BISTRÓ & CAFÉ • SAN CRIS</p>
+            <p class="ticket-titulo">COMENSAL CONECTADO</p>
+            <p class="ticket-sub">QUIOSCO MORISCO • SAN CRIS</p>
             <div class="ticket-linea"></div>
             <p style="font-size:10px; margin:2px 0;">Fecha: ${hora} | Cajero: ${cajero}</p>
             ${lineaFolio}
             <p class="ticket-instruccion">¡SELLA TU VISITA Y GANA PREMIOS!</p>
             <p class="ticket-en">Scan QR or enter PIN to earn rewards!</p>
-            <img src="${qrUrl}" class="ticket-qr" onload="verificarCargaImagenes()">
+            <img src="${qrUrl}" class="ticket-qr">
             <p style="font-size:10px; margin:4px 0 0 0; font-weight:bold;">TU PIN DE UN SOLO USO:</p>
             <div class="ticket-pin-box">${codigo}</div>
             <p style="font-size:10px; margin:4px 0;">Wi-Fi: <strong>QuioscoMoriscoB</strong><br>Clave: <strong>Corazonsc31</strong></p>
@@ -352,44 +354,48 @@
         </div>`;
     }
 
-    let imagenesEsperadas = 0;
-    let imagenesCargadas = 0;
+    function imprimirConRespaldoQR(htmlStr) {
+        const zona = document.getElementById('zona-impresion-termica');
+        zona.innerHTML = htmlStr;
+        const imgs = Array.from(zona.querySelectorAll('img'));
+        let yaImprimio = false;
+        let listas = 0;
 
-    function verificarCargaImagenes() {
-        imagenesCargadas++;
-        if (imagenesCargadas >= imagenesEsperadas) {
-            setTimeout(() => { window.print(); }, 250);
+        const disparar = () => {
+            if (!yaImprimio) {
+                yaImprimio = true;
+                window.print();
+            }
+        };
+
+        if (imgs.length === 0) {
+            disparar();
+            return;
         }
+
+        const contar = () => {
+            listas++;
+            if (listas >= imgs.length) setTimeout(disparar, 150);
+        };
+
+        imgs.forEach(img => {
+            if (img.complete) contar();
+            else {
+                img.onload = contar;
+                img.onerror = contar;
+            }
+        });
+        setTimeout(disparar, 1500);
     }
 
     function imprimirTicketUnico(el) {
-        const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = 1;
-        imagenesCargadas = 0;
-        zona.innerHTML = crearHTMLTicketDesdeElemento(el);
+        imprimirConRespaldoQR(crearHTMLTicketDesdeElemento(el));
     }
 
     function imprimirLoteCompleto() {
         const elementos = Array.from(document.querySelectorAll('[data-pin-activo]'));
         if (elementos.length === 0) return;
-        const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = elementos.length;
-        imagenesCargadas = 0;
-        zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
-    }
-    
-function imprimirLoteCompleto() {
-        const elementos = Array.from(document.querySelectorAll('[data-pin-activo]'));
-        if (elementos.length === 0) return;
-        const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = elementos.length;
-        imagenesCargadas = 0;
-        zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
-    }
-
-    async function confirmarPreorden1Clic(idOrden) {
-        await fetch(`/api/pos/confirmar_preorden_1clic/${idOrden}`, { method: 'POST' });
-        location.reload();
+        imprimirConRespaldoQR(elementos.map(el => crearHTMLTicketDesdeElemento(el)).join(''));
     }
 </script>
 </body>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Industrial • Comensal Conectado</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246;
+    --dorado: #ffd700; --hueso: #fdfaf6; --borde: #e2d9ce;
+  }
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; min-height: 100vh; }
+
+  .topbar {
+    background: var(--verde-oscuro); color: #fff; padding: 10px 18px;
+    border-bottom: 3px solid var(--cobre); display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 18px; font-weight: 700; }
+  .brand-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 12px; letter-spacing: 0.5px; }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .nav-btn {
+    background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(201,130,70,0.55);
+    padding: 6px 11px; border-radius: 8px; font-size: 11.5px; font-weight: 800;
+    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .nav-btn:hover { background: var(--cobre); border-color: var(--dorado); }
+  .nav-btn.wa { background: #16a34a; border-color: #22c55e; }
+  .nav-btn.salir { background: #dc2626; border-color: #ef4444; }
+
+  .tabs-bar {
+    background: var(--verde); padding: 8px 16px; display: flex; gap: 6px;
+    overflow-x: auto; border-bottom: 2px solid var(--cobre);
+  }
+  .tab-btn {
+    background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,0.4);
+    padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800;
+    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab-btn.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
+
+  .container { max-width: 1320px; margin: 0 auto; padding: 18px 16px 50px; }
+  .panel-sec { display: none; }
+  .panel-sec.activo { display: block; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi-card {
+    background: #fff; border-radius: 14px; border: 1.5px solid var(--borde);
+    border-top: 4px solid var(--verde); padding: 14px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .kpi-card.cobre { border-top-color: var(--cobre); }
+  .kpi-card.rojo { border-top-color: #dc2626; }
+  .kpi-title { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+  .kpi-val { font-size: 26px; font-weight: 800; color: var(--verde-oscuro); margin: 4px 0; }
+  .kpi-sub { font-size: 11.5px; font-weight: 700; color: var(--cobre); }
+
+  .card {
+    background: #fff; border-radius: 14px; border: 1.5px solid var(--borde);
+    padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .card-head h3 { margin: 0; font-family: 'Lora', serif; color: var(--verde); font-size: 17px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .inp { width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff; }
+  .btn {
+    height: 38px; padding: 0 14px; border-radius: 8px; border: none;
+    background: var(--verde); color: #fff; font-weight: 800; font-size: 12.5px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;
+  }
+  .btn.cobre { background: var(--cobre); }
+  .btn.wa { background: #16a34a; }
+  .btn.rojo { background: #dc2626; }
+  .btn.gris { background: #e2e8f0; color: #334155; }
+  .btn.sm { height: 28px; padding: 0 9px; font-size: 11px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-weight: 700; }
+  th { background: var(--verde); color: #fff; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+  tr:hover td { background: #f8fafc; }
+
+  .pill { padding: 2px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 800; display: inline-block; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.warn { background: #fef9c3; color: #854d0e; }
+  .pill.err { background: #fee2e2; color: #b91c1c; }
+
+  .alerta-roja {
+    background: #fee2e2; border: 2px solid #dc2626; color: #991b1b;
+    padding: 10px 14px; border-radius: 10px; font-weight: 800; margin-bottom: 10px;
+  }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(11,41,36,0.78); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 14px; }
+  .modal-box { background: #fff; width: 540px; max-width: 96vw; border-radius: 16px; border: 2px solid var(--cobre); padding: 18px; }
+  .wa-preview { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12.5px; white-space: pre-wrap; max-height: 360px; overflow-y: auto; margin: 10px 0; font-weight: 700; color: #14532d; }
+  .toast { position: fixed; bottom: 18px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-badge">PANEL INDUSTRIAL</span>
+    <span>Comensal Conectado</span>
+  </div>
+  <div class="nav-links">
+    <button type="button" class="nav-btn wa" onclick="abrirModalWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Reporte WhatsApp</button>
+    <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> POS Caja</a>
+    <a href="/mesero_dashboard" class="nav-btn"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
+    <a href="/almacen_pro" class="nav-btn"><i class="fa-solid fa-boxes-stacked"></i> Bodega Central</a>
+    <a href="/nomina_creditos" class="nav-btn"><i class="fa-solid fa-receipt"></i> Vales / Nómina</a>
+    <a href="/admin_dashboard" class="nav-btn"><i class="fa-solid fa-gear"></i> Menú / Admin</a>
+    <a href="/logout" class="nav-btn salir"><i class="fa-solid fa-door-open"></i> Salir</a>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <button type="button" class="tab-btn activo" data-tab="resumen" onclick="cambiarTab('resumen', this)"><i class="fa-solid fa-chart-column"></i> 1. Ventas 4 Sucursales</button>
+  <button type="button" class="tab-btn" data-tab="cancelaciones" onclick="cambiarTab('cancelaciones', this)"><i class="fa-solid fa-shield-halved"></i> 2. Cancelaciones</button>
+  <button type="button" class="tab-btn" data-tab="cortes" onclick="cambiarTab('cortes', this)"><i class="fa-solid fa-file-invoice-dollar"></i> 3. Cortes Z</button>
+  <button type="button" class="tab-btn" data-tab="checador" onclick="cambiarTab('checador', this)"><i class="fa-solid fa-user-clock"></i> 4. Checador</button>
+  <button type="button" class="tab-btn" data-tab="mermas" onclick="cambiarTab('mermas', this)"><i class="fa-solid fa-trash-can-arrow-up"></i> 5. Mermas</button>
+  <button type="button" class="tab-btn" data-tab="lentos" onclick="cambiarTab('lentos', this)"><i class="fa-solid fa-arrow-trend-down"></i> 6. Menos Vendidos</button>
+  <button type="button" class="tab-btn" data-tab="recetas" onclick="cambiarTab('recetas', this)"><i class="fa-solid fa-mug-hot"></i> 7. Recetas y Stock Local</button>
+</div>
+
+<div class="container">
+
+  <!-- TAB 1: RESUMEN 4 SUCURSALES -->
+  <section id="sec_resumen" class="panel-sec activo">
+    <div class="kpi-grid" id="gridKpisSucursales"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-chart-bar" style="color:var(--cobre);"></i> Ventas de Hoy por Sucursal</h3>
+          <button type="button" class="btn sm gris" onclick="cargarDashboard()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        </div>
+        <div style="height:280px;"><canvas id="chartVentasSucursales"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-file-excel" style="color:#16a34a;"></i> Reportes Ejecutivos (WhatsApp y Excel)</h3>
+        </div>
+        <p style="font-size:13px;color:#475569;margin-top:0;">Descarga bases listas para abrir en Excel con acentos correctos (UTF-8) o envía el corte consolidado del día por WhatsApp.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="btn wa" onclick="abrirModalWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Generar y Enviar Reporte Diario por WhatsApp</button>
+          <a href="/api/exportar/ventas_sucursales" class="btn"><i class="fa-solid fa-download"></i> Excel: Ventas de las 4 Sucursales (con Formas de Pago)</a>
+          <a href="/api/exportar/cortes_caja" class="btn cobre"><i class="fa-solid fa-download"></i> Excel: Historial de Cortes de Caja Z</a>
+          <a href="/api/exportar/mermas" class="btn rojo"><i class="fa-solid fa-download"></i> Excel: Reporte de Mermas</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: CANCELACIONES -->
+  <section id="sec_cancelaciones" class="panel-sec">
+    <div id="boxAlertasRojas"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-ban" style="color:#dc2626;"></i> Auditoría de Cancelaciones de Hoy (<span id="lblTotalCancHoy">0</span>)</h3>
+        <button type="button" class="btn sm gris" onclick="cargarCancelaciones()"><i class="fa-solid fa-rotate"></i> Refrescar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hora</th><th>Sucursal</th><th>Usuario</th><th>Autorizó</th><th>Mesa</th><th>Monto</th><th>Detalle / Motivo</th></tr></thead>
+          <tbody id="tbodyCancelaciones"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: CORTES Z -->
+  <section id="sec_cortes" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-cash-register" style="color:var(--cobre);"></i> Últimos 20 Cortes de Caja (Z)</h3>
+        <a href="/api/exportar/cortes_caja" class="btn sm"><i class="fa-solid fa-file-excel"></i> Exportar Excel</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Sucursal</th><th>Turno</th><th>Cajero</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th><th>Estatus</th></tr></thead>
+          <tbody id="tbodyCortesZ"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: CHECADOR -->
+  <section id="sec_checador" class="panel-sec">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-user-check" style="color:var(--cobre);"></i> Registrar Asistencia</h3></div>
+      <div class="form-row">
+        <select id="chk_sucursal" class="inp">
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <input type="text" id="chk_empleado" class="inp" placeholder="Nombre del empleado...">
+        <select id="chk_tipo" class="inp">
+          <option value="ENTRADA">🟢 ENTRADA</option>
+          <option value="SALIDA">🔴 SALIDA</option>
+          <option value="DESCANSO">🟡 DESCANSO</option>
+        </select>
+        <input type="text" id="chk_notas" class="inp" placeholder="Nota opcional...">
+        <button type="button" class="btn" onclick="registrarAsistencia()">✅ Registrar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hora</th><th>Sucursal</th><th>Empleado</th><th>Tipo</th><th>Notas</th></tr></thead>
+          <tbody id="tbodyChecador"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: MERMAS -->
+  <section id="sec_mermas" class="panel-sec">
+    <div class="kpi-grid" id="gridKpisMermas"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626;"></i> Registrar Merma</h3>
+        <a href="/api/exportar/mermas" class="btn sm rojo"><i class="fa-solid fa-file-excel"></i> Excel Mermas</a>
+      </div>
+      <div class="form-row">
+        <select id="mer_sucursal" class="inp">
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <input type="text" id="mer_insumo" class="inp" placeholder="Insumo / Producto...">
+        <input type="number" step="0.1" id="mer_cant" class="inp" placeholder="Cantidad" value="1">
+        <input type="text" id="mer_unidad" class="inp" placeholder="Unidad (kg/lt/pz)" value="PZ">
+        <input type="number" step="0.5" id="mer_costo" class="inp" placeholder="Costo total ($)">
+        <input type="text" id="mer_motivo" class="inp" placeholder="Motivo (caducó, se cayó...)">
+        <button type="button" class="btn rojo" onclick="registrarMerma()">Registrar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Sucursal</th><th>Insumo</th><th>Cantidad</th><th>Costo</th><th>Motivo</th><th>Registró</th></tr></thead>
+          <tbody id="tbodyMermas"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 6: MENOS VENDIDOS -->
+  <section id="sec_lentos" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--cobre);"></i> Platillos con Baja Rotación en el Mes (&lt; 3 ventas)</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Categoría</th><th>Platillo</th><th>Precio</th><th>Ventas Mes</th><th>Sugerencia</th></tr></thead>
+          <tbody id="tbodyMenosVendidos"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 7: RECETAS POS Y STOCK LOCAL POR SUCURSAL -->
+  <section id="sec_recetas" class="panel-sec">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-flask" style="color:var(--cobre);"></i> Recetas POS (Descuento Automático al Cobrar)</h3>
+        </div>
+        <p style="font-size:12px;color:#475569;margin-top:0;">Define qué insumo y cuánto se descuenta del stock local de la sucursal cada vez que se cobra un platillo o modificador (ej. <code>CAPUCHINO</code> o <code>&gt;LECHE ALMENDRAS</code>).</p>
+        <div class="form-row">
+          <input type="text" id="rec_platillo" list="listaPlatillosReceta" class="inp" placeholder="Platillo o >Modificador...">
+          <datalist id="listaPlatillosReceta"></datalist>
+          <select id="rec_insumo" class="inp"></select>
+          <input type="number" step="0.01" id="rec_cant" class="inp" placeholder="Cant. (ej. 0.25)">
+          <button type="button" class="btn" onclick="guardarReceta()">+ Guardar Receta</button>
+        </div>
+        <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Platillo / Modificador</th><th>Insumo</th><th>Descuenta</th><th>Acción</th></tr></thead>
+            <tbody id="tbodyRecetas"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-store" style="color:var(--verde);"></i> Inventario Local por Sucursal</h3>
+          <select id="selSucursalStock" class="inp" style="width:230px;height:34px;" onchange="cargarStockSucursal()">
+            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-row" style="background:var(--hueso);padding:8px;border-radius:10px;border:1px solid var(--borde);">
+          <select id="st_insumo" class="inp"></select>
+          <input type="number" step="0.1" id="st_actual" class="inp" placeholder="Stock actual">
+          <input type="number" step="0.1" id="st_minimo" class="inp" placeholder="Mínimo" value="2">
+          <button type="button" class="btn cobre" onclick="ajustarStockLocal()">Ajustar Stock</button>
+        </div>
+        <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Insumo</th><th>Categoría</th><th>Stock Local</th><th>Mínimo</th><th>Estado</th></tr></thead>
+            <tbody id="tbodyStockSucursal"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- MODAL REPORTE WHATSAPP -->
+<div class="modal-bg" id="modalWhatsApp">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;color:var(--verde);font-family:'Lora',serif;"><i class="fa-brands fa-whatsapp" style="color:#16a34a;"></i> Resumen Diario para WhatsApp</h3>
+      <button type="button" class="btn sm gris" onclick="cerrarModalWa()">X</button>
+    </div>
+    <div class="wa-preview" id="waTextoPreview">Generando resumen...</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn gris" style="flex:1;" onclick="copiarTextoWa()"><i class="fa-regular fa-copy"></i> Copiar Texto</button>
+      <a id="btnLinkWa" href="#" target="_blank" class="btn wa" style="flex:2;"><i class="fa-brands fa-whatsapp"></i> Abrir y Enviar en WhatsApp</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastInd"></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let chartVentas = null;
+  let textoWaCache = '';
+
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function toast(msg) { const t = $('toastInd'); t.innerText = msg; t.style.display = 'block'; setTimeout(() => { if (t.innerText === msg) t.style.display = 'none'; }, 2800); }
+
+  function cambiarTab(tab, btn) {
+    document.querySelectorAll('.panel-sec').forEach(s => s.classList.remove('activo'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    const sec = $('sec_' + tab);
+    if (sec) sec.classList.add('activo');
+    if (btn) btn.classList.add('activo');
+
+    if (tab === 'resumen' || tab === 'cortes' || tab === 'lentos') cargarDashboard();
+    if (tab === 'cancelaciones') cargarCancelaciones();
+    if (tab === 'checador') cargarChecador();
+    if (tab === 'mermas') cargarMermas();
+    if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); }
+  }
+
+  // 1. RESUMEN REAL 4 SUCURSALES + CORTES + MENOS VENDIDOS
+  async function cargarDashboard() {
+    try {
+      const d = await (await fetch('/api/industrial/resumen_general')).json();
+      if (!d.ok) return;
+
+      const entries = Object.entries(d.ventas || {});
+      const granTotal = entries.reduce((acc, [, v]) => acc + (v.total || 0), 0);
+      const totalCtas = entries.reduce((acc, [, v]) => acc + (v.cuentas || 0), 0);
+
+      let htmlKpis = `<div class="kpi-card cobre">
+        <div class="kpi-title">Total Consolidado Hoy</div>
+        <div class="kpi-val">$${granTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+        <div class="kpi-sub">${totalCtas} cuentas pagadas (4 sucursales)</div>
+      </div>`;
+      entries.forEach(([suc, info]) => {
+        htmlKpis += `<div class="kpi-card">
+          <div class="kpi-title">${esc(suc)}</div>
+          <div class="kpi-val">$${(info.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+          <div class="kpi-sub">${info.cuentas || 0} cuentas hoy</div>
+        </div>`;
+      });
+      $('gridKpisSucursales').innerHTML = htmlKpis;
+
+      const labels = entries.map(([s]) => s.replace('Quiosco Morisco (Matriz)', 'Matriz'));
+      const dataVals = entries.map(([, v]) => v.total || 0);
+      const ctx = $('chartVentasSucursales').getContext('2d');
+      if (chartVentas) chartVentas.destroy();
+      chartVentas = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Venta Hoy ($ MXN)',
+            data: dataVals,
+            backgroundColor: ['#13423b', '#c98246', '#1f6e62', '#a8642c'],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      $('tbodyCortesZ').innerHTML = (d.cortes || []).map(c => {
+        const cls = c.estatus === 'OK' ? 'ok' : (c.estatus === 'FALTANTE' ? 'err' : 'warn');
+        return `<tr>
+          <td>${esc(c.fecha)}</td><td>${esc(c.sucursal)}</td><td>${esc(c.turno)}</td><td>${esc(c.cajero)}</td>
+          <td>${esc(c.esperado)}</td><td>${esc(c.declarado)}</td><td><b>${esc(c.diferencia)}</b></td>
+          <td><span class="pill ${cls}">${esc(c.estatus)}</span></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:16px;">Sin cortes Z registrados aún.</td></tr>';
+
+      $('tbodyMenosVendidos').innerHTML = (d.menos_vendidos || []).map(p => `<tr>
+        <td>${esc(p.categoria)}</td><td><b>${esc(p.nombre)}</b></td><td>${esc(p.precio)}</td>
+        <td><span class="pill ${p.ventas === 0 ? 'err' : 'warn'}">${p.ventas}</span></td>
+        <td>${esc(p.accion)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#16a34a;padding:16px;">Todos los platillos tienen buena rotación.</td></tr>';
+    } catch {}
+  }
+
+  // 2. CANCELACIONES
+  async function cargarCancelaciones() {
+    try {
+      const d = await (await fetch('/api/industrial/cancelaciones_alerta')).json();
+      if (!d.ok) return;
+      $('lblTotalCancHoy').innerText = d.total_cancelaciones_hoy || 0;
+      $('boxAlertasRojas').innerHTML = (d.alertas_criticas || []).map(a => `<div class="alerta-roja">${esc(a.alerta)}</div>`).join('');
+      $('tbodyCancelaciones').innerHTML = (d.detalle || []).map(c => `<tr>
+        <td>${esc(c.hora)}</td><td>${esc(c.sucursal)}</td><td><b>${esc(c.usuario)}</b></td>
+        <td style="color:var(--cobre);">${esc(c.autorizo)}</td><td>${esc(c.mesa)}</td>
+        <td style="color:#dc2626;">${esc(c.monto)}</td><td>${esc(c.detalle)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#16a34a;padding:16px;">Sin cancelaciones registradas hoy.</td></tr>';
+    } catch {}
+  }
+
+  // 3. CHECADOR
+  async function cargarChecador() {
+    try {
+      const d = await (await fetch('/api/checador/lista')).json();
+      if (!d.ok) return;
+      $('tbodyChecador').innerHTML = (d.asistencias || []).map(a => `<tr>
+        <td>${esc(a.hora)}</td><td>${esc(a.sucursal)}</td><td><b>${esc(a.empleado)}</b></td>
+        <td><span class="pill ${a.tipo === 'ENTRADA' ? 'ok' : (a.tipo === 'SALIDA' ? 'err' : 'warn')}">${esc(a.tipo)}</span></td>
+        <td>${esc(a.notas || '-')}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">Sin registros hoy.</td></tr>';
+    } catch {}
+  }
+
+  async function registrarAsistencia() {
+    const empleado_nombre = $('chk_empleado').value.trim();
+    if (!empleado_nombre) return alert('Escribe el nombre del empleado.');
+    const res = await fetch('/api/checador/registrar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal: $('chk_sucursal').value, empleado_nombre,
+        tipo: $('chk_tipo').value, notas: $('chk_notas').value
+      })
+    });
+    const d = await res.json();
+    if (d.ok) { $('chk_empleado').value = ''; $('chk_notas').value = ''; toast('✓ Asistencia registrada'); cargarChecador(); }
+  }
+
+  // 4. MERMAS
+  async function cargarMermas() {
+    try {
+      const d = await (await fetch('/api/mermas/resumen')).json();
+      if (!d.ok) return;
+      let kpis = `<div class="kpi-card rojo"><div class="kpi-title">Merma Total del Mes</div><div class="kpi-val">$${(d.total_mes || 0).toFixed(2)}</div><div class="kpi-sub">Acumulado 4 sucursales</div></div>`;
+      Object.entries(d.por_sucursal || {}).forEach(([s, m]) => {
+        kpis += `<div class="kpi-card"><div class="kpi-title">${esc(s)}</div><div class="kpi-val">$${Number(m).toFixed(2)}</div><div class="kpi-sub">Merma mensual</div></div>`;
+      });
+      $('gridKpisMermas').innerHTML = kpis;
+      $('tbodyMermas').innerHTML = (d.mermas || []).map(m => `<tr>
+        <td>${esc(m.fecha)}</td><td>${esc(m.sucursal)}</td><td><b>${esc(m.insumo)}</b></td>
+        <td>${esc(m.cantidad)}</td><td style="color:#dc2626;">${esc(m.costo)}</td>
+        <td>${esc(m.motivo)}</td><td>${esc(m.usuario)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:16px;">Sin mermas registradas.</td></tr>';
+    } catch {}
+  }
+
+  async function registrarMerma() {
+    const insumo_nombre = $('mer_insumo').value.trim();
+    if (!insumo_nombre) return alert('Indica el insumo o producto.');
+    const res = await fetch('/api/mermas/registrar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal: $('mer_sucursal').value, insumo_nombre,
+        cantidad: parseFloat($('mer_cant').value || 1),
+        unidad: $('mer_unidad').value || 'PZ',
+        costo_total: parseFloat($('mer_costo').value || 0),
+        motivo: $('mer_motivo').value || 'Merma'
+      })
+    });
+    const d = await res.json();
+    if (d.ok) { $('mer_insumo').value = ''; $('mer_costo').value = ''; $('mer_motivo').value = ''; toast('✓ Merma registrada'); cargarMermas(); }
+  }
+
+  // 5. RECETAS POS Y STOCK LOCAL
+  async function cargarRecetas() {
+    try {
+      const d = await (await fetch('/api/recetas')).json();
+      if (!d.ok) return;
+      $('listaPlatillosReceta').innerHTML = (d.platillos_disponibles || []).map(p => `<option value="${esc(p)}">`).join('');
+      const optsIns = (d.insumos || []).map(i => `<option value="${i.id}">${esc(i.nombre)} (${esc(i.unidad)}) • ${esc(i.categoria)}</option>`).join('');
+      $('rec_insumo').innerHTML = optsIns;
+      $('st_insumo').innerHTML = optsIns;
+
+      $('tbodyRecetas').innerHTML = (d.recetas || []).map(r => `<tr>
+        <td><b>${esc(r.platillo_nombre)}</b></td>
+        <td>${esc(r.insumo_nombre)}</td>
+        <td>${r.cantidad_descontar} ${esc(r.unidad)}</td>
+        <td><button type="button" class="btn sm rojo" onclick="borrarReceta(${r.id})">✕</button></td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:14px;">Aún no hay recetas configuradas.</td></tr>';
+    } catch {}
+  }
+
+  async function guardarReceta() {
+    const platillo_nombre = $('rec_platillo').value.trim();
+    const insumo_id = Number($('rec_insumo').value || 0);
+    const cantidad_descontar = parseFloat($('rec_cant').value || 0);
+    if (!platillo_nombre || !insumo_id || cantidad_descontar <= 0) return alert('Completa platillo, insumo y cantidad mayor a 0.');
+    const res = await fetch('/api/recetas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platillo_nombre, insumo_id, cantidad_descontar })
+    });
+    const d = await res.json();
+    if (d.ok) { $('rec_cant').value = ''; toast('✓ Receta guardada'); cargarRecetas(); }
+    else alert(d.msg || 'Error');
+  }
+
+  async function borrarReceta(id) {
+    await fetch('/api/recetas', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    toast('Receta eliminada'); cargarRecetas();
+  }
+
+  async function cargarStockSucursal() {
+    const suc = $('selSucursalStock').value;
+    try {
+      const d = await (await fetch('/api/stock_sucursal?sucursal=' + encodeURIComponent(suc))).json();
+      if (!d.ok) return;
+      $('tbodyStockSucursal').innerHTML = (d.items || []).map(it => {
+        const bajo = it.stock_actual <= it.stock_minimo;
+        return `<tr>
+          <td><b>${esc(it.nombre)}</b></td>
+          <td style="font-size:11px;color:#64748b;">${esc(it.categoria)}</td>
+          <td><b>${it.stock_actual} ${esc(it.unidad)}</b></td>
+          <td>${it.stock_minimo}</td>
+          <td><span class="pill ${bajo ? 'err' : 'ok'}">${bajo ? 'BAJO' : 'OK'}</span></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:14px;">Esta sucursal aún no tiene inventario local cargado.</td></tr>';
+    } catch {}
+  }
+
+  async function ajustarStockLocal() {
+    const sucursal = $('selSucursalStock').value;
+    const insumo_id = Number($('st_insumo').value || 0);
+    const stock_actual = parseFloat($('st_actual').value || 0);
+    const stock_minimo = parseFloat($('st_minimo').value || 2);
+    if (!insumo_id) return alert('Selecciona un insumo.');
+    const res = await fetch('/api/stock_sucursal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal, insumo_id, stock_actual, stock_minimo })
+    });
+    const d = await res.json();
+    if (d.ok) { $('st_actual').value = ''; toast('✓ Stock local actualizado'); cargarStockSucursal(); }
+  }
+
+  // 6. REPORTE WHATSAPP
+  async function abrirModalWhatsApp() {
+    $('modalWhatsApp').style.display = 'flex';
+    $('waTextoPreview').innerText = 'Generando resumen en vivo...';
+    try {
+      const d = await (await fetch('/api/industrial/resumen_whatsapp')).json();
+      if (d.ok) {
+        textoWaCache = d.texto;
+        $('waTextoPreview').innerText = d.texto;
+        $('btnLinkWa').href = d.wa_url;
+      }
+    } catch { $('waTextoPreview').innerText = 'Error al generar resumen.'; }
+  }
+  function cerrarModalWa() { $('modalWhatsApp').style.display = 'none'; }
+  function copiarTextoWa() {
+    if (!textoWaCache) return;
+    navigator.clipboard.writeText(textoWaCache).then(() => toast('📋 Resumen copiado para WhatsApp'));
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarDashboard();
+    cargarCancelaciones();
+  });
+</script>
+</body>
+</html>

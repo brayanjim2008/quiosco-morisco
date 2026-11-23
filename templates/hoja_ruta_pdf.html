@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Hoja de Despacho • {{ sucursal }}</title>
+<style>
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 20px; color: #1e293b; }
+  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }
+  h1 { margin: 0; font-size: 20px; text-transform: uppercase; }
+  .btn-print { background: #0f172a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  @media print { .btn-print { display: none; } }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+  th { background: #f1f5f9; text-transform: uppercase; font-size: 11px; }
+  .firmas { margin-top: 40px; display: flex; justify-content: space-around; text-align: center; font-size: 12px; }
+  .linea-firma { width: 200px; border-top: 1px solid #000; margin-top: 40px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>📋 Hoja de Ruta y Despacho de Bodega</h1>
+      <small>Destino: <b>{{ sucursal }}</b> | Fecha: {{ fecha }}</small>
+    </div>
+    <button class="btn-print" onclick="window.print()">📥 Descargar / Imprimir PDF</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Hora</th>
+        <th>Sucursal</th>
+        <th>Área</th>
+        <th>Categoría</th>
+        <th>Insumo</th>
+        <th>Pedido</th>
+        <th>Entregado</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pedidos %}
+      <tr>
+        <td>{{ p.fecha.strftime('%H:%M') }}</td>
+        <td><b>{{ p.sucursal }}</b></td>
+        <td>{{ p.area }}</td>
+        <td>{{ p.categoria }}</td>
+        <td><b>{{ p.insumo_nombre }}</b>{% if p.nota %}<br><small style="color:#64748b;">{{ p.nota }}</small>{% endif %}</td>
+        <td>{{ p.cantidad }} {{ p.unidad }}</td>
+        <td><b>{{ p.cantidad_entregada if p.cantidad_entregada is not none else p.cantidad }} {{ p.unidad }}</b></td>
+        <td>{{ p.estado_bodega }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:20px;">No hay pedidos registrados para hoy.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="firmas">
+    <div>
+      <div class="linea-firma"></div>
+      <span>Entrega (Bodega Central)</span>
+    </div>
+    <div>
+      <div class="linea-firma"></div>
+      <span>Recibe (Sucursal)</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="Admin Morisco">
     <meta name="theme-color" content="#13423b">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.jpg') }}">
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Admin - Quiosco Morisco","short_name":"Admin Morisco","start_url":"/admin_dashboard","display":"standalone","background_color":"%23f8f9fa","theme_color":"%2313423b"}'>
-    <title>Panel de Administrador - Quiosco Morisco</title>
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Admin - Comensal Conectado","short_name":"Admin Morisco","start_url":"/admin_dashboard","display":"standalone","background_color":"%23f8f9fa","theme_color":"%2313423b"}'>
+    <title>Panel de Administrador • Comensal Conectado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -28,10 +28,8 @@
         #zona-impresion-termica { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
-            body * { visibility: hidden; }
             #no-print-admin { display: none !important; }
-            #zona-impresion-termica, #zona-impresion-termica * { visibility: visible; }
-            #zona-impresion-termica { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; margin: 0; padding: 0; background: white; color: black; font-family: 'Courier New', Courier, monospace; }
+            #zona-impresion-termica { display: block !important; width: 72mm; margin: 0; padding: 0; background: white; color: black; font-family: 'Courier New', Courier, monospace; }
             .ticket-termico { width: 100%; text-align: center; padding: 4mm 2mm 8mm 2mm; box-sizing: border-box; page-break-after: always; break-after: page; border-bottom: 1px dashed #000; }
             .ticket-termico:last-child { page-break-after: auto; break-after: auto; }
             .ticket-titulo { font-size: 16px; font-weight: bold; margin: 0; }
@@ -49,16 +47,19 @@
 
 <div id="no-print-admin">
 <nav class="navbar navbar-dark mb-3 shadow-sm" style="background: #13423b;">
-    <div class="container-fluid">
+    <div class="container-fluid flex-wrap gap-2">
         <div>
-            <span class="navbar-brand mb-0 h1">👑 Quiosco Morisco • Administración ({{ current_user.username|capitalize }})</span>
+            <span class="navbar-brand mb-0 h1">👑 Comensal Conectado • Administración ({{ current_user.username|capitalize }})</span>
             <small class="text-light d-block" style="font-size: 11px;"><span class="punto-vivo"></span> Sincronizado en vivo cada 3s</small>
         </div>
-        <div class="d-flex gap-2">
-            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Abrir Soft Restaurant POS</a>
-            <a href="/almacen_requerimientos" class="btn btn-info btn-sm fw-bold">📦 Hojas Barra/Cocina y Almacén</a>
-            <a href="/" target="_blank" class="btn btn-warning btn-sm fw-bold">👁️ Ver Menú en Vivo</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Cerrar Sesión</a>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/industrial" class="btn btn-success btn-sm fw-bold">🏭 Panel Industrial</a>
+            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Comensal Conectado POS</a>
+            <a href="/mesero_dashboard" class="btn btn-outline-light btn-sm fw-bold">📱 Tablet</a>
+            <a href="/almacen_pro" class="btn btn-info btn-sm fw-bold">📦 Bodega Central</a>
+            <a href="/nomina_creditos" class="btn btn-primary btn-sm fw-bold">🍽️ Vales / Nómina</a>
+            <a href="/" target="_blank" class="btn btn-light btn-sm fw-bold">👁️ Ver Menú</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm fw-bold">🚪 Salir</a>
         </div>
     </div>
 </nav>
@@ -205,7 +206,7 @@
                     <div class="card-body">
                         <form action="{{ url_for('generar_pin') }}" method="POST" class="row g-2 mb-3">
                             <div class="col-5">
-                                <input type="text" name="folio_sr" class="form-control form-control-sm" placeholder="Folio SR (Opcional)">
+                                <input type="text" name="folio_sr" class="form-control form-control-sm" placeholder="Folio Caja (Opcional)">
                             </div>
                             <div class="col-4">
                                 <select name="cantidad" class="form-select form-select-sm">
@@ -228,7 +229,7 @@
                                      data-hora="{{ pin.fecha_creacion.strftime('%d/%m/%Y %H:%M') if pin.fecha_creacion else '' }}">
                                     <small class="text-muted d-block" style="font-size:10px;">👤 {{ (pin.creado_por or 'Caja')|capitalize }} {{ ('• #' ~ pin.folio_sr) if pin.folio_sr else '' }}</small>
                                     <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://quiosco-morisco.onrender.com/?pin={{ pin.codigo }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ (request.host_url ~ '?pin=' ~ pin.codigo)|urlencode }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
                                     <div class="d-flex gap-1">
                                         <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark flex-grow-1 fw-bold" style="font-size: 11px;">🖨️ Ticket</button>
                                         <form action="{{ url_for('eliminar_pin_individual', id=pin.id) }}" method="POST" class="m-0" data-pin-cod="{{ pin.codigo }}" onsubmit="return confirm('¿Borrar PIN ' + this.getAttribute('data-pin-cod') + '?');">
@@ -249,7 +250,7 @@
                 <!-- AUDITORÍA Y CORTE DE PINS -->
                 <div class="card shadow-sm mb-4 border-dark">
                     <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center flex-wrap gap-1">
-                        <span>🧾 Auditoría y Corte de PINs (Soft Restaurant)</span>
+                        <span>🧾 Auditoría y Corte de PINs (Comensal Conectado)</span>
                         <div class="d-flex gap-2 align-items-center">
                             <a href="{{ url_for('exportar_pins') }}" class="btn btn-sm btn-success fw-bold">📊 Exportar PINs (Excel)</a>
                             <span class="badge bg-warning text-dark">Hoy: {{ total_pins_hoy }}</span>
@@ -279,7 +280,7 @@
                                     <tr>
                                         <th>PIN</th>
                                         <th>Cajero</th>
-                                        <th>Folio SR</th>
+                                        <th>Folio Caja</th>
                                         <th>Hora</th>
                                         <th>Estado / Cliente</th>
                                     </tr>
@@ -419,7 +420,7 @@
                                     <div>
                                         <h6 class="mb-0">
                                             <span class="estrella-icono {{ '' if prod.destacado else 'd-none' }}">⭐</span>
-                                            {{ prod.nombre }} 
+                                            {{ prod.nombre }}
                                             <span class="badge bg-success">${{ prod.precio }}</span>
                                             <span class="badge bg-danger badge-agotado-adm {{ '' if prod.agotado else 'd-none' }}">Agotado</span>
                                         </h6>
@@ -506,14 +507,14 @@
                             </div>
                             <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">Agregar al Carrusel</button>
                         </form>
-                        
+
                         {% if anuncios %}
                         <h6 class="mt-3 border-top pt-2 fw-bold">Banners Guardados ({{ anuncios|length }}):</h6>
                         <ul class="list-group">
                         {% for an in anuncios %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'EN CARRUSEL' if an.activo else 'OCULTO' }}</span> 
+                                    <span class="badge {{ 'bg-success' if an.activo else 'bg-secondary' }}">{{ 'EN CARRUSEL' if an.activo else 'OCULTO' }}</span>
                                     <small class="ms-1 fw-bold">{{ an.mensaje }}</small>
                                 </div>
                                 <div class="d-flex gap-1">
@@ -564,7 +565,7 @@
                                             <textarea name="descripcion" class="form-control form-control-sm mb-1" rows="2">{{ foto.descripcion or '' }}</textarea>
                                             <button type="submit" class="btn btn-sm btn-warning w-100 mb-1" style="font-size: 11px; font-weight: bold;">Actualizar</button>
                                         </form>
-                                        <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="GET">
+                                        <form action="{{ url_for('eliminar_galeria', id=foto.id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta foto de la galería?');">
                                             <button type="submit" class="btn btn-sm btn-danger w-100" style="font-size: 11px;">Eliminar</button>
                                         </form>
                                     </div>
@@ -673,24 +674,35 @@
     </div>
 
     <!-- ==========================================
-         PESTAÑA 5: EQUIPO Y EVALUACIONES DE MESEROS
+         PESTAÑA 5: EQUIPO, SUCURSALES Y EVALUACIONES
          ========================================== -->
     <div id="tab-equipo" class="seccion-tab-admin">
         <div class="row">
             <div class="col-md-6">
                 <div class="card shadow-sm mb-4 border-primary">
-                    <div class="card-header bg-primary text-white fw-bold">👥 Equipo y Contraseñas (Admin, Cajeros y Meseros)</div>
+                    <div class="card-header bg-primary text-white fw-bold">👥 Equipo, Roles y Sucursales</div>
                     <div class="card-body">
                         <form action="{{ url_for('nuevo_usuario') }}" method="POST" class="row g-2 mb-3 bg-light p-2 rounded border">
-                            <div class="col-4"><input type="text" name="username" class="form-control form-control-sm" placeholder="Usuario" required></div>
-                            <div class="col-4"><input type="text" name="password" class="form-control form-control-sm" placeholder="Contraseña" required></div>
-                            <div class="col-4 d-flex gap-1">
+                            <div class="col-6"><input type="text" name="username" class="form-control form-control-sm" placeholder="Usuario" required></div>
+                            <div class="col-6"><input type="text" name="password" class="form-control form-control-sm" placeholder="Contraseña" required></div>
+                            <div class="col-5">
                                 <select name="role" class="form-select form-select-sm">
                                     <option value="mesero">Mesero</option>
                                     <option value="cajero">Cajero</option>
+                                    <option value="sucursal">Sucursal</option>
+                                    <option value="almacen">Almacén</option>
                                     <option value="admin">Admin</option>
                                 </select>
-                                <button type="submit" class="btn btn-sm btn-success fw-bold">+</button>
+                            </div>
+                            <div class="col-5">
+                                <select name="sucursal" class="form-select form-select-sm">
+                                    {% for s in sucursales %}
+                                    <option value="{{ s }}">{{ s }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-2">
+                                <button type="submit" class="btn btn-sm btn-success fw-bold w-100">+</button>
                             </div>
                         </form>
                         <ul class="list-group">
@@ -698,11 +710,12 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
                                     <strong class="text-uppercase">{{ u.username }}</strong>
-                                    <span class="badge {{ 'bg-danger' if u.role=='admin' else ('bg-warning text-dark' if u.role=='cajero' else 'bg-info text-dark') }}">{{ u.role|upper }}</span>
+                                    <span class="badge {{ 'bg-danger' if u.role=='admin' else ('bg-warning text-dark' if u.role=='cajero' else ('bg-success' if u.role=='sucursal' else ('bg-dark' if u.role=='almacen' else 'bg-info text-dark'))) }}">{{ u.role|upper }}</span>
+                                    <small class="d-block text-muted" style="font-size:11px;">📍 {{ u.sucursal or 'Quiosco Morisco (Matriz)' }}</small>
                                 </div>
                                 <div class="d-flex gap-1 align-items-center">
                                     <form action="{{ url_for('cambiar_pass_usuario', id=u.id) }}" method="POST" class="d-flex gap-1 m-0">
-                                        <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 120px;" placeholder="Nueva clave" required>
+                                        <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 110px;" placeholder="Nueva clave" required>
                                         <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
                                     </form>
                                     {% if u.id != current_user.id %}
@@ -721,7 +734,7 @@
             <div class="col-md-6">
                 <div class="card shadow-sm mb-4 border-warning">
                     <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                        <span>⭐ Evaluaciones de Paola y Daniel</span>
+                        <span>⭐ Evaluaciones de Meseros</span>
                         <a href="{{ url_for('exportar_evaluaciones') }}" class="btn btn-sm btn-dark fw-bold">📝 Descargar Excel</a>
                     </div>
                     <div class="card-body" style="max-height: 420px; overflow-y: auto;">
@@ -834,12 +847,11 @@
     async function traducirElemento(origen_id, destino_id) {
         let origen = document.getElementById(origen_id);
         let destino = document.getElementById(destino_id);
-        if (!origen || !destino || !origen.value.trim() || destino.value.trim() !== "") return; 
-        
+        if (!origen || !destino || !origen.value.trim() || destino.value.trim() !== "") return;
+
         let texto = origen.value.trim();
         destino.placeholder = "🤖 Traduciendo...";
 
-        // 1. Traduce a través de tu servidor Flask (sin bloqueos de navegador)
         try {
             let res = await fetch(`/api/traducir?q=${encodeURIComponent(texto)}`);
             if (res.ok) {
@@ -851,7 +863,6 @@
             }
         } catch(e) {}
 
-        // 2. Respaldo directo ocultando cabecera Referer
         try {
             let res2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(texto)}`, { referrerPolicy: "no-referrer" });
             let data2 = await res2.json();
@@ -861,7 +872,6 @@
             }
         } catch(e) {}
 
-        // 3. Segundo respaldo con API pública MyMemory
         try {
             let res3 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=es|en`);
             let data3 = await res3.json();
@@ -873,7 +883,6 @@
 
         destino.placeholder = "Escribe manual";
     }
-    
 
     function generarQRsMesasFijas() {
         let grid = document.getElementById('grid-qrs-mesas');
@@ -959,19 +968,19 @@
         const cajero = el.getAttribute('data-cajero') || 'ADMIN';
         const folio = el.getAttribute('data-folio') || '';
         const hora = el.getAttribute('data-hora') || new Date().toLocaleString('es-MX');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://quiosco-morisco.onrender.com/?pin=${codigo}`;
-        const lineaFolio = folio ? `<p style="font-size:10px; margin:2px 0; font-weight:bold;">Folio Cuenta: #${folio}</p>` : '';
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.origin + '/?pin=' + codigo)}`;
+        const lineaFolio = folio ? `<p style="font-size:10px; margin:2px 0; font-weight:bold;">Folio Caja: #${folio}</p>` : '';
 
         return `
         <div class="ticket-termico">
-            <p class="ticket-titulo">QUIOSCO MORISCO</p>
-            <p class="ticket-sub">BISTRÓ & CAFÉ • SAN CRIS</p>
+            <p class="ticket-titulo">COMENSAL CONECTADO</p>
+            <p class="ticket-sub">QUIOSCO MORISCO • SAN CRIS</p>
             <div class="ticket-linea"></div>
             <p style="font-size:10px; margin:2px 0;">Fecha: ${hora} | Emitió: ${cajero}</p>
             ${lineaFolio}
             <p class="ticket-instruccion">¡SELLA TU VISITA Y GANA PREMIOS!</p>
             <p class="ticket-en">Scan QR or enter PIN to earn rewards!</p>
-            <img src="${qrUrl}" class="ticket-qr" onload="verificarCargaImagenes()">
+            <img src="${qrUrl}" class="ticket-qr">
             <p style="font-size:10px; margin:4px 0 0 0; font-weight:bold;">TU PIN DE UN SOLO USO:</p>
             <div class="ticket-pin-box">${codigo}</div>
             <p style="font-size:10px; margin:4px 0;">Wi-Fi: <strong>QuioscoMoriscoB</strong><br>Clave: <strong>Corazonsc31</strong></p>
@@ -983,23 +992,48 @@
         </div>`;
     }
 
-    let imagenesEsperadas = 0;
-    let imagenesCargadas = 0;
-    function verificarCargaImagenes() {
-        imagenesCargadas++;
-        if (imagenesCargadas >= imagenesEsperadas) setTimeout(() => { window.print(); }, 250);
-    }
-    function imprimirTicketUnico(el) {
+    function imprimirConRespaldoQR(htmlStr) {
         const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = 1; imagenesCargadas = 0;
-        zona.innerHTML = crearHTMLTicketDesdeElemento(el);
+        zona.innerHTML = htmlStr;
+        const imgs = Array.from(zona.querySelectorAll('img'));
+        let yaImprimio = false;
+        let listas = 0;
+
+        const disparar = () => {
+            if (!yaImprimio) {
+                yaImprimio = true;
+                window.print();
+            }
+        };
+
+        if (imgs.length === 0) {
+            disparar();
+            return;
+        }
+
+        const contar = () => {
+            listas++;
+            if (listas >= imgs.length) setTimeout(disparar, 150);
+        };
+
+        imgs.forEach(img => {
+            if (img.complete) contar();
+            else {
+                img.onload = contar;
+                img.onerror = contar;
+            }
+        });
+        setTimeout(disparar, 1500);
     }
+
+    function imprimirTicketUnico(el) {
+        imprimirConRespaldoQR(crearHTMLTicketDesdeElemento(el));
+    }
+
     function imprimirLoteCompleto() {
         const elementos = Array.from(document.querySelectorAll('[data-pin-activo]'));
         if (elementos.length === 0) return;
-        const zona = document.getElementById('zona-impresion-termica');
-        imagenesEsperadas = elementos.length; imagenesCargadas = 0;
-        zona.innerHTML = elementos.map(el => crearHTMLTicketDesdeElemento(el)).join('');
+        imprimirConRespaldoQR(elementos.map(el => crearHTMLTicketDesdeElemento(el)).join(''));
     }
 
     document.addEventListener("DOMContentLoaded", function() {

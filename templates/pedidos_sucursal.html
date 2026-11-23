@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos Sucursal • {{ sucursal }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246;
+    --dorado: #ffd700; --hueso: #fdfaf6; --borde: #e2d9ce;
+  }
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  button { touch-action: manipulation; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; min-height: 100vh; padding-bottom: 85px; }
+
+  .topbar {
+    background: var(--verde-oscuro); color: #fff; padding: 10px 16px;
+    border-bottom: 3px solid var(--cobre); display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-family: 'Lora', serif; font-size: 17px; font-weight: 700; flex-wrap: wrap; }
+  .brand-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 12px; }
+  .suc-select {
+    background: var(--verde); color: var(--dorado); border: 1px solid var(--cobre);
+    border-radius: 7px; padding: 4px 8px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .nav-btn {
+    background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(201,130,70,0.55);
+    padding: 6px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 800;
+    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .nav-btn:hover { background: var(--cobre); border-color: var(--dorado); }
+  .nav-btn.salir { background: #dc2626; border-color: #ef4444; }
+
+  .tabs-bar {
+    background: var(--verde); padding: 8px 16px; display: flex; gap: 6px;
+    overflow-x: auto; border-bottom: 2px solid var(--cobre);
+  }
+  .tab-btn {
+    background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,0.4);
+    padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800;
+    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab-btn.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
+  .badge-cnt { background: #ef4444; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; }
+
+  .container { max-width: 1240px; margin: 0 auto; padding: 16px; }
+  .panel-sec { display: none; }
+  .panel-sec.activo { display: block; }
+
+  .card { background: #fff; border-radius: 14px; border: 1.5px solid var(--borde); padding: 16px; margin-bottom: 16px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .card-head h3 { margin: 0; font-family: 'Lora', serif; color: var(--verde); font-size: 17px; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .inp { height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff; width: 100%; }
+
+  .btn {
+    height: 38px; padding: 0 14px; border-radius: 8px; border: none;
+    background: var(--verde); color: #fff; font-weight: 800; font-size: 12.5px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;
+  }
+  .btn.cobre { background: var(--cobre); }
+  .btn.wa { background: #16a34a; }
+  .btn.rojo { background: #dc2626; }
+  .btn.gris { background: #e2e8f0; color: #334155; }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 11px; }
+
+  .area-pill {
+    height: 36px; padding: 0 14px; border-radius: 20px; border: 1.5px solid #cbd5e1;
+    background: #fff; color: #334155; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  .area-pill.activo { background: var(--verde); color: #fff; border-color: var(--verde); }
+
+  .cat-block { margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  .cat-header {
+    background: #f1f5f9; color: var(--verde); padding: 8px 12px; font-size: 12px; font-weight: 800;
+    border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .insumo-row {
+    display: grid; grid-template-columns: 1.6fr 0.7fr 1.1fr 1.1fr; gap: 8px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid #f1f5f9; background: #fff;
+  }
+  .insumo-row.marcado { background: #f0fdf4; }
+  .insumo-row:last-child { border-bottom: none; }
+  @media (max-width: 720px) {
+    .insumo-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  }
+
+  .qty-wrap { display: flex; align-items: center; gap: 4px; }
+  .qty-btn {
+    width: 30px; height: 32px; border-radius: 6px; border: 1px solid #cbd5e1;
+    background: var(--hueso); color: var(--verde); font-weight: 900; font-size: 15px; cursor: pointer;
+  }
+  .qty-inp {
+    width: 62px; height: 32px; border-radius: 6px; border: 1.5px solid #cbd5e1;
+    text-align: center; font-weight: 800; font-size: 13px;
+  }
+  .nota-inp {
+    height: 32px; border-radius: 6px; border: 1px solid #cbd5e1; padding: 0 8px;
+    font-size: 12px; font-weight: 600; width: 100%;
+  }
+
+  .pill { padding: 2px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 800; display: inline-block; white-space: nowrap; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.warn { background: #fef9c3; color: #854d0e; }
+  .pill.err { background: #fee2e2; color: #b91c1c; }
+  .pill.info { background: #e0f2fe; color: #075985; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-weight: 700; }
+  th { background: var(--verde); color: #fff; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .sticky-send-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--verde-oscuro); color: #fff;
+    border-top: 3px solid var(--cobre); padding: 10px 18px; display: flex;
+    justify-content: space-between; align-items: center; gap: 10px; z-index: 150; flex-wrap: wrap;
+  }
+  .toast { position: fixed; bottom: 74px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-badge">SUCURSAL</span>
+    <span>{{ sucursal }}</span>
+    {% if current_user.role == 'admin' %}
+    <select class="suc-select" onchange="cambiarSucursalVista(this.value)">
+      {% for s in ['Quiosco Morisco (Matriz)', 'Caminante 1', 'Caminante 2', 'Caminante 3'] %}
+      <option value="{{ s }}" {% if s == sucursal %}selected{% endif %}>📍 {{ s }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+  <div class="nav-links">
+    <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> POS Caja</a>
+    <a href="/mesero_dashboard" class="nav-btn"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
+    <a href="/nomina_creditos" class="nav-btn"><i class="fa-solid fa-receipt"></i> Vales</a>
+    {% if current_user.role == 'admin' %}
+    <a href="/industrial" class="nav-btn"><i class="fa-solid fa-industry"></i> Industrial</a>
+    <a href="/almacen_pro" class="nav-btn"><i class="fa-solid fa-boxes-stacked"></i> Bodega</a>
+    {% endif %}
+    <a href="/logout" class="nav-btn salir"><i class="fa-solid fa-door-open"></i> Salir</a>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <button type="button" class="tab-btn activo" onclick="cambiarTab('nuevo', this)"><i class="fa-solid fa-cart-plus"></i> 1. Hacer Pedido a Bodega</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('recepcion', this)"><i class="fa-solid fa-truck-ramp-box"></i> 2. Mis Pedidos y Recepción <span class="badge-cnt" id="cntPorConfirmar">0</span></button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('stock', this)"><i class="fa-solid fa-boxes-stacked"></i> 3. Mi Stock Local</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('operacion', this)"><i class="fa-solid fa-user-clock"></i> 4. Checador y Mermas</button>
+</div>
+
+<div class="container">
+
+  <!-- TAB 1: HACER PEDIDO A BODEGA -->
+  <section id="sec_nuevo" class="panel-sec activo">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-clipboard-list" style="color:var(--cobre);"></i> Lista de Pedido • {{ sucursal }}</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn sm cobre" onclick="cargarFaltantesSugeridos()"><i class="fa-solid fa-bolt"></i> Cargar Faltantes Sugeridos</button>
+          <button type="button" class="btn sm gris" onclick="limpiarSeleccion()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button type="button" class="area-pill activo" onclick="setAreaPedido('BARRA', this)">☕ BARRA</button>
+        <button type="button" class="area-pill" onclick="setAreaPedido('COCINA', this)">🍳 COCINA</button>
+        <button type="button" class="area-pill" onclick="setAreaPedido('TODAS', this)">📋 AMBAS</button>
+        <input type="text" id="buscadorPedido" class="inp" style="flex:1;min-width:210px;" placeholder="🔍 Buscar insumo..." oninput="renderCatalogoPedido()">
+        <input type="text" id="notaGeneralPedido" class="inp" style="width:230px;" placeholder="Nota general del pedido (opcional)...">
+      </div>
+
+      <div id="contenedorCatalogoPedido"></div>
+    </div>
+  </section>
+
+  <!-- TAB 2: MIS PEDIDOS HOY Y RECEPCIÓN -->
+  <section id="sec_recepcion" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-box-open" style="color:var(--cobre);"></i> Pedidos de Hoy • Confirmar Recepción</h3>
+        <button type="button" class="btn sm gris" onclick="cargarDatosSucursal()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+      </div>
+      <p style="font-size:12px;color:#475569;margin-top:0;">Cuando Bodega Central marque un insumo como <b>Entregado</b>, aparecerán los botones <b>✓ Recibido</b> (suma automáticamente a tu Stock Local) o <b>✕ Faltante</b>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Hora</th><th>Área</th><th>Insumo</th><th>Pedido</th><th>Entregado</th><th>Estado</th><th>Confirmar Recepción</th></tr>
+          </thead>
+          <tbody id="tbodyRecepcion"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: MI STOCK LOCAL -->
+  <section id="sec_stock" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-store" style="color:var(--verde);"></i> Inventario Local • {{ sucursal }}</h3>
+        <input type="text" id="buscadorStockLocal" class="inp" style="width:250px;height:34px;" placeholder="🔍 Buscar en mi stock..." oninput="renderStockLocal()">
+      </div>
+      <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Insumo</th><th>Categoría</th><th>Stock Local</th><th>Mínimo</th><th>Estado</th></tr></thead>
+          <tbody id="tbodyStockLocal"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: CHECADOR Y MERMAS -->
+  <section id="sec_operacion" class="panel-sec">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-user-check" style="color:var(--cobre);"></i> Checador de Personal</h3></div>
+        <div class="form-row">
+          <input type="text" id="chk_emp" class="inp" placeholder="Nombre del empleado...">
+          <select id="chk_tipo" class="inp">
+            <option value="ENTRADA">🟢 ENTRADA</option>
+            <option value="SALIDA">🔴 SALIDA</option>
+            <option value="DESCANSO">🟡 DESCANSO</option>
+          </select>
+          <input type="text" id="chk_nota" class="inp" placeholder="Nota opcional...">
+          <button type="button" class="btn" onclick="registrarAsistenciaSuc()">Registrar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Hora</th><th>Empleado</th><th>Tipo</th><th>Nota</th></tr></thead>
+            <tbody id="tbodyChecadorSuc"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-trash-can" style="color:#dc2626;"></i> Reportar Merma</h3></div>
+        <div class="form-row">
+          <input type="text" id="mer_ins" class="inp" placeholder="Insumo / Platillo...">
+          <input type="number" step="0.1" id="mer_cant" class="inp" value="1" placeholder="Cantidad">
+          <input type="text" id="mer_uni" class="inp" value="PZ" placeholder="Unidad">
+          <input type="number" step="0.5" id="mer_costo" class="inp" placeholder="Costo aprox ($)">
+          <input type="text" id="mer_motivo" class="inp" placeholder="Motivo...">
+          <button type="button" class="btn rojo" onclick="registrarMermaSuc()">Reportar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Insumo</th><th>Cant.</th><th>Costo</th><th>Motivo</th></tr></thead>
+            <tbody id="tbodyMermasSuc"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- BARRA FIJA INFERIOR PARA ENVIAR EL LOTE COMPLETO -->
+<div class="sticky-send-bar" id="barraEnviarLote">
+  <div>
+    <strong style="color:var(--dorado);font-size:15px;"><span id="lblTotalMarcados">0</span> insumos seleccionados</strong>
+    <small style="display:block;color:#cbd5e1;font-size:11px;">Se enviarán en un solo lote a Bodega Central ({{ sucursal }})</small>
+  </div>
+  <button type="button" class="btn wa" id="btnEnviarLote" onclick="enviarPedidoCompleto()" style="height:44px;padding:0 22px;font-size:13.5px;">
+    <i class="fa-solid fa-paper-plane"></i> ENVIAR PEDIDO COMPLETO
+  </button>
+</div>
+
+<div class="toast" id="toastSuc"></div>
+
+<script>
+  const SUCURSAL_ACTUAL = "{{ sucursal }}";
+  const $ = id => document.getElementById(id);
+
+  let cacheInsumos = [], cacheReqs = [];
+  let areaFiltro = 'BARRA';
+  let seleccionCant = {}; // { insumo_id: cantidad }
+  let seleccionNota = {}; // { insumo_id: nota }
+
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function toast(msg) { const t = $('toastSuc'); t.innerText = msg; t.style.display = 'block'; setTimeout(() => { if (t.innerText === msg) t.style.display = 'none'; }, 3000); }
+
+  async function cambiarSucursalVista(suc) {
+    await fetch('/api/pos/cambiar_sucursal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal: suc })
+    });
+    location.reload();
+  }
+
+  function cambiarTab(tab, btn) {
+    document.querySelectorAll('.panel-sec').forEach(s => s.classList.remove('activo'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    $('sec_' + tab)?.classList.add('activo');
+    btn?.classList.add('activo');
+    $('barraEnviarLote').style.display = (tab === 'nuevo') ? 'flex' : 'none';
+    if (tab === 'operacion') { cargarChecadorSuc(); cargarMermasSuc(); }
+  }
+
+  function setAreaPedido(area, btn) {
+    areaFiltro = area;
+    document.querySelectorAll('.area-pill').forEach(b => b.classList.remove('activo'));
+    btn?.classList.add('activo');
+    renderCatalogoPedido();
+  }
+
+  async function cargarDatosSucursal() {
+    try {
+      const d = await (await fetch('/api/almacen/datos')).json();
+      if (!d.ok) return;
+      cacheInsumos = d.insumos || [];
+      cacheReqs = (d.requerimientos || []).filter(r => r.sucursal === SUCURSAL_ACTUAL);
+
+      const porConf = cacheReqs.filter(r => r.estado_bodega === 'ENTREGADO' && !r.confirmado_caja).length;
+      $('cntPorConfirmar').innerText = porConf;
+
+      renderCatalogoPedido();
+      renderRecepcion();
+      renderStockLocal();
+    } catch {}
+  }
+
+  function actualizarResumenLote() {
+    const cnt = Object.values(seleccionCant).filter(v => Number(v) > 0).length;
+    $('lblTotalMarcados').innerText = cnt;
+  }
+
+  function cambiarCantItem(id, valor) {
+    const num = Math.max(0, Math.round(parseFloat(valor || 0) * 100) / 100);
+    if (num > 0) seleccionCant[id] = num;
+    else delete seleccionCant[id];
+
+    const inp = $('qty_' + id);
+    if (inp) inp.value = num > 0 ? num : '';
+    const row = $('row_ins_' + id);
+    if (row) row.classList.toggle('marcado', num > 0);
+    actualizarResumenLote();
+  }
+
+  function sumarCantItem(id, delta) {
+    const act = Number(seleccionCant[id] || 0);
+    cambiarCantItem(id, Math.max(0, act + delta));
+  }
+
+  function guardarNotaItem(id, txt) {
+    const limpio = String(txt || '').trim();
+    if (limpio) seleccionNota[id] = limpio;
+    else delete seleccionNota[id];
+  }
+
+  function limpiarSeleccion() {
+    seleccionCant = {};
+    seleccionNota = {};
+    renderCatalogoPedido();
+    actualizarResumenLote();
+    toast('Selección limpiada');
+  }
+
+  async function cargarFaltantesSugeridos() {
+    try {
+      const d = await (await fetch('/api/sucursal/faltantes_sugeridos')).json();
+      if (!d.ok) return;
+      const lista = d.faltantes || [];
+      if (!lista.length) return toast('✅ Tu stock local no tiene faltantes urgentes.');
+      lista.forEach(f => { seleccionCant[f.insumo_id] = f.sugerido; });
+      areaFiltro = 'TODAS';
+      document.querySelectorAll('.area-pill').forEach((b, idx) => b.classList.toggle('activo', idx === 2));
+      renderCatalogoPedido();
+      actualizarResumenLote();
+      toast(`⚡ ${lista.length} faltantes sugeridos cargados al pedido`);
+    } catch { toast('Error al consultar faltantes'); }
+  }
+
+  function renderCatalogoPedido() {
+    const q = ($('buscadorPedido').value || '').toLowerCase().trim();
+    const filtrados = cacheInsumos.filter(i => {
+      const catUp = (i.categoria || '').toUpperCase();
+      if (areaFiltro === 'BARRA' && !catUp.startsWith('BARRA')) return false;
+      if (areaFiltro === 'COCINA' && !catUp.startsWith('COCINA')) return false;
+      if (q && !(i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    const grupos = {};
+    filtrados.forEach(i => {
+      const c = i.categoria || 'GENERAL';
+      if (!grupos[c]) grupos[c] = [];
+      grupos[c].push(i);
+    });
+
+    const cont = $('contenedorCatalogoPedido');
+    const claves = Object.keys(grupos);
+    if (!claves.length) {
+      cont.innerHTML = '<p style="text-align:center;color:#64748b;padding:20px;font-weight:700;">No hay insumos que coincidan con tu búsqueda.</p>';
+      return;
+    }
+
+    cont.innerHTML = claves.map(cat => {
+      const filas = grupos[cat].map(i => {
+        const val = seleccionCant[i.id] || '';
+        const notaVal = seleccionNota[i.id] || '';
+        const esExtra = (i.nombre || '').includes('EXTRA / FUERA DE LISTA');
+        const bajoLocal = !esExtra && (i.stock_local <= i.minimo_local);
+        const badgeLocal = esExtra
+          ? '<span class="pill info">Libre</span>'
+          : `<span class="pill ${bajoLocal ? 'err' : 'ok'}">Local: ${i.stock_local} ${esc(i.unidad)}</span>`;
+        return `<div class="insumo-row ${val > 0 ? 'marcado' : ''}" id="row_ins_${i.id}">
+          <div>
+            <b style="font-size:13px;">${esc(i.nombre)}</b>
+            <small style="color:#64748b;display:block;">Unidad: ${esc(i.unidad)}</small>
+          </div>
+          <div>${badgeLocal}</div>
+          <div class="qty-wrap">
+            <button type="button" class="qty-btn" onclick="sumarCantItem(${i.id}, -1)">-</button>
+            <input type="number" step="0.5" min="0" id="qty_${i.id}" class="qty-inp" placeholder="0" value="${val}" oninput="cambiarCantItem(${i.id}, this.value)">
+            <button type="button" class="qty-btn" onclick="sumarCantItem(${i.id}, 1)">+</button>
+          </div>
+          <div>
+            <input type="text" class="nota-inp" value="${esc(notaVal)}" placeholder="${esExtra ? 'Escribe qué insumo extra necesitas...' : 'Nota opcional...'}" oninput="guardarNotaItem(${i.id}, this.value)">
+          </div>
+        </div>`;
+      }).join('');
+
+      return `<div class="cat-block">
+        <div class="cat-header"><span>${esc(cat)}</span><span>${grupos[cat].length} productos</span></div>
+        ${filas}
+      </div>`;
+    }).join('');
+  }
+
+  async function enviarPedidoCompleto() {
+    const ids = Object.keys(seleccionCant).filter(id => Number(seleccionCant[id]) > 0);
+    if (!ids.length) return alert('Marca al menos 1 producto con cantidad mayor a 0.');
+
+    const btn = $('btnEnviarLote');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ENVIANDO...';
+
+    const notaBase = ($('notaGeneralPedido').value || '').trim();
+    const items = ids.map(id => ({
+      insumo_id: Number(id),
+      cantidad: Number(seleccionCant[id]),
+      nota: seleccionNota[id] || notaBase
+    }));
+
+    try {
+      const res = await fetch('/api/almacen/solicitar_lote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sucursal: SUCURSAL_ACTUAL, nota: notaBase, items })
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.msg || 'No se pudo enviar el pedido.');
+
+      seleccionCant = {};
+      seleccionNota = {};
+      $('notaGeneralPedido').value = '';
+      actualizarResumenLote();
+      await cargarDatosSucursal();
+      toast(`✅ Pedido enviado (${d.creados} productos a Bodega Central)`);
+      cambiarTab('recepcion', document.querySelectorAll('.tab-btn')[1]);
+    } catch (e) {
+      alert('❌ ' + (e.message || 'Error de conexión'));
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> ENVIAR PEDIDO COMPLETO';
+    }
+  }
+
+  function renderRecepcion() {
+    $('tbodyRecepcion').innerHTML = cacheReqs.map(r => {
+      let badgeEst = '<span class="pill warn">🟡 Pendiente en Bodega</span>';
+      let accionHtml = '<small style="color:#64748b;">Esperando despacho...</small>';
+
+      if (r.confirmado_caja) {
+        badgeEst = '<span class="pill ok">✅ Recibido (+Stock Local)</span>';
+        accionHtml = '<small style="color:#16a34a;">Confirmado</small>';
+      } else if (r.estado_bodega === 'ENTREGADO') {
+        badgeEst = '<span class="pill info">🚚 Entregado por Bodega</span>';
+        accionHtml = `<div style="display:flex;gap:5px;">
+          <button type="button" class="btn sm wa" onclick="confirmarRecepcion(${r.id}, true)">✓ Recibido</button>
+          <button type="button" class="btn sm rojo" onclick="confirmarRecepcion(${r.id}, false)">✕ Faltante</button>
+        </div>`;
+      } else if (r.estado_bodega === 'NO_ENTREGADO') {
+        badgeEst = '<span class="pill err">❌ Agotado / No entregado</span>';
+        accionHtml = '<small style="color:#dc2626;">Sin entrega</small>';
+      }
+
+      return `<tr>
+        <td>${esc(r.fecha)}</td>
+        <td><span class="pill ${r.area === 'BARRA' ? 'info' : 'warn'}">${esc(r.area)}</span></td>
+        <td><b>${esc(r.insumo_nombre)}</b>${r.nota ? `<br><small style="color:var(--cobre);">Nota: ${esc(r.nota)}</small>` : ''}</td>
+        <td>${r.cantidad} ${esc(r.unidad)}</td>
+        <td><b>${r.estado_bodega === 'ENTREGADO' ? (r.cantidad_entregada + ' ' + esc(r.unidad)) : '-'}</b></td>
+        <td>${badgeEst}</td>
+        <td>${accionHtml}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">Aún no has enviado pedidos hoy.</td></tr>';
+  }
+
+  async function confirmarRecepcion(id, recibido) {
+    if (!recibido && !confirm('¿Marcar este insumo como FALTANTE (no llegó a tienda)?')) return;
+    const res = await fetch('/api/almacen/confirmar_caja', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, recibido })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert('⚠️ ' + (d.msg || 'No se pudo confirmar.'));
+    toast(recibido ? '✅ Recibido y sumado a tu Stock Local' : '❌ Reportado como faltante');
+    cargarDatosSucursal();
+  }
+
+  function renderStockLocal() {
+    const q = ($('buscadorStockLocal').value || '').toLowerCase().trim();
+    const lista = cacheInsumos.filter(i => {
+      if ((i.nombre || '').includes('EXTRA / FUERA DE LISTA')) return false;
+      if (q && !(i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    $('tbodyStockLocal').innerHTML = lista.map(i => {
+      const bajo = i.stock_local <= i.minimo_local;
+      return `<tr>
+        <td><b>${esc(i.nombre)}</b></td>
+        <td style="font-size:11.5px;color:#64748b;">${esc(i.categoria)}</td>
+        <td><b style="color:${bajo ? '#dc2626' : '#13423b'};">${i.stock_local} ${esc(i.unidad)}</b></td>
+        <td>${i.minimo_local}</td>
+        <td><span class="pill ${bajo ? 'err' : 'ok'}">${bajo ? 'BAJO' : 'OK'}</span></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;">Sin insumos registrados.</td></tr>';
+  }
+
+  async function cargarChecadorSuc() {
+    try {
+      const d = await (await fetch('/api/checador/lista')).json();
+      if (!d.ok) return;
+      $('tbodyChecadorSuc').innerHTML = (d.asistencias || []).map(a => `<tr>
+        <td>${esc(a.hora)}</td><td><b>${esc(a.empleado)}</b></td>
+        <td><span class="pill ${a.tipo === 'ENTRADA' ? 'ok' : (a.tipo === 'SALIDA' ? 'err' : 'warn')}">${esc(a.tipo)}</span></td>
+        <td>${esc(a.notas || '-')}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:14px;">Sin registros hoy.</td></tr>';
+    } catch {}
+  }
+
+  async function registrarAsistenciaSuc() {
+    const empleado_nombre = $('chk_emp').value.trim();
+    if (!empleado_nombre) return alert('Escribe el nombre del empleado.');
+    const res = await fetch('/api/checador/registrar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal: SUCURSAL_ACTUAL, empleado_nombre, tipo: $('chk_tipo').value, notas: $('chk_nota').value })
+    });
+    const d = await res.json();
+    if (d.ok) { $('chk_emp').value = ''; $('chk_nota').value = ''; toast('✓ Asistencia guardada'); cargarChecadorSuc(); }
+  }
+
+  async function cargarMermasSuc() {
+    try {
+      const d = await (await fetch('/api/mermas/resumen')).json();
+      if (!d.ok) return;
+      $('tbodyMermasSuc').innerHTML = (d.mermas || []).map(m => `<tr>
+        <td>${esc(m.fecha)}</td><td><b>${esc(m.insumo)}</b></td><td>${esc(m.cantidad)}</td>
+        <td style="color:#dc2626;">${esc(m.costo)}</td><td>${esc(m.motivo)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:14px;">Sin mermas registradas.</td></tr>';
+    } catch {}
+  }
+
+  async function registrarMermaSuc() {
+    const insumo_nombre = $('mer_ins').value.trim();
+    if (!insumo_nombre) return alert('Indica el insumo o platillo.');
+    const res = await fetch('/api/mermas/registrar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal: SUCURSAL_ACTUAL, insumo_nombre,
+        cantidad: parseFloat($('mer_cant').value || 1),
+        unidad: $('mer_uni').value || 'PZ',
+        costo_total: parseFloat($('mer_costo').value || 0),
+        motivo: $('mer_motivo').value || 'Merma'
+      })
+    });
+    const d = await res.json();
+    if (d.ok) { $('mer_ins').value = ''; $('mer_costo').value = ''; $('mer_motivo').value = ''; toast('✓ Merma reportada'); cargarMermasSuc(); }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarDatosSucursal();
+    setInterval(() => {
+      const tag = document.activeElement?.tagName;
+      if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+        const secRec = $('sec_recepcion');
+        if (secRec && secRec.classList.contains('activo')) cargarDatosSucursal();
+      }
+    }, 20000);
+  });
+</script>
+</body>
+</html>

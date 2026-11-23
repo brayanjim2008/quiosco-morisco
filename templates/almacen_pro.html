@@ -3,554 +3,588 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Morisco Almacén Pro • Bodega Inteligente</title>
+<title>Bodega Central • Comensal Conectado</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   :root {
-    --verde-morisco: #13423b;
-    --verde-oscuro: #0b2924;
-    --cobre: #c98246;
-    --dorado: #ffd700;
-    --hueso: #fdfaf6;
-    --gris-borde: #e5dfd5;
-    --texto: #1e293b;
+    --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246;
+    --dorado: #ffd700; --hueso: #fdfaf6; --borde: #e2d9ce;
   }
-
   * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
-  body { margin: 0; background: var(--hueso); color: var(--texto); min-height: 100vh; display: flex; flex-direction: column; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; min-height: 100vh; }
 
-  .m-topbar {
-    background: var(--verde-oscuro); color: #fff; height: 52px; padding: 0 16px;
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 3px solid var(--cobre); position: sticky; top: 0; z-index: 100;
+  .topbar {
+    background: var(--verde-oscuro); color: #fff; padding: 10px 18px;
+    border-bottom: 3px solid var(--cobre); display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100;
   }
-  .m-brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 17px; font-weight: 700; }
-  .m-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; }
-  .m-links { display: flex; gap: 8px; align-items: center; }
-  .m-btn-top {
-    background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(201,130,70,0.6);
-    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
-    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  .brand { display: flex; align-items: center; gap: 10px; font-family: 'Lora', serif; font-size: 18px; font-weight: 700; }
+  .brand-badge { background: var(--cobre); color: #fff; font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 12px; }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .nav-btn {
+    background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(201,130,70,0.55);
+    padding: 6px 11px; border-radius: 8px; font-size: 11.5px; font-weight: 800;
+    text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
   }
-  .m-btn-top:hover { background: var(--cobre); }
+  .nav-btn:hover { background: var(--cobre); border-color: var(--dorado); }
+  .nav-btn.salir { background: #dc2626; border-color: #ef4444; }
 
-  /* PESTAÑAS PRINCIPALES */
   .tabs-bar {
-    background: #fff; padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto;
-    border-bottom: 1px solid var(--gris-borde); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    background: var(--verde); padding: 8px 16px; display: flex; gap: 6px;
+    overflow-x: auto; border-bottom: 2px solid var(--cobre);
   }
-  .tab-pill {
-    padding: 9px 18px; border-radius: 25px; border: 1.5px solid var(--gris-borde);
-    background: var(--hueso); color: var(--verde-morisco); font-weight: 800; font-size: 12.5px;
-    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px;
+  .tab-btn {
+    background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,0.4);
+    padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 800;
+    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
   }
-  .tab-pill.activo { background: var(--verde-morisco); color: #fff; border-color: var(--cobre); }
-  .tab-count { background: #ef4444; color: #fff; font-size: 10.5px; padding: 1px 7px; border-radius: 12px; }
+  .tab-btn.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
+  .badge-cnt { background: #ef4444; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; }
 
-  .main-container { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 16px; }
-  .panel-card {
-    background: #fff; border-radius: 16px; border: 1.5px solid var(--gris-borde);
-    padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  }
-  .panel-title {
-    margin: 0 0 12px 0; color: var(--verde-morisco); font-family: 'Lora', serif;
-    font-size: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
-  }
+  .container { max-width: 1320px; margin: 0 auto; padding: 18px 16px 50px; }
+  .panel-sec { display: none; }
+  .panel-sec.activo { display: block; }
 
-  .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .m-input, .m-select {
-    height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1;
-    padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff;
-  }
-  .m-btn {
-    height: 38px; padding: 0 16px; border-radius: 8px; border: none;
-    background: var(--verde-morisco); color: #fff; font-weight: 800; font-size: 12.5px;
-    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  }
-  .m-btn:hover { opacity: 0.92; }
-  .m-btn.cobre { background: var(--cobre); }
-  .m-btn.verde { background: #16a34a; }
-  .m-btn.rojo { background: #dc2626; }
-  .m-btn.gris { background: #e2e8f0; color: #334155; }
-  .m-btn.sm { height: 30px; padding: 0 10px; font-size: 11px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border-radius: 14px; border: 1.5px solid var(--borde); border-top: 4px solid var(--verde); padding: 12px 16px; }
+  .kpi-card.cobre { border-top-color: var(--cobre); }
+  .kpi-card.rojo { border-top-color: #dc2626; }
+  .kpi-title { font-size: 10.5px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+  .kpi-val { font-size: 24px; font-weight: 800; color: var(--verde-oscuro); margin-top: 2px; }
 
-  /* FILTROS DE CATEGORÍA */
-  .cat-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-  .cat-chip {
-    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--gris-borde);
-    background: var(--hueso); color: var(--verde-morisco); font-size: 11.5px; font-weight: 800; cursor: pointer;
+  .card { background: #fff; border-radius: 14px; border: 1.5px solid var(--borde); padding: 16px; margin-bottom: 16px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .card-head h3 { margin: 0; font-family: 'Lora', serif; color: var(--verde); font-size: 17px; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .inp { height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff; width: 100%; }
+  .inp-sm { height: 30px; width: 72px; text-align: center; border-radius: 6px; border: 1.5px solid #cbd5e1; font-weight: 800; font-size: 12.5px; }
+
+  .btn {
+    height: 38px; padding: 0 14px; border-radius: 8px; border: none;
+    background: var(--verde); color: #fff; font-weight: 800; font-size: 12.5px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;
   }
-  .cat-chip.activo { background: var(--cobre); color: #fff; border-color: var(--cobre); }
+  .btn.cobre { background: var(--cobre); }
+  .btn.wa { background: #16a34a; }
+  .btn.rojo { background: #dc2626; }
+  .btn.gris { background: #e2e8f0; color: #334155; }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 11px; }
 
-  /* TABLAS */
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; font-weight: 700; }
-  th { background: #f1f5f9; color: var(--verde-morisco); padding: 9px 10px; text-align: left; font-size: 11.5px; text-transform: uppercase; border-bottom: 2px solid var(--gris-borde); }
-  td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-
-  .badge-est { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; display: inline-block; }
-  .est-pendiente { background: #fef08a; color: #854d0e; }
-  .est-entregado { background: #dcfce7; color: #166534; }
-  .est-no { background: #fee2e2; color: #991b1b; }
-  .est-alta { background: #dc2626; color: #fff; }
-  .est-media { background: #f59e0b; color: #fff; }
-
-  .toast-alm {
-    position: fixed; bottom: 18px; right: 18px; background: var(--verde-morisco); color: #fff;
-    border: 2px solid var(--dorado); padding: 10px 18px; border-radius: 12px;
-    font-weight: 800; font-size: 13px; display: none; z-index: 999; box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  .filter-pill {
+    height: 34px; padding: 0 12px; border-radius: 18px; border: 1.5px solid #cbd5e1;
+    background: #fff; color: #334155; font-size: 11.5px; font-weight: 800; cursor: pointer;
   }
+  .filter-pill.activo { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .filter-pill.alerta.activo { background: #dc2626; border-color: #dc2626; }
 
-  @media print {
-    .m-topbar, .tabs-bar, .no-print { display: none !important; }
-    .panel-card { border: none; box-shadow: none; padding: 0; }
-  }
+  .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-weight: 700; }
+  th { background: var(--verde); color: #fff; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  tr:hover td { background: #f8fafc; }
+
+  .pill { padding: 2px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 800; display: inline-block; white-space: nowrap; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.warn { background: #fef9c3; color: #854d0e; }
+  .pill.err { background: #fee2e2; color: #b91c1c; }
+  .pill.info { background: #e0f2fe; color: #075985; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .toast { position: fixed; bottom: 18px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
 </style>
 </head>
 <body>
 
-  <div class="m-topbar">
-    <div class="m-brand">
-      <span class="m-badge">ALMACÉN PRO</span>
-      <span>Bodega Inteligente • Quiosco Morisco ({{ current_user.username|upper }})</span>
-    </div>
-    <div class="m-links">
-      <a href="/pos" class="m-btn-top"><i class="fa-solid fa-cash-register"></i> Ir a Caja POS</a>
-      <a href="/mesero_dashboard" class="m-btn-top"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
-      <a href="/admin_dashboard" class="m-btn-top"><i class="fa-solid fa-gear"></i> Admin</a>
-    </div>
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-badge">BODEGA CENTRAL</span>
+    <span>Comensal Conectado • {{ current_user.username|upper }}</span>
+  </div>
+  <div class="nav-links">
+    {% if current_user.role == 'admin' %}
+    <a href="/industrial" class="nav-btn"><i class="fa-solid fa-industry"></i> Panel Industrial</a>
+    <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> POS</a>
+    <a href="/pedidos_sucursal" class="nav-btn"><i class="fa-solid fa-store"></i> Vista Sucursal</a>
+    <a href="/admin_dashboard" class="nav-btn"><i class="fa-solid fa-gear"></i> Admin</a>
+    {% endif %}
+    <a href="/logout" class="nav-btn salir"><i class="fa-solid fa-door-open"></i> Salir</a>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <button type="button" class="tab-btn activo" onclick="cambiarTab('pedidos', this)"><i class="fa-solid fa-truck-fast"></i> 1. Pedidos de Hoy <span class="badge-cnt" id="cntPendientesTab">0</span></button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('stock', this)"><i class="fa-solid fa-boxes-stacked"></i> 2. Stock Bodega Central</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('movimientos', this)"><i class="fa-solid fa-arrows-rotate"></i> 3. Entradas y Salidas</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('compras', this)"><i class="fa-solid fa-cart-shopping"></i> 4. Compras Sugeridas y Proveedores</button>
+</div>
+
+<div class="container">
+
+  <div class="kpi-grid">
+    <div class="kpi-card cobre"><div class="kpi-title">Pendientes por Despachar</div><div class="kpi-val" id="kpiPendientes">0</div></div>
+    <div class="kpi-card"><div class="kpi-title">Entregados Hoy</div><div class="kpi-val" id="kpiEntregados">0</div></div>
+    <div class="kpi-card rojo"><div class="kpi-title">Insumos con Stock Bajo</div><div class="kpi-val" id="kpiStockBajo">0</div></div>
+    <div class="kpi-card"><div class="kpi-title">Saldo Proveedores</div><div class="kpi-val" id="kpiSaldoProv">$0.00</div></div>
   </div>
 
-  <div class="tabs-bar">
-    <button type="button" class="tab-pill activo" id="btnTab_bodega" onclick="cambiarTabAlm('bodega')">
-      <i class="fa-solid fa-clipboard-list"></i> 1. Pedidos a Bodega y Recepción Caja
-    </button>
-    <button type="button" class="tab-pill" id="btnTab_compras" onclick="cambiarTabAlm('compras')">
-      <i class="fa-solid fa-cart-shopping"></i> 2. Recomendación de Compras
-      <span class="tab-count" id="cntRecomendaciones">0</span>
-    </button>
-    <button type="button" class="tab-pill" id="btnTab_inventario" onclick="cambiarTabAlm('inventario')">
-      <i class="fa-solid fa-boxes-stacked"></i> 3. Inventario, Compras y Mermas
-    </button>
-    <button type="button" class="tab-pill" id="btnTab_proveedores" onclick="cambiarTabAlm('proveedores')">
-      <i class="fa-solid fa-truck"></i> 4. Proveedores y Pagos
-    </button>
-  </div>
+  <!-- TAB 1: PEDIDOS DE SUCURSALES -->
+  <section id="sec_pedidos" class="panel-sec activo">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-clipboard-check" style="color:var(--cobre);"></i> Despacho de Pedidos del Día</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn sm gris" onclick="cargarDatosAlmacen()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+          <button type="button" class="btn sm cobre" onclick="abrirHojaRuta()"><i class="fa-solid fa-print"></i> Hoja de Ruta</button>
+          <button type="button" class="btn sm wa" onclick="despacharTodosPendientes()"><i class="fa-solid fa-check-double"></i> Entregar Pendientes</button>
+        </div>
+      </div>
 
-  <div class="main-container">
+      <div class="toolbar">
+        <select id="filtroSucPedido" class="inp" style="width:240px;" onchange="renderPedidos()">
+          <option value="TODAS">📍 Todas las Sucursales</option>
+          <option value="Quiosco Morisco (Matriz)">Quiosco Morisco (Matriz)</option>
+          <option value="Caminante 1">Caminante 1</option>
+          <option value="Caminante 2">Caminante 2</option>
+          <option value="Caminante 3">Caminante 3</option>
+        </select>
+        <select id="filtroEstPedido" class="inp" style="width:190px;" onchange="renderPedidos()">
+          <option value="TODOS">Todos los Estados</option>
+          <option value="PENDIENTE">🟡 Pendientes</option>
+          <option value="ENTREGADO">🟢 Entregados</option>
+          <option value="NO_ENTREGADO">🔴 Agotados / No Entregados</option>
+        </select>
+      </div>
 
-    <!-- ===================================================================
-         TAB 1: PEDIDOS DE QUIOSCO A BODEGA (POR CATEGORÍAS + CONFIRMACIÓN CAJA)
-         =================================================================== -->
-    <div id="tab_bodega">
-      <div class="panel-card no-print">
-        <h3 class="panel-title">
-          <span><i class="fa-solid fa-paper-plane" style="color:var(--cobre);"></i> Solicitar Insumo a Bodega (Barra / Cocina)</span>
-        </h3>
-        <div class="form-row">
-          <select id="reqArea" class="m-select" style="width:130px;">
-            <option value="BARRA">☕ BARRA</option>
-            <option value="COCINA">🍳 COCINA</option>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th><th>Sucursal</th><th>Área</th><th>Insumo</th><th>Pedido</th>
+              <th>Stock Central</th><th>A Entregar</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPedidos"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: STOCK BODEGA CENTRAL -->
+  <section id="sec_stock" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-warehouse" style="color:var(--cobre);"></i> Inventario en Bodega Central</h3>
+        {% if current_user.role == 'admin' %}
+        <a href="/admin/cargar_listas_reales" class="btn sm gris" onclick="return confirm('¿Cargar insumos faltantes de las listas oficiales de Barra y Cocina?')"><i class="fa-solid fa-list-check"></i> Sincronizar Listas Reales</a>
+        {% endif %}
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="buscadorStock" class="inp" style="flex:1;min-width:220px;" placeholder="🔍 Buscar insumo o categoría..." oninput="renderStock()">
+        <button type="button" class="filter-pill activo" data-flt="TODOS" onclick="setFiltroStock('TODOS', this)">TODOS</button>
+        <button type="button" class="filter-pill" data-flt="BARRA" onclick="setFiltroStock('BARRA', this)">☕ BARRA</button>
+        <button type="button" class="filter-pill" data-flt="COCINA" onclick="setFiltroStock('COCINA', this)">🍳 COCINA</button>
+        <button type="button" class="filter-pill alerta" data-flt="BAJO" onclick="setFiltroStock('BAJO', this)">⚠️ STOCK BAJO</button>
+      </div>
+
+      <div style="background:var(--hueso);border:1px solid var(--borde);border-radius:10px;padding:10px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;color:var(--verde);margin-bottom:6px;">+ AGREGAR NUEVO INSUMO AL CATÁLOGO</div>
+        <div class="form-row" style="margin-bottom:0;">
+          <input type="text" id="ins_nombre" class="inp" placeholder="Nombre del insumo...">
+          <select id="ins_categoria" class="inp">
+            <option value="BARRA | Insumos">BARRA | Insumos</option>
+            <option value="BARRA | Frutas y verduras">BARRA | Frutas y verduras</option>
+            <option value="BARRA | Refrescos y leche">BARRA | Refrescos y leche</option>
+            <option value="BARRA | Desechables">BARRA | Desechables</option>
+            <option value="BARRA | Postres">BARRA | Postres</option>
+            <option value="BARRA | Otros">BARRA | Otros</option>
+            <option value="COCINA | Frutas y verduras">COCINA | Frutas y verduras</option>
+            <option value="COCINA | Aderezos y más">COCINA | Aderezos y más</option>
+            <option value="COCINA | Embutidos y más">COCINA | Embutidos y más</option>
+            <option value="COCINA | Preparados">COCINA | Preparados</option>
+            <option value="COCINA | Desechables">COCINA | Desechables</option>
+            <option value="COCINA | Otros">COCINA | Otros</option>
           </select>
-          <select id="reqInsumoId" class="m-select" style="flex:2;min-width:220px;"></select>
-          <input type="number" step="0.5" id="reqCantidad" value="1" min="0.5" class="m-input" style="width:95px;" placeholder="Cant.">
-          <input type="text" id="reqNota" class="m-input" style="flex:1;min-width:160px;" placeholder="Nota (opcional)...">
-          <button type="button" class="m-btn" onclick="enviarPedidoBodega()"><i class="fa-solid fa-plus"></i> Pedir a Bodega</button>
+          <input type="text" id="ins_unidad" class="inp" placeholder="Unidad (kg/lt/pz)" value="pz">
+          <input type="number" step="0.1" id="ins_stock" class="inp" placeholder="Stock inicial" value="0">
+          <input type="number" step="0.1" id="ins_minimo" class="inp" placeholder="Stock mínimo" value="2">
+          <button type="button" class="btn" onclick="crearInsumo()">+ Crear Insumo</button>
         </div>
       </div>
 
-      <div class="panel-card">
-        <h3 class="panel-title">
-          <span><i class="fa-solid fa-warehouse" style="color:var(--cobre);"></i> Lista de Entregas (Bodega ➔ Caja)</span>
-          <div class="no-print" style="display:flex;gap:8px;">
-            <button type="button" class="m-btn verde sm" onclick="marcarTodoEntregadoBodega()">
-              <i class="fa-solid fa-check-double"></i> Marcar Todo Entregado
-            </button>
-            <button type="button" class="m-btn gris sm" onclick="cargarDatosAlmacen()">
-              <i class="fa-solid fa-rotate"></i> Actualizar
-            </button>
-          </div>
-        </h3>
-
-        <div class="cat-chips no-print" id="chipsCatBodega"></div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Hora</th>
-                <th>Área</th>
-                <th>Categoría</th>
-                <th>Insumo</th>
-                <th>Cant.</th>
-                <th>Estado Bodega</th>
-                <th>Confirmación Caja</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyRequerimientos"></tbody>
-          </table>
-        </div>
+      <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
+        <table>
+          <thead>
+            <tr><th>Insumo</th><th>Categoría</th><th>Stock Central</th><th>Mínimo</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="tbodyStock"></tbody>
+        </table>
       </div>
     </div>
+  </section>
 
-    <!-- ===================================================================
-         TAB 2: RECOMENDACIÓN AUTOMÁTICA DE COMPRAS
-         =================================================================== -->
-    <div id="tab_compras" style="display:none;">
-      <div class="panel-card">
-        <h3 class="panel-title">
-          <span><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--cobre);"></i> Lista Inteligente de Compras Recomendadas</span>
-          <button type="button" class="m-btn cobre sm no-print" onclick="window.print()">
-            <i class="fa-solid fa-print"></i> Imprimir Lista de Compras
-          </button>
-        </h3>
-        <p style="margin:0 0 12px 0;font-size:12.5px;color:#64748b;font-weight:600;">
-          El sistema detecta automáticamente qué insumos marcó Bodega como <b>NO ENTREGADO</b> o cuáles están por debajo de su stock mínimo.
-        </p>
-        <div class="table-wrap">
+  <!-- TAB 3: MOVIMIENTOS (ENTRADAS Y SALIDAS) -->
+  <section id="sec_movimientos" class="panel-sec">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-boxes-packing" style="color:var(--cobre);"></i> Registrar Entrada de Compra / Merma / Traspaso</h3></div>
+      <div class="form-row">
+        <select id="mov_insumo" class="inp"></select>
+        <select id="mov_tipo" class="inp">
+          <option value="ENTRADA_COMPRA">➕ ENTRADA POR COMPRA</option>
+          <option value="SALIDA_MERMA">➖ SALIDA / MERMA BODEGA</option>
+          <option value="TRASPASO">📦 TRASPASO MANUAL</option>
+        </select>
+        <input type="number" step="0.1" id="mov_cant" class="inp" placeholder="Cantidad">
+        <input type="number" step="0.5" id="mov_costo" class="inp" placeholder="Costo total ($)" value="0">
+        <input type="text" id="mov_prov" class="inp" placeholder="Proveedor...">
+        <input type="text" id="mov_nota" class="inp" placeholder="Nota o factura...">
+        <button type="button" class="btn wa" onclick="registrarMovimiento()">✅ Guardar Movimiento</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Insumo</th><th>Cantidad</th><th>Costo</th><th>Proveedor</th><th>Usuario</th><th>Nota</th></tr></thead>
+          <tbody id="tbodyMovimientos"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: COMPRAS SUGERIDAS Y PROVEEDORES -->
+  <section id="sec_compras" class="panel-sec">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3><i class="fa-solid fa-list-ul" style="color:#dc2626;"></i> Lista de Compras Sugerida</h3>
+          <button type="button" class="btn sm wa" onclick="enviarComprasWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Enviar Lista por WhatsApp</button>
+        </div>
+        <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
           <table>
-            <thead>
-              <tr>
-                <th>Urgencia</th>
-                <th>Categoría</th>
-                <th>Insumo a Comprar</th>
-                <th>Motivo Detectado</th>
-                <th>Cantidad Sugerida</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Insumo</th><th>Motivo</th><th>Sugerido</th><th>Urgencia</th></tr></thead>
             <tbody id="tbodyRecomendaciones"></tbody>
           </table>
         </div>
       </div>
-    </div>
 
-    <!-- ===================================================================
-         TAB 3: INVENTARIO, ENTRADAS (COMPRAS) Y MERMAS
-         =================================================================== -->
-    <div id="tab_inventario" style="display:none;">
-      <div class="panel-card no-print">
-        <h3 class="panel-title"><span>➕ Registrar Nuevo Insumo en Catálogo</span></h3>
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-truck" style="color:var(--cobre);"></i> Proveedores y Saldos</h3></div>
         <div class="form-row">
-          <input type="text" id="newInsNom" class="m-input" style="flex:2;min-width:180px;" placeholder="Nombre (Ej. Leche Deslactosada)">
-          <input type="text" id="newInsCat" class="m-input" style="width:160px;" placeholder="Categoría (Ej. LÁCTEOS)">
-          <input type="text" id="newInsUni" class="m-input" style="width:85px;" value="PZA" placeholder="Unidad">
-          <input type="number" step="0.5" id="newInsStock" class="m-input" style="width:100px;" placeholder="Stock ini">
-          <input type="number" step="0.5" id="newInsMin" class="m-input" style="width:100px;" value="5" placeholder="Mínimo">
-          <input type="number" step="0.5" id="newInsCosto" class="m-input" style="width:100px;" placeholder="Costo $">
-          <button type="button" class="m-btn" onclick="crearInsumoNuevo()">+ Guardar</button>
+          <input type="text" id="prov_nombre" class="inp" placeholder="Nombre proveedor...">
+          <input type="text" id="prov_tel" class="inp" placeholder="Teléfono...">
+          <input type="text" id="prov_cat" class="inp" placeholder="Giro (Lácteos, Fruta...)">
+          <input type="number" step="0.5" id="prov_saldo" class="inp" placeholder="Saldo inicial ($)" value="0">
+          <button type="button" class="btn" onclick="crearProveedor()">+ Agregar</button>
         </div>
-      </div>
-
-      <div class="panel-card no-print">
-        <h3 class="panel-title"><span>🔄 Registrar Compra (Entrada) o Merma (Salida)</span></h3>
-        <div class="form-row">
-          <select id="movTipo" class="m-select" style="width:185px;">
-            <option value="ENTRADA_COMPRA">➕ ENTRADA (Compra)</option>
-            <option value="SALIDA_MERMA">➖ SALIDA (Merma / Daño)</option>
-            <option value="TRASPASO">🔁 TRASPASO</option>
-          </select>
-          <select id="movInsumoId" class="m-select" style="flex:2;min-width:200px;"></select>
-          <input type="number" step="0.5" id="movCant" class="m-input" style="width:95px;" placeholder="Cant.">
-          <input type="number" step="0.5" id="movCosto" class="m-input" style="width:105px;" placeholder="Costo tot $">
-          <input type="text" id="movNota" class="m-input" style="flex:1;min-width:140px;" placeholder="Proveedor o motivo...">
-          <button type="button" class="m-btn cobre" onclick="registrarMovimientoInv()">Registrar</button>
-        </div>
-      </div>
-
-      <div class="panel-card">
-        <h3 class="panel-title">
-          <span>📦 Existencias Actuales en Bodega</span>
-          <input type="text" id="buscadorInv" class="m-input no-print" style="width:240px;" placeholder="🔍 Buscar insumo..." oninput="renderizarInventario()">
-        </h3>
-        <div class="table-wrap">
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
           <table>
-            <thead>
-              <tr><th>Categoría</th><th>Insumo</th><th>Stock Actual</th><th>Mínimo</th><th>Costo U.</th><th>Estado</th></tr>
-            </thead>
-            <tbody id="tbodyInventario"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===================================================================
-         TAB 4: PROVEEDORES Y PAGOS
-         =================================================================== -->
-    <div id="tab_proveedores" style="display:none;">
-      <div class="panel-card no-print">
-        <h3 class="panel-title"><span>🚚 Nuevo Proveedor</span></h3>
-        <div class="form-row">
-          <input type="text" id="provNom" class="m-input" style="flex:2;min-width:180px;" placeholder="Nombre del Proveedor">
-          <input type="text" id="provTel" class="m-input" style="width:150px;" placeholder="Teléfono / WhatsApp">
-          <input type="text" id="provCat" class="m-input" style="width:160px;" placeholder="Rubro (Ej. Lácteos)">
-          <input type="number" step="0.5" id="provSaldo" class="m-input" style="width:130px;" value="0" placeholder="Saldo por pagar $">
-          <button type="button" class="m-btn" onclick="crearProveedor()">+ Agregar</button>
-        </div>
-      </div>
-
-      <div class="panel-card">
-        <h3 class="panel-title"><span>💳 Cuentas por Pagar a Proveedores</span></h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Proveedor</th><th>Teléfono</th><th>Categoría</th><th>Saldo Pendiente</th><th>Acción</th></tr>
-            </thead>
+            <thead><tr><th>Proveedor</th><th>Teléfono</th><th>Categoría</th><th>Saldo</th><th>Abonar</th></tr></thead>
             <tbody id="tbodyProveedores"></tbody>
           </table>
         </div>
       </div>
     </div>
+  </section>
 
-  </div>
+</div>
 
-  <div class="toast-alm" id="toastAlm"></div>
+<div class="toast" id="toastAlm"></div>
 
 <script>
-  let datosAlmacen = { insumos: [], requerimientos: [], movimientos: [], proveedores: [], recomendaciones: [] };
-  let catBodegaActiva = 'TODAS';
+  const $ = id => document.getElementById(id);
+  let cacheInsumos = [], cacheReqs = [], cacheMovs = [], cacheProvs = [], cacheRecs = [];
+  let filtroStockActual = 'TODOS';
 
-  function toast(msg) {
-    const el = document.getElementById('toastAlm');
-    el.innerText = msg;
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 2800);
-  }
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function toast(msg) { const t = $('toastAlm'); t.innerText = msg; t.style.display = 'block'; setTimeout(() => { if (t.innerText === msg) t.style.display = 'none'; }, 2800); }
 
-  function cambiarTabAlm(tab) {
-    ['bodega', 'compras', 'inventario', 'proveedores'].forEach(t => {
-      document.getElementById('tab_' + t).style.display = (t === tab) ? 'block' : 'none';
-      document.getElementById('btnTab_' + t).classList.toggle('activo', t === tab);
-    });
+  function cambiarTab(tab, btn) {
+    document.querySelectorAll('.panel-sec').forEach(s => s.classList.remove('activo'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    $('sec_' + tab)?.classList.add('activo');
+    btn?.classList.add('activo');
   }
 
   async function cargarDatosAlmacen() {
     try {
-      const res = await fetch('/api/almacen/datos');
-      const d = await res.json();
+      const d = await (await fetch('/api/almacen/datos')).json();
       if (!d.ok) return;
-      datosAlmacen = d;
+      cacheInsumos = d.insumos || [];
+      cacheReqs = d.requerimientos || [];
+      cacheMovs = d.movimientos || [];
+      cacheProvs = d.proveedores || [];
+      cacheRecs = d.recomendaciones || [];
 
-      document.getElementById('cntRecomendaciones').innerText = d.recomendaciones.length;
+      const pend = cacheReqs.filter(r => r.estado_bodega === 'PENDIENTE').length;
+      const entr = cacheReqs.filter(r => r.estado_bodega === 'ENTREGADO').length;
+      const bajos = cacheInsumos.filter(i => !i.nombre.includes('EXTRA / FUERA DE LISTA') && i.stock_actual <= i.stock_minimo).length;
+      const saldoProv = cacheProvs.reduce((acc, p) => acc + (p.saldo_pendiente || 0), 0);
 
-      // Llenar selects de insumos
-      const opts = d.insumos.map(i => `<option value="${i.id}">[${i.categoria}] ${i.nombre} (Stock: ${i.stock_actual} ${i.unidad})</option>`).join('');
-      document.getElementById('reqInsumoId').innerHTML = opts;
-      document.getElementById('movInsumoId').innerHTML = opts;
+      $('cntPendientesTab').innerText = pend;
+      $('kpiPendientes').innerText = pend;
+      $('kpiEntregados').innerText = entr;
+      $('kpiStockBajo').innerText = bajos;
+      $('kpiSaldoProv').innerText = `$${saldoProv.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
 
-      renderizarChipsBodega();
-      renderizarRequerimientos();
-      renderizarRecomendaciones();
-      renderizarInventario();
-      renderizarProveedores();
-    } catch(e) {}
+      const insReales = cacheInsumos.filter(i => !i.nombre.includes('EXTRA / FUERA DE LISTA'));
+      const valSel = $('mov_insumo').value;
+      $('mov_insumo').innerHTML = insReales.map(i => `<option value="${i.id}">${esc(i.nombre)} (Stock: ${i.stock_actual} ${esc(i.unidad)}) • ${esc(i.categoria)}</option>`).join('');
+      if (valSel) $('mov_insumo').value = valSel;
+
+      renderPedidos();
+      renderStock();
+      renderMovimientos();
+      renderComprasYProveedores();
+    } catch {}
   }
 
-  function renderizarChipsBodega() {
-    const cats = ['TODAS', ...new Set(datosAlmacen.requerimientos.map(r => r.categoria))];
-    document.getElementById('chipsCatBodega').innerHTML = cats.map(c =>
-      `<button type="button" class="cat-chip ${c === catBodegaActiva ? 'activo' : ''}" onclick="catBodegaActiva='${c}'; renderizarChipsBodega(); renderizarRequerimientos();">${c}</button>`
-    ).join('');
+  function renderPedidos() {
+    const suc = $('filtroSucPedido').value;
+    const est = $('filtroEstPedido').value;
+    const mapaStock = {};
+    cacheInsumos.forEach(i => { mapaStock[i.id] = i.stock_actual; });
+
+    const filtrados = cacheReqs.filter(r =>
+      (suc === 'TODAS' || r.sucursal === suc) &&
+      (est === 'TODOS' || r.estado_bodega === est)
+    );
+
+    $('tbodyPedidos').innerHTML = filtrados.map(r => {
+      const esExtra = (r.insumo_nombre || '').includes('EXTRA / FUERA DE LISTA');
+      const stockAct = (!esExtra && r.insumo_id && mapaStock[r.insumo_id] !== undefined) ? mapaStock[r.insumo_id] : null;
+      const sinStock = stockAct !== null && stockAct < r.cantidad && r.estado_bodega === 'PENDIENTE';
+      const pillEst = r.confirmado_caja
+        ? '<span class="pill ok">✅ Recibido</span>'
+        : (r.estado_bodega === 'ENTREGADO'
+            ? '<span class="pill info">🚚 Entregado</span>'
+            : (r.estado_bodega === 'NO_ENTREGADO'
+                ? '<span class="pill err">❌ Agotado</span>'
+                : '<span class="pill warn">🟡 Pendiente</span>'));
+
+      const cantInput = r.estado_bodega === 'PENDIENTE'
+        ? `<input type="number" step="0.1" id="ent_cant_${r.id}" class="inp-sm" value="${r.cantidad}">`
+        : `<b>${r.cantidad_entregada} ${esc(r.unidad)}</b>`;
+
+      let acciones = '';
+      if (r.confirmado_caja) {
+        acciones = '<small style="color:#16a34a;">Confirmado en tienda</small>';
+      } else if (r.estado_bodega === 'PENDIENTE') {
+        acciones = `<div style="display:flex;gap:4px;">
+          <button type="button" class="btn sm wa" onclick="cambiarEstadoPedido(${r.id}, 'ENTREGADO')">✓ Entregar</button>
+          <button type="button" class="btn sm rojo" onclick="cambiarEstadoPedido(${r.id}, 'NO_ENTREGADO')">✕ Agotado</button>
+        </div>`;
+      } else {
+        acciones = `<button type="button" class="btn sm gris" onclick="cambiarEstadoPedido(${r.id}, 'PENDIENTE')">↺ Devolver a Pendiente</button>`;
+      }
+
+      return `<tr>
+        <td>${esc(r.fecha)}</td>
+        <td><b>${esc(r.sucursal)}</b></td>
+        <td><span class="pill ${r.area === 'BARRA' ? 'info' : 'warn'}">${esc(r.area)}</span></td>
+        <td><b>${esc(r.insumo_nombre)}</b>${r.nota ? `<br><small style="color:var(--cobre);">Nota: ${esc(r.nota)}</small>` : ''}</td>
+        <td>${r.cantidad} ${esc(r.unidad)}</td>
+        <td style="color:${sinStock ? '#dc2626' : '#13423b'};">${stockAct !== null ? stockAct + ' ' + esc(r.unidad) : 'Libre'}</td>
+        <td>${cantInput}</td>
+        <td>${pillEst}</td>
+        <td>${acciones}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:#64748b;">No hay pedidos con este filtro hoy.</td></tr>';
   }
 
-  function renderizarRequerimientos() {
-    const lista = datosAlmacen.requerimientos.filter(r => catBodegaActiva === 'TODAS' || r.categoria === catBodegaActiva);
-    const tb = document.getElementById('tbodyRequerimientos');
-    if (!lista.length) {
-      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:24px;">No hay pedidos registrados en esta categoría.</td></tr>';
-      return;
+  async function cambiarEstadoPedido(id, estado) {
+    const inp = $('ent_cant_' + id);
+    const payload = { id, estado };
+    if (estado === 'ENTREGADO' && inp) payload.cantidad_entregada = parseFloat(inp.value || 0);
+    const res = await fetch('/api/almacen/estado_bodega', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (!d.ok) return alert('⚠️ ' + (d.msg || 'No se pudo actualizar.'));
+    toast(d.devuelto ? '↺ Stock devuelto a Bodega Central' : `✓ Pedido marcado como ${estado}`);
+    cargarDatosAlmacen();
+  }
+
+  async function despacharTodosPendientes() {
+    const suc = $('filtroSucPedido').value;
+    if (!confirm(`¿Marcar como ENTREGADOS todos los pendientes de "${suc}" que tengan stock suficiente?`)) return;
+    const res = await fetch('/api/almacen/estado_bodega', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ todos_entregados: true, sucursal: suc })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      let msg = `✅ Entregados: ${d.entregados}`;
+      if (d.sin_stock && d.sin_stock.length) {
+        alert(`${msg}\n\n⚠️ Omitidos por falta de stock:\n- ${d.sin_stock.join('\n- ')}`);
+      } else {
+        toast(msg);
+      }
+      cargarDatosAlmacen();
     }
-
-    tb.innerHTML = lista.map(r => {
-      let badgeBodega = '<span class="badge-est est-pendiente">⏳ PENDIENTE</span>';
-      if (r.estado_bodega === 'ENTREGADO') badgeBodega = '<span class="badge-est est-entregado">✅ ENTREGADO</span>';
-      else if (r.estado_bodega === 'NO_ENTREGADO') badgeBodega = '<span class="badge-est est-no">❌ NO ENTREGADO</span>';
-
-      const cajaHtml = r.confirmado_caja
-        ? '<span class="badge-est est-entregado">📦 RECIBIDO EN CAJA</span>'
-        : `<button type="button" class="m-btn verde sm" onclick="confirmarCaja(${r.id}, true)">✓ Recibido</button>
-           <button type="button" class="m-btn rojo sm" onclick="confirmarCaja(${r.id}, false)">✕ No llegó</button>`;
-
-      return `
-        <tr>
-          <td>${r.fecha}</td>
-          <td>${r.area}</td>
-          <td><small style="color:#64748b;">${r.categoria}</small></td>
-          <td>${r.insumo_nombre}${r.nota ? '<br><small style="color:var(--cobre);">' + r.nota + '</small>' : ''}</td>
-          <td>${r.cantidad} ${r.unidad}</td>
-          <td>
-            <div style="margin-bottom:4px;">${badgeBodega}</div>
-            <div class="no-print" style="display:flex;gap:4px;">
-              <button type="button" class="m-btn verde sm" onclick="cambiarEstadoBodega(${r.id}, 'ENTREGADO')">✓</button>
-              <button type="button" class="m-btn gris sm" onclick="cambiarEstadoBodega(${r.id}, 'PENDIENTE')">⏳</button>
-              <button type="button" class="m-btn rojo sm" onclick="cambiarEstadoBodega(${r.id}, 'NO_ENTREGADO')">✕</button>
-            </div>
-          </td>
-          <td>${cajaHtml}</td>
-        </tr>`;
-    }).join('');
   }
 
-  function renderizarRecomendaciones() {
-    const tb = document.getElementById('tbodyRecomendaciones');
-    if (!datosAlmacen.recomendaciones.length) {
-      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#16a34a;padding:24px;">✅ Todo tu inventario está surtido. No hay compras urgentes.</td></tr>';
-      return;
-    }
-    tb.innerHTML = datosAlmacen.recomendaciones.map(r => `
-      <tr>
-        <td><span class="badge-est ${r.urgencia === 'ALTA' ? 'est-alta' : 'est-media'}">${r.urgencia}</span></td>
-        <td>${r.categoria}</td>
-        <td>${r.nombre}</td>
-        <td style="color:#475569;">${r.motivo}</td>
-        <td style="color:var(--verde-morisco);font-size:14px;">Comprar ${r.sugerido} ${r.unidad}</td>
-      </tr>`).join('');
+  function abrirHojaRuta() {
+    const suc = $('filtroSucPedido').value;
+    window.open('/almacen/hoja_ruta_descarga?sucursal=' + encodeURIComponent(suc), '_blank');
   }
 
-  function renderizarInventario() {
-    const q = (document.getElementById('buscadorInv')?.value || '').toLowerCase();
-    const lista = datosAlmacen.insumos.filter(i => i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q));
-    document.getElementById('tbodyInventario').innerHTML = lista.map(i => {
+  function setFiltroStock(flt, btn) {
+    filtroStockActual = flt;
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('activo'));
+    btn?.classList.add('activo');
+    renderStock();
+  }
+
+  function renderStock() {
+    const q = ($('buscadorStock').value || '').toLowerCase().trim();
+    const lista = cacheInsumos.filter(i => {
+      if ((i.nombre || '').includes('EXTRA / FUERA DE LISTA')) return false;
+      const catUp = (i.categoria || '').toUpperCase();
+      if (filtroStockActual === 'BARRA' && !catUp.startsWith('BARRA')) return false;
+      if (filtroStockActual === 'COCINA' && !catUp.startsWith('COCINA')) return false;
+      if (filtroStockActual === 'BAJO' && i.stock_actual > i.stock_minimo) return false;
+      if (q && !(i.nombre.toLowerCase().includes(q) || i.categoria.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    $('tbodyStock').innerHTML = lista.map(i => {
       const bajo = i.stock_actual <= i.stock_minimo;
-      return `
-        <tr>
-          <td><small style="color:#64748b;">${i.categoria}</small></td>
-          <td>${i.nombre}</td>
-          <td style="font-size:14px;color:${bajo ? '#dc2626' : '#166534'};">${i.stock_actual} ${i.unidad}</td>
-          <td>${i.stock_minimo} ${i.unidad}</td>
-          <td>$${i.costo_unitario.toFixed(2)}</td>
-          <td><span class="badge-est ${bajo ? 'est-no' : 'est-entregado'}">${bajo ? '⚠️ STOCK BAJO' : '✅ OK'}</span></td>
-        </tr>`;
-    }).join('');
-  }
-
-  function renderizarProveedores() {
-    const tb = document.getElementById('tbodyProveedores');
-    if (!datosAlmacen.proveedores.length) {
-      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:20px;">Aún no hay proveedores registrados.</td></tr>';
-      return;
-    }
-    tb.innerHTML = datosAlmacen.proveedores.map(p => `
-      <tr>
-        <td>${p.nombre}</td>
-        <td>${p.telefono || '-'}</td>
-        <td>${p.categoria}</td>
-        <td style="color:${p.saldo_pendiente > 0 ? '#dc2626' : '#166534'};">$${p.saldo_pendiente.toFixed(2)}</td>
-        <td>
-          ${p.saldo_pendiente > 0
-            ? `<button type="button" class="m-btn verde sm" onclick="pagarProveedor(${p.id}, ${p.saldo_pendiente})">💵 Liquidar / Abonar</button>`
-            : '<span class="badge-est est-entregado">PAGADO</span>'}
+      const agot = i.stock_actual <= 0;
+      return `<tr>
+        <td><b>${esc(i.nombre)}</b></td>
+        <td style="font-size:11.5px;color:#475569;">${esc(i.categoria)}</td>
+        <td><b style="font-size:14px;color:${agot ? '#dc2626' : (bajo ? '#b45309' : '#13423b')};">${i.stock_actual} ${esc(i.unidad)}</b></td>
+        <td>${i.stock_minimo}</td>
+        <td><span class="pill ${agot ? 'err' : (bajo ? 'warn' : 'ok')}">${agot ? 'AGOTADO' : (bajo ? 'BAJO' : 'OK')}</span></td>
+        <td style="display:flex;gap:4px;">
+          <button type="button" class="btn sm wa" onclick="irEntradaRapida(${i.id})">+ Surtir</button>
+          <button type="button" class="btn sm rojo" onclick="borrarInsumo(${i.id}, '${esc(i.nombre).replace(/'/g, '')}')">✕</button>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:18px;color:#64748b;">No se encontraron insumos.</td></tr>';
   }
 
-  async function enviarPedidoBodega() {
-    const insumo_id = document.getElementById('reqInsumoId').value;
-    const area = document.getElementById('reqArea').value;
-    const cantidad = parseFloat(document.getElementById('reqCantidad').value || 1);
-    const nota = document.getElementById('reqNota').value;
-    await fetch('/api/almacen/solicitar', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ insumo_id, area, cantidad, nota })
-    });
-    document.getElementById('reqNota').value = '';
-    toast('✓ Pedido enviado a Bodega');
-    cargarDatosAlmacen();
+  function irEntradaRapida(id) {
+    $('mov_insumo').value = String(id);
+    $('mov_tipo').value = 'ENTRADA_COMPRA';
+    const tabMov = document.querySelectorAll('.tab-btn')[2];
+    cambiarTab('movimientos', tabMov);
+    $('mov_cant').focus();
   }
 
-  async function cambiarEstadoBodega(id, estado) {
-    await fetch('/api/almacen/estado_bodega', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ id, estado })
-    });
-    toast(`Estado actualizado a ${estado}`);
-    cargarDatosAlmacen();
-  }
-
-  async function marcarTodoEntregadoBodega() {
-    await fetch('/api/almacen/estado_bodega', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ todos_entregados: true })
-    });
-    toast('✅ Todos los pendientes marcados como ENTREGADOS');
-    cargarDatosAlmacen();
-  }
-
-  async function confirmarCaja(id, recibido) {
-    await fetch('/api/almacen/confirmar_caja', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ id, recibido })
-    });
-    toast(recibido ? '📦 Recepción confirmada en Caja' : '⚠️ Marcado como NO llegó (enviado a compras)');
-    cargarDatosAlmacen();
-  }
-
-  async function crearInsumoNuevo() {
-    const nombre = document.getElementById('newInsNom').value.trim();
-    if (!nombre) return;
-    await fetch('/api/almacen/insumo', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+  async function crearInsumo() {
+    const nombre = $('ins_nombre').value.trim();
+    if (!nombre) return alert('Escribe el nombre del insumo.');
+    const res = await fetch('/api/almacen/insumo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nombre,
-        categoria: document.getElementById('newInsCat').value || 'ABARROTES',
-        unidad: document.getElementById('newInsUni').value || 'PZA',
-        stock_actual: parseFloat(document.getElementById('newInsStock').value || 0),
-        stock_minimo: parseFloat(document.getElementById('newInsMin').value || 5),
-        costo_unitario: parseFloat(document.getElementById('newInsCosto').value || 0)
+        nombre, categoria: $('ins_categoria').value, unidad: $('ins_unidad').value || 'pz',
+        stock_actual: parseFloat($('ins_stock').value || 0),
+        stock_minimo: parseFloat($('ins_minimo').value || 2)
       })
     });
-    document.getElementById('newInsNom').value = '';
-    toast('✅ Insumo agregado al catálogo');
-    cargarDatosAlmacen();
+    const d = await res.json();
+    if (d.ok) { $('ins_nombre').value = ''; toast('✓ Insumo agregado'); cargarDatosAlmacen(); }
   }
 
-  async function registrarMovimientoInv() {
-    const insumo_id = document.getElementById('movInsumoId').value;
-    const tipo = document.getElementById('movTipo').value;
-    const cantidad = parseFloat(document.getElementById('movCant').value || 0);
-    const costo_total = parseFloat(document.getElementById('movCosto').value || 0);
-    const nota = document.getElementById('movNota').value;
-    if (cantidad <= 0) return;
-    await fetch('/api/almacen/movimiento', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ insumo_id, tipo, cantidad, costo_total, proveedor: nota, nota })
+  async function borrarInsumo(id, nom) {
+    if (!confirm(`¿Eliminar "${nom}" del catálogo de Bodega Central?`)) return;
+    await fetch('/api/almacen/insumo', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    toast('Insumo eliminado'); cargarDatosAlmacen();
+  }
+
+  function renderMovimientos() {
+    $('tbodyMovimientos').innerHTML = cacheMovs.map(m => `<tr>
+      <td>${esc(m.fecha)}</td>
+      <td><span class="pill ${m.tipo === 'ENTRADA_COMPRA' ? 'ok' : 'err'}">${esc(m.tipo)}</span></td>
+      <td><b>${esc(m.insumo_nombre)}</b></td>
+      <td>${m.cantidad}</td>
+      <td>$${esc(m.costo_total)}</td>
+      <td>${esc(m.proveedor)}</td>
+      <td>${esc(m.usuario)}</td>
+      <td>${esc(m.nota)}</td>
+    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:16px;color:#64748b;">Sin movimientos recientes.</td></tr>';
+  }
+
+  async function registrarMovimiento() {
+    const insumo_id = Number($('mov_insumo').value || 0);
+    const cantidad = parseFloat($('mov_cant').value || 0);
+    if (!insumo_id || cantidad <= 0) return alert('Selecciona insumo y cantidad mayor a 0.');
+    const res = await fetch('/api/almacen/movimiento', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        insumo_id, tipo: $('mov_tipo').value, cantidad,
+        costo_total: parseFloat($('mov_costo').value || 0),
+        proveedor: $('mov_prov').value, nota: $('mov_nota').value
+      })
     });
-    document.getElementById('movCant').value = '';
-    document.getElementById('movCosto').value = '';
-    document.getElementById('movNota').value = '';
-    toast('✅ Movimiento registrado en inventario');
-    cargarDatosAlmacen();
+    const d = await res.json();
+    if (d.ok) { $('mov_cant').value = ''; $('mov_costo').value = '0'; $('mov_nota').value = ''; toast('✓ Stock actualizado'); cargarDatosAlmacen(); }
+    else alert(d.msg || 'Error');
+  }
+
+  function renderComprasYProveedores() {
+    $('tbodyRecomendaciones').innerHTML = cacheRecs.map(r => `<tr>
+      <td><b>${esc(r.nombre)}</b><br><small style="color:#64748b;">${esc(r.categoria)}</small></td>
+      <td>${esc(r.motivo)}</td>
+      <td><b>${r.sugerido} ${esc(r.unidad)}</b></td>
+      <td><span class="pill ${r.urgencia === 'ALTA' ? 'err' : 'warn'}">${esc(r.urgencia)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;padding:16px;color:#16a34a;">Todo el inventario está cubierto.</td></tr>';
+
+    $('tbodyProveedores').innerHTML = cacheProvs.map(p => `<tr>
+      <td><b>${esc(p.nombre)}</b></td>
+      <td>${esc(p.telefono || '-')}</td>
+      <td>${esc(p.categoria)}</td>
+      <td style="color:${p.saldo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(p.saldo_pendiente || 0).toFixed(2)}</td>
+      <td><button type="button" class="btn sm cobre" onclick="abonarProveedor(${p.id}, '${esc(p.nombre).replace(/'/g, '')}')">Abonar</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;">Sin proveedores registrados.</td></tr>';
+  }
+
+  function enviarComprasWhatsApp() {
+    if (!cacheRecs.length) return alert('No hay faltantes sugeridos en este momento.');
+    const lineas = ['*🛒 LISTA DE COMPRAS • BODEGA CENTRAL*', ''];
+    cacheRecs.forEach(r => {
+      lineas.push(`• ${r.nombre}: *${r.sugerido} ${r.unidad}* (${r.urgencia})`);
+    });
+    window.open('https://wa.me/?text=' + encodeURIComponent(lineas.join('\n')), '_blank');
   }
 
   async function crearProveedor() {
-    const nombre = document.getElementById('provNom').value.trim();
-    if (!nombre) return;
+    const nombre = $('prov_nombre').value.trim();
+    if (!nombre) return alert('Escribe el nombre del proveedor.');
     await fetch('/api/almacen/proveedor', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nombre,
-        telefono: document.getElementById('provTel').value,
-        categoria: document.getElementById('provCat').value || 'GENERAL',
-        saldo_pendiente: parseFloat(document.getElementById('provSaldo').value || 0)
+        nombre, telefono: $('prov_tel').value, categoria: $('prov_cat').value || 'GENERAL',
+        saldo_pendiente: parseFloat($('prov_saldo').value || 0)
       })
     });
-    document.getElementById('provNom').value = '';
-    toast('✅ Proveedor registrado');
-    cargarDatosAlmacen();
+    $('prov_nombre').value = ''; $('prov_tel').value = ''; $('prov_saldo').value = '0';
+    toast('✓ Proveedor guardado'); cargarDatosAlmacen();
   }
 
-  async function pagarProveedor(id, saldoActual) {
+  async function abonarProveedor(id, nom) {
+    const s = prompt(`¿Cuánto deseas abonar al saldo de ${nom}?`);
+    if (!s) return;
+    const abono = parseFloat(s);
+    if (!abono || abono <= 0) return;
     await fetch('/api/almacen/proveedor', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ pagar_id: id, abono: saldoActual })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pagar_id: id, abono })
     });
-    toast('💵 Saldo de proveedor liquidado');
-    cargarDatosAlmacen();
+    toast('✓ Abono aplicado'); cargarDatosAlmacen();
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     cargarDatosAlmacen();
-    setInterval(cargarDatosAlmacen, 10000);
+    setInterval(() => {
+      const tag = document.activeElement?.tagName;
+      if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') cargarDatosAlmacen();
+    }, 20000);
   });
 </script>
 </body>
