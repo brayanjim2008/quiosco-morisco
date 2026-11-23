@@ -7,3 +7,5 @@ cloudinary==1.36.0
 gunicorn==21.2.0
 psycopg2-binary
 psycopg[binary]
+psycopg[binary]
+psycopg2-binary
