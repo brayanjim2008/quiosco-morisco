@@ -3223,6 +3223,54 @@ DIFERENCIA:$${d.diferencia}
     abrirModalStockMermas();
   }
 
+  
+  async function abrirModalReportesRespaldo() {
+    const el = document.getElementById('modalReportesRespaldo');
+    if (el) el.style.display = 'flex';
+    const [rOp, rArq] = await Promise.all([
+      fetch('/api/pos/resumen_operativo'),
+      fetch('/api/pos/historial_arqueos')
+    ]);
+    const dOp = await rOp.json();
+    const dArq = await rArq.json();
+
+    if (dOp.ok) {
+      document.getElementById('repVentaTotal').innerText = `$${Number(dOp.venta_total || 0).toFixed(2)}`;
+      document.getElementById('repCuentasPagadas').innerText = `${dOp.cuentas_pagadas || 0}`;
+      document.getElementById('repPropinaTarj').innerText = `$${Number(dOp.propina_tarjeta || 0).toFixed(2)}`;
+      document.getElementById('repMermaCosto').innerText = `$${Number(dOp.merma_reciente_costo || 0).toFixed(2)}`;
+      const mCont = document.getElementById('tablaMermasReporte');
+      if (mCont) {
+        mCont.innerHTML = (dOp.mermas && dOp.mermas.length)
+          ? dOp.mermas.map(m => `<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #e2e8f0;"><span><strong>${m.insumo}</strong> (${m.cantidad} ${m.unidad}) - ${m.motivo}</span><span><strong>$${Number(m.costo_total || 0).toFixed(2)}</strong> · ${m.fecha}</span></div>`).join('')
+          : '<span style="color:#64748b;">Sin mermas registradas aún.</span>';
+      }
+    }
+
+    const aCont = document.getElementById('tablaHistorialArqueos');
+    if (aCont) {
+      if (!dArq.ok) {
+        aCont.innerHTML = `<span style="color:#64748b;">${dArq.msg || 'Requiere rol de Caja o Admin para ver historial de arqueos.'}</span>`;
+      } else if (!dArq.arqueos || !dArq.arqueos.length) {
+        aCont.innerHTML = '<span style="color:#64748b;">Aún no hay cierres de turno registrados.</span>';
+      } else {
+        aCont.innerHTML = dArq.arqueos.map(a => {
+          const dif = Number(a.diferencia || 0);
+          const colorDif = dif === 0 ? '#16a34a' : (dif < 0 ? '#dc2626' : '#d97706');
+          return `<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #e2e8f0;"><span>Turno #${a.turno_id} · <strong>${a.cajero}</strong> (${a.fecha})</span><span>Esp: $${Number(a.esperado_total || 0).toFixed(2)} | Dec: $${Number(a.declarado_total || 0).toFixed(2)} | <strong style="color:${colorDif};">Dif: $${dif.toFixed(2)}</strong></span></div>`;
+        }).join('');
+      }
+    }
+  }
+
+  async function dispararRespaldoPOS() {
+    const res = await fetch('/api/pos/respaldo_config', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const d = await res.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo generar el respaldo.'));
+    notificarBarra(`💾 Respaldo creado: ${d.archivo} (${d.archivos_incluidos} archivos)`);
+    alert(`✅ Respaldo guardado en respaldos_pos/${d.archivo}`);
+  }
+
   function cambiarTabRaquel(tab) {
     ['prods', 'mods', 'cats', 'promos', 'reglas', 'permisos'].forEach(t => {
       const el = document.getElementById('tabRaquel_' + t);
@@ -3787,6 +3835,48 @@ DIFERENCIA:$${d.diferencia}
         <input type="text" id="mermaMotivo" placeholder="Motivo (caducidad, derrame...)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
         <button type="button" class="btn-p sm" style="background:#dc2626;" onclick="guardarMermaRapida()">Registrar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="modalReportesRespaldo" class="modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#ffffff;color:#0f172a;width:94%;max-width:780px;border-radius:12px;padding:18px;box-shadow:0 20px 45px rgba(0,0,0,0.25);max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px;">
+      <h3 style="margin:0;font-size:17px;">📊 Reportes Operativos y Respaldos</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="btn-p sm" style="background:#0f766e;" onclick="dispararRespaldoPOS()">💾 Respaldar Config</button>
+        <button type="button" class="btn-p sm rojo" onclick="cerrarModal('modalReportesRespaldo')">✕</button>
+      </div>
+    </div>
+
+    <div id="resumenTurnoCards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;font-size:13px;">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;">
+        <div style="color:#64748b;font-size:11px;">VENTA PAGADA</div>
+        <div id="repVentaTotal" style="font-weight:800;font-size:16px;">$0.00</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;">
+        <div style="color:#64748b;font-size:11px;">CUENTAS PAGADAS</div>
+        <div id="repCuentasPagadas" style="font-weight:800;font-size:16px;">0</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;">
+        <div style="color:#64748b;font-size:11px;">PROPINA TARJETA</div>
+        <div id="repPropinaTarj" style="font-weight:800;font-size:16px;">$0.00</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;">
+        <div style="color:#64748b;font-size:11px;">MERMA RECIENTE</div>
+        <div id="repMermaCosto" style="font-weight:800;font-size:16px;color:#dc2626;">$0.00</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">🧾 Últimos Cortes Z / Arqueos</div>
+      <div id="tablaHistorialArqueos" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#f8fafc;font-size:12px;">Cargando...</div>
+    </div>
+
+    <div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📉 Últimas Mermas Registradas</div>
+      <div id="tablaMermasReporte" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#f8fafc;font-size:12px;">Cargando...</div>
     </div>
   </div>
 </div>
