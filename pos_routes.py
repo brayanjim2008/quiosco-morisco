@@ -42,6 +42,36 @@ from pathlib import Path as _Path_asig
 
 _ASIG_MOD_FILE = _Path_asig("config_mods_productos.json")
 _AREA_PROD_FILE = _Path_asig("config_areas_productos.json")
+_MOTIVOS_FILE = _Path_asig("config_motivos_cancelacion.json")
+_TIPOS_DESC_FILE = _Path_asig("config_tipos_descuento.json")
+
+_MOTIVOS_DEFAULT = [
+    {"id": 1, "clave": "M01", "descripcion": "ERROR DE CAPTURA"},
+    {"id": 2, "clave": "M02", "descripcion": "CLIENTE CAMBIÓ DE OPINIÓN"},
+    {"id": 3, "clave": "M03", "descripcion": "DEMORA EN PREPARACIÓN"},
+]
+
+_TIPOS_DESC_DEFAULT = [
+    {"id": 1, "clave": "D01", "descripcion": "CORTESÍA GERENCIA", "porcentaje": 100.0},
+    {"id": 2, "clave": "D02", "descripcion": "DESCUENTO EMPLEADO", "porcentaje": 20.0},
+    {"id": 3, "clave": "D03", "descripcion": "CLIENTE FRECUENTE", "porcentaje": 10.0},
+]
+
+def _cargar_json_lista(ruta, default_items):
+    if not ruta.exists():
+        try:
+            ruta.write_text(_json_asig.dumps(default_items, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return [dict(x) for x in default_items]
+    try:
+        raw = _json_asig.loads(ruta.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, list) else [dict(x) for x in default_items]
+    except Exception:
+        return [dict(x) for x in default_items]
+
+def _guardar_json_lista(ruta, items):
+    ruta.write_text(_json_asig.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def _cargar_areas_prods():
     if not _AREA_PROD_FILE.exists():
@@ -1822,6 +1852,58 @@ def api_pos_producto_compuesto():
             del asigs[k]
     _guardar_asignaciones_mods(asigs)
     return jsonify({'ok': True, 'producto_id': prod_id, 'total_mods': len(mod_ids_sel)})
+
+
+
+@pos_bp.route('/api/pos/motivos_cancelacion', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def api_pos_motivos_cancelacion():
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'motivos': _cargar_json_lista(_MOTIVOS_FILE, _MOTIVOS_DEFAULT)})
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Administración.'}), 403
+    items = _cargar_json_lista(_MOTIVOS_FILE, _MOTIVOS_DEFAULT)
+    data = request.json or {}
+    if request.method == 'DELETE':
+        mid = int(data.get('id', 0))
+        items = [x for x in items if int(x.get('id', 0)) != mid]
+        _guardar_json_lista(_MOTIVOS_FILE, items)
+        return jsonify({'ok': True})
+    desc = str(data.get('descripcion', '')).strip().upper()
+    if not desc:
+        return jsonify({'ok': False, 'msg': 'Escribe la descripción del motivo.'}), 400
+    clv = str(data.get('clave', '')).strip().upper() or f"M{len(items)+1:02d}"
+    nxt_id = max([int(x.get('id', 0)) for x in items] + [0]) + 1
+    items.append({'id': nxt_id, 'clave': clv, 'descripcion': desc})
+    _guardar_json_lista(_MOTIVOS_FILE, items)
+    return jsonify({'ok': True, 'id': nxt_id})
+
+
+@pos_bp.route('/api/pos/tipos_descuento', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def api_pos_tipos_descuento():
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'tipos_descuento': _cargar_json_lista(_TIPOS_DESC_FILE, _TIPOS_DESC_DEFAULT)})
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Administración.'}), 403
+    items = _cargar_json_lista(_TIPOS_DESC_FILE, _TIPOS_DESC_DEFAULT)
+    data = request.json or {}
+    if request.method == 'DELETE':
+        did = int(data.get('id', 0))
+        items = [x for x in items if int(x.get('id', 0)) != did]
+        _guardar_json_lista(_TIPOS_DESC_FILE, items)
+        return jsonify({'ok': True})
+    desc = str(data.get('descripcion', '')).strip().upper()
+    pct = float(data.get('porcentaje', 0) or 0)
+    if not desc:
+        return jsonify({'ok': False, 'msg': 'Escribe la descripción del descuento.'}), 400
+    if pct < 0 or pct > 100:
+        return jsonify({'ok': False, 'msg': 'El porcentaje debe estar entre 0 y 100.'}), 400
+    clv = str(data.get('clave', '')).strip().upper() or f"D{len(items)+1:02d}"
+    nxt_id = max([int(x.get('id', 0)) for x in items] + [0]) + 1
+    items.append({'id': nxt_id, 'clave': clv, 'descripcion': desc, 'porcentaje': round(pct, 2)})
+    _guardar_json_lista(_TIPOS_DESC_FILE, items)
+    return jsonify({'ok': True, 'id': nxt_id})
 
 
 @pos_bp.route('/api/pos/catalogo_completo')

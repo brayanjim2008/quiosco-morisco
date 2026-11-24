@@ -1194,6 +1194,7 @@
         <button type="button" id="btntab_mods" class="tab-btn-m" onclick="cambiarTabRaquel('mods')">➕ Modificadores</button>
         <button type="button" id="btntab_cats" class="tab-btn-m" onclick="cambiarTabRaquel('cats')">📂 Categorías</button>
         <button type="button" id="btntab_promos" class="tab-btn-m" onclick="cambiarTabRaquel('promos')">🎉 Promociones</button>
+        <button type="button" id="btntab_reglas" class="tab-btn-m" onclick="cambiarTabRaquel('reglas')">📋 Motivos y Descuentos</button>
         <button type="button" id="btntab_permisos" class="tab-btn-m" onclick="cambiarTabRaquel('permisos')">🔒 Permisos Caja</button>
       </div>
 
@@ -1400,6 +1401,44 @@
             <thead><tr style="background:#e2e8f0;"><th style="padding:6px;text-align:left;">Promo</th><th>Regla</th><th>Objetivo</th><th>Horario</th><th>Estado</th><th>X</th></tr></thead>
             <tbody id="tbodyRaquelPromos"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- TAB MOTIVOS Y TIPOS DE DESCUENTO -->
+      <div id="tabRaquel_reglas" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+          <!-- MOTIVOS DE CANCELACION -->
+          <div style="border:1px solid #cbd5e1;border-radius:8px;padding:10px;background:#f8fafc;">
+            <div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:8px;">🚫 Motivos de Cancelación</div>
+            <div style="display:grid;grid-template-columns:80px 1fr auto;gap:6px;margin-bottom:8px;">
+              <input type="text" id="reg_mot_clv" class="m-inp" placeholder="M04">
+              <input type="text" id="reg_mot_desc" class="m-inp" placeholder="Descripción del motivo...">
+              <button type="button" class="btn-p sm" onclick="crearMotivoRegla()">+ Agregar</button>
+            </div>
+            <div style="max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;background:#fff;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+                <thead><tr style="background:#e2e8f0;"><th style="padding:6px;text-align:left;width:65px;">Clave</th><th style="padding:6px;text-align:left;">Motivo</th><th style="width:45px;"></th></tr></thead>
+                <tbody id="tbodyRegMotivos"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TIPOS DE DESCUENTO -->
+          <div style="border:1px solid #cbd5e1;border-radius:8px;padding:10px;background:#f8fafc;">
+            <div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:8px;">🏷️ Tipos de Descuento</div>
+            <div style="display:grid;grid-template-columns:75px 1fr 85px auto;gap:6px;margin-bottom:8px;">
+              <input type="text" id="reg_desc_clv" class="m-inp" placeholder="D04">
+              <input type="text" id="reg_desc_nom" class="m-inp" placeholder="Ej. CORTESÍA, 2X1...">
+              <input type="number" step="1" min="0" max="100" id="reg_desc_pct" class="m-inp" placeholder="%">
+              <button type="button" class="btn-p sm" onclick="crearTipoDescRegla()">+ Agregar</button>
+            </div>
+            <div style="max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;background:#fff;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+                <thead><tr style="background:#e2e8f0;"><th style="padding:6px;text-align:left;width:65px;">Clave</th><th style="padding:6px;text-align:left;">Descuento</th><th style="padding:6px;text-align:right;width:65px;">%</th><th style="width:45px;"></th></tr></thead>
+                <tbody id="tbodyRegDescuentos"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3120,10 +3159,80 @@ DIFERENCIA:$${d.diferencia}
   }
 
   function cambiarTabRaquel(tab) {
-    ['prods', 'mods', 'cats', 'promos', 'permisos'].forEach(t => {
-      document.getElementById('tabRaquel_' + t).style.display = (t === tab) ? 'block' : 'none';
-      document.getElementById('btntab_' + t).classList.toggle('activo', t === tab);
+    ['prods', 'mods', 'cats', 'promos', 'reglas', 'permisos'].forEach(t => {
+      const el = document.getElementById('tabRaquel_' + t);
+      const btn = document.getElementById('btntab_' + t);
+      if (el) el.style.display = (t === tab) ? 'block' : 'none';
+      if (btn) btn.classList.toggle('activo', t === tab);
     });
+    if (tab === 'reglas') cargarReglasCatalogo();
+  }
+
+  async function cargarReglasCatalogo() {
+    const [rM, rD] = await Promise.all([
+      fetch('/api/pos/motivos_cancelacion'),
+      fetch('/api/pos/tipos_descuento')
+    ]);
+    const dM = await rM.json();
+    const dD = await rD.json();
+    const tbM = document.getElementById('tbodyRegMotivos');
+    const tbD = document.getElementById('tbodyRegDescuentos');
+    if (tbM && dM.ok) {
+      tbM.innerHTML = (dM.motivos || []).map(m => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:5px 6px;">${m.clave}</td>
+          <td style="padding:5px 6px;">${m.descripcion}</td>
+          <td><button type="button" class="btn-p sm rojo" onclick="borrarRegla('motivos_cancelacion', ${m.id})">X</button></td>
+        </tr>`).join('') || '<tr><td colspan="3" style="padding:8px;text-align:center;color:#64748b;">Sin motivos.</td></tr>';
+    }
+    if (tbD && dD.ok) {
+      tbD.innerHTML = (dD.tipos_descuento || []).map(x => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:5px 6px;">${x.clave}</td>
+          <td style="padding:5px 6px;">${x.descripcion}</td>
+          <td style="padding:5px 6px;text-align:right;">${Number(x.porcentaje || 0).toFixed(0)}%</td>
+          <td><button type="button" class="btn-p sm rojo" onclick="borrarRegla('tipos_descuento', ${x.id})">X</button></td>
+        </tr>`).join('') || '<tr><td colspan="4" style="padding:8px;text-align:center;color:#64748b;">Sin tipos de descuento.</td></tr>';
+    }
+  }
+
+  async function crearMotivoRegla() {
+    const clave = document.getElementById('reg_mot_clv').value;
+    const descripcion = document.getElementById('reg_mot_desc').value;
+    const r = await fetch('/api/pos/motivos_cancelacion', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clave, descripcion })
+    });
+    const d = await r.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo guardar'));
+    document.getElementById('reg_mot_clv').value = '';
+    document.getElementById('reg_mot_desc').value = '';
+    cargarReglasCatalogo();
+  }
+
+  async function crearTipoDescRegla() {
+    const clave = document.getElementById('reg_desc_clv').value;
+    const descripcion = document.getElementById('reg_desc_nom').value;
+    const porcentaje = parseFloat(document.getElementById('reg_desc_pct').value || 0);
+    const r = await fetch('/api/pos/tipos_descuento', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clave, descripcion, porcentaje })
+    });
+    const d = await r.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo guardar'));
+    document.getElementById('reg_desc_clv').value = '';
+    document.getElementById('reg_desc_nom').value = '';
+    document.getElementById('reg_desc_pct').value = '';
+    cargarReglasCatalogo();
+  }
+
+  async function borrarRegla(endpoint, id) {
+    if (!confirm('¿Eliminar este registro?')) return;
+    await fetch('/api/pos/' + endpoint, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    cargarReglasCatalogo();
   }
 
   function abrirModalCatalogosRaquel() {
