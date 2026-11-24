@@ -1603,25 +1603,11 @@
     }
 
   if (tbMini) {
-      const enviados = datosCuentaActiva.items.filter(it => it.impreso);
       const nuevos = datosCuentaActiva.items.filter(it => !it.impreso);
       let htmlMini = '';
 
-      if (enviados.length) {
-        htmlMini += `<tr><td colspan="4" style="background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;text-align:center;padding:3px;">?? YA ENVIADO A COCINA / BARRA (${enviados.length})</td></tr>`;
-        htmlMini += enviados.map(it => `
-          <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
-              style="color:#64748b;background:#f8fafc;"
-              onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
-            <td>??</td>
-            <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
-            <td style="${it.es_modificador ? 'padding-left:10px;' : ''}">${it.descripcion}</td>
-            <td style="text-align:right;">$${it.importe}</td>
-          </tr>`).join('');
-      }
-
       if (nuevos.length) {
-        htmlMini += `<tr><td colspan="4" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;text-align:center;padding:3px;">?? NUEVA COMANDA POR ENVIAR (${nuevos.length})</td></tr>`;
+        htmlMini += `<tr><td colspan="4" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;text-align:center;padding:3px;">NUEVA COMANDA POR ENVIAR (${nuevos.length})</td></tr>`;
         htmlMini += nuevos.map(it => `
           <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
               style="background:#ffffff;"
@@ -1633,7 +1619,7 @@
           </tr>`).join('');
       }
 
-      tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
+      tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la nueva comanda</td></tr>';
     }
   }
 
