@@ -1817,7 +1817,9 @@
     for (let i = 0; i < 18; i++) {
       if (i < sl.length) {
         const p = sl[i];
-        html += `<div class="sr-prod-cell con-producto" onclick="tocarProductoEnMatrizCaja(${p.id})">
+        const esSel = ultimoProductoCapturado && ultimoProductoCapturado.id === p.id;
+        const estiloSel = esSel ? 'style="background:#e0f2fe;border-left:5px solid #0284c7;outline:2px solid #0284c7;"' : '';
+        html += `<div class="sr-prod-cell con-producto ${esSel ? 'sel-azul' : ''}" ${estiloSel} onclick="tocarProductoEnMatrizCaja(${p.id})">
           <div>${p.nombre.toUpperCase()}</div>
           <div style="color:var(--cobre);">$${p.precio.toFixed(2)}</div>
         </div>`;
