@@ -37,6 +37,40 @@ def _cuenta_permitida(c):
     return (c.sucursal or 'Quiosco Morisco (Matriz)') == obtener_sucursal_activa(session)
 
 
+import json as _json_asig
+from pathlib import Path as _Path_asig
+
+_ASIG_MOD_FILE = _Path_asig("config_mods_productos.json")
+
+def _cargar_asignaciones_mods():
+    if not _ASIG_MOD_FILE.exists():
+        return {}
+    try:
+        raw = _json_asig.loads(_ASIG_MOD_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except Exception:
+        return {}
+
+def _guardar_asignaciones_mods(data):
+    _ASIG_MOD_FILE.write_text(_json_asig.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def _enriquecer_modificadores(mods):
+    asigs = _cargar_asignaciones_mods()
+    out = []
+    for m in mods:
+        reg = asigs.get(str(m.id), {})
+        out.append({
+            'id': m.id,
+            'clave': m.clave,
+            'grupo': m.grupo or 'SABORES',
+            'nombre': m.nombre,
+            'precio': m.precio,
+            'area_impresion': m.area_impresion or '',
+            'producto_ids': [int(x) for x in (reg.get('producto_ids') or [])],
+            'categorias': [str(x).upper() for x in (reg.get('categorias') or [])]
+        })
+    return out
+
 def _mapa_flujos_modificadores():
     flujos = {}
     for fg in ProductoGrupoMod.query.order_by(ProductoGrupoMod.orden.asc(), ProductoGrupoMod.id.asc()).all():
@@ -1719,6 +1753,25 @@ def api_pos_promociones():
     return jsonify({'ok': True})
 
 
+
+@pos_bp.route('/api/pos/modificadores_asignacion', methods=['POST'])
+@login_required
+def api_pos_modificadores_asignacion():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Administrador puede asignar modificadores.'}), 403
+    data = request.json or {}
+    mod_id = int(data.get('mod_id', 0))
+    if not mod_id:
+        return jsonify({'ok': False, 'msg': 'Modificador inválido.'}), 400
+    ModificadorPOS.query.get_or_404(mod_id)
+    prod_ids = [int(x) for x in (data.get('producto_ids') or []) if str(x).isdigit()]
+    cats = [str(x).strip().upper() for x in (data.get('categorias') or []) if str(x).strip()]
+    asigs = _cargar_asignaciones_mods()
+    asigs[str(mod_id)] = {'producto_ids': prod_ids, 'categorias': cats}
+    _guardar_asignaciones_mods(asigs)
+    return jsonify({'ok': True, 'mod_id': mod_id, 'producto_ids': prod_ids, 'categorias': cats})
+
+
 @pos_bp.route('/api/pos/catalogo_completo')
 @login_required
 def api_pos_catalogo_completo():
@@ -1731,7 +1784,7 @@ def api_pos_catalogo_completo():
         'ok': True,
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or ''} for c in cats],
         'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado} for p in prods],
-        'modificadores': [{'id': m.id, 'clave': m.clave, 'grupo': m.grupo or 'SABORES', 'nombre': m.nombre, 'precio': m.precio, 'area_impresion': m.area_impresion or ''} for m in mods],
+        'modificadores': _enriquecer_modificadores(mods),
         'flujos': _mapa_flujos_modificadores(),
         'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa} for pr in promos],
         'permisos': {
