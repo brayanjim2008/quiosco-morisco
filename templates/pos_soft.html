@@ -1635,6 +1635,7 @@
 
       tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
     }
+  }
 
   // =========================================================================
   // 2. APERTURA DE CUENTA, CAPTURA Y MODIFICADORES
@@ -1954,14 +1955,18 @@
     renderizarMatriz16ModsCompuesto();
   }
 
-  function cambiarPaginaModsComp(delta) {
+  function obtenerModsCompuestoFiltrados() {
     const esBebAct = Boolean(platilloCompuestoActual && platilloCompuestoActual.esBebida);
     const filtrados = catModificadores.filter(m => {
       if ((m.grupo || 'SABORES').toUpperCase() !== grupoCompuestoActivo) return false;
       if (esBebAct && ((m.area_impresion || '').toUpperCase() === 'COCINA' || /cebolla|jamon|jamón|huevo|tortilla|salsa|frijol/.test((m.nombre || '').toLowerCase()))) return false;
       return true;
     });
-    const lista = filtrados.length ? filtrados : catModificadores;
+    return filtrados.length ? filtrados : catModificadores;
+  }
+
+  function cambiarPaginaModsComp(delta) {
+    const lista = obtenerModsCompuestoFiltrados();
     const maxPag = Math.max(0, Math.ceil(lista.length / 14) - 1);
     paginaModsComp = Math.min(maxPag, Math.max(0, paginaModsComp + delta));
     renderizarMatriz16ModsCompuesto();
@@ -1974,8 +1979,7 @@
   }
 
   function renderizarMatriz16ModsCompuesto() {
-    const filtrados = catModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoCompuestoActivo);
-    const lista = filtrados.length ? filtrados : catModificadores;
+    const lista = obtenerModsCompuestoFiltrados();
     const sl = lista.slice(paginaModsComp * 14, paginaModsComp * 14 + 14);
     let html = `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(-1)">? ANT</div>`;
     for (let i = 0; i < 14; i++) {
