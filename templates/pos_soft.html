@@ -1236,9 +1236,9 @@
               <span id="lblEstadoProdSoft" style="margin-left:auto;font-size:11px;font-weight:800;color:#0369a1;">Nuevo producto</span>
             </div>
 
-            <div class="tab-bar-m" style="margin-bottom:8px;">
-              <button type="button" id="btnSubProd_princ" class="tab-btn-m activo" onclick="cambiarSubTabProdSoft('princ')">Principal / Varios</button>
-              <button type="button" id="btnSubProd_comp" class="tab-btn-m" onclick="cambiarSubTabProdSoft('comp')">Producto compuesto (Modificadores)</button>
+            <div style="display:flex;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;">
+              <button type="button" id="btnSubProd_princ" class="btn-p sm" style="background:#0284c7;" onclick="cambiarSubTabProdSoft('princ')">Principal / Varios</button>
+              <button type="button" id="btnSubProd_comp" class="btn-p sm gris" onclick="cambiarSubTabProdSoft('comp')">Producto compuesto (Modificadores)</button>
             </div>
 
             <!-- SUBTAB 1: PRINCIPAL / VARIOS -->
@@ -1289,7 +1289,10 @@
                 <div style="font-size:12px;font-weight:800;color:#0f172a;">
                   Modificadores de: <span id="lblProdCompNombre" style="color:#0284c7;">Selecciona un producto</span>
                 </div>
-                <button type="button" class="btn-p sm" style="background:#0284c7;" onclick="guardarModsProdSoft()">💾 Guardar Modificadores</button>
+                <div style="display:flex;gap:5px;">
+                  <button type="button" class="btn-p sm gris" onclick="replicarModsProdSoft()">📋 Replicar a otros</button>
+                  <button type="button" class="btn-p sm" style="background:#0284c7;" onclick="guardarModsProdSoft()">💾 Guardar Modificadores</button>
+                </div>
               </div>
               <input type="text" id="buscarModCompProd" class="m-inp" placeholder="Filtrar modificador o grupo (ej. MOKA, LECHE)..." oninput="filtrarModsCompProd()" style="margin-bottom:6px;font-size:12px;height:30px;">
               <div id="listaModsCompProd" style="max-height:245px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;background:#f8fafc;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;"></div>
@@ -1300,20 +1303,20 @@
 
       <!-- TAB MODIFICADORES -->
       <div id="tabRaquel_mods" style="display:none;">
-        <div style="display:grid;grid-template-columns:1.1fr 1.5fr 0.9fr 0.7fr auto;gap:6px;margin-bottom:8px;">
-          <select id="nuevoModGrupo" class="m-inp">
+        <div style="display:grid;grid-template-columns:1.1fr 1.5fr 0.9fr 0.7fr auto;gap:6px;margin-bottom:8px;align-items:end;">
+          <div><small style="font-size:10px;font-weight:800;color:#475569;">GRUPO</small><select id="nuevoModGrupo" class="m-inp">
             <option value="SABORES">SABORES</option>
             <option value="TIPO DE LECHE">TIPO DE LECHE</option>
             <option value="CARGAS DE CAFE">CARGAS DE CAFE</option>
             <option value="FRIO O CALIENTE">FRIO O CALIENTE</option>
             <option value="EXTRAS ALIMENTOS">EXTRAS ALIMENTOS</option>
-          </select>
-          <input type="text" id="nuevoModNombre" class="m-inp" placeholder="Nombre del modificador...">
-          <select id="nuevoModArea" class="m-inp">
+          </select></div>
+          <div><small style="font-size:10px;font-weight:800;color:#475569;">MODIFICADOR</small><input type="text" id="nuevoModNombre" class="m-inp" placeholder="Ej. MOKA, SIN CEBOLLA..."></div>
+          <div><small style="font-size:10px;font-weight:800;color:#475569;">ÁREA IMPRESIÓN</small><select id="nuevoModArea" class="m-inp">
             <option value="COCINA">COCINA</option>
             <option value="BARRA">BARRA</option>
-          </select>
-          <input type="number" step="0.5" id="nuevoModPrecio" class="m-inp" placeholder="Extra ($)" value="0">
+          </select></div>
+          <div><small style="font-size:10px;font-weight:800;color:#475569;">EXTRA ($)</small><input type="number" step="0.5" id="nuevoModPrecio" class="m-inp" placeholder="0.00" value="0"></div>
           <button type="button" class="btn-p" onclick="crearModificadorRaquel()">+ Agregar</button>
         </div>
         <div style="max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;">
@@ -3212,9 +3215,34 @@ DIFERENCIA:$${d.diferencia}
   function cambiarSubTabProdSoft(tab) {
     document.getElementById('subProdSoft_princ').style.display = tab === 'princ' ? 'flex' : 'none';
     document.getElementById('subProdSoft_comp').style.display = tab === 'comp' ? 'block' : 'none';
-    document.getElementById('btnSubProd_princ').classList.toggle('activo', tab === 'princ');
-    document.getElementById('btnSubProd_comp').classList.toggle('activo', tab === 'comp');
+    const bP = document.getElementById('btnSubProd_princ');
+    const bC = document.getElementById('btnSubProd_comp');
+    bP.style.background = tab === 'princ' ? '#0284c7' : '';
+    bP.classList.toggle('gris', tab !== 'princ');
+    bC.style.background = tab === 'comp' ? '#0284c7' : '';
+    bC.classList.toggle('gris', tab !== 'comp');
     if (tab === 'comp') renderizarChecklistModsProdSoft();
+  }
+
+  async function replicarModsProdSoft() {
+    if (!prodSoftSelId) return alert('Selecciona primero un producto con modificadores.');
+    const pAct = catProductos.find(x => x.id === prodSoftSelId);
+    if (!pAct) return;
+    const candidatos = catProductos.filter(x => x.id !== prodSoftSelId && String(x.categoria || '').toUpperCase() === String(pAct.categoria || '').toUpperCase());
+    if (!candidatos.length) return alert('No hay otros productos en la misma categoría para replicar.');
+    const mod_ids = Array.from(document.querySelectorAll('.chk-mod-comp-prod:checked')).map(el => Number(el.value));
+    if (!mod_ids.length) return alert('Marca al menos un modificador antes de replicar.');
+    if (!confirm(`¿Aplicar estos ${mod_ids.length} modificador(es) a los otros ${candidatos.length} producto(s) de "${pAct.categoria}"?`)) return;
+    for (const dest of candidatos) {
+      await fetch('/api/pos/producto_compuesto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ producto_id: dest.id, mod_ids })
+      });
+    }
+    notificarBarra(`✓ Replicado a ${candidatos.length} producto(s) de ${pAct.categoria}`);
+    await cargarCatalogoCompletoRaquel();
+    seleccionarProdSoft(prodSoftSelId);
   }
 
   function renderizarListaProdsSoft() {
