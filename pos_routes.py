@@ -41,6 +41,19 @@ import json as _json_asig
 from pathlib import Path as _Path_asig
 
 _ASIG_MOD_FILE = _Path_asig("config_mods_productos.json")
+_AREA_PROD_FILE = _Path_asig("config_areas_productos.json")
+
+def _cargar_areas_prods():
+    if not _AREA_PROD_FILE.exists():
+        return {}
+    try:
+        raw = _json_asig.loads(_AREA_PROD_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except Exception:
+        return {}
+
+def _guardar_areas_prods(data):
+    _AREA_PROD_FILE.write_text(_json_asig.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def _cargar_asignaciones_mods():
     if not _ASIG_MOD_FILE.exists():
@@ -475,7 +488,16 @@ def api_pos_capturar_item():
     clave = str(data.get('clave', '02001')).strip()
     desc_limpia = str(data.get('descripcion', '')).strip().upper().lstrip('>')
     desc = f">{desc_limpia}" if es_mod else desc_limpia
-    area_imp = detectar_area_impresion(data.get('categoria', 'Barra'))
+    area_req = str(data.get('area_impresion', '')).strip().upper()
+    if area_req not in ('COCINA', 'BARRA'):
+        pid_cap = data.get('producto_id')
+        if not pid_cap:
+            clv_num = str(clave).lstrip('0')
+            if clv_num.isdigit():
+                pid_cap = int(clv_num)
+        if pid_cap:
+            area_req = _cargar_areas_prods().get(str(int(pid_cap)), '')
+    area_imp = area_req if area_req in ('COCINA', 'BARRA') else detectar_area_impresion(data.get('categoria', 'Barra'))
     mods_hijos = data.get('modificadores') or []
     agrupar = bool(data.get('agrupar', True))
 
@@ -1772,6 +1794,36 @@ def api_pos_modificadores_asignacion():
     return jsonify({'ok': True, 'mod_id': mod_id, 'producto_ids': prod_ids, 'categorias': cats})
 
 
+
+@pos_bp.route('/api/pos/producto_compuesto', methods=['POST'])
+@login_required
+def api_pos_producto_compuesto():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Administrador puede configurar productos compuestos.'}), 403
+    data = request.json or {}
+    prod_id = int(data.get('producto_id', 0))
+    if not prod_id:
+        return jsonify({'ok': False, 'msg': 'Producto inválido.'}), 400
+    Producto.query.get_or_404(prod_id)
+    mod_ids_sel = set(int(x) for x in (data.get('mod_ids') or []) if str(x).isdigit())
+    asigs = _cargar_asignaciones_mods()
+    todos_mods = ModificadorPOS.query.filter_by(activo=True).all()
+    for m in todos_mods:
+        k = str(m.id)
+        reg = asigs.get(k) or {'producto_ids': [], 'categorias': []}
+        pids = [int(x) for x in (reg.get('producto_ids') or []) if int(x) != prod_id]
+        if m.id in mod_ids_sel:
+            pids.append(prod_id)
+        reg['producto_ids'] = pids
+        reg['categorias'] = [str(x).upper() for x in (reg.get('categorias') or [])]
+        if reg['producto_ids'] or reg['categorias']:
+            asigs[k] = reg
+        elif k in asigs:
+            del asigs[k]
+    _guardar_asignaciones_mods(asigs)
+    return jsonify({'ok': True, 'producto_id': prod_id, 'total_mods': len(mod_ids_sel)})
+
+
 @pos_bp.route('/api/pos/catalogo_completo')
 @login_required
 def api_pos_catalogo_completo():
@@ -1783,7 +1835,7 @@ def api_pos_catalogo_completo():
     return jsonify({
         'ok': True,
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or ''} for c in cats],
-        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado} for p in prods],
+        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado, 'area_impresion': _cargar_areas_prods().get(str(p.id), '')} for p in prods],
         'modificadores': _enriquecer_modificadores(mods),
         'flujos': _mapa_flujos_modificadores(),
         'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa} for pr in promos],
@@ -1808,20 +1860,47 @@ def api_pos_admin_producto():
         nom, cat = str(data.get('nombre', '')).strip(), str(data.get('categoria', '')).strip()
         if not nom or not cat:
             return jsonify({'ok': False, 'msg': 'Nombre y categoría requeridos'}), 400
-        db.session.add(Producto(nombre=nom, precio=float(data.get('precio', 0)), categoria=cat, descripcion=str(data.get('descripcion', '')).strip()))
+        nuevo_p = Producto(
+            nombre=nom,
+            precio=float(data.get('precio', 0)),
+            categoria=cat,
+            descripcion=str(data.get('descripcion', '')).strip(),
+            agotado=bool(data.get('agotado', False))
+        )
+        db.session.add(nuevo_p)
         db.session.commit()
+        area_p = str(data.get('area_impresion', '')).strip().upper()
+        areas = _cargar_areas_prods()
+        if area_p in ('COCINA', 'BARRA'):
+            areas[str(nuevo_p.id)] = area_p
+            _guardar_areas_prods(areas)
         invalidar_cache_publico()
-        return jsonify({'ok': True})
+        return jsonify({'ok': True, 'id': nuevo_p.id})
     if request.method == 'PUT':
         p = Producto.query.get_or_404(int(data['id']))
         p.nombre = str(data.get('nombre', p.nombre)).strip()
         p.precio = float(data.get('precio', p.precio))
         p.categoria = str(data.get('categoria', p.categoria)).strip()
+        if 'agotado' in data:
+            p.agotado = bool(data.get('agotado'))
         db.session.commit()
+        if 'area_impresion' in data:
+            area_p = str(data.get('area_impresion', '')).strip().upper()
+            areas = _cargar_areas_prods()
+            if area_p in ('COCINA', 'BARRA'):
+                areas[str(p.id)] = area_p
+            else:
+                areas.pop(str(p.id), None)
+            _guardar_areas_prods(areas)
         invalidar_cache_publico()
-        return jsonify({'ok': True})
-    db.session.delete(Producto.query.get_or_404(int(data['id'])))
+        return jsonify({'ok': True, 'id': p.id})
+    pid_del = int(data['id'])
+    db.session.delete(Producto.query.get_or_404(pid_del))
     db.session.commit()
+    areas = _cargar_areas_prods()
+    if str(pid_del) in areas:
+        areas.pop(str(pid_del), None)
+        _guardar_areas_prods(areas)
     invalidar_cache_publico()
     return jsonify({'ok': True})
 

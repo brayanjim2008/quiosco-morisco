@@ -1197,30 +1197,110 @@
         <button type="button" id="btntab_permisos" class="tab-btn-m" onclick="cambiarTabRaquel('permisos')">🔒 Permisos Caja</button>
       </div>
 
-      <!-- TAB PRODUCTOS -->
+      <!-- TAB PRODUCTOS (ESTILO MAESTRO-DETALLE) -->
       <div id="tabRaquel_prods">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1.2fr auto;gap:6px;margin-bottom:8px;">
-          <input type="text" id="r_prod_nombre" class="m-inp" placeholder="Nombre nuevo platillo...">
-          <input type="number" step="0.5" id="r_prod_precio" class="m-inp" placeholder="Precio ($)">
-          <select id="r_prod_cat" class="m-inp">
-            {% if categorias %}
-              {% for c in categorias %}<option value="{{ c.nombre }}">{{ c.nombre }}</option>{% endfor %}
-            {% endif %}
-          </select>
-          <button type="button" class="btn-p" onclick="guardarNuevoProductoRaquel()">+ Agregar</button>
-        </div>
-        <input type="text" id="filtroRaquelProd" class="m-inp" placeholder="Filtrar productos..." oninput="filtrarTablaRaquel()" style="margin-bottom:8px;">
-        <div style="max-height:320px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
-            <thead><tr style="background:#e2e8f0;"><th style="padding:6px;text-align:left;">Nombre</th><th>Categoría</th><th>Precio</th><th>Acciones</th></tr></thead>
-            <tbody id="tbodyRaquelProductos"></tbody>
-          </table>
+        <div style="display:grid;grid-template-columns:1.08fr 1.12fr;gap:10px;align-items:start;">
+          <!-- IZQUIERDA: FILTROS Y LISTA CON BARRA AZUL -->
+          <div style="border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;padding:8px;">
+            <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:6px;margin-bottom:6px;">
+              <select id="filtroCatProdSoft" class="m-inp" onchange="renderizarListaProdsSoft()" style="font-size:12px;height:32px;">
+                <option value="">(TODAS LAS CATEGORÍAS)</option>
+              </select>
+              <input type="text" id="filtroRaquelProd" class="m-inp" placeholder="Buscar por nombre o clave..." oninput="renderizarListaProdsSoft()" style="font-size:12px;height:32px;">
+            </div>
+            <div id="resumenContProdSoft" style="display:flex;gap:10px;font-size:11px;font-weight:800;color:#475569;margin-bottom:6px;">
+              <span>Activos: <b id="cntProdsActivosSoft">0</b></span>
+              <span>Agotados: <b id="cntProdsAgotadosSoft" style="color:#dc2626;">0</b></span>
+            </div>
+            <div style="max-height:345px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;font-weight:700;">
+                <thead style="position:sticky;top:0;background:#e2e8f0;z-index:1;">
+                  <tr>
+                    <th style="padding:6px;text-align:left;width:54px;">Clave</th>
+                    <th style="padding:6px;text-align:left;">Categoría</th>
+                    <th style="padding:6px;text-align:left;">Descripción</th>
+                    <th style="padding:6px;text-align:right;width:70px;">Precio</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyRaquelProductos"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- DERECHA: DETALLE DEL PRODUCTO SELECCIONADO -->
+          <div style="border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;">
+              <button type="button" class="btn-p sm" onclick="nuevoProdSoft()">+ Nuevo</button>
+              <button type="button" class="btn-p sm" style="background:#0284c7;" onclick="guardarProdSoft()">💾 Guardar</button>
+              <button type="button" class="btn-p sm rojo" onclick="eliminarProdSoftActual()">🗑️ Eliminar</button>
+              <span id="lblEstadoProdSoft" style="margin-left:auto;font-size:11px;font-weight:800;color:#0369a1;">Nuevo producto</span>
+            </div>
+
+            <div class="tab-bar-m" style="margin-bottom:8px;">
+              <button type="button" id="btnSubProd_princ" class="tab-btn-m activo" onclick="cambiarSubTabProdSoft('princ')">Principal / Varios</button>
+              <button type="button" id="btnSubProd_comp" class="tab-btn-m" onclick="cambiarSubTabProdSoft('comp')">Producto compuesto (Modificadores)</button>
+            </div>
+
+            <!-- SUBTAB 1: PRINCIPAL / VARIOS -->
+            <div id="subProdSoft_princ" style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:grid;grid-template-columns:1.4fr 0.7fr;gap:8px;">
+                <div>
+                  <label style="font-size:11px;font-weight:800;color:#475569;">Categoría / Grupo</label>
+                  <select id="r_prod_cat" class="m-inp" style="margin-top:2px;">
+                    {% if categorias %}
+                      {% for c in categorias %}<option value="{{ c.nombre }}">{{ c.nombre }}</option>{% endfor %}
+                    {% endif %}
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:800;color:#475569;">Clave</label>
+                  <input type="text" id="r_prod_clave" class="m-inp" readonly placeholder="Auto" style="margin-top:2px;background:#f1f5f9;">
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:800;color:#475569;">Descripción / Nombre del Platillo</label>
+                <input type="text" id="r_prod_nombre" class="m-inp" placeholder="Ej. CAPUCHINO, CHILAQUILES..." style="margin-top:2px;">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:8px;">
+                <div>
+                  <label style="font-size:11px;font-weight:800;color:#475569;">Precio ($)</label>
+                  <input type="number" step="0.5" id="r_prod_precio" class="m-inp" placeholder="0.00" style="margin-top:2px;">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:800;color:#475569;">Área de impresión</label>
+                  <select id="r_prod_area" class="m-inp" style="margin-top:2px;">
+                    <option value="">Automática (según categoría)</option>
+                    <option value="COCINA">COCINA</option>
+                    <option value="BARRA">BARRA</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#991b1b;cursor:pointer;">
+                  <input type="checkbox" id="r_prod_agotado"> Agotado / Suspendido
+                </label>
+                <span id="lblResumenModsProdSoft" style="font-size:11px;font-weight:800;color:#0284c7;">0 modificadores ligados</span>
+              </div>
+            </div>
+
+            <!-- SUBTAB 2: PRODUCTO COMPUESTO (MODIFICADORES DEL PLATILLO) -->
+            <div id="subProdSoft_comp" style="display:none;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+                <div style="font-size:12px;font-weight:800;color:#0f172a;">
+                  Modificadores de: <span id="lblProdCompNombre" style="color:#0284c7;">Selecciona un producto</span>
+                </div>
+                <button type="button" class="btn-p sm" style="background:#0284c7;" onclick="guardarModsProdSoft()">💾 Guardar Modificadores</button>
+              </div>
+              <input type="text" id="buscarModCompProd" class="m-inp" placeholder="Filtrar modificador o grupo (ej. MOKA, LECHE)..." oninput="filtrarModsCompProd()" style="margin-bottom:6px;font-size:12px;height:30px;">
+              <div id="listaModsCompProd" style="max-height:245px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;background:#f8fafc;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- TAB MODIFICADORES -->
       <div id="tabRaquel_mods" style="display:none;">
-        <div style="display:grid;grid-template-columns:1.2fr 1.6fr 0.8fr auto;gap:6px;margin-bottom:8px;">
+        <div style="display:grid;grid-template-columns:1.1fr 1.5fr 0.9fr 0.7fr auto;gap:6px;margin-bottom:8px;">
           <select id="nuevoModGrupo" class="m-inp">
             <option value="SABORES">SABORES</option>
             <option value="TIPO DE LECHE">TIPO DE LECHE</option>
@@ -1229,6 +1309,10 @@
             <option value="EXTRAS ALIMENTOS">EXTRAS ALIMENTOS</option>
           </select>
           <input type="text" id="nuevoModNombre" class="m-inp" placeholder="Nombre del modificador...">
+          <select id="nuevoModArea" class="m-inp">
+            <option value="COCINA">COCINA</option>
+            <option value="BARRA">BARRA</option>
+          </select>
           <input type="number" step="0.5" id="nuevoModPrecio" class="m-inp" placeholder="Extra ($)" value="0">
           <button type="button" class="btn-p" onclick="crearModificadorRaquel()">+ Agregar</button>
         </div>
@@ -1860,9 +1944,11 @@
       document.getElementById('lblBtnConsultarPrecio').innerText = `${p.nombre}: $${p.precio.toFixed(2)}`;
       return;
     }
-    ultimoProductoCapturado = { id: p.id, nombre: p.nombre, precio: p.precio, categoria: p.categoria, cantidad: cantidadCaptura };
+    ultimoProductoCapturado = { id: p.id, nombre: p.nombre, precio: p.precio, categoria: p.categoria, area_impresion: p.area_impresion || '', cantidad: cantidadCaptura };
+    renderizarMatriz20Productos();
     const claveNorm = (p.nombre || '').trim().toUpperCase();
-    const tieneFlujo = Boolean(catFlujos[claveNorm] && catFlujos[claveNorm].length);
+    const modsAsigProd = obtenerModsAsignadosAProducto(p);
+    const tieneFlujo = Boolean((catFlujos[claveNorm] && catFlujos[claveNorm].length) || modsAsigProd.length);
     if (tieneFlujo) {
       abrirVentanaCompuesta(ultimoProductoCapturado);
     } else {
@@ -1871,6 +1957,7 @@
         body: JSON.stringify({
           cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: cantidadCaptura,
           descripcion: p.nombre, precio: p.precio, categoria: p.categoria,
+          producto_id: p.id, area_impresion: p.area_impresion || '',
           clave: '0' + p.id, es_modificador: false
         })
       });
@@ -1919,9 +2006,24 @@
     document.getElementById('compTituloPlatillo').innerText = `${parseInt(prodObj.cantidad)} ${prodObj.nombre.toUpperCase()}`;
 
     const claveNorm = (prodObj.nombre || '').trim().toUpperCase();
-    const flujo = (!prodObj.soloMod && catFlujos[claveNorm] && catFlujos[claveNorm].length)
-      ? catFlujos[claveNorm]
-      : GRUPOS_DEFAULT_POS;
+    const modsAsigComp = (!prodObj.soloMod) ? obtenerModsAsignadosAProducto(prodObj) : [];
+    let flujo = [];
+    if (!prodObj.soloMod && catFlujos[claveNorm] && catFlujos[claveNorm].length) {
+      flujo = catFlujos[claveNorm].slice();
+      const grpsYa = new Set(flujo.map(st => String(st.grupo || '').toUpperCase()));
+      modsAsigComp.forEach(m => {
+        const gUp = String(m.grupo || 'SABORES').toUpperCase();
+        if (!grpsYa.has(gUp)) {
+          grpsYa.add(gUp);
+          flujo.push({ grupo: gUp, etiqueta: gUp, orden: flujo.length + 1, obligatorio: false, max_seleccion: 0 });
+        }
+      });
+    } else if (modsAsigComp.length) {
+      const grpsUnicos = [...new Set(modsAsigComp.map(m => String(m.grupo || 'SABORES').toUpperCase()))];
+      flujo = grpsUnicos.map((g, idx) => ({ grupo: g, etiqueta: g, orden: idx + 1, obligatorio: false, max_seleccion: 0 }));
+    } else {
+      flujo = GRUPOS_DEFAULT_POS;
+    }
     flujoCompuestoActual = flujo;
 
     const esBeb = /caliente|fría|fria|frapp|bebida|café|cafe|infus|cerveza|agua|jugo|licuado/.test(`${prodObj.categoria || ''} ${prodObj.nombre || ''}`.toLowerCase());
@@ -1964,12 +2066,30 @@
     renderizarMatriz16ModsCompuesto();
   }
 
+  function obtenerModsAsignadosAProducto(prodObj) {
+    if (!prodObj) return [];
+    const pid = Number(prodObj.id || 0);
+    const catUp = String(prodObj.categoria || '').toUpperCase();
+    return catModificadores.filter(m => {
+      const pIds = Array.isArray(m.producto_ids) ? m.producto_ids.map(Number) : [];
+      const cList = Array.isArray(m.categorias) ? m.categorias.map(x => String(x).toUpperCase()) : [];
+      return (pid && pIds.includes(pid)) || (catUp && cList.includes(catUp));
+    });
+  }
+
   function obtenerModsCompuestoFiltrados() {
+    const grpAct = (grupoCompuestoActivo || 'SABORES').toUpperCase();
+    const modsPropios = (!platilloCompuestoActual?.soloMod) ? obtenerModsAsignadosAProducto(platilloCompuestoActual) : [];
+    const claveNormAct = String(platilloCompuestoActual?.nombre || '').trim().toUpperCase();
+    const tieneFlujoLegacy = Boolean(catFlujos[claveNormAct] && catFlujos[claveNormAct].length);
+    if (modsPropios.length && !tieneFlujoLegacy) {
+      return modsPropios.filter(m => (m.grupo || 'SABORES').toUpperCase() === grpAct);
+    }
+
     const esBebAct = Boolean(platilloCompuestoActual && platilloCompuestoActual.esBebida);
     const gruposPermitidos = Array.isArray(flujoCompuestoActual) && flujoCompuestoActual.length
       ? flujoCompuestoActual.map(g => (g.grupo || '').toUpperCase())
       : null;
-    const grpAct = (grupoCompuestoActivo || 'SABORES').toUpperCase();
     if (gruposPermitidos && !gruposPermitidos.includes(grpAct)) {
       return [];
     }
@@ -3038,16 +3158,18 @@ DIFERENCIA:$${d.diferencia}
       mapSw.forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.checked = Boolean(val); });
     }
 
-    document.getElementById('tbodyRaquelProductos').innerHTML = catProductos.map(p => `
-      <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:4px;"><input type="text" id="edit_nom_${p.id}" value="${p.nombre}" class="m-inp" style="height:28px;"></td>
-        <td>${p.categoria}</td>
-        <td><input type="number" step="0.5" id="edit_pre_${p.id}" value="${p.precio}" class="m-inp" style="height:28px;width:80px;"></td>
-        <td style="display:flex;gap:4px;">
-          <button type="button" class="btn-p sm" onclick="actualizarProdRaquel(${p.id})">OK</button>
-          <button type="button" class="btn-p sm rojo" onclick="borrarProdRaquel(${p.id})">X</button>
-        </td>
-      </tr>`).join('');
+    const selFiltroCat = document.getElementById('filtroCatProdSoft');
+    if (selFiltroCat) {
+      const prevF = selFiltroCat.value;
+      selFiltroCat.innerHTML = '<option value="">(TODAS LAS CATEGORÍAS)</option>' + catCategorias.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      if (prevF && catCategorias.some(c => c.nombre === prevF)) selFiltroCat.value = prevF;
+    }
+    renderizarListaProdsSoft();
+    if (prodSoftSelId && catProductos.some(x => x.id === prodSoftSelId)) {
+      seleccionarProdSoft(prodSoftSelId, true);
+    } else if (catProductos.length && !prodSoftModoNuevo) {
+      seleccionarProdSoft(catProductos[0].id, true);
+    }
 
     document.getElementById('tbodyListaModificadoresRaquel').innerHTML = catModificadores.map(m => {
       const nProds = (m.producto_ids || []).length;
@@ -3084,42 +3206,176 @@ DIFERENCIA:$${d.diferencia}
       </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:12px;color:#64748b;">Sin promociones automáticas.</td></tr>';
   }
 
-  function filtrarTablaRaquel() {
-    const q = (document.getElementById('filtroRaquelProd').value || '').toLowerCase();
-    document.querySelectorAll('#tbodyRaquelProductos tr').forEach(tr => {
-      tr.style.display = tr.querySelector('input').value.toLowerCase().includes(q) ? '' : 'none';
-    });
+  let prodSoftSelId = null;
+  let prodSoftModoNuevo = false;
+
+  function cambiarSubTabProdSoft(tab) {
+    document.getElementById('subProdSoft_princ').style.display = tab === 'princ' ? 'flex' : 'none';
+    document.getElementById('subProdSoft_comp').style.display = tab === 'comp' ? 'block' : 'none';
+    document.getElementById('btnSubProd_princ').classList.toggle('activo', tab === 'princ');
+    document.getElementById('btnSubProd_comp').classList.toggle('activo', tab === 'comp');
+    if (tab === 'comp') renderizarChecklistModsProdSoft();
   }
 
-  async function guardarNuevoProductoRaquel() {
-    await fetch('/api/pos/admin_producto', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nombre: document.getElementById('r_prod_nombre').value,
-        precio: parseFloat(document.getElementById('r_prod_precio').value || 0),
-        categoria: document.getElementById('r_prod_cat').value
-      })
+  function renderizarListaProdsSoft() {
+    const q = (document.getElementById('filtroRaquelProd')?.value || '').trim().toLowerCase();
+    const catF = (document.getElementById('filtroCatProdSoft')?.value || '').trim().toUpperCase();
+    const activos = catProductos.filter(p => !p.agotado).length;
+    const agotados = catProductos.length - activos;
+    const elAct = document.getElementById('cntProdsActivosSoft');
+    const elAgo = document.getElementById('cntProdsAgotadosSoft');
+    if (elAct) elAct.innerText = activos;
+    if (elAgo) elAgo.innerText = agotados;
+
+    const filtrados = catProductos.filter(p => {
+      if (catF && String(p.categoria || '').toUpperCase() !== catF) return false;
+      if (q) {
+        const clv = ('0' + p.id).toLowerCase();
+        if (!String(p.nombre || '').toLowerCase().includes(q) && !clv.includes(q)) return false;
+      }
+      return true;
     });
+
+    const tb = document.getElementById('tbodyRaquelProductos');
+    if (!tb) return;
+    tb.innerHTML = filtrados.map(p => {
+      const sel = prodSoftSelId === p.id;
+      const bg = sel ? 'background:#2563eb;color:#ffffff;' : (p.agotado ? 'background:#fef2f2;color:#991b1b;' : 'background:#ffffff;color:#0f172a;');
+      return `<tr onclick="seleccionarProdSoft(${p.id})" style="cursor:pointer;border-bottom:1px solid #e2e8f0;${bg}">
+        <td style="padding:5px 6px;">0${p.id}</td>
+        <td style="padding:5px 6px;font-size:11px;opacity:${sel ? '0.95' : '0.75'};">${p.categoria}</td>
+        <td style="padding:5px 6px;">${String(p.nombre || '').toUpperCase()}${p.agotado ? ' (AGOTADO)' : ''}</td>
+        <td style="padding:5px 6px;text-align:right;">$${Number(p.precio || 0).toFixed(2)}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;padding:12px;color:#64748b;">Sin resultados.</td></tr>';
+  }
+
+  function seleccionarProdSoft(id, silencioso = false) {
+    const p = catProductos.find(x => x.id === id);
+    if (!p) return;
+    prodSoftSelId = p.id;
+    prodSoftModoNuevo = false;
+    document.getElementById('r_prod_clave').value = '0' + p.id;
+    document.getElementById('r_prod_nombre').value = p.nombre || '';
+    document.getElementById('r_prod_precio').value = p.precio || 0;
+    const selCat = document.getElementById('r_prod_cat');
+    if (selCat) selCat.value = p.categoria || '';
+    const selArea = document.getElementById('r_prod_area');
+    if (selArea) selArea.value = (p.area_impresion || '').toUpperCase();
+    const chkAgo = document.getElementById('r_prod_agotado');
+    if (chkAgo) chkAgo.checked = Boolean(p.agotado);
+    document.getElementById('lblEstadoProdSoft').innerText = `Editando: 0${p.id} • ${String(p.nombre || '').toUpperCase()}`;
+    const nMods = obtenerModsAsignadosAProducto(p).length;
+    const lblRes = document.getElementById('lblResumenModsProdSoft');
+    if (lblRes) lblRes.innerText = `${nMods} modificador(es) ligado(s)`;
+    if (!silencioso) renderizarListaProdsSoft();
+    renderizarChecklistModsProdSoft();
+  }
+
+  function nuevoProdSoft() {
+    prodSoftSelId = null;
+    prodSoftModoNuevo = true;
+    document.getElementById('r_prod_clave').value = '';
     document.getElementById('r_prod_nombre').value = '';
-    cargarCatalogoCompletoRaquel();
+    document.getElementById('r_prod_precio').value = '';
+    document.getElementById('r_prod_area').value = '';
+    document.getElementById('r_prod_agotado').checked = false;
+    document.getElementById('lblEstadoProdSoft').innerText = 'Modo: Nuevo producto';
+    const lblRes = document.getElementById('lblResumenModsProdSoft');
+    if (lblRes) lblRes.innerText = 'Guarda primero para ligar modificadores';
+    cambiarSubTabProdSoft('princ');
+    renderizarListaProdsSoft();
+    document.getElementById('r_prod_nombre').focus();
   }
 
-  async function actualizarProdRaquel(id) {
-    const prod = catProductos.find(p => p.id === id);
-    await fetch('/api/pos/admin_producto', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id, nombre: document.getElementById('edit_nom_' + id).value,
-        precio: parseFloat(document.getElementById('edit_pre_' + id).value || 0),
-        categoria: prod ? prod.categoria : ''
-      })
+  async function guardarProdSoft() {
+    const nombre = (document.getElementById('r_prod_nombre').value || '').trim();
+    const precio = parseFloat(document.getElementById('r_prod_precio').value || 0);
+    const categoria = document.getElementById('r_prod_cat').value;
+    const area_impresion = document.getElementById('r_prod_area').value || '';
+    const agotado = Boolean(document.getElementById('r_prod_agotado').checked);
+    if (!nombre || !categoria) return alert('Captura nombre y categoría del producto.');
+
+    const metodo = prodSoftSelId ? 'PUT' : 'POST';
+    const payload = prodSoftSelId
+      ? { id: prodSoftSelId, nombre, precio, categoria, area_impresion, agotado }
+      : { nombre, precio, categoria, area_impresion, agotado };
+
+    const r = await fetch('/api/pos/admin_producto', {
+      method: metodo,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-    notificarBarra('✓ Platillo actualizado');
+    const d = await r.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo guardar el producto'));
+    if (d.id) prodSoftSelId = Number(d.id);
+    prodSoftModoNuevo = false;
+    notificarBarra(metodo === 'POST' ? '✓ Producto creado' : '✓ Producto actualizado');
+    await cargarCatalogoCompletoRaquel();
+    if (prodSoftSelId) seleccionarProdSoft(prodSoftSelId);
   }
 
-  async function borrarProdRaquel(id) {
-    await fetch('/api/pos/admin_producto', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    cargarCatalogoCompletoRaquel();
+  async function eliminarProdSoftActual() {
+    if (!prodSoftSelId) return alert('Selecciona un producto de la lista izquierda.');
+    const p = catProductos.find(x => x.id === prodSoftSelId);
+    if (!confirm(`¿Eliminar definitivamente "${p ? p.nombre : prodSoftSelId}"?`)) return;
+    await fetch('/api/pos/admin_producto', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: prodSoftSelId })
+    });
+    prodSoftSelId = null;
+    notificarBarra('🗑️ Producto eliminado');
+    await cargarCatalogoCompletoRaquel();
+  }
+
+  function renderizarChecklistModsProdSoft() {
+    const cont = document.getElementById('listaModsCompProd');
+    const lbl = document.getElementById('lblProdCompNombre');
+    if (!cont || !lbl) return;
+    if (!prodSoftSelId) {
+      lbl.innerText = 'Guarda o selecciona un producto primero';
+      cont.innerHTML = '<div style="grid-column:span 2;color:#64748b;padding:10px;text-align:center;">Selecciona un platillo en la lista izquierda.</div>';
+      return;
+    }
+    const p = catProductos.find(x => x.id === prodSoftSelId);
+    lbl.innerText = p ? `${String(p.nombre || '').toUpperCase()} ($${Number(p.precio || 0).toFixed(2)})` : '-';
+    const catUp = String(p?.categoria || '').toUpperCase();
+    cont.innerHTML = catModificadores.map(m => {
+      const pIds = Array.isArray(m.producto_ids) ? m.producto_ids.map(Number) : [];
+      const cList = Array.isArray(m.categorias) ? m.categorias.map(x => String(x).toUpperCase()) : [];
+      const marcadoDirecto = pIds.includes(Number(prodSoftSelId));
+      const porCat = !marcadoDirecto && cList.includes(catUp);
+      const busq = `${m.nombre || ''} ${m.grupo || ''}`.toLowerCase();
+      return `<label class="lbl-mod-comp-prod" data-busq="${busq}" style="display:flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid ${marcadoDirecto ? '#0284c7' : '#e2e8f0'};background:${marcadoDirecto ? '#e0f2fe' : '#fff'};border-radius:5px;cursor:pointer;">
+        <input type="checkbox" class="chk-mod-comp-prod" value="${m.id}" ${marcadoDirecto ? 'checked' : ''}>
+        <span style="line-height:1.2;"><b>&gt;${m.nombre}</b> <small style="color:#0369a1;">+$${Number(m.precio || 0).toFixed(2)}</small><br><small style="color:#64748b;">${m.grupo}${m.area_impresion ? ' • ' + m.area_impresion : ''}${porCat ? ' (por categoría)' : ''}</small></span>
+      </label>`;
+    }).join('') || '<div style="grid-column:span 2;color:#64748b;padding:10px;">Sin modificadores creados.</div>';
+    filtrarModsCompProd();
+  }
+
+  function filtrarModsCompProd() {
+    const q = (document.getElementById('buscarModCompProd')?.value || '').trim().toLowerCase();
+    document.querySelectorAll('.lbl-mod-comp-prod').forEach(el => {
+      const txt = el.getAttribute('data-busq') || '';
+      el.style.display = (!q || txt.includes(q)) ? 'flex' : 'none';
+    });
+  }
+
+  async function guardarModsProdSoft() {
+    if (!prodSoftSelId) return alert('Primero guarda o selecciona un producto.');
+    const mod_ids = Array.from(document.querySelectorAll('.chk-mod-comp-prod:checked')).map(el => Number(el.value));
+    const r = await fetch('/api/pos/producto_compuesto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ producto_id: prodSoftSelId, mod_ids })
+    });
+    const d = await r.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudieron guardar los modificadores'));
+    notificarBarra(`✓ ${d.total_mods} modificador(es) guardados en el producto`);
+    await cargarCatalogoCompletoRaquel();
+    seleccionarProdSoft(prodSoftSelId);
   }
 
   let modAsignandoId = null;
@@ -3180,6 +3436,7 @@ DIFERENCIA:$${d.diferencia}
       body: JSON.stringify({
         grupo: document.getElementById('nuevoModGrupo').value,
         nombre: document.getElementById('nuevoModNombre').value,
+        area_impresion: document.getElementById('nuevoModArea')?.value || 'COCINA',
         precio: parseFloat(document.getElementById('nuevoModPrecio').value || 0)
       })
     });
