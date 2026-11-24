@@ -1636,21 +1636,6 @@
       tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
     }
 
-      if (nuevos.length) {
-        htmlMini += `<tr><td colspan="4" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;text-align:center;padding:3px;">🆕 NUEVA COMANDA POR ENVIAR (${nuevos.length})</td></tr>`;
-        htmlMini += nuevos.map(it => `
-          <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
-              style="background:#ffffff;"
-              onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
-            <td>T${it.comanda}</td>
-            <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
-            <td style="${it.es_modificador ? 'padding-left:10px;color:#0f766e;' : 'font-weight:800;'}">${it.descripcion}</td>
-            <td style="text-align:right;">$${it.importe}</td>
-          </tr>`).join('');
-      }
-
-      tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
-    }
   // =========================================================================
   // 2. APERTURA DE CUENTA, CAPTURA Y MODIFICADORES
   // =========================================================================
@@ -1929,6 +1914,9 @@
       : GRUPOS_DEFAULT_POS;
     flujoCompuestoActual = flujo;
 
+    const esBeb = /caliente|fría|fria|frapp|bebida|café|cafe|infus|cerveza|agua|jugo|licuado/.test(`${prodObj.categoria || ''} ${prodObj.nombre || ''}`.toLowerCase());
+    platilloCompuestoActual.esBebida = esBeb;
+
     const bar = document.getElementById('barGruposCompuesto');
     bar.innerHTML = flujo.map((st, idx) =>
       `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${st.grupo}" data-etq="${st.etiqueta}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto('${st.grupo.replace(/'/g, '')}', this)">${st.etiqueta} (0)</button>`
@@ -1936,7 +1924,6 @@
 
     let grpInicial = flujo[0].grupo;
     if (flujo === GRUPOS_DEFAULT_POS) {
-      const esBeb = /caliente|fría|fria|frapp|bebida|café|cafe|infus|cerveza/.test((prodObj.categoria || '').toLowerCase());
       grpInicial = esBeb ? 'SABORES' : 'EXTRAS ALIMENTOS';
     }
     cambiarGrupoCompuesto(grpInicial, document.querySelector(`.sr-grp-tab[data-grp="${grpInicial}"]`));
@@ -1968,7 +1955,12 @@
   }
 
   function cambiarPaginaModsComp(delta) {
-    const filtrados = catModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoCompuestoActivo);
+    const esBebAct = Boolean(platilloCompuestoActual && platilloCompuestoActual.esBebida);
+    const filtrados = catModificadores.filter(m => {
+      if ((m.grupo || 'SABORES').toUpperCase() !== grupoCompuestoActivo) return false;
+      if (esBebAct && ((m.area_impresion || '').toUpperCase() === 'COCINA' || /cebolla|jamon|jamón|huevo|tortilla|salsa|frijol/.test((m.nombre || '').toLowerCase()))) return false;
+      return true;
+    });
     const lista = filtrados.length ? filtrados : catModificadores;
     const maxPag = Math.max(0, Math.ceil(lista.length / 14) - 1);
     paginaModsComp = Math.min(maxPag, Math.max(0, paginaModsComp + delta));
