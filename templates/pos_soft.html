@@ -1602,18 +1602,55 @@
         </tr>`).join('');
     }
 
-    if (tbMini) {
-      tbMini.innerHTML = datosCuentaActiva.items.map(it => `
-        <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
-            onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
-          <td>${it.comanda}</td>
-          <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
-          <td>${it.descripcion}</td>
-          <td style="text-align:right;">$${it.importe}</td>
-        </tr>`).join('');
-    }
-  }
+  if (tbMini) {
+      const enviados = datosCuentaActiva.items.filter(it => it.impreso);
+      const nuevos = datosCuentaActiva.items.filter(it => !it.impreso);
+      let htmlMini = '';
 
+      if (enviados.length) {
+        htmlMini += `<tr><td colspan="4" style="background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;text-align:center;padding:3px;">?? YA ENVIADO A COCINA / BARRA (${enviados.length})</td></tr>`;
+        htmlMini += enviados.map(it => `
+          <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
+              style="color:#64748b;background:#f8fafc;"
+              onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
+            <td>??</td>
+            <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
+            <td style="${it.es_modificador ? 'padding-left:10px;' : ''}">${it.descripcion}</td>
+            <td style="text-align:right;">$${it.importe}</td>
+          </tr>`).join('');
+      }
+
+      if (nuevos.length) {
+        htmlMini += `<tr><td colspan="4" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;text-align:center;padding:3px;">?? NUEVA COMANDA POR ENVIAR (${nuevos.length})</td></tr>`;
+        htmlMini += nuevos.map(it => `
+          <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
+              style="background:#ffffff;"
+              onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
+            <td>T${it.comanda}</td>
+            <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
+            <td style="${it.es_modificador ? 'padding-left:10px;color:#0f766e;' : 'font-weight:800;'}">${it.descripcion}</td>
+            <td style="text-align:right;">$${it.importe}</td>
+          </tr>`).join('');
+      }
+
+      tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
+    }
+
+      if (nuevos.length) {
+        htmlMini += `<tr><td colspan="4" style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;text-align:center;padding:3px;">🆕 NUEVA COMANDA POR ENVIAR (${nuevos.length})</td></tr>`;
+        htmlMini += nuevos.map(it => `
+          <tr class="fila-cap-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
+              style="background:#ffffff;"
+              onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
+            <td>T${it.comanda}</td>
+            <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
+            <td style="${it.es_modificador ? 'padding-left:10px;color:#0f766e;' : 'font-weight:800;'}">${it.descripcion}</td>
+            <td style="text-align:right;">$${it.importe}</td>
+          </tr>`).join('');
+      }
+
+      tbMini.innerHTML = htmlMini || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">Toca un platillo para iniciar la comanda</td></tr>';
+    }
   // =========================================================================
   // 2. APERTURA DE CUENTA, CAPTURA Y MODIFICADORES
   // =========================================================================
@@ -1820,7 +1857,7 @@
     document.getElementById('grid20Productos').innerHTML = html;
   }
 
-  function tocarProductoEnMatrizCaja(prodId) {
+  async function tocarProductoEnMatrizCaja(prodId) {
     const p = catProductos.find(x => x.id === prodId);
     if (!p) return;
     if (modoConsultarPrecio) {
@@ -1829,7 +1866,23 @@
       return;
     }
     ultimoProductoCapturado = { id: p.id, nombre: p.nombre, precio: p.precio, categoria: p.categoria, cantidad: cantidadCaptura };
-    abrirVentanaCompuesta(ultimoProductoCapturado);
+    const claveNorm = (p.nombre || '').trim().toUpperCase();
+    const tieneFlujo = Boolean(catFlujos[claveNorm] && catFlujos[claveNorm].length);
+    if (tieneFlujo) {
+      abrirVentanaCompuesta(ultimoProductoCapturado);
+    } else {
+      await fetch('/api/pos/capturar_item', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: cantidadCaptura,
+          descripcion: p.nombre, precio: p.precio, categoria: p.categoria,
+          clave: '0' + p.id, es_modificador: false
+        })
+      });
+      cantidadCaptura = 1.0;
+      document.getElementById('visorCantidadCaptura').innerText = '1.00';
+      seleccionarCuenta(cuentaActivaId);
+    }
   }
 
   function buscarPorClaveEnCaptura() {
@@ -1892,14 +1945,33 @@
     document.getElementById('modalCompuesto').style.display = 'flex';
   }
 
+  let paginaModsComp = 0;
+
   function abrirCompuestoParaUltimoItem() {
-    abrirVentanaCompuesta({ id: 99, nombre: 'MODIFICADOR EXTRA', precio: 0, categoria: 'Barra', cantidad: 1, soloMod: true });
+    if (!datosCuentaActiva?.items.length) return notificarBarra('Captura primero un platillo para agregarle modificadores.');
+    const itemRef = datosCuentaActiva.items.find(x => x.id === itemSeleccionadoId && !x.es_modificador)
+      || [...datosCuentaActiva.items].reverse().find(x => !x.es_modificador);
+    if (!itemRef) return notificarBarra('Selecciona un platillo principal.');
+    abrirVentanaCompuesta({
+      id: itemRef.id, nombre: `MODIF. PARA: ${itemRef.descripcion}`,
+      precio: 0, categoria: itemRef.area_impresion === 'BARRA' ? 'Barra' : 'Cocina',
+      cantidad: 1, soloMod: true, parentDetalleId: itemRef.id
+    });
   }
 
   function cambiarGrupoCompuesto(g, btn) {
     grupoCompuestoActivo = g;
+    paginaModsComp = 0;
     document.querySelectorAll('.sr-grp-tab').forEach(b => b.classList.remove('activo'));
     if (btn) btn.classList.add('activo');
+    renderizarMatriz16ModsCompuesto();
+  }
+
+  function cambiarPaginaModsComp(delta) {
+    const filtrados = catModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoCompuestoActivo);
+    const lista = filtrados.length ? filtrados : catModificadores;
+    const maxPag = Math.max(0, Math.ceil(lista.length / 14) - 1);
+    paginaModsComp = Math.min(maxPag, Math.max(0, paginaModsComp + delta));
     renderizarMatriz16ModsCompuesto();
   }
 
@@ -1912,10 +1984,11 @@
   function renderizarMatriz16ModsCompuesto() {
     const filtrados = catModificadores.filter(m => (m.grupo || 'SABORES').toUpperCase() === grupoCompuestoActivo);
     const lista = filtrados.length ? filtrados : catModificadores;
-    let html = `<div class="sr-mod-cell con-mod" onclick="cancelarCompuesto()">◀ VOLVER</div>`;
+    const sl = lista.slice(paginaModsComp * 14, paginaModsComp * 14 + 14);
+    let html = `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(-1)">? ANT</div>`;
     for (let i = 0; i < 14; i++) {
-      if (i < lista.length) {
-        const m = lista[i];
+      if (i < sl.length) {
+        const m = sl[i];
         const tagArea = m.area_impresion === 'BARRA' ? ' <span style="color:#0284c7;font-size:9px;">[BARRA]</span>' : '';
         html += `<div class="sr-mod-cell con-mod" onclick="agregarModAlCompuesto(${m.id})">
           <div>${m.nombre}${tagArea}</div>${m.precio > 0 ? `<small>+$${m.precio.toFixed(2)}</small>` : ''}
@@ -1924,7 +1997,7 @@
         html += `<div class="sr-mod-cell"></div>`;
       }
     }
-    html += `<div class="sr-mod-cell con-mod" style="background:#dcfce7;border-color:#16a34a;color:#166534;" onclick="finalizarCompuestoYGuardar()">AGREGAR ▶</div>`;
+    html += `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(1)">SIG ?</div>`;
     document.getElementById('grid16ModificadoresComp').innerHTML = html;
   }
 
@@ -2001,8 +2074,12 @@
         await fetch('/api/pos/capturar_item', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            cuenta_id: cuentaActivaId, comanda: comandaActivaNum, cantidad: 1,
-            descripcion: m.nombre, precio: m.precio, categoria: 'Barra', clave: m.clave, es_modificador: true
+            cuenta_id: cuentaActivaId,
+            parent_detalle_id: platilloCompuestoActual.parentDetalleId || itemSeleccionadoId || null,
+            comanda: comandaActivaNum, cantidad: 1,
+            descripcion: m.nombre, precio: m.precio,
+            categoria: platilloCompuestoActual.categoria || 'Cocina',
+            clave: m.clave, es_modificador: true
           })
         });
       }
@@ -2718,12 +2795,11 @@
   // =========================================================================
   // 7. TURNO, RETIROS, CORTE X / Z, BITÁCORA Y ADMIN RAQUEL
   // =========================================================================
-  function actualizarCampoClaveRetiro() {
-    const tipo = document.getElementById('movCajaTipo').value;
-    const inp = document.getElementById('movCajaClave');
-    if (inp) inp.style.display = (tipo === 'RETIRO' && ROL_POS !== 'admin' && ROL_POS !== 'gerente') ? 'block' : 'none';
-  }
-
+ function actualizarCampoClaveRetiro() {
+  const tipo = document.getElementById('movCajaTipo').value;
+  const inp = document.getElementById('movCajaClave');
+  if (inp) inp.style.display = (tipo === 'RETIRO') ? 'block' : 'none';
+}
   function abrirModalRetiroCaja() {
     document.getElementById('movCajaMonto').value = '';
     document.getElementById('movCajaConcepto').value = '';

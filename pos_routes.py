@@ -22,13 +22,12 @@ ROLES_AUTH = ('admin', 'gerente')
 
 
 def _autorizar_operacion(clave_admin='', permitir_si_flag=False):
-    """Valida si es Admin/Gerente, si el permiso está habilitado o si ingresó contraseña de Admin/Gerente."""
-    if current_user.role in ROLES_AUTH:
-        return f"{current_user.username.upper()} ({current_user.role.upper()})"
+    """Valida estrictamente la contrase?a de Admin/Gerente; solo omite clave si el permiso de caja est? activo."""
     if permitir_si_flag and current_user.role in ROLES_CAJA:
         return current_user.username.upper()
-    return validar_clave_admin(clave_admin)
-
+    if not clave_admin or not str(clave_admin).strip():
+        return None
+    return validar_clave_admin(str(clave_admin).strip())
 
 def _cuenta_permitida(c):
     """Evita que un usuario de una sucursal opere cuentas de otra sucursal."""
