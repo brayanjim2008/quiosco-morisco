@@ -1233,6 +1233,7 @@
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;">
               <button type="button" class="btn-p sm" onclick="nuevoProdSoft()">+ Nuevo</button>
               <button type="button" class="btn-p sm" style="background:#0284c7;" onclick="guardarProdSoft()">💾 Guardar</button>
+              <button type="button" class="btn-p sm" id="btnSuspenderProdSoft" style="background:#d97706;" onclick="toggleSuspenderProdSoft()">⏸️ Suspender / Activar</button>
               <button type="button" class="btn-p sm rojo" onclick="eliminarProdSoftActual()">🗑️ Eliminar</button>
               <span id="lblEstadoProdSoft" style="margin-left:auto;font-size:11px;font-weight:800;color:#0369a1;">Nuevo producto</span>
             </div>
@@ -3076,7 +3077,8 @@ DEL ${d.apertura} AL ${d.ahora}
 ======================================
 PROPINAS Y VENTAS POR MESERO:
 ${meserosTxt}
-(Cuentas abiertas: ${d.cuentas_abiertas})`;
+(Cuentas abiertas: ${d.cuentas_abiertas})${d.excede_salvaguarda ? `
+⚠️ ALERTA SALVAGUARDA: Efectivo en caja >= $${Number(d.tope_salvaguarda || 5000).toFixed(2)}. Conviene hacer retiro.` : ''}`;
     document.getElementById('modalCorteX').style.display = 'flex';
   }
 
@@ -3128,11 +3130,23 @@ ${meserosTxt}
 
   async function confirmarCierreConArqueo() {
     if (bufferArqueo !== '') valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
-    const res = await fetch('/api/pos/cerrar_turno_arqueo', {
+    let payload = Object.assign({}, valoresArqueo);
+    let res = await fetch('/api/pos/cerrar_turno_arqueo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(valoresArqueo)
+      body: JSON.stringify(payload)
     });
-    const d = await res.json();
+    let d = await res.json();
+    if (!d.ok && d.requiere_admin) {
+      const clave = prompt('🔒 ' + (d.msg || 'Ingresa contraseña de Admin o Gerente para cerrar turno:'));
+      if (!clave) return;
+      payload.clave_admin = clave;
+      res = await fetch('/api/pos/cerrar_turno_arqueo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      d = await res.json();
+    }
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo cerrar el turno.'));
     if (d.ok) {
       cerrarModal('modalArqueoCierre');
       mandarImprimirHTMLDirecto(`<div class="ticket-termico" style="white-space:pre-line;">COMENSAL CONECTADO - CORTE Z
@@ -3156,6 +3170,57 @@ DIFERENCIA:$${d.diferencia}
         <td>${r.mesa}</td><td style="text-align:right;">$${r.monto}</td><td>${r.detalle}</td>
       </tr>`).join('');
     document.getElementById('modalBitacora').style.display = 'flex';
+  }
+
+  
+  async function abrirModalStockMermas() {
+    const el = document.getElementById('modalStockMermas');
+    if (el) el.style.display = 'flex';
+    const cont = document.getElementById('listaAlertasStock');
+    if (cont) cont.innerHTML = 'Consultando stock...';
+    const res = await fetch('/api/pos/alertas_stock');
+    const d = await res.json();
+    if (!d.ok) {
+      if (cont) cont.innerHTML = `<span style="color:#dc2626;">${d.msg || 'Sin acceso'}</span>`;
+      return;
+    }
+    if (!d.insumos || !d.insumos.length) {
+      if (cont) cont.innerHTML = '<span style="color:#16a34a;font-weight:600;">✓ Todos los insumos están por encima de su stock mínimo.</span>';
+      return;
+    }
+    if (cont) {
+      cont.innerHTML = d.insumos.map(x => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid #e2e8f0;">
+          <div>
+            <strong>${x.nombre}</strong> <span style="color:#64748b;font-size:12px;">(${x.categoria})</span>
+          </div>
+          <div style="font-weight:700;color:${x.critico ? '#dc2626' : '#d97706'};">
+            ${x.critico ? 'CRÍTICO: ' : 'BAJO: '}${x.stock_actual} / mín ${x.stock_minimo} ${x.unidad}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  async function guardarMermaRapida() {
+    const insumo_nombre = (document.getElementById('mermaInsumo')?.value || '').trim();
+    const cantidad = parseFloat(document.getElementById('mermaCantidad')?.value || '0');
+    const motivo = (document.getElementById('mermaMotivo')?.value || '').trim();
+    if (!insumo_nombre || cantidad <= 0 || !motivo) {
+      return alert('Completa insumo, cantidad mayor a 0 y motivo.');
+    }
+    const res = await fetch('/api/pos/registrar_merma', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insumo_nombre, cantidad, motivo })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo registrar la merma.'));
+    document.getElementById('mermaInsumo').value = '';
+    document.getElementById('mermaCantidad').value = '';
+    document.getElementById('mermaMotivo').value = '';
+    notificarBarra(`📉 Merma registrada ($${Number(d.costo_total || 0).toFixed(2)})`);
+    abrirModalStockMermas();
   }
 
   function cambiarTabRaquel(tab) {
@@ -3452,6 +3517,20 @@ DIFERENCIA:$${d.diferencia}
     if (prodSoftSelId) seleccionarProdSoft(prodSoftSelId);
   }
 
+  async function toggleSuspenderProdSoft() {
+    if (!prodSoftSelId) return alert('Selecciona primero un producto de la lista.');
+    const res = await fetch('/api/pos/suspender_producto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ producto_id: prodSoftSelId })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo cambiar el estado del producto.'));
+    notificarBarra(d.agotado ? `⏸️ Producto suspendido (agotado): ${d.nombre}` : `▶️ Producto reactivado: ${d.nombre}`);
+    await cargarCatalogoCompletoRaquel();
+    if (typeof seleccionarProdSoft === 'function') seleccionarProdSoft(prodSoftSelId);
+  }
+
   async function eliminarProdSoftActual() {
     if (!prodSoftSelId) return alert('Selecciona un producto de la lista izquierda.');
     const p = catProductos.find(x => x.id === prodSoftSelId);
@@ -3687,5 +3766,30 @@ DIFERENCIA:$${d.diferencia}
     });
   });
 </script>
+
+<div id="modalStockMermas" class="modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#ffffff;color:#0f172a;width:92%;max-width:700px;border-radius:12px;padding:18px;box-shadow:0 20px 45px rgba(0,0,0,0.25);max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:14px;">
+      <h3 style="margin:0;font-size:17px;">📦 Stock Bajo y Registro de Merma</h3>
+      <button type="button" class="btn-p sm rojo" onclick="cerrarModal('modalStockMermas')">✕</button>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">⚠️ Insumos en Mínimo o Agotados</div>
+      <div id="listaAlertasStock" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#f8fafc;font-size:13px;">Cargando...</div>
+    </div>
+
+    <div style="border-top:1px solid #e2e8f0;padding-top:14px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📉 Registrar Merma Rápida</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:8px;align-items:center;">
+        <input type="text" id="mermaInsumo" placeholder="Insumo (ej. LECHE ENTERA)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+        <input type="number" step="0.01" min="0.01" id="mermaCantidad" placeholder="Cant." style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+        <input type="text" id="mermaMotivo" placeholder="Motivo (caducidad, derrame...)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+        <button type="button" class="btn-p sm" style="background:#dc2626;" onclick="guardarMermaRapida()">Registrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

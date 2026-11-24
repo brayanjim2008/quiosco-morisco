@@ -44,6 +44,28 @@ _ASIG_MOD_FILE = _Path_asig("config_mods_productos.json")
 _AREA_PROD_FILE = _Path_asig("config_areas_productos.json")
 _MOTIVOS_FILE = _Path_asig("config_motivos_cancelacion.json")
 _TIPOS_DESC_FILE = _Path_asig("config_tipos_descuento.json")
+_CAJA_CFG_FILE = _Path_asig("config_caja_soft.json")
+
+_CAJA_CFG_DEFAULT = {
+    "bloquear_cierre_cuentas_abiertas": True,
+    "tope_salvaguarda_efectivo": 5000.0
+}
+
+def _cargar_cfg_caja():
+    if not _CAJA_CFG_FILE.exists():
+        try:
+            _CAJA_CFG_FILE.write_text(_json_asig.dumps(_CAJA_CFG_DEFAULT, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return dict(_CAJA_CFG_DEFAULT)
+    try:
+        raw = _json_asig.loads(_CAJA_CFG_FILE.read_text(encoding="utf-8"))
+        out = dict(_CAJA_CFG_DEFAULT)
+        if isinstance(raw, dict):
+            out.update(raw)
+        return out
+    except Exception:
+        return dict(_CAJA_CFG_DEFAULT)
 
 _MOTIVOS_DEFAULT = [
     {"id": 1, "clave": "M01", "descripcion": "ERROR DE CAPTURA"},
@@ -319,9 +341,22 @@ def api_pos_mover_mesa_rapido():
     ant = c.mesa
     c.mesa = nueva_mesa
     c.area = '02 TERRAZA' if nueva_mesa.startswith('T') else '01 COMEDOR'
+    tiene_enviados = any(getattr(d, 'enviado', False) for d in (c.detalles or []))
+    if tiene_enviados:
+        hora_txt = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
+        html_aviso = f"""
+        <div class='ticket-termico'>
+            <div style='text-align:center;font-weight:900;font-size:15px;'>⚠️ CAMBIO DE MESA</div>
+            <div style='text-align:center;font-size:11px;'>{c.sucursal.upper()} | {hora_txt}</div>
+            <div style='border-top:1px dashed #000;margin:6px 0;'></div>
+            <div style='font-size:14px;font-weight:900;'>MESA ANTERIOR: {ant}</div>
+            <div style='font-size:16px;font-weight:900;'>NUEVA MESA:    {nueva_mesa}</div>
+            <div>MESERO: {(c.mesero or current_user.username).upper()}</div>
+        </div>"""
+        db.session.add(ColaImpresionPOS(sucursal=c.sucursal, tipo='AVISO_CAMBIO_MESA', contenido_html=html_aviso, fecha=ahora_local()))
     db.session.commit()
     registrar_bitacora('MOVER_MESA', nueva_mesa, c.total, f'De {ant} a {nueva_mesa}', sucursal=c.sucursal)
-    return jsonify({'ok': True, 'mesa': nueva_mesa})
+    return jsonify({'ok': True, 'mesa': nueva_mesa, 'aviso_impreso': bool(tiene_enviados)})
 
 
 @pos_bp.route('/api/pos/detalle_cuenta/<int:cuenta_id>')
@@ -1361,6 +1396,16 @@ def api_pos_corte_caja():
         return jsonify({'ok': False}), 403
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
+    cfg_cj = _cargar_cfg_caja()
+    abiertas_act = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').count()
+    if abiertas_act > 0 and cfg_cj.get('bloquear_cierre_cuentas_abiertas', True):
+        aut_ab = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
+        if not aut_ab:
+            return jsonify({
+                'ok': False,
+                'requiere_admin': True,
+                'msg': f'Hay {abiertas_act} cuenta(s) abierta(s). Ciérralas o ingresa clave de Admin/Gerente para forzar el cierre de turno.'
+            }), 403
     cuentas_pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='PAGADA').all()
     cuentas_abiertas = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').count()
 
@@ -1399,6 +1444,9 @@ def api_pos_corte_caja():
         'vales_empleado': f"{vales_emp:.2f}",
         'depositos': f"{turno.depositos_efectivo:.2f}",
         'retiros': f"{turno.retiros_efectivo:.2f}",
+        'cuentas_abiertas': int(cuentas_abiertas),
+        'tope_salvaguarda': float(_cargar_cfg_caja().get('tope_salvaguarda_efectivo') or 5000.0),
+        'excede_salvaguarda': bool(efectivo_final >= float(_cargar_cfg_caja().get('tope_salvaguarda_efectivo') or 5000.0)),
         'propinas_pagadas': f"{propinas_tarj:.2f}",
         'saldo_final': f"{saldo_final:.2f}",
         'efectivo_final': f"{efectivo_final:.2f}",
@@ -1904,6 +1952,182 @@ def api_pos_tipos_descuento():
     items.append({'id': nxt_id, 'clave': clv, 'descripcion': desc, 'porcentaje': round(pct, 2)})
     _guardar_json_lista(_TIPOS_DESC_FILE, items)
     return jsonify({'ok': True, 'id': nxt_id})
+
+
+@pos_bp.route('/api/pos/suspender_producto', methods=['POST'])
+@login_required
+def api_pos_suspender_producto():
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    data = request.json or {}
+    pid = data.get('producto_id')
+    if not pid:
+        return jsonify({'ok': False, 'msg': 'Falta producto_id.'}), 400
+    p = Producto.query.get_or_404(int(pid))
+    nuevo_estado = not bool(p.agotado) if 'agotado' not in data else bool(data.get('agotado'))
+    p.agotado = nuevo_estado
+    db.session.commit()
+    suc = obtener_sucursal_activa(session)
+    accion = 'SUSPENDER_PROD' if p.agotado else 'REACTIVAR_PROD'
+    detalle = f"{'Suspendido/Agotado' if p.agotado else 'Reactivado'}: {p.nombre}"
+    registrar_bitacora(accion, str(p.id), p.precio or 0.0, detalle, sucursal=suc)
+    return jsonify({'ok': True, 'producto_id': p.id, 'agotado': bool(p.agotado), 'nombre': p.nombre})
+
+
+@pos_bp.route('/api/pos/alertas_stock', methods=['GET'])
+@login_required
+def api_pos_alertas_stock():
+    if current_user.role not in ROLES_POS and current_user.role != 'almacen':
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    suc = obtener_sucursal_activa(session)
+    insumos = InsumoBodegaPro.query.order_by(InsumoBodegaPro.nombre.asc()).all()
+    stocks = {s.insumo_id: s for s in StockSucursal.query.filter_by(sucursal=suc).all()}
+    bajos = []
+    for ins in insumos:
+        st = stocks.get(ins.id)
+        actual = float(st.stock_actual if st is not None else (ins.stock_actual or 0.0))
+        minimo = float(st.stock_minimo if st is not None else (ins.stock_minimo or 2.0))
+        if actual <= minimo:
+            bajos.append({
+                'id': ins.id,
+                'nombre': ins.nombre,
+                'categoria': ins.categoria,
+                'unidad': ins.unidad,
+                'stock_actual': round(actual, 3),
+                'stock_minimo': round(minimo, 3),
+                'critico': actual <= 0.0
+            })
+    return jsonify({'ok': True, 'sucursal': suc, 'total_bajos': len(bajos), 'insumos': bajos})
+
+
+@pos_bp.route('/api/pos/registrar_merma', methods=['POST'])
+@login_required
+def api_pos_registrar_merma():
+    if current_user.role not in ROLES_POS and current_user.role != 'almacen':
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    data = request.json or {}
+    nombre = str(data.get('insumo_nombre', '')).strip().upper()
+    cantidad = float(data.get('cantidad', 0) or 0)
+    motivo = str(data.get('motivo', '')).strip().upper()
+    if not nombre or cantidad <= 0 or not motivo:
+        return jsonify({'ok': False, 'msg': 'Indica insumo, cantidad mayor a 0 y motivo.'}), 400
+    suc = obtener_sucursal_activa(session)
+    ins = InsumoBodegaPro.query.filter(InsumoBodegaPro.nombre.ilike(nombre)).first()
+    unidad = ins.unidad if ins else str(data.get('unidad', 'PZA')).strip().upper()
+    costo_u = float(ins.costo_unitario or 0.0) if ins else float(data.get('costo_unitario', 0) or 0)
+    costo_tot = round(cantidad * costo_u, 2)
+
+    if ins:
+        st = StockSucursal.query.filter_by(sucursal=suc, insumo_id=ins.id).first()
+        if st:
+            st.stock_actual = round(float(st.stock_actual or 0.0) - cantidad, 3)
+        else:
+            ins.stock_actual = round(float(ins.stock_actual or 0.0) - cantidad, 3)
+
+    db.session.add(RegistroMerma(
+        fecha=ahora_local(),
+        sucursal=suc,
+        insumo_nombre=ins.nombre if ins else nombre,
+        cantidad=cantidad,
+        unidad=unidad,
+        costo_total=costo_tot,
+        motivo=motivo
+    ))
+    db.session.add(MovimientoAlmacen(
+        fecha=ahora_local(),
+        tipo='MERMA',
+        insumo_nombre=ins.nombre if ins else nombre,
+        cantidad=cantidad,
+        costo_total=costo_tot,
+        proveedor='',
+        usuario=current_user.username.upper(),
+        nota=f'[{suc}] {motivo}'
+    ))
+    db.session.commit()
+    registrar_bitacora('MERMA_INSUMO', nombre, costo_tot, f'{cantidad} {unidad} - {motivo}', sucursal=suc)
+    return jsonify({'ok': True, 'costo_total': costo_tot})
+
+
+@pos_bp.route('/api/pos/historial_arqueos', methods=['GET'])
+@login_required
+def api_pos_historial_arqueos():
+    if current_user.role not in ROLES_CAJA and current_user.role not in ROLES_AUTH:
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    suc = obtener_sucursal_activa(session)
+    rows = ArqueoTurnoPOS.query.filter_by(sucursal=suc).order_by(ArqueoTurnoPOS.id.desc()).limit(25).all()
+    items = [{
+        'id': r.id,
+        'turno_id': r.turno_id,
+        'cajero': r.cajero,
+        'fecha': r.fecha.strftime('%d/%m/%Y %I:%M %p') if r.fecha else '',
+        'esperado_total': round(float(r.esperado_total or 0.0), 2),
+        'declarado_total': round(float(r.declarado_total or 0.0), 2),
+        'diferencia': round(float(r.diferencia or 0.0), 2)
+    } for r in rows]
+    return jsonify({'ok': True, 'sucursal': suc, 'arqueos': items})
+
+
+@pos_bp.route('/api/pos/resumen_operativo', methods=['GET'])
+@login_required
+def api_pos_resumen_operativo():
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    suc = obtener_sucursal_activa(session)
+    turno = obtener_turno_activo(suc)
+    pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='PAGADA').all()
+    venta_total = round(sum(float(c.total or 0.0) for c in pagadas), 2)
+    prop_tarj = round(sum(float(c.propina_tarjeta or 0.0) for c in pagadas), 2)
+    mermas = RegistroMerma.query.filter_by(sucursal=suc).order_by(RegistroMerma.id.desc()).limit(20).all()
+    merma_total = round(sum(float(m.costo_total or 0.0) for m in mermas), 2)
+    return jsonify({
+        'ok': True,
+        'sucursal': suc,
+        'turno_id': turno.id,
+        'cuentas_pagadas': len(pagadas),
+        'venta_total': venta_total,
+        'propina_tarjeta': prop_tarj,
+        'merma_reciente_costo': merma_total,
+        'mermas': [{
+            'id': m.id,
+            'fecha': m.fecha.strftime('%d/%m/%Y %H:%M') if m.fecha else '',
+            'insumo': m.insumo_nombre,
+            'cantidad': float(m.cantidad or 0.0),
+            'unidad': m.unidad,
+            'costo_total': round(float(m.costo_total or 0.0), 2),
+            'motivo': m.motivo
+        } for m in mermas]
+    })
+
+
+@pos_bp.route('/api/pos/respaldo_config', methods=['POST'])
+@login_required
+def api_pos_respaldo_config():
+    if current_user.role not in ROLES_AUTH:
+        return jsonify({'ok': False, 'msg': 'Solo Admin o Gerente pueden generar respaldos.'}), 403
+    base_dir = Path(__file__).resolve().parent
+    carpeta = base_dir / "respaldos_pos"
+    carpeta.mkdir(exist_ok=True)
+    stamp = ahora_local().strftime('%Y%m%d_%H%M%S')
+    archivos_cfg = [
+        "config_motivos_cancelacion.json",
+        "config_tipos_descuento.json",
+        "config_caja_soft.json",
+        "config_areas_impresion.json",
+        "config_permisos_pos.json"
+    ]
+    snapshot = {}
+    for nombre_cfg in archivos_cfg:
+        p_cfg = base_dir / nombre_cfg
+        if p_cfg.exists():
+            try:
+                snapshot[nombre_cfg] = _json_asig.loads(p_cfg.read_text(encoding="utf-8"))
+            except Exception:
+                snapshot[nombre_cfg] = p_cfg.read_text(encoding="utf-8", errors="ignore")
+    destino = carpeta / f"respaldo_pos_{stamp}.json"
+    destino.write_text(_json_asig.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
+    suc = obtener_sucursal_activa(session)
+    registrar_bitacora('RESPALDO_POS', destino.name, 0.0, f'{len(snapshot)} archivos respaldados', sucursal=suc)
+    return jsonify({'ok': True, 'archivo': destino.name, 'archivos_incluidos': len(snapshot)})
 
 
 @pos_bp.route('/api/pos/catalogo_completo')
