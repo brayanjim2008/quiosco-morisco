@@ -22,12 +22,13 @@ ROLES_AUTH = ('admin', 'gerente')
 
 
 def _autorizar_operacion(clave_admin='', permitir_si_flag=False):
-    """Valida estrictamente la contrase?a de Admin/Gerente; solo omite clave si el permiso de caja est? activo."""
+    """Valida estrictamente la clave si se ingresa; si no se ingresa, solo permite si el flag de caja está activo."""
+    clave_limpia = str(clave_admin or '').strip()
+    if clave_limpia:
+        return validar_clave_admin(clave_limpia)
     if permitir_si_flag and current_user.role in ROLES_CAJA:
         return current_user.username.upper()
-    if not clave_admin or not str(clave_admin).strip():
-        return None
-    return validar_clave_admin(str(clave_admin).strip())
+    return None
 
 def _cuenta_permitida(c):
     """Evita que un usuario de una sucursal opere cuentas de otra sucursal."""
@@ -816,6 +817,8 @@ def api_pos_descuento_autorizado():
         return jsonify({'ok': False}), 403
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     pct = max(0.0, min(100.0, float(data.get('porcentaje', 0))))
     comentario = str(data.get('comentario', '')).strip()
 
@@ -848,6 +851,8 @@ def api_pos_descuento_productos():
         return jsonify({'ok': False}), 403
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     items_desc = data.get('items', [])
     if not items_desc:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400

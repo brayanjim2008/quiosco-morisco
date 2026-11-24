@@ -1945,12 +1945,26 @@
 
   function obtenerModsCompuestoFiltrados() {
     const esBebAct = Boolean(platilloCompuestoActual && platilloCompuestoActual.esBebida);
-    const filtrados = catModificadores.filter(m => {
-      if ((m.grupo || 'SABORES').toUpperCase() !== grupoCompuestoActivo) return false;
-      if (esBebAct && ((m.area_impresion || '').toUpperCase() === 'COCINA' || /cebolla|jamon|jamón|huevo|tortilla|salsa|frijol/.test((m.nombre || '').toLowerCase()))) return false;
+    const gruposPermitidos = Array.isArray(flujoCompuestoActual) && flujoCompuestoActual.length
+      ? flujoCompuestoActual.map(g => (g.grupo || '').toUpperCase())
+      : null;
+    const grpAct = (grupoCompuestoActivo || 'SABORES').toUpperCase();
+    if (gruposPermitidos && !gruposPermitidos.includes(grpAct)) {
+      return [];
+    }
+    return catModificadores.filter(m => {
+      const grpMod = (m.grupo || 'SABORES').toUpperCase();
+      if (grpMod !== grpAct) return false;
+      const nomLow = (m.nombre || '').toLowerCase();
+      const areaMod = (m.area_impresion || '').toUpperCase();
+      if (esBebAct && (areaMod === 'COCINA' || /cebolla|jamon|jamón|huevo|tortilla|salsa|frijol/.test(nomLow))) {
+        return false;
+      }
+      if (!esBebAct && areaMod === 'BARRA' && /cafe|café|leche|espresso|jarabe|frappe|frappé/.test(nomLow)) {
+        return false;
+      }
       return true;
     });
-    return filtrados.length ? filtrados : catModificadores;
   }
 
   function cambiarPaginaModsComp(delta) {
