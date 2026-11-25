@@ -467,7 +467,7 @@
         <td><span class="pill ${agot ? 'err' : (bajo ? 'warn' : 'ok')}">${agot ? 'AGOTADO' : (bajo ? 'BAJO' : 'OK')}</span></td>
         <td style="display:flex;gap:4px;">
           <button type="button" class="btn sm wa" onclick="irEntradaRapida(${i.id})">+ Surtir</button>
-          <button type="button" class="btn sm rojo" onclick="borrarInsumo(${i.id}, '${esc(i.nombre).replace(/'/g, '')}')">✕</button>
+          <button type="button" class="btn sm rojo" onclick="borrarInsumo(${Number(i.id)})">✕</button>
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="6" style="text-align:center;padding:18px;color:#64748b;">No se encontraron insumos.</td></tr>';
@@ -496,7 +496,11 @@
     if (d.ok) { $('ins_nombre').value = ''; toast('✓ Insumo agregado'); cargarDatosAlmacen(); }
   }
 
-  async function borrarInsumo(id, nom) {
+  // Los botones solo pasan el id: el nombre se toma del caché (meter nombres en onclick permitía inyectar JS).
+  async function borrarInsumo(id) {
+    const ins = cacheInsumos.find(i => i.id === id);
+    if (!ins) return;
+    const nom = ins.nombre;
     if (!confirm(`¿Eliminar "${nom}" del catálogo de Bodega Central?`)) return;
     await fetch('/api/almacen/insumo', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     toast('Insumo eliminado'); cargarDatosAlmacen();
@@ -545,7 +549,7 @@
       <td>${esc(p.telefono || '-')}</td>
       <td>${esc(p.categoria)}</td>
       <td style="color:${p.saldo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(p.saldo_pendiente || 0).toFixed(2)}</td>
-      <td><button type="button" class="btn sm cobre" onclick="abonarProveedor(${p.id}, '${esc(p.nombre).replace(/'/g, '')}')">Abonar</button></td>
+      <td><button type="button" class="btn sm cobre" onclick="abonarProveedor(${Number(p.id)})">Abonar</button></td>
     </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;">Sin proveedores registrados.</td></tr>';
   }
 
@@ -572,7 +576,10 @@
     toast('✓ Proveedor guardado'); cargarDatosAlmacen();
   }
 
-  async function abonarProveedor(id, nom) {
+  async function abonarProveedor(id) {
+    const prov = cacheProvs.find(p => p.id === id);
+    if (!prov) return;
+    const nom = prov.nombre;
     const s = prompt(`¿Cuánto deseas abonar al saldo de ${nom}?`);
     if (!s) return;
     const abono = parseFloat(s);

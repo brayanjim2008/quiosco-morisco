@@ -495,7 +495,7 @@
         colEntregado = dif
           ? `<b>${cantRec} ${esc(r.unidad)}</b><br><small style="color:#b45309;">Env: ${cantEnt}</small>`
           : `<b>${cantRec} ${esc(r.unidad)}</b>`;
-        accionHtml = `<button type="button" class="btn sm cobre" onclick="editarCantidadRecibida(${r.id}, ${cantRec}, '${esc(r.insumo_nombre).replace(/'/g, '')}', '${esc(r.unidad).replace(/'/g, '')}')"><i class="fa-solid fa-pen"></i> Modificar</button>`;
+        accionHtml = `<button type="button" class="btn sm cobre" onclick="editarCantidadRecibida(${Number(r.id)})"><i class="fa-solid fa-pen"></i> Modificar</button>`;
       } else if (r.estado_bodega === 'ENTREGADO') {
         badgeEst = '<span class="pill info">Entregado por Bodega</span>';
         colEntregado = `<b>${cantEnt} ${esc(r.unidad)}</b>`;
@@ -538,7 +538,13 @@
     cargarDatosSucursal();
   }
 
-  async function editarCantidadRecibida(id, actual, nombre, unidad) {
+  // El botón solo pasa el id: nombre/unidad/cantidad se toman del caché (meter nombres en onclick permitía inyectar JS).
+  async function editarCantidadRecibida(id) {
+    const r = cacheReqs.find(x => x.id === id);
+    if (!r) return;
+    const cantEnt = Number(r.cantidad_entregada ?? r.cantidad);
+    const actual = Number(r.cantidad_recibida ?? cantEnt);
+    const nombre = r.insumo_nombre, unidad = r.unidad;
     const valStr = prompt(`Modificar cantidad recibida de "${nombre}" (${unidad}):`, actual);
     if (valStr === null) return;
     const nueva = parseFloat(valStr);

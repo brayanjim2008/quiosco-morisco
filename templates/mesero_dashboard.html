@@ -788,6 +788,8 @@
     return await res.json();
   }
   function escHtml(s) { return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  // Texto como argumento JS dentro de un atributo onclick: JSON lo vuelve string JS válido y escHtml evita romper el atributo.
+  function jsArg(v) { return escHtml(JSON.stringify(String(v ?? ''))); }
   function mostrarToast(msg) { const el = $('toastTablet'); el.innerText = msg; el.style.display = 'block'; setTimeout(() => { if (el.innerText === msg) el.style.display = 'none'; }, 2800); }
   function cerrarModalMob(id) { const el = $(id); if (el) el.style.display = 'none'; }
   async function cambiarSucursalTablet(suc) { await apiPost('/api/pos/cambiar_sucursal', { sucursal: suc }); location.reload(); }
@@ -883,15 +885,15 @@
         else if (t.impresa) { fCls = 'impresa'; fTxt = `IMPRESA • $${t.total}`; }
         else { fCls = 'ocupada'; fTxt = parseFloat(t.total) > 0 ? `$${t.total}` : 'Ocupada'; }
       }
-      const idCta = t.cuenta_id || 0, codSafe = t.codigo.replace(/'/g, '');
+      const idCta = t.cuenta_id || 0;
       const reloj = t.ocupada ? `<span class="mob-tc-time ${t.minutos >= 45 ? 'largo' : ''}">⏱️ ${t.minutos}m</span>` : '';
       const sub = t.ocupada ? (t.dividida ? `<small>Total: $${t.total}</small>` : `<small>👥 ${t.personas} • ${escHtml((t.mesero || '').slice(0, 8))}</small>`) : '';
       const alerta = t.solicito_cuenta ? `<div class="mob-tc-alerta">🔔 Cuenta pedida</div>` : '';
-      const opts = (t.ocupada && !t.dividida) ? `<button type="button" class="mob-tc-opts-btn" onclick="event.stopPropagation(); abrirMenuOpcionesCuenta(${idCta}, '${codSafe}', ${t.impresa})"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '';
+      const opts = (t.ocupada && !t.dividida) ? `<button type="button" class="mob-tc-opts-btn" onclick="event.stopPropagation(); abrirMenuOpcionesCuenta(${idCta}, ${jsArg(t.codigo)}, ${t.impresa})"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '';
 
       html += `<div class="mob-table-card" onclick="tocarTarjetaMesa(${idx})"
-        ontouchstart="iniciarPresionLarga(${idCta}, '${codSafe}', ${t.impresa}, ${Boolean(t.dividida)})" ontouchend="cancelarPresionLarga()"
-        onmousedown="iniciarPresionLarga(${idCta}, '${codSafe}', ${t.impresa}, ${Boolean(t.dividida)})" onmouseup="cancelarPresionLarga()" onmouseleave="cancelarPresionLarga()">
+        ontouchstart="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" ontouchend="cancelarPresionLarga()"
+        onmousedown="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" onmouseup="cancelarPresionLarga()" onmouseleave="cancelarPresionLarga()">
         ${opts}<div class="mob-tc-header"><span>${t.codigo.startsWith('T') ? 'TERRAZA' : 'COMEDOR'}</span>${reloj}</div>
         <div class="mob-tc-center">${escHtml(t.titulo)}${sub}${alerta}</div>
         <div class="mob-tc-footer ${fCls}">${fTxt}</div>
@@ -1067,7 +1069,7 @@
       const cnt = modsSeleccionadosPlatillo.filter(x => (x.grupo || '').toUpperCase() === p.grupo).length;
       const clsAct = (p.grupo === grupoModActivo) ? 'activo' : '';
       const clsObl = p.obligatorio ? (cnt > 0 ? 'oblig-ok' : 'oblig-falta') : '';
-      return `<div class="mod-group-tile ${clsAct} ${clsObl}" onclick="seleccionarGrupoMod('${p.grupo.replace(/'/g, '')}')">
+      return `<div class="mod-group-tile ${clsAct} ${clsObl}" onclick="seleccionarGrupoMod(${jsArg(p.grupo)})">
         <span>${escHtml(p.etiqueta)}${p.obligatorio ? ' *' : ''}</span>
         <small style="font-size:10px;opacity:0.85;">${cnt > 0 ? '✓ ' + cnt : (p.obligatorio ? 'Pendiente' : 'Opcional')}</small>
       </div>`;
@@ -1362,7 +1364,7 @@
     cerrarModalMob('modalMenuCuenta2Seg');
     const libres = tarjetasCache.filter(t => !t.ocupada);
     $('tituloSelectorAccion').innerText = `Mover ${cuentaMenu2SegMesa} hacia:`; $('cuerpoSelectorAccion').innerHTML = '';
-    $('gridSelectorAccion').innerHTML = libres.length ? libres.map(t => `<button type="button" class="p-btn-mob" onclick="ejecutarMoverMesa('${t.codigo.replace(/'/g, '')}')">${escHtml(t.codigo)}</button>`).join('') : '<div style="grid-column:span 3;color:#ef4444;font-weight:700;text-align:center;">No hay mesas libres.</div>';
+    $('gridSelectorAccion').innerHTML = libres.length ? libres.map(t => `<button type="button" class="p-btn-mob" onclick="ejecutarMoverMesa(${jsArg(t.codigo)})">${escHtml(t.codigo)}</button>`).join('') : '<div style="grid-column:span 3;color:#ef4444;font-weight:700;text-align:center;">No hay mesas libres.</div>';
     $('modalSelectorAccion').style.display = 'flex';
   }
   async function ejecutarMoverMesa(nuevaMesa) {
@@ -1374,7 +1376,7 @@
     cerrarModalMob('modalMenuCuenta2Seg');
     const d = await (await fetch('/api/pos/mi_venta')).json();
     $('tituloSelectorAccion').innerText = `Nuevo mesero para ${cuentaMenu2SegMesa}:`; $('cuerpoSelectorAccion').innerHTML = '';
-    $('gridSelectorAccion').innerHTML = (d.meseros || ['PAOLA', 'DANIEL', 'BRAYAN', 'RAQUEL']).map(m => `<button type="button" class="p-btn-mob" style="font-size:12.5px;" onclick="ejecutarCambiarMesero('${m.replace(/'/g, '')}')">${escHtml(m)}</button>`).join('');
+    $('gridSelectorAccion').innerHTML = (d.meseros || ['PAOLA', 'DANIEL', 'BRAYAN', 'RAQUEL']).map(m => `<button type="button" class="p-btn-mob" style="font-size:12.5px;" onclick="ejecutarCambiarMesero(${jsArg(m)})">${escHtml(m)}</button>`).join('');
     $('modalSelectorAccion').style.display = 'flex';
   }
   async function ejecutarCambiarMesero(nuevo) {

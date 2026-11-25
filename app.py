@@ -595,8 +595,15 @@ def admin_login():
     return render_template('admin_login.html')
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
+    """Cerrar sesión solo por POST con token CSRF (_verificar_csrf). Así otra página no puede sacar al cajero
+    a mitad del turno con un simple enlace/imagen. Los botones "Salir" (<a href="/logout">) se convierten en POST
+    desde templates/_csrf.html; si el JS fallara, este GET muestra un botón para confirmar."""
+    if request.method == 'GET':
+        if not current_user.is_authenticated:
+            return redirect(url_for('admin_login'))
+        return render_template('logout_confirmar.html')
     session.clear()
     logout_user()
     resp = redirect(url_for('admin_login'))

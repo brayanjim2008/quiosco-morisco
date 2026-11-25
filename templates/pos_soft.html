@@ -1518,6 +1518,8 @@
 <script>
   // Escapa texto antes de meterlo en innerHTML (evita XSS con datos de la base / pre-órdenes públicas).
   function escHtml(s) { return String(s ?? '').replace(/[&<>"'`]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;' }[m])); }
+  // Texto como argumento JS dentro de un atributo onclick: JSON lo vuelve string JS válido y escHtml evita romper el atributo.
+  function jsArg(v) { return escHtml(JSON.stringify(String(v ?? ''))); }
   const SUCURSAL_POS = "{{ sucursal }}";
   const ROL_POS = "{{ current_user.role }}";
   const USUARIO_POS = "{{ current_user.username|upper }}";
@@ -2116,7 +2118,7 @@
 
     const bar = document.getElementById('barGruposCompuesto');
     bar.innerHTML = flujo.map((st, idx) =>
-      `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${escHtml(st.grupo)}" data-etq="${escHtml(st.etiqueta)}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto('${st.grupo.replace(/'/g, '')}', this)">${escHtml(st.etiqueta)} (0)</button>`
+      `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${escHtml(st.grupo)}" data-etq="${escHtml(st.etiqueta)}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto(${jsArg(st.grupo)}, this)">${escHtml(st.etiqueta)} (0)</button>`
     ).join('');
 
     let grpInicial = flujo[0].grupo;
@@ -2745,7 +2747,7 @@
     const d = await res.json();
     document.getElementById('tituloAccionSimple').innerText = `👤 Cambiar Mesero (${datosCuentaActiva.mesa})`;
     document.getElementById('cuerpoAccionSimple').innerHTML = (d.meseros || []).map(m =>
-      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:5px;" onclick="ejecutarCambiarMesero('${m.replace(/'/g, '')}')">${escHtml(m)}</button>`
+      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:5px;" onclick="ejecutarCambiarMesero(${jsArg(m)})">${escHtml(m)}</button>`
     ).join('');
     document.getElementById('piesAccionSimple').innerHTML = `<button type="button" class="btn-p gris" style="width:100%;" onclick="cerrarModal('modalAccionSimple')">Cerrar</button>`;
     document.getElementById('modalAccionSimple').style.display = 'flex';

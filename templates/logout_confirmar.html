@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cerrar sesión • Comensal Conectado</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: #fdfaf6; font-family: 'Open Sans', Arial, sans-serif; color: #1e293b; padding: 16px; }
+  .caja { background: #fff; border: 2px solid #c98246; border-radius: 16px; padding: 24px; max-width: 360px; width: 100%; text-align: center; }
+  h1 { font-size: 19px; color: #13423b; margin: 0 0 8px; }
+  p { font-size: 14px; color: #475569; margin: 0 0 18px; }
+  .btn { height: 42px; padding: 0 18px; border-radius: 10px; border: none; font-weight: 800; font-size: 14px; cursor: pointer; text-decoration: none;
+         display: inline-flex; align-items: center; justify-content: center; }
+  .salir { background: #dc2626; color: #fff; width: 100%; margin-bottom: 10px; }
+  .volver { background: #e2e8f0; color: #334155; width: 100%; }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <h1>¿Cerrar sesión?</h1>
+    <p>Usuario: <b>{{ current_user.username|upper }}</b></p>
+    <form method="POST" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn salir">Cerrar sesión</button>
+    </form>
+    <a href="javascript:history.back()" class="btn volver">Volver</a>
+  </div>
+</body>
+</html>

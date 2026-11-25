@@ -362,7 +362,7 @@
 <script>
   const $ = id => document.getElementById(id);
   const SUCURSALES_NOM = JSON.parse('{{ sucursales|tojson }}');
-  let cacheEmpleados = [], cacheConsumos = [], cacheRecibos = [];
+  let cacheEmpleados = [], cacheConsumos = [], cacheRecibos = [], cacheClientesCredito = [];
   let esAdmin = false;
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
@@ -438,10 +438,10 @@
           <td>${esc(e.puesto)}</td>
           <td>${esc(e.periodo)}</td>
           <td style="text-align:right;">$${Number(e.sueldo_base || 0).toFixed(2)}</td>
-          <td><button type="button" class="btn sm gris" onclick="editarChecadorEmp(${e.id}, '${esc(e.nombre).replace(/'/g, '')}', ${Number(e.dias_base || 6)}, '${esc(e.pin_checador || '').replace(/'/g, '')}')">${Number(e.dias_base || 6)}d | PIN: ${esc(e.pin_checador || '-')}</button></td>
-          <td style="text-align:right;"><button type="button" class="btn sm cobre" onclick="editarDescEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}', ${Number(e.descuento_pct || 0)})">${Number(e.descuento_pct || 0).toFixed(0)}%</button></td>
+          <td><button type="button" class="btn sm gris" onclick="editarChecadorEmp(${Number(e.id)})">${Number(e.dias_base || 6)}d | PIN: ${esc(e.pin_checador || '-')}</button></td>
+          <td style="text-align:right;"><button type="button" class="btn sm cobre" onclick="editarDescEmpleado(${Number(e.id)})">${Number(e.descuento_pct || 0).toFixed(0)}%</button></td>
           <td style="text-align:right;color:${e.consumo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(e.consumo_pendiente || 0).toFixed(2)}</td>
-          <td><button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}')">🗑️ Dar de Baja</button></td>
+          <td><button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${Number(e.id)})">🗑️ Dar de Baja</button></td>
         </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
       }
     } catch {}
@@ -619,7 +619,13 @@
     cargarFinanzas();
   }
 
-  async function editarDescEmpleado(id, nom, actual) {
+  // Los botones solo pasan el id: el nombre se toma del caché (meter nombres en onclick permitía inyectar JS).
+  function empleadoPorId(id) { return cacheEmpleados.find(e => e.id === id); }
+
+  async function editarDescEmpleado(id) {
+    const emp = empleadoPorId(id);
+    if (!emp) return;
+    const nom = emp.nombre, actual = Number(emp.descuento_pct || 0);
     const valStr = prompt(`Porcentaje de descuento automático en POS para ${nom} (0 a 100%):`, actual);
     if (valStr === null) return;
     const pct = parseFloat(valStr);
@@ -632,7 +638,10 @@
     if (d.ok) { toast(`Descuento de ${nom}: ${d.descuento_pct}%`); cargarFinanzas(); }
   }
 
-  async function darDeBajaEmpleado(id, nom) {
+  async function darDeBajaEmpleado(id) {
+    const emp = empleadoPorId(id);
+    if (!emp) return;
+    const nom = emp.nombre;
     if (!confirm(`¿Dar de baja a ${nom}? Su historial de recibos se conservará.`)) return;
     const res = await fetch('/api/finanzas/empleado', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -642,7 +651,10 @@
     if (d.ok) { toast('✓ Empleado dado de baja'); cargarFinanzas(); }
   }
 
-  async function editarChecadorEmp(id, nom, diasAct, pinAct) {
+  async function editarChecadorEmp(id) {
+    const emp = empleadoPorId(id);
+    if (!emp) return;
+    const nom = emp.nombre, diasAct = Number(emp.dias_base || 6), pinAct = emp.pin_checador || '';
     const dStr = prompt(`Días base del periodo para ${nom} (ej. 6 semanal, 15 quincenal):`, diasAct);
     if (dStr === null) return;
     const pStr = prompt(`PIN de checador automático para ${nom} (vacío para quitar):`, pinAct || '');
@@ -682,16 +694,17 @@
       const d = await (await fetch('/api/creditos/datos')).json();
       if (!d.ok) return;
       if ($('kpiCreditosPend')) $('kpiCreditosPend').innerText = `$${Number(d.total_por_cobrar || 0).toFixed(2)}`;
+      cacheClientesCredito = d.clientes || [];
       $('tbodyClientesCredito').innerHTML = (d.clientes || []).map(c => `<tr>
         <td><b>${esc(c.nombre)}</b><br><small style="color:#64748b;">${esc(c.sucursal)}</small></td>
         <td>${esc(c.telefono || '-')}</td>
         <td style="text-align:right;">${c.limite_credito > 0 ? '$' + c.limite_credito.toFixed(2) : 'Libre'}</td>
         <td style="text-align:right;color:${c.saldo_pendiente > 0 ? '#dc2626' : '#16a34a'};"><b>$${c.saldo_pendiente.toFixed(2)}</b></td>
         <td style="display:flex;gap:4px;">
-          <button type="button" class="btn sm wa" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'ABONO', ${c.saldo_pendiente})">Abonar</button>
-          <button type="button" class="btn sm cobre" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'CARGO', ${c.saldo_pendiente})">+ Cargo</button>
-          <button type="button" class="btn sm gris" onclick="editarClienteCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', ${Number(c.limite_credito || 0)})">Editar</button>
-          <button type="button" class="btn sm rojo" onclick="bajaClienteCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}')">Baja</button>
+          <button type="button" class="btn sm wa" onclick="registrarMovCredito(${Number(c.id)}, 'ABONO')">Abonar</button>
+          <button type="button" class="btn sm cobre" onclick="registrarMovCredito(${Number(c.id)}, 'CARGO')">+ Cargo</button>
+          <button type="button" class="btn sm gris" onclick="editarClienteCredito(${Number(c.id)})">Editar</button>
+          <button type="button" class="btn sm rojo" onclick="bajaClienteCredito(${Number(c.id)})">Baja</button>
         </td>
       </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">Sin clientes con cr&eacute;dito registrados.</td></tr>';
 
@@ -723,7 +736,12 @@
     cargarCreditos();
   }
 
-  async function editarClienteCredito(id, nombre, limiteActual) {
+  function clienteCreditoPorId(id) { return cacheClientesCredito.find(c => c.id === id); }
+
+  async function editarClienteCredito(id) {
+    const cli = clienteCreditoPorId(id);
+    if (!cli) return;
+    const nombre = cli.nombre, limiteActual = Number(cli.limite_credito || 0);
     const v = prompt(`Nuevo límite de crédito para ${nombre} (0 = sin límite):`, limiteActual);
     if (v === null) return;
     const limite = parseFloat(v);
@@ -738,7 +756,10 @@
     cargarCreditos();
   }
 
-  async function bajaClienteCredito(id, nombre) {
+  async function bajaClienteCredito(id) {
+    const cli = clienteCreditoPorId(id);
+    if (!cli) return;
+    const nombre = cli.nombre;
     if (!confirm(`¿Dar de baja a ${nombre}? Solo es posible si su saldo es $0.`)) return;
     const res = await fetch('/api/creditos/cliente', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -750,7 +771,10 @@
     cargarCreditos();
   }
 
-  async function registrarMovCredito(clienteId, nombre, tipo, saldoActual) {
+  async function registrarMovCredito(clienteId, tipo) {
+    const cli = clienteCreditoPorId(clienteId);
+    if (!cli || (tipo !== 'ABONO' && tipo !== 'CARGO')) return;
+    const nombre = cli.nombre, saldoActual = Number(cli.saldo_pendiente || 0);
     const mStr = prompt(`${tipo === 'ABONO' ? 'Monto a abonar' : 'Monto a cargar'} a ${nombre} (Saldo actual: $${saldoActual.toFixed(2)}):`, tipo === 'ABONO' ? saldoActual.toFixed(2) : '');
     if (mStr === null) return;
     const monto = parseFloat(mStr);
