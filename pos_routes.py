@@ -5,7 +5,7 @@ from html import escape as _esc
 from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, Response
 from flask_login import login_required, current_user
-from sqlalchemy import text as _sql_text
+from sqlalchemy import text as _sql_text, or_, and_
 
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
@@ -18,7 +18,8 @@ from models import (
     ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
     AlertaMesaPOS, ArqueoTurnoPOS, EmpleadoNominaPOS, ConsumoEmpleadoPOS,
     InsumoBodegaPro, StockSucursal, RegistroMerma, aplicar_merma,
-    ClienteCredito, MovimientoCredito, RegistroAsistencia, cfg_cargar, cfg_guardar, buscar_insumo_activo
+    ClienteCredito, MovimientoCredito, RegistroAsistencia, cfg_cargar, cfg_guardar, buscar_insumo_activo,
+    COLA_REINTENTO_SEG
 )
 
 pos_bp = Blueprint('pos', __name__)
@@ -1756,16 +1757,62 @@ def api_pos_pin_inteligente(cuenta_id):
 @pos_bp.route('/api/pos/cola_impresion')
 @login_required
 def api_pos_cola_impresion():
+    """Versión anterior (GET que marcaba impreso ANTES de imprimir: perdía o duplicaba comandas).
+    Se deja sin efecto para pestañas viejas: no entrega ni marca nada; hay que recargar la página."""
+    return jsonify({'tickets': [], 'recargar': True})
+
+
+@pos_bp.route('/api/pos/cola_impresion/reclamar', methods=['POST'])
+@login_required
+def api_pos_cola_impresion_reclamar():
+    """La PC con impresión activa reclama los tickets pendientes de su sucursal. FOR UPDATE SKIP LOCKED: dos PCs
+    (o los 2 workers) nunca toman el mismo ticket a la vez. Un ticket EN_PROCESO sin ACK tras COLA_REINTENTO_SEG
+    vuelve a estar disponible (puede reimprimirse, pero nunca se pierde)."""
     if current_user.role not in ROLES_CAJA:
-        return jsonify({'tickets': []})
+        return jsonify({'ok': True, 'tickets': []})
+    data = request.get_json(silent=True) or {}
     suc = obtener_sucursal_activa(session)
-    pendientes = ColaImpresionPOS.query.filter_by(sucursal=suc, impreso=False).order_by(ColaImpresionPOS.id.asc()).all()
-    textos = [p.contenido_html for p in pendientes]
-    for p in pendientes:
-        p.impreso = True
-    if pendientes:
-        db.session.commit()
-    return jsonify({'tickets': textos})
+    ahora = ahora_local()
+    vencido = ahora - timedelta(seconds=COLA_REINTENTO_SEG)
+    tickets = ColaImpresionPOS.query.filter(
+        ColaImpresionPOS.sucursal == suc,
+        ColaImpresionPOS.impreso.isnot(True),
+        or_(
+            ColaImpresionPOS.estado.is_(None),
+            ColaImpresionPOS.estado == 'PENDIENTE',
+            and_(ColaImpresionPOS.estado == 'EN_PROCESO',
+                 or_(ColaImpresionPOS.reclamado_en.is_(None), ColaImpresionPOS.reclamado_en < vencido)),
+        )
+    ).order_by(ColaImpresionPOS.id.asc()).limit(25).with_for_update(skip_locked=True).all()
+    dispositivo = str(data.get('dispositivo') or current_user.username)[:60]
+    for t in tickets:
+        t.estado = 'EN_PROCESO'
+        t.reclamado_en = ahora
+        t.reclamado_por = dispositivo
+    db.session.commit()
+    return jsonify({'ok': True, 'tickets': [{'id': t.id, 'html': t.contenido_html} for t in tickets]})
+
+
+@pos_bp.route('/api/pos/cola_impresion/ack', methods=['POST'])
+@login_required
+def api_pos_cola_impresion_ack():
+    """Confirma que la PC mandó a imprimir esos tickets. Idempotente: repetir el mismo id no cambia nada.
+    También marca impreso=True para que la limpieza de >7 días (cerrar_turno_arqueo) los siga borrando."""
+    if current_user.role not in ROLES_CAJA:
+        return jsonify({'ok': False}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        ids = sorted({int(x) for x in (data.get('ids') or [])})[:100]
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'msg': 'ids inválidos'}), 400
+    if not ids:
+        return jsonify({'ok': True, 'confirmados': 0})
+    n = ColaImpresionPOS.query.filter(
+        ColaImpresionPOS.id.in_(ids),
+        ColaImpresionPOS.sucursal == obtener_sucursal_activa(session),
+    ).update({'estado': 'IMPRESO', 'impreso': True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'ok': True, 'confirmados': n})
 
 
 @pos_bp.route('/api/pos/solicitar_cuenta/<int:cuenta_id>', methods=['POST'])

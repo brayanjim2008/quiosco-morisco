@@ -31,8 +31,9 @@
     HTMLFormElement.prototype.submit = function () { agregarToken(this); return submitOriginal.call(this); };
     // Botones "Salir" (<a href="/logout">): se cierra sesión por POST con token, no por un enlace GET.
     document.addEventListener('click', function (e) {
-      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-      if (!a || a.getAttribute('href') !== '/logout') return;
+      // closest() sube desde el <i> del ícono hasta el <a>, así funciona aunque se toque el ícono.
+      var a = e.target && e.target.closest ? e.target.closest('a[href="/logout"]') : null;
+      if (!a) return;
       e.preventDefault();
       var f = document.createElement('form');
       f.method = 'post'; f.action = '/logout'; f.style.display = 'none';

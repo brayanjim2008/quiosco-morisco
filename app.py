@@ -24,6 +24,7 @@ from models import (
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
     cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial, quitar_caracteres_html,
     PREFIJO_SUCURSAL, SUCURSAL_DEFAULT, sucursal_desde_codigo, sucursal_filtro, obtener_datos_ticket,
+    esquema_faltante,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -1128,21 +1129,18 @@ def limpiar_pins_activos():
 if os.environ.get('RUN_DB_INIT', '0') == '1':
     inicializar_sistema(app)
 else:
-    # Red de seguridad: si faltan las tablas nuevas (primer deploy de esta versión), se crean solas
-    # aunque RUN_DB_INIT no esté activo. Es una sola consulta ligera al arrancar.
-    # Se revisa que existan las tablas y la última columna agregada (pre_orden.sucursal): si falta algo,
-    # se migra solo (ALTER ... IF NOT EXISTS, sin borrar datos). Si no, la app consultaría columnas inexistentes.
+    # Red de seguridad: si falta cualquier tabla/columna de models.ESQUEMA_REQUERIDO (primer deploy de una
+    # versión nueva), se migra sola aunque RUN_DB_INIT no esté activo (ALTER ... IF NOT EXISTS, sin borrar datos).
+    # Si no, la app consultaría columnas inexistentes y se caería.
     try:
-        from sqlalchemy import inspect as _sa_inspect
         with app.app_context():
-            _insp = _sa_inspect(db.engine)
-            _falta_esquema = (
-                not _insp.has_table('pre_orden')
-                or not _insp.has_table('clientes_credito')
-                or 'sucursal' not in {c['name'] for c in _insp.get_columns('pre_orden')}
-            )
-            if _falta_esquema:
+            _faltan = esquema_faltante(db.engine)
+            if _faltan:
+                app.logger.warning('Esquema incompleto, migrando: %s', ', '.join(_faltan))
                 inicializar_sistema(app)
+                _siguen = esquema_faltante(db.engine)
+                if _siguen:
+                    app.logger.error('Tras migrar siguen faltando: %s', ', '.join(_siguen))
     except Exception as _e_init:
         print('Aviso: no se pudo verificar el esquema al arrancar:', _e_init)
 

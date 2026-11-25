@@ -345,8 +345,16 @@ class ColaImpresionPOS(db.Model):
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
     tipo = db.Column(db.String(30), nullable=False)
     contenido_html = db.Column(db.Text, nullable=False)
-    impreso = db.Column(db.Boolean, default=False)
+    impreso = db.Column(db.Boolean, default=False)  # se conserva para la limpieza de >7 días y compatibilidad
     fecha = db.Column(db.DateTime, default=ahora_local)
+    # PENDIENTE -> EN_PROCESO (una PC lo reclamó) -> IMPRESO (esa PC confirmó con ACK).
+    # Si no llega el ACK en COLA_REINTENTO_SEG, otra PC puede reclamarlo: mejor reimprimir que perder una comanda.
+    estado = db.Column(db.String(15), default='PENDIENTE')
+    reclamado_en = db.Column(db.DateTime, nullable=True)
+    reclamado_por = db.Column(db.String(60), nullable=True)
+
+
+COLA_REINTENTO_SEG = 150
 
 
 class ModificadorPOS(db.Model):
@@ -1024,6 +1032,32 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # ==============================================================================
 # INICIALIZACIÓN ÚNICA Y AUTO-MIGRACIÓN SEGURA PARA NEONDB
 # ==============================================================================
+# Tablas y columnas que el código actual necesita. Al arrancar (app.py) se revisa esta lista: si falta algo,
+# se corre inicializar_sistema (create_all + ALTER ... IF NOT EXISTS, sin borrar datos).
+# Cada fase nueva solo agrega aquí lo suyo.
+ESQUEMA_REQUERIDO = {
+    'clientes_credito': set(),
+    'pre_orden': {'sucursal'},
+    'pin_caja': {'sucursal'},
+    'empleados_nomina_pos': {'sucursal'},
+    'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
+}
+
+
+def esquema_faltante(engine):
+    """Lista de 'tabla' o 'tabla.columna' de ESQUEMA_REQUERIDO que no existen en la base."""
+    from sqlalchemy import inspect as _sa_inspect
+    insp = _sa_inspect(engine)
+    faltan = []
+    for tabla, columnas in ESQUEMA_REQUERIDO.items():
+        if not insp.has_table(tabla):
+            faltan.append(tabla)
+            continue
+        existentes = {c['name'] for c in insp.get_columns(tabla)}
+        faltan.extend(f'{tabla}.{col}' for col in sorted(columnas - existentes))
+    return faltan
+
+
 def inicializar_sistema(app_obj):
     with app_obj.app_context():
         db.create_all()
@@ -1086,7 +1120,14 @@ def inicializar_sistema(app_obj):
             "UPDATE pin_caja SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
             "UPDATE empleados_nomina_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
             "UPDATE consumos_empleados_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
-            "UPDATE recibos_nomina_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;"
+            "UPDATE recibos_nomina_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
+            # Cola de impresión con reclamo + ACK. Los tickets ya impresos quedan IMPRESO para no reimprimirse
+            # tras el deploy (las filas existentes reciben el DEFAULT 'PENDIENTE' al agregar la columna).
+            "ALTER TABLE cola_impresion_pos ADD COLUMN IF NOT EXISTS estado VARCHAR(15) DEFAULT 'PENDIENTE';",
+            "ALTER TABLE cola_impresion_pos ADD COLUMN IF NOT EXISTS reclamado_en TIMESTAMP;",
+            "ALTER TABLE cola_impresion_pos ADD COLUMN IF NOT EXISTS reclamado_por VARCHAR(60);",
+            "UPDATE cola_impresion_pos SET estado = 'IMPRESO' WHERE impreso = TRUE AND (estado IS NULL OR estado = 'PENDIENTE');",
+            "UPDATE cola_impresion_pos SET estado = 'PENDIENTE' WHERE estado IS NULL;"
         ]
         es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:
@@ -1119,7 +1160,8 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_prod_grupo_mod_plat ON producto_grupo_mod (platillo_nombre, orden);",
             "CREATE INDEX IF NOT EXISTS idx_pre_orden_suc_estado ON pre_orden (sucursal, estado);",
             "CREATE INDEX IF NOT EXISTS idx_pin_caja_suc_activo ON pin_caja (sucursal, activo);",
-            "CREATE INDEX IF NOT EXISTS idx_empleados_nomina_suc ON empleados_nomina_pos (sucursal, activo);"
+            "CREATE INDEX IF NOT EXISTS idx_empleados_nomina_suc ON empleados_nomina_pos (sucursal, activo);",
+            "CREATE INDEX IF NOT EXISTS idx_cola_imp_suc_estado ON cola_impresion_pos (sucursal, estado);"
         ]
         for sql in indices:
             try:
