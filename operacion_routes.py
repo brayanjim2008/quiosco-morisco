@@ -17,8 +17,9 @@ from models import (
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
     SUCURSAL_DEFAULT, validar_clave_admin, ConteoInventario, ConteoInventarioDetalle,
-    CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS
+    CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal
 )
+from pos_routes import catalogo_gastos, categoria_gasto_valida
 
 from models import aplicar_merma, buscar_insumo_activo
 
@@ -1596,7 +1597,7 @@ def _flujo_dinero_datos(suc, desde, hasta):
         'movimientos': [{
             'id': m.id, 'fecha': m.fecha.strftime('%d/%m %H:%M'), 'sucursal': t.sucursal or '',
             'turno_id': t.id, 'tipo': m.tipo, 'concepto': m.concepto, 'monto': float(m.monto),
-            'usuario': m.usuario
+            'usuario': m.usuario, 'categoria': m.categoria_gasto or ''
         } for m, t in filas]
     }
 
@@ -1621,8 +1622,13 @@ def api_industrial_flujo_dinero():
     concepto = str(data.get('concepto', '')).strip().upper()[:200]
     if monto <= 0 or not concepto:
         return jsonify({'ok': False, 'msg': 'Captura monto mayor a 0 y concepto.'}), 400
+    categoria = None
+    if tipo == 'RETIRO':
+        categoria, err_cat = categoria_gasto_valida(data.get('categoria'))
+        if err_cat:
+            return jsonify({'ok': False, 'msg': err_cat}), 400
     turno = obtener_turno_activo(suc)
-    db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto,
+    db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto, categoria_gasto=categoria,
                                      usuario=current_user.username.upper(), fecha=ahora_local()))
     if tipo == 'RETIRO':
         turno.retiros_efectivo = round((turno.retiros_efectivo or 0.0) + monto, 2)
@@ -2023,3 +2029,193 @@ def exportar_conteo(conteo_id):
     return _csv_excel(
         ('Insumo', 'Unidad', 'Teorico', 'Contado', 'Diferencia', 'Costo_Unitario', 'Valor_Diferencia', 'Estado_Linea'),
         filas, f"Conteo_{c.id}_{suc_archivo}_{c.estado}.csv")
+
+
+# ==============================================================================
+# 8. GASTOS OPERATIVOS (RETIROS DE CAJA POR CATEGORÍA)
+# ==============================================================================
+def _gastos_datos(suc, desde, hasta):
+    ini, fin = _rango_fechas(desde, hasta)
+    q = db.session.query(MovimientoCajaPOS, TurnoPOS).join(TurnoPOS, TurnoPOS.id == MovimientoCajaPOS.turno_id).filter(
+        MovimientoCajaPOS.tipo == 'RETIRO', MovimientoCajaPOS.fecha >= ini, MovimientoCajaPOS.fecha < fin)
+    if suc and suc != 'TODAS':
+        q = q.filter(TurnoPOS.sucursal == suc)
+    filas = q.order_by(MovimientoCajaPOS.id.desc()).limit(5000).all()
+    por_cat, por_suc = {}, {}
+    for m, t in filas:
+        cat = m.categoria_gasto or 'SIN CATEGORÍA'
+        por_cat[cat] = round(por_cat.get(cat, 0.0) + float(m.monto or 0.0), 2)
+        por_suc[t.sucursal or ''] = round(por_suc.get(t.sucursal or '', 0.0) + float(m.monto or 0.0), 2)
+    return {
+        'total': round(sum(float(m.monto or 0.0) for m, _ in filas), 2),
+        'por_categoria': [{'categoria': k, 'monto': v} for k, v in sorted(por_cat.items(), key=lambda x: -x[1])],
+        'por_sucursal': [{'sucursal': k, 'monto': v} for k, v in sorted(por_suc.items(), key=lambda x: -x[1])],
+        'gastos': [{
+            'id': m.id, 'fecha': m.fecha.strftime('%d/%m/%Y %H:%M') if m.fecha else '', 'sucursal': t.sucursal or '',
+            'turno_id': t.id, 'categoria': m.categoria_gasto or 'SIN CATEGORÍA', 'concepto': m.concepto,
+            'monto': round(float(m.monto or 0.0), 2), 'usuario': m.usuario
+        } for m, t in filas],
+    }
+
+
+@operacion_bp.route('/api/industrial/gastos')
+@login_required
+def api_industrial_gastos():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    d = _gastos_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+    d['ok'] = True
+    d['catalogo'] = catalogo_gastos()
+    return jsonify(d)
+
+
+@operacion_bp.route('/api/exportar/gastos')
+@login_required
+def exportar_gastos():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    d = _gastos_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+    filas = [(g['id'], g['fecha'], g['sucursal'], g['turno_id'], g['categoria'], g['concepto'], g['monto'], g['usuario'])
+             for g in d['gastos']]
+    return _csv_excel(('ID', 'Fecha', 'Sucursal', 'Turno', 'Categoria', 'Concepto', 'Monto', 'Usuario'),
+                      filas, f"Gastos_Operativos_{ahora_local().strftime('%Y%m%d')}.csv")
+
+
+# ==============================================================================
+# 9. TRASPASOS DIRECTOS ENTRE SUCURSALES (SIN PASAR POR BODEGA CENTRAL)
+# ==============================================================================
+def _suc_traspaso_permitida(suc):
+    """Admin: cualquier sucursal. Usuario 'sucursal': solo la suya."""
+    if suc not in SUCURSALES_OFICIALES:
+        return False
+    if current_user.role == 'admin':
+        return True
+    return current_user.role == 'sucursal' and obtener_sucursal_activa(session) == suc
+
+
+def _stock_suc_bloqueado(suc, insumo_id, crear=False):
+    st = StockSucursal.query.filter_by(sucursal=suc, insumo_id=insumo_id).with_for_update().first()
+    if not st and crear:
+        st = StockSucursal(sucursal=suc, insumo_id=insumo_id, stock_actual=0.0, stock_minimo=2.0)
+        db.session.add(st)
+    return st
+
+
+def _traspaso_json(t):
+    return {
+        'id': t.id, 'fecha': t.fecha.strftime('%d/%m/%Y %H:%M') if t.fecha else '', 'origen': t.origen, 'destino': t.destino,
+        'insumo_id': t.insumo_id, 'insumo_nombre': t.insumo_nombre, 'unidad': t.unidad or '',
+        'cantidad': round(float(t.cantidad or 0.0), 3),
+        'cantidad_recibida': None if t.cantidad_recibida is None else round(float(t.cantidad_recibida), 3),
+        'estado': t.estado, 'nota': t.nota or '', 'enviado_por': t.enviado_por, 'recibido_por': t.recibido_por or '',
+        'recibido_en': t.recibido_en.strftime('%d/%m/%Y %H:%M') if t.recibido_en else '',
+    }
+
+
+@operacion_bp.route('/api/traspasos', methods=['GET', 'POST'])
+@login_required
+def api_traspasos():
+    if request.method == 'GET':
+        suc = str(request.args.get('sucursal', '')).strip()
+        if not _suc_traspaso_permitida(suc):
+            return jsonify({'ok': False, 'msg': 'Sin permiso para esta sucursal.'}), 403
+        por_recibir = TraspasoSucursal.query.filter_by(destino=suc, estado='ENVIADO').order_by(TraspasoSucursal.id.asc()).all()
+        historial = TraspasoSucursal.query.filter(
+            or_(TraspasoSucursal.origen == suc, TraspasoSucursal.destino == suc),
+            or_(TraspasoSucursal.estado != 'ENVIADO', TraspasoSucursal.origen == suc)
+        ).order_by(TraspasoSucursal.id.desc()).limit(80).all()
+        return jsonify({'ok': True, 'sucursal': suc,
+                        'destinos': [s for s in SUCURSALES_OFICIALES if s != suc],
+                        'por_recibir': [_traspaso_json(t) for t in por_recibir],
+                        'historial': [_traspaso_json(t) for t in historial]})
+
+    data = request.get_json(silent=True) or {}
+    origen = str(data.get('origen', '')).strip()
+    destino = str(data.get('destino', '')).strip()
+    if not _suc_traspaso_permitida(origen):
+        return jsonify({'ok': False, 'msg': 'Solo puedes enviar desde tu sucursal.'}), 403
+    if destino not in SUCURSALES_OFICIALES or destino == origen:
+        return jsonify({'ok': False, 'msg': 'Elige una sucursal destino distinta.'}), 400
+    cantidad = round(_num(data.get('cantidad', 0), maximo=1_000_000.0), 3)
+    if cantidad <= 0:
+        return jsonify({'ok': False, 'msg': 'Cantidad inválida.'}), 400
+    ins = InsumoBodegaPro.query.filter(InsumoBodegaPro.id == int(data.get('insumo_id') or 0),
+                                       InsumoBodegaPro.activo.is_not(False)).first()
+    if not ins:
+        return jsonify({'ok': False, 'msg': 'Insumo no encontrado.'}), 404
+    st = _stock_suc_bloqueado(origen, ins.id)
+    disponible = float(st.stock_actual or 0.0) if st else 0.0
+    if cantidad > disponible + 0.0005:
+        db.session.rollback()
+        return jsonify({'ok': False, 'msg': f'Stock insuficiente en {origen}: hay {disponible:g} {ins.unidad}.'}), 400
+    st.stock_actual = round(disponible - cantidad, 3)
+    t = TraspasoSucursal(fecha=ahora_local(), origen=origen, destino=destino, insumo_id=ins.id, insumo_nombre=ins.nombre,
+                         unidad=ins.unidad, cantidad=cantidad, estado='ENVIADO',
+                         nota=str(data.get('nota', '')).strip()[:200], enviado_por=current_user.username.upper())
+    db.session.add(t)
+    db.session.flush()
+    db.session.add(MovimientoAlmacen(fecha=ahora_local(), tipo='TRASPASO_SALIDA', insumo_nombre=ins.nombre, cantidad=cantidad,
+                                     costo_total=round(cantidad * float(ins.costo_unitario or 0.0), 2), proveedor='',
+                                     usuario=current_user.username.upper(), nota=f'Traspaso #{t.id}: {origen} -> {destino}'))
+    db.session.commit()
+    registrar_bitacora('TRASPASO_ENVIADO', f'TRASPASO #{t.id}', cantidad, f'{ins.nombre}: {origen} -> {destino}', sucursal=origen)
+    return jsonify({'ok': True, 'traspaso': _traspaso_json(t)})
+
+
+def _traspaso_para_destino(traspaso_id):
+    t = TraspasoSucursal.query.filter_by(id=traspaso_id).with_for_update().first()
+    if not t:
+        return None, (jsonify({'ok': False, 'msg': 'Traspaso no encontrado.'}), 404)
+    if not _suc_traspaso_permitida(t.destino):
+        return None, (jsonify({'ok': False, 'msg': 'Solo la sucursal destino puede recibirlo.'}), 403)
+    if t.estado != 'ENVIADO':
+        return None, (jsonify({'ok': False, 'msg': f'El traspaso ya está {t.estado}.'}), 409)
+    return t, None
+
+
+@operacion_bp.route('/api/traspasos/<int:traspaso_id>/recibir', methods=['POST'])
+@login_required
+def api_traspasos_recibir(traspaso_id):
+    """El destino confirma lo que realmente llegó; lo que faltó regresa al stock del origen."""
+    t, err = _traspaso_para_destino(traspaso_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    recibida = round(_num(data.get('cantidad_recibida', t.cantidad), maximo=1_000_000.0), 3)
+    if recibida > t.cantidad + 0.0005:
+        return jsonify({'ok': False, 'msg': f'No puedes recibir más de lo enviado ({t.cantidad:g}).'}), 400
+    ahora = ahora_local()
+    if recibida > 0:
+        st_dest = _stock_suc_bloqueado(t.destino, t.insumo_id, crear=True)
+        st_dest.stock_actual = round(float(st_dest.stock_actual or 0.0) + recibida, 3)
+    faltante = round(t.cantidad - recibida, 3)
+    if faltante > 0.0005:
+        st_ori = _stock_suc_bloqueado(t.origen, t.insumo_id, crear=True)
+        st_ori.stock_actual = round(float(st_ori.stock_actual or 0.0) + faltante, 3)
+    t.cantidad_recibida, t.estado, t.recibido_por, t.recibido_en = recibida, 'RECIBIDO', current_user.username.upper(), ahora
+    db.session.add(MovimientoAlmacen(fecha=ahora, tipo='TRASPASO_ENTRADA', insumo_nombre=t.insumo_nombre, cantidad=recibida,
+                                     costo_total=0.0, proveedor='', usuario=current_user.username.upper(),
+                                     nota=f'Traspaso #{t.id}: {t.origen} -> {t.destino}' + (f' (faltaron {faltante:g}, regresan al origen)' if faltante > 0.0005 else '')))
+    db.session.commit()
+    registrar_bitacora('TRASPASO_RECIBIDO', f'TRASPASO #{t.id}', recibida,
+                       f'{t.insumo_nombre}: {recibida:g} de {t.cantidad:g}', sucursal=t.destino)
+    return jsonify({'ok': True, 'faltante_regresado': max(0.0, faltante), 'traspaso': _traspaso_json(t)})
+
+
+@operacion_bp.route('/api/traspasos/<int:traspaso_id>/rechazar', methods=['POST'])
+@login_required
+def api_traspasos_rechazar(traspaso_id):
+    """El destino no lo acepta: todo regresa al stock del origen."""
+    t, err = _traspaso_para_destino(traspaso_id)
+    if err:
+        return err
+    st_ori = _stock_suc_bloqueado(t.origen, t.insumo_id, crear=True)
+    st_ori.stock_actual = round(float(st_ori.stock_actual or 0.0) + float(t.cantidad), 3)
+    t.estado, t.cantidad_recibida, t.recibido_por, t.recibido_en = 'RECHAZADO', 0.0, current_user.username.upper(), ahora_local()
+    motivo = str((request.get_json(silent=True) or {}).get('motivo', '')).strip()[:120]
+    if motivo:
+        t.nota = (f'{t.nota} | RECHAZO: {motivo}' if t.nota else f'RECHAZO: {motivo}')[:200]
+    db.session.commit()
+    registrar_bitacora('TRASPASO_RECHAZADO', f'TRASPASO #{t.id}', t.cantidad, f'{t.insumo_nombre} regresa a {t.origen}',
+                       sucursal=t.destino)
+    return jsonify({'ok': True, 'traspaso': _traspaso_json(t)})

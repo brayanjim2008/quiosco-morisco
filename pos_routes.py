@@ -19,7 +19,7 @@ from models import (
     AlertaMesaPOS, ArqueoTurnoPOS, EmpleadoNominaPOS, ConsumoEmpleadoPOS,
     InsumoBodegaPro, StockSucursal, RegistroMerma, aplicar_merma,
     ClienteCredito, MovimientoCredito, RegistroAsistencia, cfg_cargar, cfg_guardar, buscar_insumo_activo,
-    COLA_REINTENTO_SEG
+    COLA_REINTENTO_SEG, CLAVE_CFG_CATALOGO_GASTOS, CATALOGO_GASTOS_DEFAULT, DENOMINACIONES_MXN
 )
 
 pos_bp = Blueprint('pos', __name__)
@@ -1587,6 +1587,11 @@ def api_pos_movimiento_caja():
     concepto = str(data.get('concepto', 'COMPRA DE INSUMOS')).strip().upper()
     if monto <= 0:
         return jsonify({'ok': False, 'msg': 'Monto inválido'}), 400
+    categoria = None
+    if tipo == 'RETIRO':
+        categoria, err_cat = categoria_gasto_valida(data.get('categoria'))
+        if err_cat:
+            return jsonify({'ok': False, 'msg': err_cat}), 400
 
     autorizo = current_user.username.upper()
     if tipo == 'RETIRO':
@@ -1596,7 +1601,7 @@ def api_pos_movimiento_caja():
         if not autorizo:
             return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Retirar efectivo requiere contraseña de Admin o Gerente.'}), 403
 
-    db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto, usuario=current_user.username.upper(), fecha=ahora_local()))
+    db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto, categoria_gasto=categoria, usuario=current_user.username.upper(), fecha=ahora_local()))
     if tipo == 'RETIRO':
         turno.retiros_efectivo += monto
     else:
@@ -1611,6 +1616,7 @@ def api_pos_movimiento_caja():
         <div>FECHA: {ahora_local().strftime('%d/%m/%Y %I:%M %p')}</div>
         <div>CAJERO: {current_user.username.upper()}</div>
         <div>CONCEPTO: <b>{_esc(concepto)}</b></div>
+        {f"<div>CATEGORÍA: {_esc(categoria)}</div>" if categoria else ''}
         <div style='font-size:18px;font-weight:900;margin:8px 0;'>MONTO: ${monto:.2f}</div>
         <br><br><div style='border-top:1px solid #000;text-align:center;'>FIRMA DE RECIBIDO</div>
     </div>"""
@@ -1714,6 +1720,11 @@ def api_pos_cerrar_turno_arqueo():
     esperado_total = round(efectivo_esperado + td_esp + tc_esp + tr_esp + val_esp, 2)
 
     ef_dec = _num(data.get('EF', 0))
+    denominaciones, total_denom, err_den = _leer_denominaciones(data.get('denominaciones'))
+    if err_den:
+        return jsonify({'ok': False, 'msg': err_den}), 400
+    if denominaciones is not None and abs(total_denom - ef_dec) > 0.01:
+        return jsonify({'ok': False, 'msg': f'El efectivo (${ef_dec:,.2f}) no coincide con el conteo de billetes y monedas (${total_denom:,.2f}).'}), 400
     td_dec = _num(data.get('TARJD', 0))
     tc_dec = _num(data.get('TARJC', 0))
     tr_dec = _num(data.get('TRANS', 0))
@@ -1725,7 +1736,8 @@ def api_pos_cerrar_turno_arqueo():
         sucursal=suc, turno_id=turno.id, cajero=current_user.username.upper(), fecha=ahora_local(),
         ef_declarado=ef_dec, td_declarado=td_dec, tc_declarado=tc_dec, trans_declarado=tr_dec,
         val_declarado=val_dec, esperado_total=esperado_total,
-        declarado_total=declarado_total, diferencia=diferencia
+        declarado_total=declarado_total, diferencia=diferencia,
+        denominaciones_json=_json_asig.dumps(denominaciones) if denominaciones is not None else None
     ))
 
     turno.cierre = ahora_local()
@@ -1743,7 +1755,8 @@ def api_pos_cerrar_turno_arqueo():
     registrar_bitacora('CIERRE_CAJA', f'TURNO #{turno.id}', declarado_total,
                        f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}' + (f' | Cierre forzado con {abiertas_act} cuenta(s) abierta(s)' if aut_ab else ''),
                        autorizo=(aut_ab or ''), sucursal=suc)
-    return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}"})
+    return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}",
+                    'denominaciones': _denominaciones_para_ticket(denominaciones)})
 
 
 # ==============================================================================
@@ -2362,7 +2375,8 @@ def api_pos_historial_arqueos():
         'fecha': r.fecha.strftime('%d/%m/%Y %I:%M %p') if r.fecha else '',
         'esperado_total': round(float(r.esperado_total or 0.0), 2),
         'declarado_total': round(float(r.declarado_total or 0.0), 2),
-        'diferencia': round(float(r.diferencia or 0.0), 2)
+        'diferencia': round(float(r.diferencia or 0.0), 2),
+        'denominaciones': _denominaciones_para_ticket(_json_asig.loads(r.denominaciones_json)) if r.denominaciones_json else []
     } for r in rows]
     return jsonify({'ok': True, 'sucursal': suc, 'arqueos': items})
 
@@ -2571,3 +2585,75 @@ def api_pos_bitacora_auditoria():
         'accion': r.accion, 'mesa': r.mesa or '-',
         'monto': f"{r.monto:.2f}", 'detalle': r.detalle or ''
     } for r in regs]})
+
+
+# ==============================================================================
+# GASTOS OPERATIVOS (catálogo) Y ARQUEO POR DENOMINACIONES
+# ==============================================================================
+def catalogo_gastos():
+    cat = cfg_cargar(CLAVE_CFG_CATALOGO_GASTOS, CATALOGO_GASTOS_DEFAULT)
+    return [str(x).strip().upper() for x in cat if str(x).strip()] if isinstance(cat, list) else list(CATALOGO_GASTOS_DEFAULT)
+
+
+def categoria_gasto_valida(valor):
+    """(categoria, error). Sin categoría -> 'OTROS' (compatibilidad con pantallas viejas)."""
+    cat = str(valor or '').strip().upper() or 'OTROS'
+    if cat not in catalogo_gastos():
+        return None, f'Categoría de gasto inválida: {cat}.'
+    return cat, None
+
+
+def _leer_denominaciones(raw):
+    """(dict|None, total, error). raw = {"B500": 3, "M10": 7, ...}; None si no se contó por denominación."""
+    if raw in (None, '', {}):
+        return None, 0.0, None
+    if not isinstance(raw, dict):
+        return None, 0.0, 'Formato de denominaciones inválido.'
+    valores = dict(DENOMINACIONES_MXN)
+    limpio, total = {}, 0.0
+    for clave, piezas in raw.items():
+        if clave not in valores:
+            return None, 0.0, f'Denominación desconocida: {clave}.'
+        try:
+            n = int(piezas or 0)
+        except (TypeError, ValueError):
+            return None, 0.0, f'Cantidad inválida en {clave}.'
+        if n < 0 or n > 100000:
+            return None, 0.0, f'Cantidad fuera de rango en {clave}.'
+        if n:
+            limpio[clave] = n
+            total += n * valores[clave]
+    return limpio, round(total, 2), None
+
+
+def _denominaciones_para_ticket(denom):
+    if not denom:
+        return []
+    return [{'clave': k, 'tipo': 'BILLETE' if k.startswith('B') else 'MONEDA', 'valor': v, 'piezas': denom[k],
+             'importe': round(denom[k] * v, 2)} for k, v in DENOMINACIONES_MXN if denom.get(k)]
+
+
+@pos_bp.route('/api/gastos/catalogo', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def api_gastos_catalogo():
+    if request.method == 'GET':
+        if current_user.role not in ROLES_CAJA:
+            return jsonify({'ok': False}), 403
+        return jsonify({'ok': True, 'categorias': catalogo_gastos(),
+                        'denominaciones': [{'clave': k, 'valor': v} for k, v in DENOMINACIONES_MXN]})
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin modifica el catálogo de gastos.'}), 403
+    data = request.get_json(silent=True) or {}
+    nombre = str(data.get('nombre', '')).strip().upper()[:60]
+    if not nombre:
+        return jsonify({'ok': False, 'msg': 'Nombre requerido.'}), 400
+    cat = catalogo_gastos()
+    if request.method == 'POST':
+        if nombre not in cat:
+            cat.append(nombre)
+    else:
+        if nombre == 'OTROS':
+            return jsonify({'ok': False, 'msg': 'La categoría OTROS no se puede quitar.'}), 400
+        cat = [c for c in cat if c != nombre]
+    cfg_guardar(CLAVE_CFG_CATALOGO_GASTOS, cat)
+    return jsonify({'ok': True, 'categorias': cat})

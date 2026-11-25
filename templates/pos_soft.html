@@ -1080,6 +1080,7 @@
         <option value="DEPOSITO">🟢 DEPÓSITO / INGRESO A CAJA</option>
       </select>
       <input type="number" step="0.5" id="movCajaMonto" class="m-inp" placeholder="Monto ($)...">
+      <select id="movCajaCategoria" class="m-inp"><option value="OTROS">OTROS</option></select>
       <input type="text" id="movCajaConcepto" class="m-inp" placeholder="Concepto (ej. Pago hielo, cambio...)...">
       <input type="password" id="movCajaClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente (requerida en retiros)..." style="border-color:#dc2626;">
     </div>
@@ -1166,6 +1167,14 @@
             <thead><tr style="background:#e2e8f0;font-size:11.5px;"><th style="padding:6px;text-align:left;">Clave</th><th style="text-align:left;">Concepto</th><th style="padding:6px;text-align:right;">Declarado</th></tr></thead>
             <tbody id="tbodyTablaArqueo"></tbody>
           </table>
+          <details id="detDenominaciones" style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;padding:6px 8px;" ontoggle="if(this.open) renderDenominaciones()">
+            <summary style="cursor:pointer;font-weight:800;font-size:12px;color:var(--verde);">🪙 Contar billetes y monedas (opcional)</summary>
+            <div id="gridDenominaciones" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:6px;">
+              <b style="font-size:13px;">Total contado: <span id="totDenominaciones">$0.00</span></b>
+              <button type="button" class="btn-p sm" onclick="usarDenominacionesComoEfectivo()">Usar como EFECTIVO</button>
+            </div>
+          </details>
         </div>
         <div>
           <div style="font-size:11.5px;font-weight:800;color:#64748b;margin-bottom:4px;">Capturando: <b id="lblClaveArqActiva" style="color:var(--verde);">EF</b></div>
@@ -3173,13 +3182,30 @@
   const tipo = document.getElementById('movCajaTipo').value;
   const inp = document.getElementById('movCajaClave');
   if (inp) inp.style.display = (tipo === 'RETIRO') ? 'block' : 'none';
+  const cat = document.getElementById('movCajaCategoria');
+  if (cat) cat.style.display = (tipo === 'RETIRO') ? 'block' : 'none';
 }
+
+  // Catálogo de gastos (retiros) y denominaciones (arqueo), cargados una vez del servidor.
+  let catalogoCajaCache = null;
+  async function cargarCatalogoCaja() {
+    if (catalogoCajaCache) return catalogoCajaCache;
+    try {
+      const d = await (await fetch('/api/gastos/catalogo')).json();
+      if (d.ok) catalogoCajaCache = d;
+    } catch (e) {}
+    return catalogoCajaCache || { categorias: ['OTROS'], denominaciones: [] };
+  }
   function abrirModalRetiroCaja() {
     document.getElementById('movCajaMonto').value = '';
     document.getElementById('movCajaConcepto').value = '';
     const inpC = document.getElementById('movCajaClave');
     if (inpC) inpC.value = '';
     actualizarCampoClaveRetiro();
+    cargarCatalogoCaja().then(c => {
+      const sel = document.getElementById('movCajaCategoria');
+      if (sel) sel.innerHTML = (c.categorias || ['OTROS']).map(x => `<option value="${escHtml(x)}">${escHtml(x)}</option>`).join('');
+    });
     document.getElementById('modalRetiroReal').style.display = 'flex';
   }
 
@@ -3190,7 +3216,8 @@
     if (monto <= 0 || !concepto) return alert('Ingresa monto y concepto.');
     const res = await fetch('/api/pos/movimiento_caja', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: document.getElementById('movCajaTipo').value, monto, concepto, clave_admin })
+      body: JSON.stringify({ tipo: document.getElementById('movCajaTipo').value, monto, concepto, clave_admin,
+                             categoria: document.getElementById('movCajaCategoria')?.value || 'OTROS' })
     });
     const d = await res.json();
     if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));
@@ -3279,6 +3306,8 @@ ${meserosTxt}
       ? `ESPERADO ➔ Efectivo: $${d.efectivo_final} | Débito: $${d.tarj_debito} | Crédito: $${d.tarj_credito} | Transf: $${d.transferencia} | Vales: $${d.vales_empleado}`
       : `🔒 ARQUEO CIEGO: Captura el monto real contado en caja por cada forma de pago.`;
     valoresArqueo = { EF: 0, TARJD: 0, TARJC: 0, TRANS: 0, VAL: 0 };
+    conteoDenominaciones = null; piezasDenominaciones = {};
+    const det = document.getElementById('detDenominaciones'); if (det) det.open = false;
     selClaveArqueo('EF');
     document.getElementById('modalArqueoCierre').style.display = 'flex';
   }
@@ -3299,7 +3328,42 @@ ${meserosTxt}
     document.getElementById('visorArqueo').innerText = bufferArqueo || '0';
   }
 
+  // Conteo por denominaciones: si se usa, el EFECTIVO declarado = total contado y el desglose se guarda en el Z.
+  let conteoDenominaciones = null;   // {B500: 3, ...} solo si se usó "Usar como EFECTIVO"
+  let piezasDenominaciones = {};
+  async function renderDenominaciones() {
+    const cat = await cargarCatalogoCaja();
+    const grid = document.getElementById('gridDenominaciones');
+    grid.innerHTML = (cat.denominaciones || []).map(d => {
+      const etiqueta = (d.clave.startsWith('B') ? 'Billete ' : 'Moneda ') + '$' + (d.valor < 1 ? d.valor.toFixed(2) : d.valor);
+      return `<label style="font-size:11px;font-weight:800;color:#475569;">${escHtml(etiqueta)}
+        <input type="number" min="0" step="1" class="m-inp" style="height:30px;" data-den="${escHtml(d.clave)}" data-valor="${Number(d.valor)}"
+               value="${piezasDenominaciones[d.clave] || ''}" placeholder="0" oninput="recalcularDenominaciones()"></label>`;
+    }).join('');
+    recalcularDenominaciones();
+  }
+  function recalcularDenominaciones() {
+    let total = 0;
+    piezasDenominaciones = {};
+    document.querySelectorAll('#gridDenominaciones input[data-den]').forEach(inp => {
+      const n = Math.max(0, parseInt(inp.value || 0, 10) || 0);
+      if (n) piezasDenominaciones[inp.dataset.den] = n;
+      total += n * Number(inp.dataset.valor);
+    });
+    document.getElementById('totDenominaciones').innerText = '$' + total.toFixed(2);
+    return Math.round(total * 100) / 100;
+  }
+  function usarDenominacionesComoEfectivo() {
+    const total = recalcularDenominaciones();
+    valoresArqueo.EF = total;
+    conteoDenominaciones = Object.assign({}, piezasDenominaciones);
+    bufferArqueo = '';
+    selClaveArqueo('EF');
+    notificarBarra(`Efectivo contado por denominación: $${total.toFixed(2)}`);
+  }
+
   function aplicarMontoArqueo() {
+    if (claveArqueoActiva === 'EF' && bufferArqueo !== '') conteoDenominaciones = null;  // EF tecleado a mano
     valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
     const idx = filasArqueoDef.findIndex(f => f.clave === claveArqueoActiva);
     selClaveArqueo(filasArqueoDef[(idx + 1) % filasArqueoDef.length].clave);
@@ -3313,9 +3377,19 @@ ${meserosTxt}
       </tr>`).join('');
   }
 
+  function lineasDenominacionesZ(lista) {
+    if (!lista || !lista.length) return '';
+    const filas = lista.map(x => `${x.tipo === 'BILLETE' ? 'B' : 'M'} $${x.valor} x ${x.piezas} = $${Number(x.importe).toFixed(2)}`);
+    return '\nEFECTIVO POR DENOMINACION:\n' + filas.join('\n') + '\n================================';
+  }
+
   async function confirmarCierreConArqueo() {
-    if (bufferArqueo !== '') valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
+    if (bufferArqueo !== '') {
+      if (claveArqueoActiva === 'EF') conteoDenominaciones = null;
+      valoresArqueo[claveArqueoActiva] = parseFloat(bufferArqueo || 0);
+    }
     let payload = Object.assign({}, valoresArqueo);
+    if (conteoDenominaciones) payload.denominaciones = conteoDenominaciones;
     let res = await fetch('/api/pos/cerrar_turno_arqueo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -3340,7 +3414,7 @@ ${d.sucursal}
 ESPERADO:  $${d.esperado}
 DECLARADO: $${d.declarado}
 DIFERENCIA:$${d.diferencia}
-================================</div>`);
+================================${lineasDenominacionesZ(d.denominaciones)}</div>`);
       setTimeout(() => location.reload(), 800);
     }
   }

@@ -1,0 +1,144 @@
+{# Traspasos directos entre sucursales. Se incluye en pedidos_sucursal.html con:
+   {% with suc_traspaso=sucursal %}{% include '_traspasos.html' %}{% endwith %}
+   Usa $, esc(), toast() y cacheInsumos (stock_local) de la página. #}
+<section id="sec_traspasos" class="panel-sec">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-right-left" style="color:var(--cobre);"></i> Enviar a otra sucursal</h3></div>
+      <p style="font-size:12px;color:#475569;margin-top:0;">El insumo se descuenta de <b>tu stock local</b> al enviarlo. La sucursal destino confirma lo que llegó; lo que falte o se rechace regresa a tu stock.</p>
+      <div class="form-row">
+        <select id="tr_destino" class="inp"></select>
+        <input type="text" id="tr_buscar" class="inp" list="tr_lista_insumos" placeholder="Insumo..." oninput="trMostrarStock()">
+        <datalist id="tr_lista_insumos"></datalist>
+        <input type="number" step="0.01" min="0" id="tr_cantidad" class="inp" placeholder="Cantidad">
+        <input type="text" id="tr_nota" class="inp" placeholder="Nota (opcional)">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <small id="tr_stock_info" style="color:#64748b;font-weight:700;"></small>
+        <button type="button" class="btn wa" onclick="trEnviar()"><i class="fa-solid fa-paper-plane"></i> Enviar traspaso</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-truck-ramp-box" style="color:var(--cobre);"></i> Por recibir <span class="badge-cnt" id="tr_cnt">0</span></h3>
+        <button type="button" class="btn sm gris" onclick="trCargar()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>De</th><th>Insumo</th><th>Enviado</th><th>Recibir</th></tr></thead>
+          <tbody id="tr_tbody_recibir"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--cobre);"></i> Historial de traspasos</h3></div>
+    <div class="table-wrap" style="max-height:380px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>#</th><th>Fecha</th><th>De → A</th><th>Insumo</th><th style="text-align:right;">Enviado</th><th style="text-align:right;">Recibido</th><th>Estado</th><th>Usuarios</th></tr></thead>
+        <tbody id="tr_tbody_hist"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+  const TR_SUCURSAL = JSON.parse('{{ suc_traspaso|tojson }}');
+  let trPorRecibir = [];
+
+  function trInsumoElegido() {
+    const nombre = ($('tr_buscar').value || '').trim().toUpperCase();
+    return (typeof cacheInsumos !== 'undefined' ? cacheInsumos : [])
+      .find(i => String(i.nombre || '').toUpperCase() === nombre && !String(i.nombre).includes('EXTRA / FUERA DE LISTA'));
+  }
+
+  function trMostrarStock() {
+    const ins = trInsumoElegido();
+    $('tr_stock_info').innerText = ins ? `En tu stock: ${ins.stock_local} ${ins.unidad}` : '';
+  }
+
+  async function trCargar() {
+    try {
+      if (typeof cacheInsumos !== 'undefined' && $('tr_lista_insumos')) {
+        $('tr_lista_insumos').innerHTML = cacheInsumos.filter(i => !String(i.nombre).includes('EXTRA / FUERA DE LISTA') && Number(i.stock_local) > 0)
+          .map(i => `<option value="${esc(i.nombre)}">`).join('');
+      }
+      const d = await (await fetch('/api/traspasos?sucursal=' + encodeURIComponent(TR_SUCURSAL))).json();
+      if (!d.ok) return toast(d.msg || 'Sin acceso a traspasos');
+      $('tr_destino').innerHTML = (d.destinos || []).map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+      trPorRecibir = d.por_recibir || [];
+      $('tr_cnt').innerText = trPorRecibir.length;
+      $('tr_tbody_recibir').innerHTML = trPorRecibir.map(t => `<tr>
+        <td>${esc(t.fecha)}</td><td><b>${esc(t.origen)}</b></td>
+        <td><b>${esc(t.insumo_nombre)}</b>${t.nota ? `<br><small style="color:var(--cobre);">${esc(t.nota)}</small>` : ''}</td>
+        <td>${Number(t.cantidad)} ${esc(t.unidad)}</td>
+        <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+          <input type="number" step="0.01" min="0" id="tr_rec_${Number(t.id)}" class="inp" style="width:80px;height:30px;" value="${Number(t.cantidad)}">
+          <button type="button" class="btn sm wa" onclick="trRecibir(${Number(t.id)})">Recibido</button>
+          <button type="button" class="btn sm rojo" onclick="trRechazar(${Number(t.id)})">Rechazar</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:14px;">No hay traspasos por recibir.</td></tr>';
+      $('tr_tbody_hist').innerHTML = (d.historial || []).map(t => {
+        const cls = t.estado === 'RECIBIDO' ? 'ok' : (t.estado === 'RECHAZADO' ? 'err' : 'warn');
+        return `<tr>
+          <td>#${Number(t.id)}</td><td>${esc(t.fecha)}</td><td>${esc(t.origen)} → ${esc(t.destino)}</td>
+          <td><b>${esc(t.insumo_nombre)}</b></td>
+          <td style="text-align:right;">${Number(t.cantidad)} ${esc(t.unidad)}</td>
+          <td style="text-align:right;">${t.cantidad_recibida === null ? '-' : Number(t.cantidad_recibida) + ' ' + esc(t.unidad)}</td>
+          <td><span class="pill ${cls}">${esc(t.estado)}</span></td>
+          <td style="font-size:11px;">${esc(t.enviado_por)}${t.recibido_por ? ' / ' + esc(t.recibido_por) : ''}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:14px;">Sin traspasos.</td></tr>';
+    } catch (e) { toast('Error al cargar traspasos'); }
+  }
+
+  async function trEnviar() {
+    const ins = trInsumoElegido();
+    const cantidad = parseFloat($('tr_cantidad').value || 0);
+    if (!ins) return alert('Elige un insumo de la lista.');
+    if (!(cantidad > 0)) return alert('Captura una cantidad mayor a 0.');
+    const destino = $('tr_destino').value;
+    if (!confirm(`¿Enviar ${cantidad} ${ins.unidad} de ${ins.nombre} a ${destino}? Se descuenta de tu stock ahora.`)) return;
+    const res = await fetch('/api/traspasos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origen: TR_SUCURSAL, destino, insumo_id: ins.id, cantidad, nota: $('tr_nota').value || '' })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo enviar.');
+    $('tr_cantidad').value = ''; $('tr_nota').value = ''; $('tr_buscar').value = ''; $('tr_stock_info').innerText = '';
+    toast(`✅ Traspaso #${d.traspaso.id} enviado a ${destino}`);
+    if (typeof cargarDatosSucursal === 'function') await cargarDatosSucursal();
+    trCargar();
+  }
+
+  async function trRecibir(id) {
+    const t = trPorRecibir.find(x => x.id === id);
+    if (!t) return;
+    const cantidad_recibida = parseFloat($('tr_rec_' + id).value || 0);
+    if (cantidad_recibida < 0 || cantidad_recibida > t.cantidad) return alert(`La cantidad debe estar entre 0 y ${t.cantidad}.`);
+    const res = await fetch(`/api/traspasos/${id}/recibir`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cantidad_recibida })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo recibir.');
+    toast(d.faltante_regresado > 0 ? `Recibido. ${d.faltante_regresado} ${t.unidad} regresan a ${t.origen}` : 'Recibido y sumado a tu stock');
+    if (typeof cargarDatosSucursal === 'function') await cargarDatosSucursal();
+    trCargar();
+  }
+
+  async function trRechazar(id) {
+    const t = trPorRecibir.find(x => x.id === id);
+    if (!t) return;
+    const motivo = prompt(`¿Por qué rechazas ${t.cantidad} ${t.unidad} de ${t.insumo_nombre}? (todo regresa a ${t.origen})`, '');
+    if (motivo === null) return;
+    const res = await fetch(`/api/traspasos/${id}/rechazar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo rechazar.');
+    toast('Traspaso rechazado; regresa al origen');
+    trCargar();
+  }
+</script>

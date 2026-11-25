@@ -217,6 +217,9 @@ ejecutar_escenario('b1.py')
 # Fase 2: descuento en pesos, idempotencia del cobro, datos de ticket editables, CSV de créditos
 ejecutar_escenario('f2.py')
 
+# Fase 3: traspasos entre sucursales, catálogo de gastos, arqueo por denominaciones
+ejecutar_escenario('f3.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

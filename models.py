@@ -366,6 +366,17 @@ class MovimientoCajaPOS(db.Model):
     concepto = db.Column(db.String(200), nullable=False)
     usuario = db.Column(db.String(80), nullable=False)
     fecha = db.Column(db.DateTime, default=ahora_local)
+    categoria_gasto = db.Column(db.String(60), nullable=True)  # solo RETIRO: catálogo de gastos operativos
+
+
+CLAVE_CFG_CATALOGO_GASTOS = 'catalogo_gastos'
+CATALOGO_GASTOS_DEFAULT = ['HIELO', 'GAS', 'AGUA / GARRAFONES', 'LIMPIEZA', 'COMPRA URGENTE DE INSUMOS',
+                           'MANTENIMIENTO', 'PAPELERIA', 'TRANSPORTE / ENVIOS', 'PAGO A PROVEEDOR', 'OTROS']
+
+# Arqueo por denominaciones (pesos mexicanos). Clave -> valor; B = billete, M = moneda.
+DENOMINACIONES_MXN = [('B1000', 1000.0), ('B500', 500.0), ('B200', 200.0), ('B100', 100.0), ('B50', 50.0),
+                      ('B20', 20.0), ('M20', 20.0), ('M10', 10.0), ('M5', 5.0), ('M2', 2.0), ('M1', 1.0),
+                      ('M050', 0.5)]
 
 
 class CuentaPOS(db.Model):
@@ -525,6 +536,7 @@ class ArqueoTurnoPOS(db.Model):
     esperado_total = db.Column(db.Float, default=0.0)
     declarado_total = db.Column(db.Float, default=0.0)
     diferencia = db.Column(db.Float, default=0.0)
+    denominaciones_json = db.Column(db.Text, nullable=True)  # {"B500": 3, "M10": 7, ...} si se contó por denominación
 
 
 # ==============================================================================
@@ -696,6 +708,27 @@ class MovimientoCredito(db.Model):
     cuenta_id = db.Column(db.Integer, nullable=True)
     usuario = db.Column(db.String(80), default='')
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+
+
+class TraspasoSucursal(db.Model):
+    """Traspaso directo de insumos entre sucursales (sin pasar por Bodega Central).
+    ENVIADO: el origen ya descontó su stock. RECIBIDO: el destino sumó lo recibido; lo que faltó regresa al origen.
+    RECHAZADO: todo regresa al origen."""
+    __tablename__ = 'traspasos_sucursal'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local)
+    origen = db.Column(db.String(100), nullable=False)
+    destino = db.Column(db.String(100), nullable=False)
+    insumo_id = db.Column(db.Integer, db.ForeignKey('insumos_bodega_pro.id'), nullable=False)
+    insumo_nombre = db.Column(db.String(120), nullable=False)
+    unidad = db.Column(db.String(20), default='')
+    cantidad = db.Column(db.Float, nullable=False)
+    cantidad_recibida = db.Column(db.Float, nullable=True)
+    estado = db.Column(db.String(15), default='ENVIADO')  # ENVIADO | RECIBIDO | RECHAZADO
+    nota = db.Column(db.String(200), default='')
+    enviado_por = db.Column(db.String(80), nullable=False)
+    recibido_por = db.Column(db.String(80), nullable=True)
+    recibido_en = db.Column(db.DateTime, nullable=True)
 
 
 CONTEO_TOPE_SIN_CLAVE = 500.0  # suma de |valor_diferencia| a partir de la cual se pide clave de Admin/Gerente
@@ -1210,6 +1243,9 @@ ESQUEMA_REQUERIDO = {
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
     'cuentas_pos': {'descuento_fijo', 'cobro_idem'},
+    'movimientos_caja_pos': {'categoria_gasto'},
+    'arqueos_turno_pos': {'denominaciones_json'},
+    'traspasos_sucursal': {'origen', 'destino', 'insumo_id', 'cantidad', 'cantidad_recibida', 'estado'},
     'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
     'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
                                    'costo_unitario', 'valor_diferencia'},
@@ -1302,7 +1338,10 @@ def inicializar_sistema(app_obj):
             "UPDATE cola_impresion_pos SET estado = 'PENDIENTE' WHERE estado IS NULL;",
             # Fase 2: descuento en pesos e idempotencia del cobro
             "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS descuento_fijo DOUBLE PRECISION DEFAULT 0.0;",
-            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cobro_idem VARCHAR(64);"
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cobro_idem VARCHAR(64);",
+            # Fase 3: gastos por categoría y arqueo por denominaciones
+            "ALTER TABLE movimientos_caja_pos ADD COLUMN IF NOT EXISTS categoria_gasto VARCHAR(60);",
+            "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS denominaciones_json TEXT;"
         ]
         es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:
@@ -1336,7 +1375,10 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_pre_orden_suc_estado ON pre_orden (sucursal, estado);",
             "CREATE INDEX IF NOT EXISTS idx_pin_caja_suc_activo ON pin_caja (sucursal, activo);",
             "CREATE INDEX IF NOT EXISTS idx_empleados_nomina_suc ON empleados_nomina_pos (sucursal, activo);",
-            "CREATE INDEX IF NOT EXISTS idx_cola_imp_suc_estado ON cola_impresion_pos (sucursal, estado);"
+            "CREATE INDEX IF NOT EXISTS idx_cola_imp_suc_estado ON cola_impresion_pos (sucursal, estado);",
+            "CREATE INDEX IF NOT EXISTS idx_traspasos_destino_estado ON traspasos_sucursal (destino, estado);",
+            "CREATE INDEX IF NOT EXISTS idx_traspasos_origen ON traspasos_sucursal (origen, fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_mov_caja_tipo_fecha ON movimientos_caja_pos (tipo, fecha);"
         ]
         for sql in indices:
             try:
