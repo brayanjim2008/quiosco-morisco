@@ -13,7 +13,10 @@ from flask_login import login_user, login_required, logout_user, current_user
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 import math
+import hmac
+import secrets
 
 from models import (
     db, login_manager, inicializar_sistema, ahora_local, inicio_hoy_local,
@@ -27,6 +30,11 @@ from operacion_routes import operacion_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
 
 app = Flask(__name__)
+# Render pone 1 proxy delante: ProxyFix toma la IP real que ese proxy agrega a X-Forwarded-For
+# (la que el cliente no puede falsificar) y la deja en request.remote_addr.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+
 def _env_requerida(nombre):
     """Lee una variable de entorno obligatoria; si falta, la app NO arranca (así nunca usa credenciales por defecto)."""
     valor = os.environ.get(nombre, '').strip()
@@ -61,7 +69,7 @@ cloudinary.config(
 # --- BASE DE DATOS NEONDB (configura DATABASE_URL en Render) ---
 app.config['SQLALCHEMY_DATABASE_URI'] = _normalizar_db_url(_env_requerida('DATABASE_URL'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # máx. 8 MB por petición (fotos)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True, "pool_recycle": 300, "pool_size": 5, "max_overflow": 5}
 
 db.init_app(app)
@@ -95,6 +103,34 @@ def _manejar_error_global(e):
     return 'Error interno del servidor.', 500
 
 
+# ------------------------------------------------------------------------------
+# Protección CSRF: token por sesión. templates/_csrf.html lo agrega solo a cada fetch y formulario.
+# Se exige a usuarios con sesión iniciada (los únicos cuyas acciones se pueden suplantar).
+# ------------------------------------------------------------------------------
+def _csrf_token():
+    token = session.get('_csrf')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf'] = token
+    return token
+
+
+@app.context_processor
+def _inyectar_csrf():
+    return {'csrf_token': _csrf_token}
+
+
+@app.before_request
+def _verificar_csrf():
+    if request.method in ('GET', 'HEAD', 'OPTIONS') or not current_user.is_authenticated:
+        return None
+    enviado = request.headers.get('X-CSRFToken') or request.form.get('csrf_token', '')
+    esperado = session.get('_csrf', '')
+    if not enviado or not esperado or not hmac.compare_digest(str(enviado), str(esperado)):
+        abort(400, 'La sesión expiró o la solicitud no es válida. Recarga la página e intenta de nuevo.')
+    return None
+
+
 def _numero_seguro(valor, minimo=0.0, maximo=1_000_000.0):
     try:
         x = float(valor or 0)
@@ -112,9 +148,46 @@ def _precio_form():
         abort(400, 'Precio inválido.')
 
 
+_CARACTERES_HTML = str.maketrans('', '', '<>"\'`')
+
+
+def _texto_publico(valor, max_len):
+    """Texto escrito por el público (pre-órdenes, evaluaciones, fidelidad): quita los caracteres con los que
+    se arma HTML/JS. Así, aunque alguna pantalla interna olvide escapar, no se puede inyectar código."""
+    return str(valor or '').translate(_CARACTERES_HTML).strip()[:max_len]
+
+
+_TIPOS_IMAGEN_OK ={'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+
+
+def _subir_imagen(archivo):
+    """Valida tipo de imagen y credenciales de Cloudinary antes de subir. Devuelve la URL o None (y avisa con flash)."""
+    if not (os.environ.get('CLOUDINARY_CLOUD_NAME') and os.environ.get('CLOUDINARY_API_KEY') and os.environ.get('CLOUDINARY_API_SECRET')):
+        flash('Cloudinary no está configurado en el servidor: no se pudo subir la imagen.', 'danger')
+        return None
+    if (archivo.mimetype or '').lower() not in _TIPOS_IMAGEN_OK:
+        flash('Formato de imagen no permitido. Usa JPG, PNG, WEBP o GIF.', 'danger')
+        return None
+    try:
+        return cloudinary.uploader.upload(archivo).get('secure_url')
+    except Exception as e:
+        app.logger.exception(e)
+        flash('No se pudo subir la imagen. Intenta de nuevo.', 'danger')
+        return None
+
+
+def _limitar_publico(nombre, max_req=15, ventana=300):
+    """Limita peticiones por IP en rutas públicas (por proceso). True si ya se excedió."""
+    clave = f"{nombre}:{_ip_cliente()}"
+    if limite_intentos_excedido(clave, max_req, ventana):
+        return True
+    registrar_intento_fallido(clave)
+    return False
+
+
 def _ip_cliente():
-    xff = request.headers.get('X-Forwarded-For', '')
-    return (xff.split(',')[0].strip() if xff else request.remote_addr) or 'desconocida'
+    # Con ProxyFix, remote_addr ya es la IP real; no se lee X-Forwarded-For directo porque el cliente lo puede falsificar.
+    return request.remote_addr or 'desconocida'
 
 
 @login_manager.user_loader
@@ -151,7 +224,8 @@ def ping_keep_alive():
         db.session.execute(text("SELECT 1"))
         return jsonify({"status": "awake", "timestamp": ahora_local().strftime('%Y-%m-%d %H:%M:%S')}), 200
     except Exception as e:
-        return jsonify({"status": "error", "detail": str(e)}), 500
+        app.logger.exception(e)
+        return jsonify({"status": "error"}), 500
 
 
 @app.route('/api/traducir')
@@ -168,7 +242,8 @@ def api_traducir():
             traduccion = "".join([parte[0] for parte in data[0] if parte[0]])
             return jsonify({"ok": True, "traduccion": traduccion})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        app.logger.warning('Traducción falló: %s', e)
+        return jsonify({"ok": False, "error": "No se pudo traducir en este momento."}), 502
 
 
 # ==============================================================================
@@ -256,16 +331,15 @@ def api_estado_menu_publico():
 
 @app.route('/crear_preorden', methods=['POST'])
 def crear_preorden():
+    if _limitar_publico('preorden', max_req=40, ventana=300):
+        return jsonify({"ok": False, "error": "Demasiados pedidos seguidos desde este dispositivo. Espera unos minutos."}), 429
     try:
-        clave_rl = f"preorden:{_ip_cliente()}"
-        if limite_intentos_excedido(clave_rl, 35, 300):
-            return jsonify({"ok": False, "error": "Demasiados envios recientes. Espera un momento."}), 429
         data = request.get_json()
         if not data:
             return jsonify({"ok": False, "error": "Datos inválidos"}), 400
-        mesa = str(data.get('mesa', '')).strip()
-        nombre = str(data.get('cliente_nombre', '')).strip()
-        items_txt = str(data.get('detalle_items', '')).strip()
+        mesa = _texto_publico(data.get('mesa', ''), 20)
+        nombre = _texto_publico(data.get('cliente_nombre', ''), 80)
+        items_txt = _texto_publico(data.get('detalle_items', ''), 2500)
         if not mesa or not nombre or not items_txt:
             return jsonify({"ok": False, "error": "Faltan datos de mesa o nombre"}), 400
 
@@ -276,15 +350,14 @@ def crear_preorden():
         nueva = PreOrden(
             mesa=mesa,
             cliente_nombre=nombre,
-            modalidad=str(data.get('modalidad', 'En Mesa')).strip(),
-            metodo_pago=str(data.get('metodo_pago', 'Efectivo')).strip(),
+            modalidad=_texto_publico(data.get('modalidad', 'En Mesa'), 40),
+            metodo_pago=_texto_publico(data.get('metodo_pago', 'Efectivo'), 40),
             detalle_items=items_txt,
-            notas=str(data.get('notas', '')).strip(),
+            notas=_texto_publico(data.get('notas', ''), 300),
             total=total_seguro,
             estado="pendiente",
             fecha=ahora_local()
         )
-        registrar_intento_fallido(clave_rl)
         db.session.add(nueva)
         db.session.commit()
         return jsonify({"ok": True, "folio": nueva.id, "hora": nueva.fecha.strftime('%H:%M')})
@@ -339,7 +412,7 @@ def atender_preorden(id):
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
-    nombre = request.form.get('nombre', '').strip()
+    nombre = _texto_publico(request.form.get('nombre', ''), 101)
     telefono = request.form.get('telefono', '').strip()
     pin_ingresado = request.form.get('pin', '').upper().strip()
 
@@ -394,9 +467,8 @@ def registrar_consumo():
 
 @app.route('/enviar_evaluacion', methods=['POST'])
 def enviar_evaluacion():
-    clave_rl = f"eval:{_ip_cliente()}"
-    if limite_intentos_excedido(clave_rl, 20, 300):
-        flash('Demasiadas evaluaciones recientes. Intenta mas tarde.', 'error')
+    if _limitar_publico('evaluacion', max_req=20, ventana=600):
+        flash('Demasiados envíos seguidos. Intenta en unos minutos.', 'error')
         return redirect(url_for('index'))
     try:
         cal_mesero = int(request.form.get('mesero_calificacion', ''))
@@ -408,14 +480,13 @@ def enviar_evaluacion():
         flash('Selecciona una calificación válida.', 'error')
         return redirect(url_for('index'))
     db.session.add(Evaluacion(
-        mesero_nombre=request.form.get('mesero_nombre'),
+        mesero_nombre=_texto_publico(request.form.get('mesero_nombre'), 80),
         mesero_calificacion=cal_mesero,
         limpieza=cal_limpieza,
         calidad_comida=cal_comida,
-        comentarios=request.form.get('comentarios', ''),
+        comentarios=_texto_publico(request.form.get('comentarios', ''), 600),
         fecha=ahora_local()
     ))
-    registrar_intento_fallido(clave_rl)
     db.session.commit()
     flash('¡Gracias por tu evaluación!', 'success')
     return redirect(url_for('index'))
@@ -566,11 +637,12 @@ def nuevo_usuario():
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'mesero')
     sucursal = request.form.get('sucursal', 'Quiosco Morisco (Matriz)')
-    if role not in ('mesero', 'cajero', 'gerente', 'sucursal', 'almacen', 'admin'):
-        flash('Rol de usuario invalido.', 'danger')
+    if role not in ('admin', 'gerente', 'cajero', 'mesero', 'sucursal', 'almacen') or sucursal not in SUCURSALES_OFICIALES:
+        flash('Rol o sucursal inválidos.', 'danger')
         return redirect(url_for('admin_dashboard'))
-    if sucursal not in SUCURSALES_OFICIALES:
-        sucursal = 'Quiosco Morisco (Matriz)'
+    if username and len(password) < 8:
+        flash('La contraseña debe tener al menos 8 caracteres.', 'danger')
+        return redirect(url_for('admin_dashboard'))
     if username and password:
         if User.query.filter(db.func.lower(User.username) == username).first():
             flash('Ese nombre de usuario ya existe.', 'danger')
@@ -589,6 +661,9 @@ def cambiar_pass_usuario(id):
         return redirigir_segun_rol(current_user)
     u = User.query.get_or_404(id)
     nueva_pass = request.form.get('nueva_password', '').strip()
+    if nueva_pass and len(nueva_pass) < 8:
+        flash('La contraseña debe tener al menos 8 caracteres.', 'danger')
+        return redirect(url_for('admin_dashboard'))
     if nueva_pass:
         u.password = generate_password_hash(nueva_pass)
         db.session.commit()
@@ -682,10 +757,10 @@ def nuevo_premio():
         return redirigir_segun_rol(current_user)
     try:
         visitas = int(request.form.get('visitas', ''))
-        if visitas < 1 or visitas > 500:
-            raise ValueError()
     except (TypeError, ValueError):
-        flash('El numero de visitas debe ser un entero entre 1 y 500.', 'danger')
+        visitas = 0
+    if visitas <= 0 or visitas > 1000:
+        flash('Las visitas necesarias deben ser un número entero mayor a 0.', 'danger')
         return redirect(url_for('admin_dashboard'))
     if Premio.query.filter_by(visitas_necesarias=visitas).first():
         flash('Ya existe una meta con ese número de visitas.', 'danger')
@@ -755,7 +830,7 @@ def eliminar_categoria(id):
 def nuevo_producto():
     if current_user.role != 'admin':
         return redirigir_segun_rol(current_user)
-    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if ('foto' in request.files and request.files['foto'].filename != '') else None
+    img_url = _subir_imagen(request.files['foto']) if ('foto' in request.files and request.files['foto'].filename != '') else None
     db.session.add(Producto(
         nombre=request.form['nombre'], nombre_en=request.form.get('nombre_en', ''),
         descripcion=request.form['descripcion'], descripcion_en=request.form.get('descripcion_en', ''),
@@ -811,7 +886,9 @@ def editar_producto(id):
         p.destacado = (request.form.get('destacado') == 'on')
         p.agotado = (request.form.get('agotado') == 'on')
         if 'foto' in request.files and request.files['foto'].filename != '':
-            p.imagen_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url')
+            _nueva_img = _subir_imagen(request.files['foto'])
+            if _nueva_img:  # si falla la subida se conserva la foto actual
+                p.imagen_url = _nueva_img
         db.session.commit()
         invalidar_cache_publico()
         flash('Platillo actualizado correctamente.', 'success')
@@ -836,13 +913,15 @@ def agregar_galeria():
     if current_user.role != 'admin':
         return redirigir_segun_rol(current_user)
     if 'foto' in request.files and request.files['foto'].filename != '':
-        db.session.add(Galeria(
-            imagen_url=cloudinary.uploader.upload(request.files['foto']).get('secure_url'),
-            titulo=request.form.get('titulo', ''), descripcion=request.form.get('descripcion', ''),
-            fecha_subida=ahora_local()
-        ))
-        db.session.commit()
-        invalidar_cache_publico()
+        url_g = _subir_imagen(request.files['foto'])
+        if url_g:
+            db.session.add(Galeria(
+                imagen_url=url_g,
+                titulo=request.form.get('titulo', '')[:100], descripcion=request.form.get('descripcion', '')[:250],
+                fecha_subida=ahora_local()
+            ))
+            db.session.commit()
+            invalidar_cache_publico()
     return redirect(url_for('admin_dashboard'))
 
 
@@ -876,7 +955,7 @@ def eliminar_galeria(id):
 def nuevo_anuncio():
     if current_user.role != 'admin':
         return redirigir_segun_rol(current_user)
-    img_url = cloudinary.uploader.upload(request.files['foto']).get('secure_url') if ('foto' in request.files and request.files['foto'].filename != '') else None
+    img_url = _subir_imagen(request.files['foto']) if ('foto' in request.files and request.files['foto'].filename != '') else None
     db.session.add(Anuncio(
         mensaje=request.form.get('mensaje', 'Sin mensaje'), mensaje_en=request.form.get('mensaje_en', ''),
         color=request.form.get('color', 'bg-dark text-white'), imagen_url=img_url,
@@ -917,8 +996,11 @@ def eliminar_anuncio(id):
 def generar_pin():
     if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
-    cantidad = max(1, min(30, int(request.form.get('cantidad', 1))))
-    folio_sr = request.form.get('folio_sr', '').strip()
+    try:
+        cantidad = max(1, min(30, int(request.form.get('cantidad', 1))))
+    except (TypeError, ValueError):
+        cantidad = 1
+    folio_sr = request.form.get('folio_sr', '').strip()[:50]
     ahora = ahora_local()
     for _ in range(cantidad):
         db.session.add(PinCaja(
@@ -956,6 +1038,16 @@ def limpiar_pins_activos():
 
 if os.environ.get('RUN_DB_INIT', '0') == '1':
     inicializar_sistema(app)
+else:
+    # Red de seguridad: si faltan las tablas nuevas (primer deploy de esta versión), se crean solas
+    # aunque RUN_DB_INIT no esté activo. Es una sola consulta ligera al arrancar.
+    try:
+        from sqlalchemy import inspect as _sa_inspect
+        with app.app_context():
+            if not _sa_inspect(db.engine).has_table('clientes_credito'):
+                inicializar_sistema(app)
+    except Exception as _e_init:
+        print('Aviso: no se pudo verificar el esquema al arrancar:', _e_init)
 
 if __name__ == '__main__':
     inicializar_sistema(app)

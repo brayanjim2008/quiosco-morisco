@@ -1,9 +1,11 @@
 import math
 import re
+import zlib
 from html import escape as _esc
 from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, Response
 from flask_login import login_required, current_user
+from sqlalchemy import text as _sql_text
 
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
@@ -15,8 +17,8 @@ from models import (
     ConfigPermisosPOS, TurnoPOS, MovimientoCajaPOS, CuentaPOS, DetallePOS,
     ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
     AlertaMesaPOS, ArqueoTurnoPOS, EmpleadoNominaPOS, ConsumoEmpleadoPOS,
-    InsumoBodegaPro, StockSucursal, RegistroMerma, MovimientoAlmacen, aplicar_merma, ConfigJSONPOS,
-    ClienteCreditoPOS, MovimientoCreditoPOS, RegistroAsistencia
+    InsumoBodegaPro, StockSucursal, RegistroMerma, aplicar_merma,
+    ClienteCredito, MovimientoCredito, RegistroAsistencia, cfg_cargar, cfg_guardar, buscar_insumo_activo
 )
 
 pos_bp = Blueprint('pos', __name__)
@@ -33,6 +35,47 @@ def _autorizar_operacion(clave_admin='', permitir_si_flag=False):
     if permitir_si_flag and current_user.role in ROLES_CAJA:
         return current_user.username.upper()
     return None
+
+def _no_abierta(c):
+    """Devuelve una respuesta 409 si la cuenta ya no está ABIERTA (pagada, dividida, combinada o cancelada)."""
+    if c.estado != 'ABIERTA':
+        return jsonify({'ok': False, 'msg': f'La cuenta está {c.estado}; ya no se puede modificar.'}), 409
+    return None
+
+
+def _lock_advisory(clave_txt):
+    """Serializa una sección crítica entre workers (PostgreSQL). Se libera solo al hacer commit/rollback."""
+    try:
+        if db.engine.dialect.name == 'postgresql':
+            db.session.execute(_sql_text("SELECT pg_advisory_xact_lock(:k)"), {'k': zlib.crc32(clave_txt.encode('utf-8'))})
+    except Exception:
+        pass
+
+
+def _mapas_precios():
+    prods = {}
+    for pr in Producto.query.all():
+        prods.setdefault(pr.nombre.strip().upper(), float(pr.precio or 0.0))
+    mods = {}
+    for m in ModificadorPOS.query.filter_by(activo=True).all():
+        mods.setdefault(m.nombre.strip().upper(), float(m.precio or 0.0))
+    return prods, mods
+
+
+def _precio_servidor(es_mod, desc_limpia, clave, precio_enviado, mapas):
+    """El precio lo manda el navegador, así que se corrige con el catálogo cuando el producto existe y tiene precio.
+    Si el producto no está en catálogo (concepto libre) o es de precio abierto (0), se respeta lo enviado."""
+    if clave in ('SEP', 'NOTA'):
+        return 0.0
+    prods, mods = mapas
+    nombre = desc_limpia.strip().upper()
+    if es_mod:
+        return mods.get(nombre, precio_enviado)
+    pc = prods.get(nombre)
+    if pc is not None and pc > 0:
+        return pc
+    return precio_enviado
+
 
 def _cuenta_permitida(c):
     """Evita que un usuario de una sucursal opere cuentas de otra sucursal."""
@@ -64,10 +107,8 @@ def _pos_dato_faltante(e):
     return jsonify({'ok': False, 'msg': f'Falta el dato requerido: {e}'}), 400
 
 
-import hashlib as _hashlib_pg
 import json as _json_asig
 from pathlib import Path as _Path_asig
-from sqlalchemy import text as _sql_text
 
 _ASIG_MOD_FILE = _Path_asig("config_mods_productos.json")
 _AREA_PROD_FILE = _Path_asig("config_areas_productos.json")
@@ -79,6 +120,13 @@ _CAJA_CFG_DEFAULT = {
     "bloquear_cierre_cuentas_abiertas": True,
     "tope_salvaguarda_efectivo": 5000.0
 }
+
+def _cargar_cfg_caja():
+    raw = cfg_cargar(_CAJA_CFG_FILE.name, _CAJA_CFG_DEFAULT, archivo_legado=str(_CAJA_CFG_FILE))
+    out = dict(_CAJA_CFG_DEFAULT)
+    if isinstance(raw, dict):
+        out.update(raw)
+    return out
 
 _MOTIVOS_DEFAULT = [
     {"id": 1, "clave": "M01", "descripcion": "ERROR DE CAPTURA"},
@@ -92,99 +140,26 @@ _TIPOS_DESC_DEFAULT = [
     {"id": 3, "clave": "D03", "descripcion": "CLIENTE FRECUENTE", "porcentaje": 10.0},
 ]
 
-_CFG_TABLA_VERIFICADA = False
-
-
-def _asegurar_tabla_cfg():
-    global _CFG_TABLA_VERIFICADA
-    if _CFG_TABLA_VERIFICADA:
-        return
-    try:
-        ConfigJSONPOS.__table__.create(db.engine, checkfirst=True)
-        _CFG_TABLA_VERIFICADA = True
-    except Exception:
-        db.session.rollback()
-
-
-def _lock_tx_pg(clave_str):
-    try:
-        if db.engine.dialect.name == 'postgresql':
-            llave = int.from_bytes(_hashlib_pg.blake2b(clave_str.encode('utf-8'), digest_size=8).digest(), 'big', signed=True)
-            db.session.execute(_sql_text("SELECT pg_advisory_xact_lock(:k)"), {'k': llave})
-    except Exception:
-        pass
-
-
-def _leer_cfg_bd(clave, ruta_legacy, default_val):
-    _asegurar_tabla_cfg()
-    try:
-        reg = ConfigJSONPOS.query.get(clave)
-        if reg and reg.valor_json:
-            return _json_asig.loads(reg.valor_json)
-    except Exception:
-        db.session.rollback()
-
-    # Auto-migracion unica desde archivo JSON local si existe
-    inicial = None
-    if ruta_legacy and ruta_legacy.exists():
-        try:
-            inicial = _json_asig.loads(ruta_legacy.read_text(encoding="utf-8"))
-        except Exception:
-            inicial = None
-    if inicial is None:
-        inicial = [dict(x) for x in default_val] if isinstance(default_val, list) else dict(default_val)
-    _guardar_cfg_bd(clave, inicial)
-    return inicial
-
-
-def _guardar_cfg_bd(clave, valor):
-    _asegurar_tabla_cfg()
-    payload = _json_asig.dumps(valor, ensure_ascii=False)
-    try:
-        reg = ConfigJSONPOS.query.get(clave)
-        if not reg:
-            db.session.add(ConfigJSONPOS(clave=clave, valor_json=payload, actualizado=ahora_local()))
-        else:
-            reg.valor_json = payload
-            reg.actualizado = ahora_local()
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-
-def _cargar_cfg_caja():
-    raw = _leer_cfg_bd("config_caja_soft.json", _CAJA_CFG_FILE, _CAJA_CFG_DEFAULT)
-    out = dict(_CAJA_CFG_DEFAULT)
-    if isinstance(raw, dict):
-        out.update(raw)
-    return out
-
-
 def _cargar_json_lista(ruta, default_items):
-    raw = _leer_cfg_bd(ruta.name, ruta, default_items)
+    raw = cfg_cargar(ruta.name, default_items, archivo_legado=str(ruta))
     return raw if isinstance(raw, list) else [dict(x) for x in default_items]
 
-
 def _guardar_json_lista(ruta, items):
-    _guardar_cfg_bd(ruta.name, items)
-
+    cfg_guardar(ruta.name, items)
 
 def _cargar_areas_prods():
-    raw = _leer_cfg_bd("config_areas_productos.json", _AREA_PROD_FILE, {})
+    raw = cfg_cargar(_AREA_PROD_FILE.name, {}, archivo_legado=str(_AREA_PROD_FILE))
     return raw if isinstance(raw, dict) else {}
-
 
 def _guardar_areas_prods(data):
-    _guardar_cfg_bd("config_areas_productos.json", data)
-
+    cfg_guardar(_AREA_PROD_FILE.name, data)
 
 def _cargar_asignaciones_mods():
-    raw = _leer_cfg_bd("config_mods_productos.json", _ASIG_MOD_FILE, {})
+    raw = cfg_cargar(_ASIG_MOD_FILE.name, {}, archivo_legado=str(_ASIG_MOD_FILE))
     return raw if isinstance(raw, dict) else {}
 
-
 def _guardar_asignaciones_mods(data):
-    _guardar_cfg_bd("config_mods_productos.json", data)
+    cfg_guardar(_ASIG_MOD_FILE.name, data)
 
 def _enriquecer_modificadores(mods):
     asigs = _cargar_asignaciones_mods()
@@ -235,41 +210,9 @@ def _resolver_area_modificador(mod_obj, area_padre):
     return area_padre
 
 
-def _precio_catalogo_producto(producto_id, desc_limpia, fallback_precio):
-    p_bd = None
-    if producto_id:
-        try:
-            p_bd = Producto.query.get(int(producto_id))
-        except (TypeError, ValueError):
-            p_bd = None
-    if not p_bd and desc_limpia:
-        p_bd = Producto.query.filter(db.func.lower(Producto.nombre) == desc_limpia.lower()).first()
-    if p_bd is not None:
-        return round(float(p_bd.precio or 0.0), 2)
-    return round(float(fallback_precio or 0.0), 2)
-
-
-def _precio_catalogo_modificador(mod_obj, fallback_precio):
-    m_bd = None
-    if isinstance(mod_obj, dict):
-        mid = mod_obj.get('id')
-        if mid:
-            try:
-                m_bd = ModificadorPOS.query.get(int(mid))
-            except (TypeError, ValueError):
-                m_bd = None
-        if not m_bd:
-            nom = str(mod_obj.get('nombre') or mod_obj.get('descripcion') or '').strip().upper().lstrip('>')
-            if nom:
-                m_bd = ModificadorPOS.query.filter(db.func.upper(ModificadorPOS.nombre) == nom).first()
-    if m_bd is not None:
-        return round(float(m_bd.precio or 0.0), 2)
-    return round(float(fallback_precio or 0.0), 2)
-
-
 def _siguiente_folio_sucursal(sucursal):
-    _lock_tx_pg(f'folio:{sucursal}')
     pref = PREFIJO_SUCURSAL.get(sucursal, 'QM')
+    _lock_advisory(f'folio:{pref}')  # dos cobros simultáneos ya no calculan el mismo folio
     ult = CuentaPOS.query.filter(
         CuentaPOS.folio.like(f"{pref}-%")
     ).order_by(CuentaPOS.id.desc()).first()
@@ -308,8 +251,8 @@ def _armar_ticket_precuenta_html(c):
       <div>================================</div>
       MESA: <b>{_esc(c.mesa)}</b><br>
       MESERO: {_esc(c.mesero)}<br>
-      PERSONAS: {c.personas} &nbsp;&nbsp; ORDEN: <b>{_esc(c.orden)}</b><br>
-      FOLIO: <b>{_esc(c.folio or c.orden)}</b><br>
+      PERSONAS: {c.personas} &nbsp;&nbsp; ORDEN: <b>{c.orden}</b><br>
+      FOLIO: <b>{c.folio or c.orden}</b><br>
       {apertura_str}<br>
       {ahora_str}<br>
       CAJERO: {_esc(cajero_nom)}<br>
@@ -348,10 +291,7 @@ def vista_pos_soft():
     categorias_bd = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
     productos = Producto.query.filter_by(agotado=False).order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
     empleados = EmpleadoNominaPOS.query.filter_by(activo=True).order_by(EmpleadoNominaPOS.nombre.asc()).all()
-    q_cred = ClienteCreditoPOS.query.filter_by(activo=True)
-    if current_user.role != 'admin':
-        q_cred = q_cred.filter_by(sucursal=suc)
-    clientes_credito = q_cred.order_by(ClienteCreditoPOS.nombre.asc()).all()
+    clientes_credito = ClienteCredito.query.filter_by(sucursal=suc, activo=True).order_by(ClienteCredito.nombre.asc()).all()
     return render_template(
         'pos_soft.html',
         sucursal=suc, sucursales=SUCURSALES_OFICIALES,
@@ -385,7 +325,7 @@ def api_pos_abrir_mesa():
     data = request.json or {}
     suc = obtener_sucursal_activa(session)
     mesa_nom = str(data.get('mesa', 'T01')).strip().upper()[:25]
-    _lock_tx_pg(f'mesa:{suc}:{mesa_nom}')
+    _lock_advisory(f'mesa:{suc}:{mesa_nom}')  # dos meseros abriendo la misma mesa a la vez
 
     existente = CuentaPOS.query.filter_by(sucursal=suc, mesa=mesa_nom, estado='ABIERTA').first()
     if existente:
@@ -418,8 +358,9 @@ def api_pos_renombrar_mesa():
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(c)
+    if _e:
+        return _e
     nueva_mesa = str(data.get('nueva_mesa', c.mesa)).strip().upper()[:25]
     if nueva_mesa != c.mesa:
         ocupada = CuentaPOS.query.filter_by(sucursal=c.sucursal, mesa=nueva_mesa, estado='ABIERTA').first()
@@ -444,8 +385,9 @@ def api_pos_mover_mesa_rapido():
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(c)
+    if _e:
+        return _e
     nueva_mesa = str(data.get('nueva_mesa', '')).strip().upper()[:25]
     if not nueva_mesa:
         return jsonify({'ok': False, 'msg': 'Selecciona una mesa destino.'}), 400
@@ -519,6 +461,7 @@ def api_pos_detalle_cuenta(cuenta_id):
         'pago_tarjeta_credito': c.pago_tarjeta_credito or 0.0,
         'pago_transferencia': c.pago_transferencia or 0.0,
         'pago_otros': c.pago_otros or 0.0,
+        'pago_credito': c.pago_credito or 0.0,
         'tarjeta_ultimos4': c.tarjeta_ultimos4 or '',
         'propina_tarjeta': c.propina_tarjeta or 0.0,
         'cambio': c.cambio or 0.0,
@@ -663,13 +606,11 @@ def api_pos_capturar_item():
     cant = _num(data.get('cantidad', 1), minimo=0.001, maximo=999.0)
     precio = _num(data.get('precio', 0), maximo=100000.0)
     es_mod = bool(data.get('es_modificador', False))
-    comanda = int(data.get('comanda', 1))
+    comanda = max(1, min(4, int(data.get('comanda', 1))))
     clave = str(data.get('clave', '02001')).strip()
     desc_limpia = str(data.get('descripcion', '')).strip().upper().lstrip('>')
-    if not es_mod and clave not in ('SEP', 'NOTA'):
-        precio = _precio_catalogo_producto(data.get('producto_id'), desc_limpia, precio)
-    elif es_mod and clave not in ('SEP', 'NOTA'):
-        precio = _precio_catalogo_modificador({'id': data.get('mod_id'), 'nombre': desc_limpia}, precio)
+    _mapas = _mapas_precios()
+    precio = _precio_servidor(es_mod, desc_limpia, clave.upper(), precio, _mapas)
     desc = f">{desc_limpia}" if es_mod else desc_limpia
     area_req = str(data.get('area_impresion', '')).strip().upper()
     if area_req not in ('COCINA', 'BARRA'):
@@ -738,8 +679,7 @@ def api_pos_capturar_item():
         if not m_desc_raw:
             continue
         m_clave = str(m.get('clave', 'MOD')).strip().upper()
-        if m_clave != 'NOTA':
-            m_pre = _precio_catalogo_modificador(m, m_pre)
+        m_pre = _precio_servidor(True, m_desc_raw, m_clave, m_pre, _mapas)
         m_area = area_imp if m_clave == 'NOTA' else _resolver_area_modificador(m, area_imp)
         db.session.add(DetallePOS(
             cuenta_id=c.id,
@@ -852,6 +792,7 @@ def api_pos_enviar_ronda_lote():
     items = data.get('items') or []
     if not items:
         return jsonify({'ok': False, 'msg': 'No hay platillos en la ronda.'}), 400
+    _mapas = _mapas_precios()
 
     for it in items:
         clave = str(it.get('clave', '02001')).strip().upper()
@@ -870,10 +811,7 @@ def api_pos_enviar_ronda_lote():
         desc_limpia = str(it.get('descripcion', '')).strip().upper().lstrip('>')
         if not desc_limpia:
             continue
-        if not es_mod and clave not in ('SEP', 'NOTA'):
-            precio = _precio_catalogo_producto(it.get('producto_id'), desc_limpia, precio)
-        elif es_mod and clave not in ('SEP', 'NOTA'):
-            precio = _precio_catalogo_modificador({'id': it.get('id'), 'nombre': desc_limpia}, precio)
+        precio = _precio_servidor(es_mod, desc_limpia, clave, precio, _mapas)
         desc = f">{desc_limpia}" if es_mod else desc_limpia
         area_imp = str(it.get('area_impresion', '')).strip().upper()
         if area_imp not in ('BARRA', 'COCINA'):
@@ -894,8 +832,7 @@ def api_pos_enviar_ronda_lote():
             m_cant = _num(m.get('cantidad', 1), minimo=0.001, maximo=999.0)
             m_pre = _num(m.get('precio', 0), maximo=100000.0)
             m_clave = str(m.get('clave', 'MOD')).strip().upper()
-            if m_clave != 'NOTA':
-                m_pre = _precio_catalogo_modificador(m, m_pre)
+            m_pre = _precio_servidor(True, m_desc, m_clave, m_pre, _mapas)
             m_area = area_imp if m_clave == 'NOTA' else _resolver_area_modificador(m, area_imp)
             db.session.add(DetallePOS(
                 cuenta_id=c.id, parent_detalle_id=nuevo_item.id, num_comanda=comanda,
@@ -934,8 +871,9 @@ def api_pos_cancelar_item():
     if _cta_item is not None and not _cuenta_permitida(_cta_item):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     cuenta = item.cuenta
-    if cuenta.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(cuenta)
+    if _e:
+        return _e
 
     # Si el producto aún no se envió a cocina/barra, se puede quitar sin contraseña
     era_impreso = bool(item.impreso_comanda)
@@ -984,8 +922,9 @@ def api_pos_cancelar_items_lote():
     cuenta = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(cuenta):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if cuenta.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(cuenta)
+    if _e:
+        return _e
     items_req = data.get('items', [])
     if not items_req:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto a cancelar.'}), 400
@@ -1077,8 +1016,9 @@ def api_pos_descuento_autorizado():
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(c)
+    if _e:
+        return _e
     pct = max(0.0, min(100.0, _num(data.get('porcentaje', 0), minimo=-1_000_000.0, maximo=1_000_000.0)))
     comentario = str(data.get('comentario', '')).strip()
 
@@ -1103,6 +1043,50 @@ def api_pos_descuento_autorizado():
     return jsonify({'ok': True, 'descuento_monto': c.descuento_monto, 'total': c.total})
 
 
+@pos_bp.route('/api/pos/personas_descuento')
+@login_required
+def api_pos_personas_descuento():
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False}), 403
+    personas = EmpleadoNominaPOS.query.filter(
+        EmpleadoNominaPOS.activo == True, EmpleadoNominaPOS.descuento_pct > 0
+    ).order_by(EmpleadoNominaPOS.nombre.asc()).all()
+    return jsonify({'ok': True, 'personas': [{
+        'id': e.id, 'nombre': e.nombre, 'puesto': e.puesto, 'descuento_pct': float(e.descuento_pct or 0.0)
+    } for e in personas]})
+
+
+@pos_bp.route('/api/pos/descuento_persona', methods=['POST'])
+@login_required
+def api_pos_descuento_persona():
+    """Aplica a la cuenta el % de descuento que el Admin configuró para esa persona (empleado/familiar)."""
+    if current_user.role not in ROLES_CAJA:
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    data = request.json or {}
+    c = CuentaPOS.query.filter_by(id=int(data['cuenta_id'])).with_for_update().first_or_404()
+    if not _cuenta_permitida(c):
+        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+    _e = _no_abierta(c)
+    if _e:
+        return _e
+    emp = EmpleadoNominaPOS.query.get(int(data['persona_id']))
+    if not emp or not emp.activo or (emp.descuento_pct or 0) <= 0:
+        return jsonify({'ok': False, 'msg': 'Esa persona no tiene un descuento configurado.'}), 400
+    pct = max(0.0, min(100.0, float(emp.descuento_pct)))
+    c.descuento_pct = pct
+    recalcular_totales_cuenta(c)
+    al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
+    motivo_txt = f'Descuento {pct:g}% - {emp.nombre}'
+    if not al:
+        db.session.add(AlertaMesaPOS(cuenta_id=c.id, descuento_motivo=motivo_txt, fecha_alerta=ahora_local()))
+    else:
+        al.descuento_motivo = motivo_txt
+    db.session.commit()
+    registrar_bitacora('DESCUENTO_PERSONA', c.mesa, c.descuento_monto, motivo_txt,
+                       autorizo=current_user.username.upper(), sucursal=c.sucursal)
+    return jsonify({'ok': True, 'porcentaje': pct, 'persona': emp.nombre, 'descuento_monto': c.descuento_monto, 'total': c.total})
+
+
 @pos_bp.route('/api/pos/descuento_productos', methods=['POST'])
 @login_required
 def api_pos_descuento_productos():
@@ -1113,8 +1097,9 @@ def api_pos_descuento_productos():
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    _e = _no_abierta(c)
+    if _e:
+        return _e
     items_desc = data.get('items', [])
     if not items_desc:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
@@ -1146,58 +1131,6 @@ def api_pos_descuento_productos():
 # ==============================================================================
 # DIVIDIR CUENTA (POR PARTES EDITABLES Y POR PRODUCTOS CON CANTIDADES PARCIALES)
 # ==============================================================================
-@pos_bp.route('/api/pos/personas_descuento', methods=['GET'])
-@login_required
-def api_pos_personas_descuento():
-    if current_user.role not in ROLES_POS:
-        return jsonify({'ok': False, 'personas': []}), 403
-    emps = EmpleadoNominaPOS.query.filter_by(activo=True).order_by(EmpleadoNominaPOS.nombre.asc()).all()
-    return jsonify({
-        'ok': True,
-        'personas': [{
-            'id': e.id,
-            'nombre': e.nombre,
-            'puesto': e.puesto,
-            'descuento_pct': round(float(e.descuento_pct or 0.0), 2)
-        } for e in emps]
-    })
-
-
-@pos_bp.route('/api/pos/descuento_persona', methods=['POST'])
-@login_required
-def api_pos_descuento_persona():
-    """Aplica el porcentaje de descuento automatico asignado a una persona."""
-    if current_user.role not in ROLES_POS:
-        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
-    data = request.json or {}
-    c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
-    if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
-    if c.impresa:
-        return jsonify({'ok': False, 'msg': 'Cuenta impresa. Reábrela primero.'}), 400
-
-    emp = EmpleadoNominaPOS.query.filter_by(id=int(data['persona_id']), activo=True).first()
-    if not emp:
-        return jsonify({'ok': False, 'msg': 'Persona no encontrada o inactiva.'}), 404
-    pct = max(0.0, min(100.0, float(emp.descuento_pct or 0.0)))
-    if pct <= 0:
-        return jsonify({'ok': False, 'msg': f'{emp.nombre} no tiene descuento automático asignado (configúralo en Vales / Nómina > Personal Activo).'}), 400
-
-    c.descuento_pct = pct
-    recalcular_totales_cuenta(c)
-    motivo_txt = f'Desc. auto {emp.nombre} ({pct:g}%)'
-    al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
-    if not al:
-        db.session.add(AlertaMesaPOS(cuenta_id=c.id, descuento_motivo=motivo_txt, fecha_alerta=ahora_local()))
-    else:
-        al.descuento_motivo = motivo_txt
-    db.session.commit()
-    registrar_bitacora('DESCUENTO_PERSONA', c.mesa, c.descuento_monto, motivo_txt, autorizo='AUTO', sucursal=c.sucursal)
-    return jsonify({'ok': True, 'persona': emp.nombre, 'porcentaje': pct, 'descuento_monto': c.descuento_monto, 'total': c.total})
-
-
 @pos_bp.route('/api/pos/dividir_partes', methods=['POST'])
 @login_required
 def api_pos_dividir_partes():
@@ -1328,9 +1261,7 @@ def api_pos_dividir_cuenta_real():
                         h.cuenta_id = c_nueva.id
                 movidos += 1
             else:
-                cant_orig = float(det.cantidad or 1.0)
-                ratio = cant_mover / cant_orig if cant_orig > 0 else 0.0
-                det.cantidad = round(cant_orig - cant_mover, 3)
+                det.cantidad = round(det.cantidad - cant_mover, 3)
                 det.importe = round(det.cantidad * det.precio_unitario, 2)
                 clon = DetallePOS(
                     cuenta_id=c_nueva.id, num_comanda=det.num_comanda,
@@ -1340,30 +1271,21 @@ def api_pos_dividir_cuenta_real():
                     importe=round(cant_mover * det.precio_unitario, 2), impreso_comanda=det.impreso_comanda
                 )
                 db.session.add(clon)
-                db.session.flush()
                 if not det.es_modificador:
+                    db.session.flush()
+                    cant_orig = det.cantidad + cant_mover  # cantidad antes de dividir
+                    razon = cant_mover / cant_orig if cant_orig > 0 else 1.0
                     for h in DetallePOS.query.filter_by(cuenta_id=c_orig.id, parent_detalle_id=det.id).all():
-                        if (h.precio_unitario or 0.0) > 0:
-                            h_orig = float(h.cantidad or 1.0)
-                            h_mover = round(h_orig * ratio, 3)
-                            if h_mover <= 0:
-                                continue
-                            h.cantidad = round(max(0.0, h_orig - h_mover), 3)
-                            h.importe = round(h.cantidad * h.precio_unitario, 2)
-                            db.session.add(DetallePOS(
-                                cuenta_id=c_nueva.id, parent_detalle_id=clon.id, num_comanda=h.num_comanda,
-                                cantidad=h_mover, clave=h.clave, descripcion=h.descripcion,
-                                area_impresion=h.area_impresion, es_modificador=True,
-                                precio_unitario=h.precio_unitario, descuento_pct=h.descuento_pct,
-                                importe=round(h_mover * h.precio_unitario, 2), impreso_comanda=h.impreso_comanda
-                            ))
-                        else:
-                            db.session.add(DetallePOS(
-                                cuenta_id=c_nueva.id, parent_detalle_id=clon.id, num_comanda=h.num_comanda,
-                                cantidad=h.cantidad, clave=h.clave, descripcion=h.descripcion,
-                                area_impresion=h.area_impresion, es_modificador=True,
-                                precio_unitario=0.0, descuento_pct=0.0, importe=0.0, impreso_comanda=h.impreso_comanda
-                            ))
+                        c_h = round(h.cantidad * razon, 3)
+                        db.session.add(DetallePOS(
+                            cuenta_id=c_nueva.id, parent_detalle_id=clon.id, num_comanda=h.num_comanda,
+                            cantidad=c_h, clave=h.clave, descripcion=h.descripcion,
+                            area_impresion=h.area_impresion, es_modificador=True,
+                            precio_unitario=h.precio_unitario, importe=round(h.importe * razon, 2),
+                            impreso_comanda=h.impreso_comanda
+                        ))
+                        h.cantidad = round(h.cantidad - c_h, 3)
+                        h.importe = round(h.importe - round(h.importe * razon, 2), 2)
                 movidos += 1
 
         if movidos == 0:
@@ -1405,10 +1327,10 @@ def api_pos_juntar_cuentas():
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     if c_orig.id == c_dest.id:
         return jsonify({'ok': False, 'msg': 'Selecciona una cuenta diferente.'}), 400
-    if c_orig.estado != 'ABIERTA' or c_dest.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'Solo se pueden juntar cuentas abiertas.'}), 400
     if c_orig.sucursal != c_dest.sucursal:
         return jsonify({'ok': False, 'msg': 'No se pueden juntar cuentas de distintas sucursales.'}), 400
+    if c_orig.estado != 'ABIERTA' or c_dest.estado != 'ABIERTA':
+        return jsonify({'ok': False, 'msg': 'Solo se pueden juntar cuentas abiertas.'}), 409
     if c_dest.impresa or c_orig.impresa:
         return jsonify({'ok': False, 'msg': 'No se pueden juntar cuentas impresas.'}), 400
 
@@ -1440,7 +1362,7 @@ def api_pos_pagar_cuenta():
     tc = _num(data.get('tarjeta_credito', 0))
     tr = _num(data.get('transferencia', 0))
     vale_emp = _num(data.get('vale_empleado', 0))
-    credito_cli = _num(data.get('credito_cliente', 0))
+    cred = _num(data.get('credito_cliente', 0))
     propina = _num(data.get('propina', 0), maximo=100000.0)
     # Se bloquea la fila de la cuenta: si dos cajeros cobran a la vez, el segundo la verá ya PAGADA.
     c = CuentaPOS.query.filter_by(id=int(data['cuenta_id'])).with_for_update().first_or_404()
@@ -1450,31 +1372,17 @@ def api_pos_pagar_cuenta():
         return jsonify({'ok': False, 'msg': 'Esta cuenta ya fue cerrada.'}), 400
     ult4 = str(data.get('tarjeta_ultimos4', '')).strip()[:4]
     emp_id = data.get('empleado_id')
-    cli_cred_id = data.get('cliente_credito_id')
 
-    cubierto = round(ef + td + tc + tr + vale_emp + credito_cli, 2)
+    cubierto = round(ef + td + tc + tr + vale_emp + cred, 2)
     if cubierto + 0.01 < c.total:
         return jsonify({'ok': False, 'msg': f'Monto insuficiente: cubierto ${cubierto:.2f} de ${c.total:.2f}.'}), 400
+    if cred > c.total + 0.01:
+        return jsonify({'ok': False, 'msg': 'El crédito no puede exceder el total de la cuenta.'}), 400
+    # El cambio solo puede salir del efectivo: tarjeta, transferencia, vale y crédito no pueden rebasar el total.
+    if round(td + tc + tr + vale_emp + cred, 2) > c.total + 0.01:
+        return jsonify({'ok': False, 'msg': 'Tarjeta, transferencia, vale y crédito juntos no pueden exceder el total; el cambio solo se da sobre efectivo.'}), 400
     if (td > 0 or tc > 0) and ult4 and not ult4.isdigit():
         return jsonify({'ok': False, 'msg': 'Los últimos 4 dígitos de la tarjeta deben ser numéricos.'}), 400
-
-    cli_cred_obj = None
-    if credito_cli > 0:
-        if not cli_cred_id:
-            return jsonify({'ok': False, 'msg': 'Selecciona el cliente para cargar la cuenta a crédito.'}), 400
-        cli_cred_obj = ClienteCreditoPOS.query.filter_by(id=int(cli_cred_id), activo=True).with_for_update().first()
-        if not cli_cred_obj:
-            return jsonify({'ok': False, 'msg': 'Cliente de crédito no encontrado o inactivo.'}), 404
-        if (cli_cred_obj.limite_credito or 0) > 0 and round((cli_cred_obj.saldo_pendiente or 0) + credito_cli, 2) > cli_cred_obj.limite_credito:
-            return jsonify({'ok': False, 'msg': f'Supera el límite de crédito de {cli_cred_obj.nombre} (límite ${cli_cred_obj.limite_credito:.2f}, saldo actual ${cli_cred_obj.saldo_pendiente:.2f}).'}), 400
-        cli_cred_obj.saldo_pendiente = round((cli_cred_obj.saldo_pendiente or 0.0) + credito_cli, 2)
-        db.session.add(MovimientoCreditoPOS(
-            fecha=ahora_local(), sucursal=c.sucursal,
-            cliente_credito_id=cli_cred_obj.id, cliente_nombre=cli_cred_obj.nombre,
-            tipo='CARGO', monto=credito_cli,
-            concepto=f'CONSUMO POS MESA {c.mesa} ({c.orden})',
-            cuenta_id=c.id, usuario=current_user.username.upper()
-        ))
 
     if vale_emp > 0:
         emp = EmpleadoNominaPOS.query.get(int(emp_id)) if emp_id else None
@@ -1486,19 +1394,42 @@ def api_pos_pagar_cuenta():
             monto=vale_emp, descontado=False, registrado_por=current_user.username.upper()
         ))
 
+    cli_cred = None
+    if cred > 0:
+        try:
+            cli_id = int(data.get('cliente_credito_id') or 0)
+        except (TypeError, ValueError):
+            cli_id = 0
+        cli_cred = ClienteCredito.query.filter_by(id=cli_id, activo=True).with_for_update().first() if cli_id else None
+        if not cli_cred:
+            return jsonify({'ok': False, 'msg': 'Selecciona el cliente al que se cargará el crédito.'}), 400
+        if current_user.role != 'admin' and (cli_cred.sucursal or '') != (c.sucursal or ''):
+            return jsonify({'ok': False, 'msg': 'Ese cliente de crédito pertenece a otra sucursal.'}), 403
+        saldo_ant = float(cli_cred.saldo_pendiente or 0.0)
+        if (cli_cred.limite_credito or 0) > 0 and saldo_ant + cred > cli_cred.limite_credito + 0.01:
+            return jsonify({'ok': False, 'msg': f'Rebasa el límite de crédito de {cli_cred.nombre} (${cli_cred.limite_credito:.2f}, saldo ${saldo_ant:.2f}).'}), 400
+
     if not c.folio:
         c.folio = _siguiente_folio_sucursal(c.sucursal)
+
+    if cli_cred is not None:
+        cli_cred.saldo_pendiente = round(float(cli_cred.saldo_pendiente or 0.0) + cred, 2)
+        db.session.add(MovimientoCredito(
+            fecha=ahora_local(), cliente_id=cli_cred.id, cliente_nombre=cli_cred.nombre, tipo='CARGO',
+            monto=cred, concepto=f'CONSUMO MESA {c.mesa} ({c.folio})', cuenta_id=c.id,
+            usuario=current_user.username.upper(), sucursal=c.sucursal
+        ))
+        c.cliente_credito_id = cli_cred.id
+    c.pago_credito = cred
 
     c.pago_efectivo = ef
     c.pago_tarjeta_debito = td
     c.pago_tarjeta_credito = tc
     c.pago_transferencia = tr
     c.pago_otros = vale_emp
-    c.pago_credito = credito_cli
-    c.cliente_credito_id = cli_cred_obj.id if cli_cred_obj else None
     c.tarjeta_ultimos4 = ult4
     c.propina_tarjeta = propina
-    c.cambio = round(max(0.0, cubierto - c.total), 2)
+    c.cambio = round(min(ef, max(0.0, cubierto - c.total)), 2)
     c.cierre = ahora_local()
     c.estado = 'PAGADA'
 
@@ -1556,9 +1487,11 @@ def api_pos_cambiar_forma_pago():
     prop = _num(data.get('propina', c.propina_tarjeta or 0), maximo=100000.0)
     ult4 = str(data.get('tarjeta_ultimos4', c.tarjeta_ultimos4 or '')).strip()[:4]
 
-    cubierto = round(ef + td + tc + tr + (c.pago_otros or 0.0), 2)
+    cubierto = round(ef + td + tc + tr + (c.pago_otros or 0.0) + (c.pago_credito or 0.0), 2)
     if cubierto + 0.01 < c.total:
         return jsonify({'ok': False, 'msg': f'La suma (${cubierto:.2f}) no cubre el total (${c.total:.2f}).'}), 400
+    if round(td + tc + tr + (c.pago_otros or 0.0) + (c.pago_credito or 0.0), 2) > c.total + 0.01:
+        return jsonify({'ok': False, 'msg': 'Tarjeta, transferencia, vale y crédito juntos no pueden exceder el total; el cambio solo se da sobre efectivo.'}), 400
 
     antes = f"EF:${c.pago_efectivo:.0f} TD:${c.pago_tarjeta_debito:.0f} TC:${c.pago_tarjeta_credito:.0f} TR:${(c.pago_transferencia or 0):.0f}"
     c.pago_efectivo = ef
@@ -1567,7 +1500,7 @@ def api_pos_cambiar_forma_pago():
     c.pago_transferencia = tr
     c.propina_tarjeta = prop
     c.tarjeta_ultimos4 = ult4
-    c.cambio = round(max(0.0, cubierto - c.total), 2)
+    c.cambio = round(min(ef, max(0.0, cubierto - c.total)), 2)
     db.session.commit()
     despues = f"EF:${ef:.0f} TD:${td:.0f} TC:${tc:.0f} TR:${tr:.0f}"
     registrar_bitacora('CAMBIO_PAGO', c.folio or c.mesa, c.total, f'{antes} -> {despues}', autorizo=autorizo, sucursal=c.sucursal)
@@ -1591,24 +1524,28 @@ def api_pos_abrir_turno_real():
             return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Modificar el fondo de un turno ya abierto requiere clave de Admin o Gerente.'}), 403
     turno.fondo_inicial = fondo
     turno.cajero = current_user.username.upper()
-    emp_auto = EmpleadoNominaPOS.query.filter(
-        EmpleadoNominaPOS.activo == True,
-        db.func.upper(EmpleadoNominaPOS.nombre) == current_user.username.upper()
-    ).first()
-    if emp_auto:
-        ya_checo = RegistroAsistencia.query.filter(
-            RegistroAsistencia.fecha >= inicio_hoy_local(),
-            db.func.upper(RegistroAsistencia.empleado_nombre) == emp_auto.nombre.upper(),
-            RegistroAsistencia.tipo == 'ENTRADA'
-        ).first()
-        if not ya_checo:
-            db.session.add(RegistroAsistencia(
-                fecha=ahora_local(), sucursal=suc, empleado_nombre=emp_auto.nombre,
-                tipo='ENTRADA', notas='AUTO: APERTURA TURNO POS'
-            ))
     db.session.commit()
     registrar_bitacora('ABRIR_TURNO', f'TURNO #{turno.id}', fondo, f'Fondo inicial: ${fondo:.2f}', autorizo=autorizo, sucursal=suc)
+    _asistencia_auto_turno(current_user.username, suc)
     return jsonify({'ok': True, 'turno_id': turno.id, 'fondo': f"{fondo:.2f}"})
+
+
+def _asistencia_auto_turno(username, suc):
+    """Si el usuario que abre turno coincide con un empleado activo, registra su ENTRADA del día (una sola vez)."""
+    try:
+        nombre = str(username or '').strip().upper()
+        emp = EmpleadoNominaPOS.query.filter(db.func.upper(EmpleadoNominaPOS.nombre) == nombre, EmpleadoNominaPOS.activo == True).first()
+        if not emp:
+            return
+        hoy = RegistroAsistencia.query.filter(
+            RegistroAsistencia.empleado_nombre == emp.nombre, RegistroAsistencia.fecha >= inicio_hoy_local()
+        ).order_by(RegistroAsistencia.id.desc()).first()
+        if hoy and hoy.tipo == 'ENTRADA':
+            return
+        db.session.add(RegistroAsistencia(fecha=ahora_local(), sucursal=suc, empleado_nombre=emp.nombre, tipo='ENTRADA', notas='AUTO APERTURA DE TURNO'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 @pos_bp.route('/api/pos/movimiento_caja', methods=['POST'])
@@ -1725,12 +1662,13 @@ def api_pos_cerrar_turno_arqueo():
         return jsonify({'ok': False, 'msg': 'Solo Caja o Admin pueden cerrar turno.'}), 403
     data = request.json or {}
     suc = obtener_sucursal_activa(session)
-    turno_ref = obtener_turno_activo(suc)
-    turno = TurnoPOS.query.filter_by(id=turno_ref.id, estado='ABIERTO').with_for_update().first()
-    if not turno:
-        return jsonify({'ok': False, 'msg': 'Este turno ya fue cerrado.'}), 400
+    turno = obtener_turno_activo(suc)
+    # Se bloquea el turno: dos cierres simultáneos (doble clic) no deben crear dos turnos nuevos.
+    turno = TurnoPOS.query.filter_by(id=turno.id).with_for_update().first()
+    if not turno or turno.estado != 'ABIERTO':
+        return jsonify({'ok': False, 'msg': 'Este turno ya fue cerrado. Recarga la pantalla.'}), 409
+    aut_ab = None
     cfg_cj = _cargar_cfg_caja()
-    aut_ab = ''
     abiertas_act = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').count()
     if abiertas_act > 0 and cfg_cj.get('bloquear_cierre_cuentas_abiertas', True):
         aut_ab = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
@@ -1778,7 +1716,9 @@ def api_pos_cerrar_turno_arqueo():
     limite_limpieza = ahora_local() - timedelta(days=7)
     ColaImpresionPOS.query.filter(ColaImpresionPOS.impreso == True, ColaImpresionPOS.fecha < limite_limpieza).delete(synchronize_session=False)
     db.session.commit()
-    registrar_bitacora('CIERRE_CAJA', f'TURNO #{turno.id}', declarado_total, f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}', autorizo=aut_ab, sucursal=suc)
+    registrar_bitacora('CIERRE_CAJA', f'TURNO #{turno.id}', declarado_total,
+                       f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}' + (f' | Cierre forzado con {abiertas_act} cuenta(s) abierta(s)' if aut_ab else ''),
+                       autorizo=(aut_ab or ''), sucursal=suc)
     return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}"})
 
 
@@ -1886,7 +1826,7 @@ def api_pos_reabrir_cuenta():
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
     if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya fue cerrada o pagada.'}), 400
+        return jsonify({'ok': False, 'msg': f'La cuenta está {c.estado}; no se puede reabrir desde aquí.'}), 409
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
@@ -1992,9 +1932,10 @@ def api_confirmar_preorden_1clic(preorden_id):
     orden.estado = 'atendido'
     orden.atendido_por = mesero_asignado
 
-    if (orden.modalidad or '').strip().lower() == 'llamado mesero' or float(orden.total or 0) <= 0:
+    if (orden.modalidad or '').strip().lower() == 'llamado mesero':
+        # Es una solicitud de asistencia en mesa, no un pedido: no abre cuenta ni imprime comandas.
         db.session.commit()
-        return jsonify({'ok': True, 'solo_aviso': True, 'mesa': orden.mesa, 'msg': 'Aviso de asistencia atendido.'})
+        return jsonify({'ok': True, 'asistencia': True, 'mesa': orden.mesa})
 
     mesa_raw = orden.mesa.strip().upper()
     mesa_pos = f"T{int(mesa_raw):02d}" if mesa_raw.isdigit() else mesa_raw
@@ -2282,7 +2223,7 @@ def api_pos_alertas_stock():
     if current_user.role not in ROLES_POS and current_user.role != 'almacen':
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     suc = obtener_sucursal_activa(session)
-    insumos = InsumoBodegaPro.query.filter(InsumoBodegaPro.activo != False).order_by(InsumoBodegaPro.nombre.asc()).all()
+    insumos = InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False)).order_by(InsumoBodegaPro.nombre.asc()).all()
     stocks = {s.insumo_id: s for s in StockSucursal.query.filter_by(sucursal=suc).all()}
     bajos = []
     for ins in insumos:
@@ -2299,8 +2240,10 @@ def api_pos_alertas_stock():
                 'stock_minimo': round(minimo, 3),
                 'critico': actual <= 0.0
             })
-    todos_ins = [ins.nombre for ins in insumos if 'EXTRA / FUERA DE LISTA' not in (ins.nombre or '')]
-    return jsonify({'ok': True, 'sucursal': suc, 'total_bajos': len(bajos), 'insumos': bajos, 'todos_insumos': todos_ins})
+    return jsonify({
+        'ok': True, 'sucursal': suc, 'total_bajos': len(bajos), 'insumos': bajos,
+        'todos_insumos': [i.nombre for i in insumos if 'EXTRA / FUERA DE LISTA' not in (i.nombre or '')]
+    })
 
 
 @pos_bp.route('/api/pos/registrar_merma', methods=['POST'])
@@ -2317,6 +2260,8 @@ def api_pos_registrar_merma():
     suc = obtener_sucursal_activa(session)
     unidad = str(data.get('unidad', 'PZA')).strip().upper() or 'PZA'
     costo_u = _num(data.get('costo_unitario', 0), maximo=1_000_000.0)
+    if not buscar_insumo_activo(nombre) and costo_u <= 0:
+        return jsonify({'ok': False, 'msg': 'Ese insumo no está en el catálogo. Elígelo de la lista o captura el costo unitario.'}), 400
     costo_tot = aplicar_merma(nombre, cantidad, motivo, suc, current_user.username.upper(), unidad=unidad, costo_unitario=costo_u)
     db.session.commit()
     registrar_bitacora('MERMA_INSUMO', nombre, costo_tot, f'{cantidad} {unidad} - {motivo}', sucursal=suc)
@@ -2380,13 +2325,18 @@ def api_pos_respaldo_config():
     if current_user.role not in ROLES_AUTH:
         return jsonify({'ok': False, 'msg': 'Solo Admin o Gerente pueden generar respaldos.'}), 403
     stamp = ahora_local().strftime('%Y%m%d_%H%M%S')
-    snapshot = {
-        "config_mods_productos.json": _cargar_asignaciones_mods(),
-        "config_areas_productos.json": _cargar_areas_prods(),
-        "config_motivos_cancelacion.json": _cargar_json_lista(_MOTIVOS_FILE, _MOTIVOS_DEFAULT),
-        "config_tipos_descuento.json": _cargar_json_lista(_TIPOS_DESC_FILE, _TIPOS_DESC_DEFAULT),
-        "config_caja_soft.json": _cargar_cfg_caja(),
+    archivos_cfg = {
+        "config_mods_productos.json": _ASIG_MOD_FILE,
+        "config_areas_productos.json": _AREA_PROD_FILE,
+        "config_motivos_cancelacion.json": _MOTIVOS_FILE,
+        "config_tipos_descuento.json": _TIPOS_DESC_FILE,
+        "config_caja_soft.json": _CAJA_CFG_FILE,
     }
+    snapshot = {}
+    for nombre_cfg, ruta in archivos_cfg.items():
+        valor = cfg_cargar(ruta.name, None, archivo_legado=str(ruta))
+        if valor is not None:
+            snapshot[nombre_cfg] = valor
     nombre_archivo = f"respaldo_pos_{stamp}.json"
     suc = obtener_sucursal_activa(session)
     registrar_bitacora('RESPALDO_POS', nombre_archivo, 0.0, f'{len(snapshot)} archivos respaldados', sucursal=suc)
@@ -2403,10 +2353,11 @@ def api_pos_catalogo_completo():
     mods = ModificadorPOS.query.filter_by(activo=True).order_by(ModificadorPOS.id.asc()).all()
     promos = PromocionPOS.query.order_by(PromocionPOS.id.desc()).all()
     perm = ConfigPermisosPOS.query.first()
+    _areas_cat = _cargar_areas_prods()
     return jsonify({
         'ok': True,
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or ''} for c in cats],
-        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado, 'area_impresion': _cargar_areas_prods().get(str(p.id), '')} for p in prods],
+        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado, 'area_impresion': _areas_cat.get(str(p.id), '')} for p in prods],
         'modificadores': _enriquecer_modificadores(mods),
         'flujos': _mapa_flujos_modificadores(),
         'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa} for pr in promos],

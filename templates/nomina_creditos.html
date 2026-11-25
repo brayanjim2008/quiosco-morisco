@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+{% include '_csrf.html' %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vales y Nómina • Comensal Conectado</title>
@@ -663,6 +664,8 @@
         <td style="display:flex;gap:4px;">
           <button type="button" class="btn sm wa" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'ABONO', ${c.saldo_pendiente})">Abonar</button>
           <button type="button" class="btn sm cobre" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'CARGO', ${c.saldo_pendiente})">+ Cargo</button>
+          <button type="button" class="btn sm gris" onclick="editarClienteCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', ${Number(c.limite_credito || 0)})">Editar</button>
+          <button type="button" class="btn sm rojo" onclick="bajaClienteCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}')">Baja</button>
         </td>
       </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">Sin clientes con cr&eacute;dito registrados.</td></tr>';
 
@@ -691,6 +694,33 @@
     if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
     $('cred_nombre').value = ''; $('cred_tel').value = ''; $('cred_limite').value = '0';
     toast('Cliente de crédito registrado');
+    cargarCreditos();
+  }
+
+  async function editarClienteCredito(id, nombre, limiteActual) {
+    const v = prompt(`Nuevo límite de crédito para ${nombre} (0 = sin límite):`, limiteActual);
+    if (v === null) return;
+    const limite = parseFloat(v);
+    if (isNaN(limite) || limite < 0) return alert('Límite inválido.');
+    const res = await fetch('/api/creditos/cliente', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, limite_credito: limite })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo actualizar.');
+    toast('Límite actualizado');
+    cargarCreditos();
+  }
+
+  async function bajaClienteCredito(id, nombre) {
+    if (!confirm(`¿Dar de baja a ${nombre}? Solo es posible si su saldo es $0.`)) return;
+    const res = await fetch('/api/creditos/cliente', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo dar de baja.');
+    toast('Cliente dado de baja');
     cargarCreditos();
   }
 

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secretos / entorno local
+.env
+*.env
+
+# Configs locales heredadas (ahora viven en la tabla config_pos)
+config_*.json
+
+# Base de datos local de pruebas
+*.db
+*.sqlite3

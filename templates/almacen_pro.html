@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+{% include '_csrf.html' %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bodega Central • Comensal Conectado</title>
@@ -180,7 +181,9 @@
       <div class="card-head">
         <h3><i class="fa-solid fa-warehouse" style="color:var(--cobre);"></i> Inventario en Bodega Central</h3>
         {% if current_user.role == 'admin' %}
-        <a href="/admin/cargar_listas_reales" class="btn sm gris" onclick="return confirm('¿Cargar insumos faltantes de las listas oficiales de Barra y Cocina?')"><i class="fa-solid fa-list-check"></i> Sincronizar Listas Reales</a>
+        <form action="/admin/cargar_listas_reales" method="POST" style="display:inline;margin:0;" onsubmit="return confirm('¿Cargar insumos faltantes de las listas oficiales de Barra y Cocina?')">
+          <button type="submit" class="btn sm gris"><i class="fa-solid fa-list-check"></i> Sincronizar Listas Reales</button>
+        </form>
         {% endif %}
       </div>
 
@@ -357,7 +360,9 @@
       const stockAct = (!esExtra && r.insumo_id && mapaStock[r.insumo_id] !== undefined) ? mapaStock[r.insumo_id] : null;
       const sinStock = stockAct !== null && stockAct < r.cantidad && r.estado_bodega === 'PENDIENTE';
       const pillEst = r.confirmado_caja
-        ? '<span class="pill ok">✅ Recibido</span>'
+        ? ((r.cantidad_recibida !== undefined && Math.abs(Number(r.cantidad_recibida) - Number(r.cantidad_entregada)) > 0.001)
+            ? `<span class="pill warn">⚠️ Recibido parcial (${r.cantidad_recibida} de ${r.cantidad_entregada})</span>`
+            : '<span class="pill ok">✅ Recibido</span>')
         : (r.estado_bodega === 'ENTREGADO'
             ? '<span class="pill info">🚚 Entregado</span>'
             : (r.estado_bodega === 'NO_ENTREGADO'

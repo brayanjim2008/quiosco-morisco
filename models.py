@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 import os
-import random
 import secrets
 import string
 import threading
 import time
+import zlib
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, current_user
 from sqlalchemy import text
@@ -245,13 +245,6 @@ class ConfigPermisosPOS(db.Model):
     cajero_ver_esperado_z = db.Column(db.Boolean, default=False)
 
 
-class ConfigJSONPOS(db.Model):
-    __tablename__ = 'config_json_pos'
-    clave = db.Column(db.String(80), primary_key=True)
-    valor_json = db.Column(db.Text, nullable=False, default='{}')
-    actualizado = db.Column(db.DateTime, default=ahora_local)
-
-
 class TurnoPOS(db.Model):
     __tablename__ = 'turnos_pos'
     id = db.Column(db.Integer, primary_key=True)
@@ -305,7 +298,7 @@ class CuentaPOS(db.Model):
     pago_tarjeta_credito = db.Column(db.Float, default=0.0)
     pago_transferencia = db.Column(db.Float, default=0.0)
     pago_otros = db.Column(db.Float, default=0.0)  # Vale / Consumo empleado
-    pago_credito = db.Column(db.Float, default=0.0)
+    pago_credito = db.Column(db.Float, default=0.0)  # Fiado a cliente de crédito
     cliente_credito_id = db.Column(db.Integer, nullable=True)
     tarjeta_ultimos4 = db.Column(db.String(10), default='')
     propina_tarjeta = db.Column(db.Float, default=0.0)
@@ -528,11 +521,10 @@ class EmpleadoNominaPOS(db.Model):
     puesto = db.Column(db.String(60), default='MESERO')
     sueldo_base = db.Column(db.Float, default=1500.0)
     periodo = db.Column(db.String(20), default='SEMANAL')
-    descuento_pct = db.Column(db.Float, default=0.0)
-    dias_base = db.Column(db.Integer, default=6)
-    pin_checador = db.Column(db.String(10), default='')
-    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
     activo = db.Column(db.Boolean, default=True)
+    dias_base = db.Column(db.Integer, default=6)
+    pin_checador = db.Column(db.String(12), nullable=True)
+    descuento_pct = db.Column(db.Float, default=0.0)
 
 
 class ConsumoEmpleadoPOS(db.Model):
@@ -556,8 +548,6 @@ class ReciboNominaPOS(db.Model):
     empleado_nombre = db.Column(db.String(100), nullable=False)
     puesto = db.Column(db.String(60), default='')
     periodo_texto = db.Column(db.String(60), default='SEMANAL')
-    dias_base = db.Column(db.Integer, default=6)
-    dias_trabajados = db.Column(db.Float, default=6.0)
     sueldo_base = db.Column(db.Float, default=0.0)
     bonos = db.Column(db.Float, default=0.0)
     propinas = db.Column(db.Float, default=0.0)
@@ -565,32 +555,42 @@ class ReciboNominaPOS(db.Model):
     otros_descuentos = db.Column(db.Float, default=0.0)
     total_neto = db.Column(db.Float, default=0.0)
     pagado_por = db.Column(db.String(60), default='ADMIN')
+    dias_base = db.Column(db.Integer, default=6)
+    dias_trabajados = db.Column(db.Float, default=6.0)
 
 
-class ClienteCreditoPOS(db.Model):
-    __tablename__ = 'clientes_credito_pos'
+class ClienteCredito(db.Model):
+    """Cliente con cuenta de crédito / fiado."""
+    __tablename__ = 'clientes_credito'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(120), nullable=False)
-    telefono = db.Column(db.String(30), default='')
+    telefono = db.Column(db.String(40), default='')
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
-    limite_credito = db.Column(db.Float, default=0.0)
+    limite_credito = db.Column(db.Float, default=0.0)  # 0 = sin límite
     saldo_pendiente = db.Column(db.Float, default=0.0)
     activo = db.Column(db.Boolean, default=True)
-    fecha_alta = db.Column(db.DateTime, default=ahora_local)
+    creado = db.Column(db.DateTime, default=ahora_local)
 
 
-class MovimientoCreditoPOS(db.Model):
-    __tablename__ = 'movimientos_credito_pos'
+class MovimientoCredito(db.Model):
+    __tablename__ = 'movimientos_credito'
     id = db.Column(db.Integer, primary_key=True)
     fecha = db.Column(db.DateTime, default=ahora_local)
-    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
-    cliente_credito_id = db.Column(db.Integer, db.ForeignKey('clientes_credito_pos.id'), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('clientes_credito.id'), nullable=False)
     cliente_nombre = db.Column(db.String(120), nullable=False)
-    tipo = db.Column(db.String(20), nullable=False)  # CARGO | ABONO
-    monto = db.Column(db.Float, default=0.0)
+    tipo = db.Column(db.String(10), nullable=False)  # CARGO | ABONO
+    monto = db.Column(db.Float, nullable=False)
     concepto = db.Column(db.String(200), default='')
     cuenta_id = db.Column(db.Integer, nullable=True)
-    usuario = db.Column(db.String(60), default='CAJA')
+    usuario = db.Column(db.String(80), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+
+
+class ConfigPOS(db.Model):
+    """Configuración en base de datos (reemplaza los .json locales, que se pierden en cada deploy de Render)."""
+    __tablename__ = 'config_pos'
+    clave = db.Column(db.String(80), primary_key=True)
+    valor_json = db.Column(db.Text, nullable=False, default='null')
 
 
 # ==============================================================================
@@ -612,6 +612,38 @@ def obtener_sucursal_activa(session_obj=None):
 
 _INTENTOS_FALLIDOS = {}
 _INTENTOS_LOCK = threading.Lock()
+
+
+def cfg_cargar(clave, default, archivo_legado=None):
+    """Lee config desde PostgreSQL (tabla config_pos). Si aún no se ha guardado nada, usa el .json local
+    heredado (si existe) o el valor por defecto. No escribe: solo cfg_guardar escribe."""
+    import json as _j
+    try:
+        fila = ConfigPOS.query.get(clave)
+        if fila is not None:
+            return _j.loads(fila.valor_json)
+    except Exception:
+        db.session.rollback()
+    if archivo_legado:
+        try:
+            import os as _os
+            if _os.path.exists(archivo_legado):
+                with open(archivo_legado, 'r', encoding='utf-8') as fh:
+                    return _j.load(fh)
+        except Exception:
+            pass
+    return _j.loads(_j.dumps(default))
+
+
+def cfg_guardar(clave, valor):
+    import json as _j
+    fila = ConfigPOS.query.get(clave)
+    txt = _j.dumps(valor, ensure_ascii=False)
+    if fila is None:
+        db.session.add(ConfigPOS(clave=clave, valor_json=txt))
+    else:
+        fila.valor_json = txt
+    db.session.commit()
 
 
 def limite_intentos_excedido(clave, max_intentos=5, ventana_seg=300):
@@ -735,11 +767,11 @@ def generar_pin_unico():
     """Genera PIN numérico único; salta a 6 dígitos automáticamente para evitar saturación a largo plazo."""
     if PinCaja.query.count() < 6000:
         for _ in range(25):
-            cod = ''.join(random.choices(string.digits, k=4))
+            cod = ''.join(secrets.choice(string.digits) for _ in range(4))
             if not PinCaja.query.filter_by(codigo=cod).first():
                 return cod
     while True:
-        cod = ''.join(random.choices(string.digits, k=6))
+        cod = ''.join(secrets.choice(string.digits) for _ in range(6))
         if not PinCaja.query.filter_by(codigo=cod).first():
             return cod
 
@@ -759,6 +791,15 @@ def detectar_area_impresion(categoria_nombre):
 
 def obtener_turno_activo(sucursal='Quiosco Morisco (Matriz)'):
     t = TurnoPOS.query.filter_by(sucursal=sucursal, estado='ABIERTO').order_by(TurnoPOS.id.desc()).first()
+    if not t:
+        # Dos peticiones a la vez no deben abrir dos turnos: se serializa por sucursal y se vuelve a consultar.
+        try:
+            if db.engine.dialect.name == 'postgresql':
+                db.session.execute(text("SELECT pg_advisory_xact_lock(:k)"),
+                                   {'k': zlib.crc32(f'turno:{sucursal}'.encode('utf-8'))})
+        except Exception:
+            pass
+        t = TurnoPOS.query.filter_by(sucursal=sucursal, estado='ABIERTO').order_by(TurnoPOS.id.desc()).first()
     if not t:
         cajero_nom = current_user.username.upper() if current_user.is_authenticated else 'CAJA'
         t = TurnoPOS(sucursal=sucursal, cajero=cajero_nom, fondo_inicial=0.0, estado='ABIERTO', apertura=ahora_local())
@@ -912,21 +953,30 @@ def descontar_recetas_local(cuenta_obj):
     cuenta_obj.recetas_descontadas = True
 
 
+def buscar_insumo_activo(nombre):
+    nombre = str(nombre or '').strip().upper()
+    if not nombre:
+        return None
+    return InsumoBodegaPro.query.filter(
+        db.func.upper(InsumoBodegaPro.nombre) == nombre, InsumoBodegaPro.activo.is_not(False)
+    ).first()
+
+
 def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', costo_unitario=0.0, costo_total=None):
     """Registra una merma de forma unificada (POS y Almacén): descuenta stock (sucursal o bodega),
     guarda RegistroMerma (con usuario) y deja el movimiento en MovimientoAlmacen.
     No hace commit: lo hace quien la llama. Devuelve el costo total."""
     nombre = str(nombre or '').strip().upper()
-    ins = InsumoBodegaPro.query.filter(db.func.upper(InsumoBodegaPro.nombre) == nombre).first()
+    ins = buscar_insumo_activo(nombre)
     unidad_f = ins.unidad if ins else (str(unidad or 'PZA').strip().upper() or 'PZA')
     costo_u = float(ins.costo_unitario or 0.0) if ins else float(costo_unitario or 0.0)
     costo_tot = round(float(costo_total), 2) if costo_total is not None else round(cantidad * costo_u, 2)
     if ins:
         st = StockSucursal.query.filter_by(sucursal=sucursal, insumo_id=ins.id).first()
         if st:
-            st.stock_actual = round(float(st.stock_actual or 0.0) - cantidad, 3)
+            st.stock_actual = round(max(0.0, float(st.stock_actual or 0.0) - cantidad), 3)
         else:
-            ins.stock_actual = round(float(ins.stock_actual or 0.0) - cantidad, 3)
+            ins.stock_actual = round(max(0.0, float(ins.stock_actual or 0.0) - cantidad), 3)
     nombre_final = ins.nombre if ins else nombre
     db.session.add(RegistroMerma(
         fecha=ahora_local(), sucursal=sucursal, insumo_nombre=nombre_final,
@@ -985,16 +1035,16 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_ver_esperado_z BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_entregada DOUBLE PRECISION;",
-            "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_recibida DOUBLE PRECISION;",
-            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS descuento_pct DOUBLE PRECISION DEFAULT 0.0;",
-            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
-            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS pin_checador VARCHAR(10) DEFAULT '';",
-            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
-            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
-            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
+            "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;",
+            "UPDATE insumos_bodega_pro SET activo = TRUE WHERE activo IS NULL;",
             "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS pago_credito DOUBLE PRECISION DEFAULT 0.0;",
-            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cliente_credito_id INTEGER;"
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cliente_credito_id INTEGER;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS pin_checador VARCHAR(12);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS descuento_pct DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;"
         ]
         for sql in migraciones:
             try:
@@ -1050,8 +1100,16 @@ def inicializar_sistema(app_obj):
             for usr, pwd, rol, suc in cuentas_equipo:
                 existente = User.query.filter_by(username=usr).first()
                 if not existente:
-                    pwd = os.environ.get(f"PASS_INICIAL_{usr.upper()}") or secrets.token_urlsafe(9)
-                    print(f"[INICIO] Usuario '{usr}' creado con clave temporal: {pwd}  (cámbiala desde el panel de admin)")
+                    pwd_env = os.environ.get(f"PASS_INICIAL_{usr.upper()}")
+                    pwd = pwd_env or secrets.token_urlsafe(9)
+                    if pwd_env:
+                        print(f"[INICIO] Usuario '{usr}' creado con la clave de PASS_INICIAL_{usr.upper()}.")
+                    elif os.environ.get('MOSTRAR_CLAVES_INICIALES') == '1':
+                        # Solo si se pide explícitamente: los logs de Render los puede ver cualquiera con acceso al panel.
+                        print(f"[INICIO] Usuario '{usr}' creado con clave temporal: {pwd}  (cámbiala desde el panel de admin)")
+                    else:
+                        print(f"[INICIO] Usuario '{usr}' creado con clave aleatoria. Define PASS_INICIAL_{usr.upper()} "
+                              f"o MOSTRAR_CLAVES_INICIALES=1 antes del primer arranque para conocerla.")
                     db.session.add(User(username=usr, password=generate_password_hash(pwd), role=rol, sucursal=suc))
                 elif not existente.sucursal:
                     existente.sucursal = suc

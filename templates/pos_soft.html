@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+{% include '_csrf.html' %}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POS Caja • Comensal Conectado</title>
@@ -397,6 +398,14 @@
         <i class="fa-solid fa-file-invoice-dollar"></i>
         <span>CORTE X / CIERRE Z</span>
       </div>
+      <div class="home-tile" onclick="abrirModalStockMermas()">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>STOCK / MERMAS</span>
+      </div>
+      <div class="home-tile" onclick="abrirModalReportesRespaldo()">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>REPORTES / RESPALDO</span>
+      </div>
       {% if current_user.role == 'admin' %}
       <div class="home-tile" onclick="abrirModalCatalogosRaquel()">
         <i class="fa-solid fa-sliders"></i>
@@ -658,6 +667,9 @@
 
       <button type="button" class="act-btn" onclick="mostrarAvisoTurno()"><i class="fa-solid fa-key"></i>TURNO</button>
       <button type="button" class="act-btn" onclick="abrirModalCorteX()"><i class="fa-solid fa-file-invoice-dollar"></i>CORTE X/Z</button>
+
+      <button type="button" class="act-btn" onclick="abrirModalStockMermas()"><i class="fa-solid fa-boxes-stacked"></i>STOCK/MERMAS</button>
+      <button type="button" class="act-btn" onclick="abrirModalReportesRespaldo()"><i class="fa-solid fa-chart-line"></i>REPORTES</button>
 
       {% if current_user.role == 'admin' %}
       <button type="button" class="act-btn" onclick="abrirModalCatalogosRaquel()"><i class="fa-solid fa-sliders"></i>CATÁLOGOS</button>
@@ -1504,6 +1516,8 @@
 <script id="datos-ticket-json" type="application/json">{{ datos_ticket|tojson }}</script>
 
 <script>
+  // Escapa texto antes de meterlo en innerHTML (evita XSS con datos de la base / pre-órdenes públicas).
+  function escHtml(s) { return String(s ?? '').replace(/[&<>"'`]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;' }[m])); }
   const SUCURSAL_POS = "{{ sucursal }}";
   const ROL_POS = "{{ current_user.role }}";
   const USUARIO_POS = "{{ current_user.username|upper }}";
@@ -1665,11 +1679,11 @@
         }
         const vis = c.mesa.includes(q) && (area === 'TODAS' || c.mesa.startsWith(area));
         return `<tr class="fila-cta ${esAct ? 'activa' : ''} ${c.solicito_cuenta ? 'pide-cuenta' : ''}"
-          id="fila_cta_${c.id}" data-mesa="${c.mesa}" style="display:${vis ? '' : 'none'};"
+          id="fila_cta_${c.id}" data-mesa="${escHtml(c.mesa)}" style="display:${vis ? '' : 'none'};"
           onclick="seleccionarCuenta(${c.id}, this)">
-          <td>${c.mesa}</td>
+          <td>${escHtml(c.mesa)}</td>
           <td style="text-align:center;">${c.impresa ? '🟡' : '🟢'}</td>
-          <td>${(c.mesero || '').slice(0, 6)}</td>
+          <td>${escHtml((c.mesero || '').slice(0, 6))}</td>
           <td style="text-align:right;">$${c.total}</td>
         </tr>`;
       }).join('');
@@ -1754,8 +1768,8 @@
         <tr>
           <td>${i + 1}</td>
           <td>${g.es_mod ? '' : g.cant.toFixed(1)}</td>
-          <td>${g.clave}</td>
-          <td>${desc}</td>
+          <td>${escHtml(g.clave)}</td>
+          <td>${escHtml(desc)}</td>
           <td>${g.area}</td>
           <td style="text-align:right;">$${g.precio}</td>
           <td style="text-align:right;">-</td>
@@ -1765,13 +1779,13 @@
       tb.innerHTML = datosCuentaActiva.items.map(it => `
         <tr class="fila-item ${itemSeleccionadoId === it.id ? 'sel' : ''}"
             onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
-          <td>${it.mov}</td>
+          <td>${escHtml(it.mov)}</td>
           <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
-          <td>${it.clave}</td>
+          <td>${escHtml(it.clave)}</td>
           <td style="${it.es_modificador ? 'padding-left:18px;color:#475569;' : ''}">
-            ${it.descripcion}${it.promo_aplicada ? `<span class="badge-promo">🎉 ${it.promo_aplicada}</span>` : ''}
+            ${escHtml(it.descripcion)}${it.promo_aplicada ? `<span class="badge-promo">🎉 ${escHtml(it.promo_aplicada)}</span>` : ''}
           </td>
-          <td>${it.area_impresion}</td>
+          <td>${escHtml(it.area_impresion)}</td>
           <td style="text-align:right;">$${it.precio}</td>
           <td style="text-align:right;color:#dc2626;">${parseFloat(it.descuento_monto) > 0 ? '-$' + it.descuento_monto : '-'}</td>
           <td style="text-align:right;">$${it.importe}</td>
@@ -1790,7 +1804,7 @@
               onclick="itemSeleccionadoId=${it.id}; renderizarTablaComanda();">
             <td>T${it.comanda}</td>
             <td>${it.es_modificador ? '' : parseFloat(it.cantidad).toFixed(1)}</td>
-            <td style="${it.es_modificador ? 'padding-left:10px;color:#0f766e;' : 'font-weight:800;'}">${it.descripcion}</td>
+            <td style="${it.es_modificador ? 'padding-left:10px;color:#0f766e;' : 'font-weight:800;'}">${escHtml(it.descripcion)}</td>
             <td style="text-align:right;">$${it.importe}</td>
           </tr>`).join('');
       }
@@ -1996,7 +2010,7 @@
         const esSel = ultimoProductoCapturado && ultimoProductoCapturado.id === p.id;
         const estiloSel = esSel ? 'style="background:#e0f2fe;border-left:5px solid #0284c7;outline:2px solid #0284c7;"' : '';
         html += `<div class="sr-prod-cell con-producto ${esSel ? 'sel-azul' : ''}" ${estiloSel} onclick="tocarProductoEnMatrizCaja(${p.id})">
-          <div>${p.nombre.toUpperCase()}</div>
+          <div>${escHtml(p.nombre.toUpperCase())}</div>
           <div style="color:var(--cobre);">$${p.precio.toFixed(2)}</div>
         </div>`;
       } else {
@@ -2102,7 +2116,7 @@
 
     const bar = document.getElementById('barGruposCompuesto');
     bar.innerHTML = flujo.map((st, idx) =>
-      `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${st.grupo}" data-etq="${st.etiqueta}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto('${st.grupo.replace(/'/g, '')}', this)">${st.etiqueta} (0)</button>`
+      `<button type="button" class="sr-grp-tab ${idx === 0 ? 'activo' : ''}" data-grp="${escHtml(st.grupo)}" data-etq="${escHtml(st.etiqueta)}" data-oblig="${st.obligatorio ? '1' : '0'}" data-max="${st.max_seleccion || 0}" onclick="cambiarGrupoCompuesto('${st.grupo.replace(/'/g, '')}', this)">${escHtml(st.etiqueta)} (0)</button>`
     ).join('');
 
     let grpInicial = flujo[0].grupo;
@@ -2204,19 +2218,19 @@
   function renderizarMatriz16ModsCompuesto() {
     const lista = obtenerModsCompuestoFiltrados();
     const sl = lista.slice(paginaModsComp * 14, paginaModsComp * 14 + 14);
-    let html = `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(-1)">? ANT</div>`;
+    let html = `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(-1)">◀ ANT</div>`;
     for (let i = 0; i < 14; i++) {
       if (i < sl.length) {
         const m = sl[i];
         const tagArea = m.area_impresion === 'BARRA' ? ' <span style="color:#0284c7;font-size:9px;">[BARRA]</span>' : '';
         html += `<div class="sr-mod-cell con-mod" onclick="agregarModAlCompuesto(${m.id})">
-          <div>${m.nombre}${tagArea}</div>${m.precio > 0 ? `<small>+$${m.precio.toFixed(2)}</small>` : ''}
+          <div>${escHtml(m.nombre)}${tagArea}</div>${m.precio > 0 ? `<small>+$${m.precio.toFixed(2)}</small>` : ''}
         </div>`;
       } else {
         html += `<div class="sr-mod-cell"></div>`;
       }
     }
-    html += `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(1)">SIG ?</div>`;
+    html += `<div class="sr-mod-cell con-mod" style="background:var(--cobre);color:#fff;" onclick="cambiarPaginaModsComp(1)">SIG ▶</div>`;
     document.getElementById('grid16ModificadoresComp').innerHTML = html;
   }
 
@@ -2262,7 +2276,7 @@
     document.getElementById('tbodyModsEnCompuesto').innerHTML = modsEnCompuesto.map((m, i) => `
       <tr class="fila-mod-sel ${i === idxModCompSel ? 'activa' : ''}"
           onclick="idxModCompSel=${i}; renderizarTablaModsEnCompuesto();">
-        <td>&gt;${m.nombre}</td>
+        <td>&gt;${escHtml(m.nombre)}</td>
         <td style="text-align:right;">$${m.precio.toFixed(2)}</td>
       </tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#64748b;padding:10px;">Selecciona las opciones del platillo</td></tr>';
   }
@@ -2389,7 +2403,7 @@
 
     document.getElementById('tbodyDivPartes').innerHTML = montos.map((m, i) => `
       <tr>
-        <td style="padding:5px;">${datosCuentaActiva.mesa}-${i + 1}</td>
+        <td style="padding:5px;">${escHtml(datosCuentaActiva.mesa)}-${i + 1}</td>
         <td style="padding:5px;">
           <input type="number" step="0.01" class="m-inp inp-parte-monto"
                  value="${m.toFixed(2)}" oninput="recalcularSaldoPartes()" style="height:30px;">
@@ -2456,7 +2470,7 @@
       if (disp <= 0) return '';
       return `<div onclick="moverProdASub(${it.id}, ${disp})"
         style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #e2e8f0;cursor:pointer;font-size:12px;font-weight:700;">
-        <span>${disp}x ${it.descripcion}</span><span style="color:var(--verde);">➔ ${subDestActiva}</span>
+        <span>${disp}x ${escHtml(it.descripcion)}</span><span style="color:var(--verde);">➔ ${subDestActiva}</span>
       </div>`;
     }).join('') || '<div style="color:#64748b;font-size:12px;padding:6px;">Todos los productos asignados.</div>';
 
@@ -2524,7 +2538,7 @@
       if (dM.ok) cacheMotivosPOS = dM.motivos || [];
       if (dD.ok) cacheTiposDescPOS = dD.tipos_descuento || [];
       const optsM = '<option value="">-- Elegir motivo predefinido (opcional) --</option>' +
-        cacheMotivosPOS.map(m => `<option value="${m.descripcion}">${m.clave} - ${m.descripcion}</option>`).join('');
+        cacheMotivosPOS.map(m => `<option value="${escHtml(m.descripcion)}">${escHtml(m.clave)} - ${escHtml(m.descripcion)}</option>`).join('');
       const s1 = document.getElementById('selMotivoCancProds');
       const s2 = document.getElementById('selMotivoCancCta');
       if (s1) s1.innerHTML = optsM;
@@ -2532,7 +2546,7 @@
       const sD = document.getElementById('selTipoDescCaja');
       if (sD) {
         sD.innerHTML = '<option value="">-- Elegir tipo de descuento predefinido --</option>' +
-          cacheTiposDescPOS.map(x => `<option value="${x.id}">${x.clave} - ${x.descripcion} (${Number(x.porcentaje || 0).toFixed(0)}%)</option>`).join('');
+          cacheTiposDescPOS.map(x => `<option value="${x.id}">${escHtml(x.clave)} - ${escHtml(x.descripcion)} (${Number(x.porcentaje || 0).toFixed(0)}%)</option>`).join('');
       }
     } catch (_) {}
   }
@@ -2569,7 +2583,7 @@
     document.getElementById('cancClaveAdmin').value = '';
     document.getElementById('listaCancelarProds').innerHTML = datosCuentaActiva.items.map(it => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:5px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">
-        <span>${it.descripcion} <small style="color:#64748b;">(hay ${it.cantidad_num})</small></span>
+        <span>${escHtml(it.descripcion)} <small style="color:#64748b;">(hay ${it.cantidad_num})</small></span>
         <input type="number" step="0.5" min="0" max="${it.cantidad_num}" value="0" data-id="${it.id}"
                class="m-inp inp-canc-cant" style="width:74px;height:28px;text-align:center;">
       </div>`).join('');
@@ -2631,7 +2645,7 @@
     document.getElementById('descClaveAdmin').value = '';
     document.getElementById('listaProdsDesc').innerHTML = datosCuentaActiva.items.filter(i => !i.es_modificador).map(it => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:4px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">
-        <span>${it.descripcion} ($${it.precio})</span>
+        <span>${escHtml(it.descripcion)} ($${it.precio})</span>
         <input type="number" min="0" max="100" value="${it.descuento_pct || 0}" data-id="${it.id}"
                class="m-inp inp-desc-prod" style="width:70px;height:28px;text-align:center;">
       </div>`).join('') || '<div style="color:#64748b;font-size:12px;">Sin productos.</div>';
@@ -2705,7 +2719,7 @@
     const otras = cuentasAbiertasCache.filter(c => c.id !== cuentaActivaId && !c.impresa);
     document.getElementById('tituloAccionSimple').innerText = `🔗 Juntar ${datosCuentaActiva.mesa} con:`;
     document.getElementById('cuerpoAccionSimple').innerHTML = otras.map(c =>
-      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:6px;" onclick="ejecutarJuntar(${c.id})">${c.mesa} ($${c.total})</button>`
+      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:6px;" onclick="ejecutarJuntar(${c.id})">${escHtml(c.mesa)} ($${c.total})</button>`
     ).join('') || '<p style="font-size:13px;color:#64748b;">No hay otras cuentas abiertas para juntar.</p>';
     document.getElementById('piesAccionSimple').innerHTML = `<button type="button" class="btn-p gris" style="width:100%;" onclick="cerrarModal('modalAccionSimple')">Cerrar</button>`;
     document.getElementById('modalAccionSimple').style.display = 'flex';
@@ -2731,7 +2745,7 @@
     const d = await res.json();
     document.getElementById('tituloAccionSimple').innerText = `👤 Cambiar Mesero (${datosCuentaActiva.mesa})`;
     document.getElementById('cuerpoAccionSimple').innerHTML = (d.meseros || []).map(m =>
-      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:5px;" onclick="ejecutarCambiarMesero('${m.replace(/'/g, '')}')">${m}</button>`
+      `<button type="button" class="btn-p gris" style="width:100%;margin-bottom:5px;" onclick="ejecutarCambiarMesero('${m.replace(/'/g, '')}')">${escHtml(m)}</button>`
     ).join('');
     document.getElementById('piesAccionSimple').innerHTML = `<button type="button" class="btn-p gris" style="width:100%;" onclick="cerrarModal('modalAccionSimple')">Cerrar</button>`;
     document.getElementById('modalAccionSimple').style.display = 'flex';
@@ -2771,8 +2785,26 @@
   // =========================================================================
   // 5. PAGOS MIXTOS, CUENTAS PAGADAS Y CAMBIO DE FORMA DE PAGO
   // =========================================================================
+  async function refrescarClientesCreditoPago() {
+    const sel = document.getElementById('selClienteCreditoPago');
+    if (!sel) return;
+    try {
+      const d = await (await fetch('/api/creditos/datos')).json();
+      if (!d.ok) return;
+      const previo = sel.value;
+      sel.innerHTML = '<option value="">-- Cliente (si se carga a Crédito / Fiado) --</option>' +
+        (d.clientes || []).map(c => {
+          const o = document.createElement('option');
+          o.value = c.id; o.textContent = `${c.nombre} (Saldo: $${Number(c.saldo_pendiente || 0).toFixed(2)})`;
+          return o.outerHTML;
+        }).join('');
+      if (previo) sel.value = previo;
+    } catch (_) {}
+  }
+
   function mostrarPagarIntegrado() {
     if (!datosCuentaActiva) return;
+    refrescarClientesCreditoPago();
     desglosePago = { EF: datosCuentaActiva.total_num, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, CRED: 0, PROP: 0 };
     bufferNum = '';
     document.getElementById('inpUlt4Tarjeta').value = '';
@@ -2903,13 +2935,13 @@
     const d = await res.json();
     document.getElementById('tbodyCuentasPagadas').innerHTML = (d.cuentas || []).map(c => `
       <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:6px;">${c.folio}</td><td>${c.mesa}</td><td>${c.mesero}</td><td>${c.cierre}</td>
+        <td style="padding:6px;">${escHtml(c.folio)}</td><td>${escHtml(c.mesa)}</td><td>${escHtml(c.mesero)}</td><td>${c.cierre}</td>
         <td style="text-align:right;">$${c.total}</td>
-        <td style="font-size:11px;">EF:$${c.efectivo} TD:$${c.tarjeta_debito} TC:$${c.tarjeta_credito} TR:$${c.transferencia}${c.tarjeta_ultimos4 ? ' (***' + c.tarjeta_ultimos4 + ')' : ''}</td>
+        <td style="font-size:11px;">EF:$${c.efectivo} TD:$${c.tarjeta_debito} TC:$${c.tarjeta_credito} TR:$${c.transferencia}${(c.vale_empleado || 0) > 0 ? ' VALE:$' + c.vale_empleado : ''}${(c.credito || 0) > 0 ? ' CRED:$' + c.credito : ''}${c.tarjeta_ultimos4 ? ' (***' + c.tarjeta_ultimos4 + ')' : ''}</td>
         <td style="display:flex;gap:4px;padding:4px;">
           <button type="button" class="btn-p sm" onclick="reimprimirNotaPagada(${c.id})">🖨️ Nota</button>
           <button type="button" class="btn-p sm cobre"
-            onclick="abrirCambiarPago(${c.id},'${c.folio}',${c.total_num},${c.efectivo},${c.tarjeta_debito},${c.tarjeta_credito},${c.transferencia},${c.propina},'${c.tarjeta_ultimos4}')">💳 Pago</button>
+            onclick="abrirCambiarPago(${c.id},'${escHtml(String(c.folio || '').replace(/[^A-Za-z0-9 _.-]/g, ''))}',${c.total_num},${c.efectivo},${c.tarjeta_debito},${c.tarjeta_credito},${c.transferencia},${c.propina},'${c.tarjeta_ultimos4}')">💳 Pago</button>
         </td>
       </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b;">Aún no hay cuentas pagadas en este turno.</td></tr>';
     document.getElementById('modalCuentasPagadas').style.display = 'flex';
@@ -2920,7 +2952,7 @@
     const c = await res.json();
     const pago = {
       EF: c.pago_efectivo, TARJD: c.pago_tarjeta_debito, TARJC: c.pago_tarjeta_credito,
-      TRANS: c.pago_transferencia, VALE: c.pago_otros, PROP: c.propina_tarjeta
+      TRANS: c.pago_transferencia, VALE: c.pago_otros, CRED: c.pago_credito || 0, PROP: c.propina_tarjeta
     };
     mandarImprimirHTMLDirecto(construirHTMLNotaFinal(c, c.folio, pago, c.cambio, c.tarjeta_ultimos4, null));
   }
@@ -2992,7 +3024,7 @@
     return (items || []).filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it =>
       `<tr>
         <td style="width:14%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
-        <td style="width:62%;">${it.descripcion.replace(/^>+/, '')}</td>
+        <td style="width:62%;">${escHtml(it.descripcion.replace(/^>+/, ''))}</td>
         <td style="width:24%;text-align:right;">$${it.importe}</td>
       </tr>`
     ).join('');
@@ -3004,10 +3036,10 @@
       ${_encabezadoFiscalHTML(c, 'NOTA DE CONSUMO')}
       <div>================================</div>
       FOLIO: <b>${folio}</b><br>
-      MESERO: ${c.mesero}<br>
+      MESERO: ${escHtml(c.mesero)}<br>
       ${new Date().toLocaleString('es-MX')}<br>
-      PERSONAS: ${c.personas} &nbsp;&nbsp; MESA: <b>${c.mesa}</b><br>
-      ORDEN: <b>${c.orden}</b> &nbsp;&nbsp; CAJERO: ${USUARIO_POS}<br>
+      PERSONAS: ${c.personas} &nbsp;&nbsp; MESA: <b>${escHtml(c.mesa)}</b><br>
+      ORDEN: <b>${escHtml(c.orden)}</b> &nbsp;&nbsp; CAJERO: ${USUARIO_POS}<br>
       <div style="text-align:center;font-weight:bold;margin:4px 0;">VENTA PUBLICO EN GENERAL</div>
       <div>================================</div>
       <table style="width:100%;font-size:11.5px;">
@@ -3041,9 +3073,9 @@
     const html = `<div class="ticket-termico">
       ${_encabezadoFiscalHTML(c, '')}
       <div>================================</div>
-      MESA: <b>${c.mesa}</b><br>
-      MESERO: ${c.mesero}<br>
-      PERSONAS: ${c.personas} &nbsp;&nbsp; ORDEN: <b>${c.orden}</b><br>
+      MESA: <b>${escHtml(c.mesa)}</b><br>
+      MESERO: ${escHtml(c.mesero)}<br>
+      PERSONAS: ${c.personas} &nbsp;&nbsp; ORDEN: <b>${escHtml(c.orden)}</b><br>
       FOLIO: <b>${c.folio !== '0' ? c.folio : c.orden}</b><br>
       ${c.apertura}<br>
       ${new Date().toLocaleString('es-MX')}<br>
@@ -3071,7 +3103,7 @@
     if (!cuentaActivaId) return;
     const res = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
     const p = await res.json();
-    mandarImprimirConQR(`<div class="ticket-termico" style="text-align:center;"><b>COMENSAL CONECTADO</b><br>MESA: ${datosCuentaActiva.mesa}${armarBloquePinHTML(p, datosCuentaActiva)}</div>`);
+    mandarImprimirConQR(`<div class="ticket-termico" style="text-align:center;"><b>COMENSAL CONECTADO</b><br>MESA: ${escHtml(datosCuentaActiva.mesa)}${armarBloquePinHTML(p, datosCuentaActiva)}</div>`);
   }
 
   function mandarImprimirHTMLDirecto(htmlStr) {
@@ -3283,9 +3315,9 @@ DIFERENCIA:$${d.diferencia}
     const d = await res.json();
     document.getElementById('tbodyBitacoraAuditoria').innerHTML = (d.registros || []).map(r => `
       <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:5px;">${r.fecha}</td><td>${r.sucursal}</td><td>${r.usuario}</td>
-        <td style="color:var(--cobre);">${r.autorizo}</td><td>${r.accion}</td>
-        <td>${r.mesa}</td><td style="text-align:right;">$${r.monto}</td><td>${r.detalle}</td>
+        <td style="padding:5px;">${escHtml(r.fecha)}</td><td>${escHtml(r.sucursal)}</td><td>${escHtml(r.usuario)}</td>
+        <td style="color:var(--cobre);">${escHtml(r.autorizo)}</td><td>${escHtml(r.accion)}</td>
+        <td>${escHtml(r.mesa)}</td><td style="text-align:right;">$${r.monto}</td><td>${escHtml(r.detalle)}</td>
       </tr>`).join('');
     document.getElementById('modalBitacora').style.display = 'flex';
   }
@@ -3312,7 +3344,7 @@ DIFERENCIA:$${d.diferencia}
       cont.innerHTML = d.insumos.map(x => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid #e2e8f0;">
           <div>
-            <strong>${x.nombre}</strong> <span style="color:#64748b;font-size:12px;">(${x.categoria})</span>
+            <strong>${escHtml(x.nombre)}</strong> <span style="color:#64748b;font-size:12px;">(${escHtml(x.categoria)})</span>
           </div>
           <div style="font-weight:700;color:${x.critico ? '#dc2626' : '#d97706'};">
             ${x.critico ? 'CRÍTICO: ' : 'BAJO: '}${x.stock_actual} / mín ${x.stock_minimo} ${x.unidad}
@@ -3362,7 +3394,7 @@ DIFERENCIA:$${d.diferencia}
       const mCont = document.getElementById('tablaMermasReporte');
       if (mCont) {
         mCont.innerHTML = (dOp.mermas && dOp.mermas.length)
-          ? dOp.mermas.map(m => `<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #e2e8f0;"><span><strong>${m.insumo}</strong> (${m.cantidad} ${m.unidad}) - ${m.motivo}</span><span><strong>$${Number(m.costo_total || 0).toFixed(2)}</strong> · ${m.fecha}</span></div>`).join('')
+          ? dOp.mermas.map(m => `<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #e2e8f0;"><span><strong>${escHtml(m.insumo)}</strong> (${m.cantidad} ${escHtml(m.unidad)}) - ${escHtml(m.motivo)}</span><span><strong>$${Number(m.costo_total || 0).toFixed(2)}</strong> · ${m.fecha}</span></div>`).join('')
           : '<span style="color:#64748b;">Sin mermas registradas aún.</span>';
       }
     }
@@ -3385,10 +3417,19 @@ DIFERENCIA:$${d.diferencia}
 
   async function dispararRespaldoPOS() {
     const res = await fetch('/api/pos/respaldo_config', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-    const d = await res.json();
-    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo generar el respaldo.'));
-    notificarBarra(`💾 Respaldo creado: ${d.archivo} (${d.archivos_incluidos} archivos)`);
-    alert(`✅ Respaldo guardado en respaldos_pos/${d.archivo}`);
+    if (!res.ok) {
+      let msg = 'No se pudo generar el respaldo.';
+      try { const e = await res.json(); if (e && e.msg) msg = e.msg; } catch (_) {}
+      return alert('❌ ' + msg);
+    }
+    const blob = await res.blob();
+    const nombre = 'respaldo_pos_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.json';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    notificarBarra('💾 Respaldo descargado: ' + nombre);
   }
 
   function cambiarTabRaquel(tab) {
@@ -3413,16 +3454,16 @@ DIFERENCIA:$${d.diferencia}
     if (tbM && dM.ok) {
       tbM.innerHTML = (dM.motivos || []).map(m => `
         <tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:5px 6px;">${m.clave}</td>
-          <td style="padding:5px 6px;">${m.descripcion}</td>
+          <td style="padding:5px 6px;">${escHtml(m.clave)}</td>
+          <td style="padding:5px 6px;">${escHtml(m.descripcion)}</td>
           <td><button type="button" class="btn-p sm rojo" onclick="borrarRegla('motivos_cancelacion', ${m.id})">X</button></td>
         </tr>`).join('') || '<tr><td colspan="3" style="padding:8px;text-align:center;color:#64748b;">Sin motivos.</td></tr>';
     }
     if (tbD && dD.ok) {
       tbD.innerHTML = (dD.tipos_descuento || []).map(x => `
         <tr style="border-bottom:1px solid #f1f5f9;">
-          <td style="padding:5px 6px;">${x.clave}</td>
-          <td style="padding:5px 6px;">${x.descripcion}</td>
+          <td style="padding:5px 6px;">${escHtml(x.clave)}</td>
+          <td style="padding:5px 6px;">${escHtml(x.descripcion)}</td>
           <td style="padding:5px 6px;text-align:right;">${Number(x.porcentaje || 0).toFixed(0)}%</td>
           <td><button type="button" class="btn-p sm rojo" onclick="borrarRegla('tipos_descuento', ${x.id})">X</button></td>
         </tr>`).join('') || '<tr><td colspan="4" style="padding:8px;text-align:center;color:#64748b;">Sin tipos de descuento.</td></tr>';
@@ -3487,7 +3528,7 @@ DIFERENCIA:$${d.diferencia}
     const selCatR = document.getElementById('r_prod_cat');
     if (selCatR && catCategorias.length) {
       const prevCat = selCatR.value;
-      selCatR.innerHTML = catCategorias.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      selCatR.innerHTML = catCategorias.map(c => `<option value="${escHtml(c.nombre)}">${escHtml(c.nombre)}</option>`).join('');
       if (prevCat && catCategorias.some(c => c.nombre === prevCat)) selCatR.value = prevCat;
     }
 
@@ -3506,7 +3547,7 @@ DIFERENCIA:$${d.diferencia}
     const selFiltroCat = document.getElementById('filtroCatProdSoft');
     if (selFiltroCat) {
       const prevF = selFiltroCat.value;
-      selFiltroCat.innerHTML = '<option value="">(TODAS LAS CATEGORÍAS)</option>' + catCategorias.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      selFiltroCat.innerHTML = '<option value="">(TODAS LAS CATEGORÍAS)</option>' + catCategorias.map(c => `<option value="${escHtml(c.nombre)}">${escHtml(c.nombre)}</option>`).join('');
       if (prevF && catCategorias.some(c => c.nombre === prevF)) selFiltroCat.value = prevF;
     }
     renderizarListaProdsSoft();
@@ -3524,8 +3565,8 @@ DIFERENCIA:$${d.diferencia}
         : 'Todo el grupo';
       return `
       <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:5px;">${m.grupo}</td>
-        <td>&gt;${m.nombre}</td>
+        <td style="padding:5px;">${escHtml(m.grupo)}</td>
+        <td>&gt;${escHtml(m.nombre)}</td>
         <td style="font-size:11px;color:#0369a1;">${resumoAsig}</td>
         <td>$${m.precio.toFixed(2)}</td>
         <td style="display:flex;gap:4px;padding:4px;">
@@ -3537,15 +3578,15 @@ DIFERENCIA:$${d.diferencia}
 
     document.getElementById('tbodyRaquelCategorias').innerHTML = catCategorias.map(c => `
       <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:5px;">${c.nombre}</td>
+        <td style="padding:5px;">${escHtml(c.nombre)}</td>
         <td><button type="button" class="btn-p sm rojo" onclick="borrarCatRaquel(${c.id})">Borrar</button></td>
       </tr>`).join('');
 
     document.getElementById('tbodyRaquelPromos').innerHTML = catPromos.map(pr => `
       <tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:5px;"><b>${pr.nombre}</b></td>
+        <td style="padding:5px;"><b>${escHtml(pr.nombre)}</b></td>
         <td>${pr.tipo === 'VOLUMEN_2X1' ? `${pr.por_cada}x${pr.por_cada - pr.regala}` : (pr.tipo === 'PRECIO_FIJO' ? `$${pr.valor}` : `-${pr.valor}%`)}</td>
-        <td>${pr.aplica_a}: ${pr.objetivo}</td><td>${pr.hora_inicio}-${pr.hora_fin}</td>
+        <td>${escHtml(pr.aplica_a)}: ${pr.objetivo}</td><td>${pr.hora_inicio}-${pr.hora_fin}</td>
         <td><button type="button" class="btn-p sm ${pr.activa ? '' : 'gris'}" onclick="togglePromoRaquel(${pr.id})">${pr.activa ? 'ACTIVA' : 'PAUSADA'}</button></td>
         <td><button type="button" class="btn-p sm rojo" onclick="borrarPromoRaquel(${pr.id})">X</button></td>
       </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:12px;color:#64748b;">Sin promociones automáticas.</td></tr>';
@@ -3614,7 +3655,7 @@ DIFERENCIA:$${d.diferencia}
       return `<tr onclick="seleccionarProdSoft(${p.id})" style="cursor:pointer;border-bottom:1px solid #e2e8f0;${bg}">
         <td style="padding:5px 6px;">0${p.id}</td>
         <td style="padding:5px 6px;font-size:11px;opacity:${sel ? '0.95' : '0.75'};">${p.categoria}</td>
-        <td style="padding:5px 6px;">${String(p.nombre || '').toUpperCase()}${p.agotado ? ' (AGOTADO)' : ''}</td>
+        <td style="padding:5px 6px;">${escHtml(String(p.nombre || '').toUpperCase())}${p.agotado ? ' (AGOTADO)' : ''}</td>
         <td style="padding:5px 6px;text-align:right;">$${Number(p.precio || 0).toFixed(2)}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="4" style="text-align:center;padding:12px;color:#64748b;">Sin resultados.</td></tr>';
@@ -3733,7 +3774,7 @@ DIFERENCIA:$${d.diferencia}
       const busq = `${m.nombre || ''} ${m.grupo || ''}`.toLowerCase();
       return `<label class="lbl-mod-comp-prod" data-busq="${busq}" style="display:flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid ${marcadoDirecto ? '#0284c7' : '#e2e8f0'};background:${marcadoDirecto ? '#e0f2fe' : '#fff'};border-radius:5px;cursor:pointer;">
         <input type="checkbox" class="chk-mod-comp-prod" value="${m.id}" ${marcadoDirecto ? 'checked' : ''}>
-        <span style="line-height:1.2;"><b>&gt;${m.nombre}</b> <small style="color:#0369a1;">+$${Number(m.precio || 0).toFixed(2)}</small><br><small style="color:#64748b;">${m.grupo}${m.area_impresion ? ' • ' + m.area_impresion : ''}${porCat ? ' (por categoría)' : ''}</small></span>
+        <span style="line-height:1.2;"><b>&gt;${escHtml(m.nombre)}</b> <small style="color:#0369a1;">+$${Number(m.precio || 0).toFixed(2)}</small><br><small style="color:#64748b;">${escHtml(m.grupo)}${m.area_impresion ? ' • ' + m.area_impresion : ''}${porCat ? ' (por categoría)' : ''}</small></span>
       </label>`;
     }).join('') || '<div style="grid-column:span 2;color:#64748b;padding:10px;">Sin modificadores creados.</div>';
     filtrarModsCompProd();
@@ -3775,16 +3816,16 @@ DIFERENCIA:$${d.diferencia}
     document.getElementById('chkListaCategoriasMod').innerHTML = catCategorias.map(c => {
       const catUp = String(c.nombre || '').toUpperCase();
       return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
-        <input type="checkbox" class="chk-asig-cat" value="${catUp}" ${selCats.has(catUp) ? 'checked' : ''}>
-        <span>${c.nombre}</span>
+        <input type="checkbox" class="chk-asig-cat" value="${escHtml(catUp)}" ${selCats.has(catUp) ? 'checked' : ''}>
+        <span>${escHtml(c.nombre)}</span>
       </label>`;
     }).join('') || '<span style="color:#64748b;">Sin categorías</span>';
 
     document.getElementById('chkListaProductosMod').innerHTML = catProductos.map(pr => {
       const catUp = String(pr.categoria || '').toUpperCase();
-      return `<label class="lbl-asig-prod" data-nom="${String(pr.nombre || '').toLowerCase()}" style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+      return `<label class="lbl-asig-prod" data-nom="${escHtml(String(pr.nombre || '').toLowerCase())}" style="display:flex;align-items:center;gap:5px;cursor:pointer;">
         <input type="checkbox" class="chk-asig-prod" value="${pr.id}" ${selProds.has(Number(pr.id)) ? 'checked' : ''}>
-        <span>${pr.nombre} <small style="color:#64748b;">(${catUp})</small></span>
+        <span>${escHtml(pr.nombre)} <small style="color:#64748b;">(${escHtml(catUp)})</small></span>
       </label>`;
     }).join('') || '<span style="color:#64748b;">Sin platillos</span>';
     filtrarChecklistAsigMod();

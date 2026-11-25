@@ -1,10 +1,11 @@
 import math
 import csv
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime
 from io import StringIO
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, Response, session
 from flask_login import login_required, current_user
+from sqlalchemy import func, or_, and_, false
 
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES,
@@ -12,10 +13,12 @@ from models import (
     Producto, ModificadorPOS, CuentaPOS, DetallePOS, BitacoraPOS, ArqueoTurnoPOS,
     InsumoBodegaPro, StockSucursal, RecetaPOS, RequerimientoBodega,
     MovimientoAlmacen, ProveedorAlmacen, RegistroAsistencia, RegistroMerma,
-    EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS
+    EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
+    ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
+    obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
 )
 
-from models import aplicar_merma, TurnoPOS, MovimientoCajaPOS, obtener_turno_activo, ClienteCreditoPOS, MovimientoCreditoPOS
+from models import aplicar_merma, buscar_insumo_activo
 
 operacion_bp = Blueprint('operacion', __name__)
 
@@ -121,7 +124,7 @@ def vista_industrial():
 # ==============================================================================
 # 2. CATÁLOGO REAL DE BARRA Y COCINA (CARGA LIMPIA SIN DUPLICADOS)
 # ==============================================================================
-@operacion_bp.route('/admin/cargar_listas_reales')
+@operacion_bp.route('/admin/cargar_listas_reales', methods=['POST'])
 @login_required
 def cargar_listas_reales():
     if current_user.role != 'admin':
@@ -333,13 +336,17 @@ def cargar_listas_reales():
         'JAMÓN DE PAVO', 'QUESO MANCHEGO', 'NARANJA PARA JUGO',
         'VASO 12 OZ CON TAPA', 'SERVILLETAS'
     ]
-    InsumoBodegaPro.query.filter(InsumoBodegaPro.nombre.in_(viejos)).delete(synchronize_session=False)
+    # Baja lógica (no se borran filas: recetas, stock local e historial las referencian)
+    InsumoBodegaPro.query.filter(InsumoBodegaPro.nombre.in_(viejos)).update({'activo': False}, synchronize_session=False)
 
     agregados = 0
     for cat, nom, uni in catalogo:
-        if not InsumoBodegaPro.query.filter_by(categoria=cat, nombre=nom).first():
-            db.session.add(InsumoBodegaPro(categoria=cat, nombre=nom, unidad=uni, stock_actual=0, stock_minimo=2))
+        existente = InsumoBodegaPro.query.filter_by(categoria=cat, nombre=nom).first()
+        if not existente:
+            db.session.add(InsumoBodegaPro(categoria=cat, nombre=nom, unidad=uni, stock_actual=0, stock_minimo=2, activo=True))
             agregados += 1
+        elif existente.activo is False and nom not in viejos:
+            existente.activo = True
 
     db.session.commit()
     return f"Listo: se agregaron {agregados} productos de tus hojas de Barra y Cocina. <a href='/almacen_pro'>Ir a Bodega</a>"
@@ -356,7 +363,8 @@ def api_almacen_datos():
 
     hoy_inicio = inicio_hoy_local()
     suc_actual = obtener_sucursal_activa(session)
-    insumos = InsumoBodegaPro.query.filter(InsumoBodegaPro.activo != False).order_by(InsumoBodegaPro.categoria.asc(), InsumoBodegaPro.nombre.asc()).all()
+    insumos = InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False)).order_by(InsumoBodegaPro.categoria.asc(), InsumoBodegaPro.nombre.asc()).all()
+    es_sucursal = (current_user.role == 'sucursal')
 
     q_reqs = RequerimientoBodega.query.filter(RequerimientoBodega.fecha >= hoy_inicio)
     if current_user.role == 'sucursal':
@@ -393,7 +401,6 @@ def api_almacen_datos():
                 'urgencia': 'ALTA' if i.stock_actual <= 0 else 'MEDIA'
             })
 
-    es_sucursal = (current_user.role == 'sucursal')
     return jsonify({
         'ok': True,
         'sucursal': suc_actual,
@@ -416,16 +423,16 @@ def api_almacen_datos():
             'confirmado_caja': r.confirmado_caja,
             'solicitado_por': r.solicitado_por, 'nota': r.nota or ''
         } for r in reqs],
-        'movimientos': [] if es_sucursal else [{
+        'movimientos': [{
             'id': m.id, 'fecha': m.fecha.strftime('%d/%m %H:%M'), 'tipo': m.tipo,
             'insumo_nombre': m.insumo_nombre, 'cantidad': m.cantidad,
             'costo_total': f"{m.costo_total:.2f}", 'proveedor': m.proveedor or '-',
             'usuario': m.usuario, 'nota': m.nota or ''
-        } for m in MovimientoAlmacen.query.order_by(MovimientoAlmacen.id.desc()).limit(60).all()],
-        'proveedores': [] if es_sucursal else [{
+        } for m in ([] if es_sucursal else MovimientoAlmacen.query.order_by(MovimientoAlmacen.id.desc()).limit(60).all())],
+        'proveedores': [{
             'id': p.id, 'nombre': p.nombre, 'telefono': p.telefono,
             'categoria': p.categoria, 'saldo_pendiente': p.saldo_pendiente
-        } for p in ProveedorAlmacen.query.order_by(ProveedorAlmacen.nombre.asc()).all()],
+        } for p in ([] if es_sucursal else ProveedorAlmacen.query.order_by(ProveedorAlmacen.nombre.asc()).all())],
         'recomendaciones': recomendaciones
     })
 
@@ -511,8 +518,10 @@ def api_almacen_estado_bodega():
         if suc_filtro != 'TODAS':
             q = q.filter_by(sucursal=suc_filtro)
         entregados, sin_stock = 0, []
-        for r in q.all():
-            ins = InsumoBodegaPro.query.get(r.insumo_id) if r.insumo_id else None
+        for r in q.with_for_update().all():
+            if r.estado_bodega != 'PENDIENTE':
+                continue
+            ins = InsumoBodegaPro.query.filter_by(id=r.insumo_id).with_for_update().first() if r.insumo_id else None
             es_extra = ins and ('EXTRA / FUERA DE LISTA' in ins.nombre)
             if ins and not es_extra and ins.stock_actual < r.cantidad:
                 sin_stock.append(f"{r.insumo_nombre} (stock: {ins.stock_actual}, pedido: {r.cantidad})")
@@ -565,66 +574,60 @@ def api_almacen_estado_bodega():
 @operacion_bp.route('/api/almacen/confirmar_caja', methods=['POST'])
 @login_required
 def api_almacen_confirmar_caja():
-    """Sucursal confirma o modifica cantidad recibida y ajusta Stock Local."""
+    """Sucursal confirma recepción (total o parcial) y suma a su Stock Local. Permite corregir la cantidad después."""
     if current_user.role not in ['admin', 'sucursal', 'cajero']:
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
+    # Fila bloqueada: dos clics seguidos no suman el stock dos veces.
     r = RequerimientoBodega.query.filter_by(id=int(data['id'])).with_for_update().first_or_404()
     if current_user.role != 'admin' and (r.sucursal or '') != obtener_sucursal_activa(session):
         return jsonify({'ok': False, 'msg': 'Este pedido pertenece a otra sucursal.'}), 403
-
     recibido = bool(data.get('recibido', True))
-    editar_recibido = bool(data.get('editar_recibido', False))
-    es_extra = 'EXTRA / FUERA DE LISTA' in (r.insumo_nombre or '')
-    cant_env = float(r.cantidad_entregada if r.cantidad_entregada is not None else r.cantidad)
-
-    if editar_recibido:
-        if not r.confirmado_caja:
-            return jsonify({'ok': False, 'msg': 'Primero confirma la recepción del pedido.'}), 400
-        nueva_cant = round(_num(data.get('cantidad_recibida', 0), minimo=0.0, maximo=100000.0), 3)
-        cant_ant = float(r.cantidad_recibida if r.cantidad_recibida is not None else cant_env)
-        delta = round(nueva_cant - cant_ant, 3)
-        r.cantidad_recibida = nueva_cant
-        if delta != 0 and r.insumo_id and not es_extra:
-            sumar_stock_sucursal(r.sucursal, r.insumo_id, delta)
-        db.session.commit()
-        registrar_bitacora(
-            'AJUSTE_RECIBIDO', r.sucursal, nueva_cant,
-            f'{r.insumo_nombre}: {cant_ant:g} -> {nueva_cant:g} {r.unidad} (enviado {cant_env:g})',
-            sucursal=r.sucursal
-        )
-        return jsonify({'ok': True, 'cantidad_recibida': nueva_cant, 'delta': delta})
+    editar = bool(data.get('editar_recibido', False))
+    es_catalogo = bool(r.insumo_id) and 'EXTRA / FUERA DE LISTA' not in (r.insumo_nombre or '')
+    cant_ent = float(r.cantidad_entregada if r.cantidad_entregada is not None else r.cantidad)
+    ins = InsumoBodegaPro.query.get(r.insumo_id) if es_catalogo else None
 
     if recibido:
         if r.estado_bodega != 'ENTREGADO':
             return jsonify({'ok': False, 'msg': 'Bodega aún no ha marcado este pedido como entregado.'}), 400
+        cant_rec = _num(data.get('cantidad_recibida', cant_ent), maximo=1_000_000.0)
+        if cant_rec > cant_ent + 0.0001:
+            return jsonify({'ok': False, 'msg': f'No puedes recibir más de lo entregado ({cant_ent:g}).'}), 400
         if not r.confirmado_caja:
-            cant_real = cant_env
-            if 'cantidad_recibida' in data and data['cantidad_recibida'] not in (None, ''):
-                cant_real = round(_num(data['cantidad_recibida'], minimo=0.0, maximo=100000.0), 3)
+            if cant_rec <= 0:
+                return jsonify({'ok': False, 'msg': 'La cantidad recibida debe ser mayor a 0. Si no llegó nada, usa Faltante.'}), 400
             r.confirmado_caja = True
-            r.cantidad_recibida = cant_real
-            if cant_real > 0 and r.insumo_id and not es_extra:
-                sumar_stock_sucursal(r.sucursal, r.insumo_id, cant_real)
-            dif_txt = ''
-            if abs(cant_real - cant_env) > 0.001:
-                dif_txt = f'Recibido {cant_real:g} de {cant_env:g} {r.unidad}'
-                r.nota = (f'{r.nota} | {dif_txt}' if r.nota else dif_txt)[:180]
-            db.session.commit()
-            if dif_txt:
-                registrar_bitacora('RECEPCION_PARCIAL', r.sucursal, cant_real, f'{r.insumo_nombre}: {dif_txt}', sucursal=r.sucursal)
-            return jsonify({'ok': True, 'cantidad_recibida': cant_real})
-    else:
-        if r.confirmado_caja:
-            return jsonify({'ok': False, 'msg': 'Ya había sido confirmado como recibido.'}), 400
-        if r.estado_bodega == 'ENTREGADO' and r.insumo_id and not es_extra:
-            ins = InsumoBodegaPro.query.filter_by(id=r.insumo_id).with_for_update().first()
-            if ins:
-                ins.stock_actual = round(ins.stock_actual + cant_env, 2)
-        r.confirmado_caja = False
-        r.cantidad_recibida = 0.0
-        r.estado_bodega = 'NO_ENTREGADO'
+            r.cantidad_recibida = cant_rec
+            if es_catalogo:
+                sumar_stock_sucursal(r.sucursal, r.insumo_id, cant_rec)
+                dif = round(cant_ent - cant_rec, 3)
+                if dif > 0 and ins:
+                    ins.stock_actual = round(ins.stock_actual + dif, 2)  # lo no recibido regresa a Bodega Central
+            if abs(cant_ent - cant_rec) > 0.0001:
+                registrar_bitacora('RECEPCION_PARCIAL', r.insumo_nombre, 0.0,
+                                   f'Entregado {cant_ent:g} / Recibido {cant_rec:g} {r.unidad}', sucursal=r.sucursal)
+        elif editar:
+            anterior = float(r.cantidad_recibida if r.cantidad_recibida is not None else cant_ent)
+            delta = round(cant_rec - anterior, 3)
+            if abs(delta) > 0.0001:
+                r.cantidad_recibida = cant_rec
+                if es_catalogo:
+                    sumar_stock_sucursal(r.sucursal, r.insumo_id, delta)
+                    if ins:
+                        ins.stock_actual = max(0.0, round(ins.stock_actual - delta, 2))
+                registrar_bitacora('AJUSTE_RECEPCION', r.insumo_nombre, 0.0,
+                                   f'Recibido {anterior:g} -> {cant_rec:g} {r.unidad}', sucursal=r.sucursal)
+        # si ya estaba confirmado y no se pide editar: respuesta idempotente (doble clic)
+        db.session.commit()
+        return jsonify({'ok': True, 'cantidad_recibida': float(r.cantidad_recibida if r.cantidad_recibida is not None else cant_ent)})
 
+    if r.confirmado_caja:
+        return jsonify({'ok': False, 'msg': 'Ya había sido confirmado como recibido.'}), 400
+    if r.estado_bodega == 'ENTREGADO' and ins:
+        ins.stock_actual = round(ins.stock_actual + cant_ent, 2)  # devuelve a Bodega lo que no llegó
+    r.confirmado_caja = False
+    r.estado_bodega = 'NO_ENTREGADO'
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -644,13 +647,15 @@ def api_almacen_insumo():
             unidad=str(data.get('unidad', 'pz')).strip(),
             stock_actual=_num(data.get('stock_actual', 0)),
             stock_minimo=_num(data.get('stock_minimo', 2)),
-            costo_unitario=_num(data.get('costo_unitario', 0))
+            costo_unitario=_num(data.get('costo_unitario', 0)), activo=True
         ))
         db.session.commit()
         return jsonify({'ok': True})
-    ins_del = InsumoBodegaPro.query.get_or_404(int(data['id']))
-    ins_del.activo = False
+    # Baja lógica: borrar la fila rompería recetas, stock local e historial que la referencian.
+    ins_baja = InsumoBodegaPro.query.get_or_404(int(data['id']))
+    ins_baja.activo = False
     db.session.commit()
+    registrar_bitacora('BAJA_INSUMO', ins_baja.nombre, 0.0, 'Insumo dado de baja (se conserva historial)')
     return jsonify({'ok': True})
 
 
@@ -663,7 +668,7 @@ def api_almacen_movimiento():
     ins = InsumoBodegaPro.query.get_or_404(int(data['insumo_id']))
     tipo = str(data.get('tipo', 'ENTRADA_COMPRA')).upper()
     if tipo not in ('ENTRADA_COMPRA', 'SALIDA_MERMA', 'TRASPASO'):
-        return jsonify({'ok': False, 'msg': 'Tipo de movimiento invalido.'}), 400
+        return jsonify({'ok': False, 'msg': 'Tipo de movimiento inválido.'}), 400
     cant = _num(data.get('cantidad', 0), minimo=-10_000_000.0)
     costo = _num(data.get('costo_total', 0))
     if cant <= 0:
@@ -719,7 +724,7 @@ def api_sucursal_faltantes_sugeridos():
     for st in registros:
         if st.stock_actual <= st.stock_minimo:
             ins = InsumoBodegaPro.query.get(st.insumo_id)
-            if ins and 'EXTRA / FUERA DE LISTA' not in ins.nombre:
+            if ins and ins.activo is not False and 'EXTRA / FUERA DE LISTA' not in ins.nombre:
                 sug = max(1.0, round((st.stock_minimo * 2) - st.stock_actual, 1))
                 faltantes.append({'insumo_id': ins.id, 'nombre': ins.nombre, 'sugerido': sug, 'unidad': ins.unidad})
     return jsonify({'ok': True, 'sucursal': suc, 'faltantes': faltantes})
@@ -753,7 +758,7 @@ def api_stock_sucursal():
     lista = []
     for st in StockSucursal.query.filter_by(sucursal=suc).all():
         ins = insumos.get(st.insumo_id)
-        if not ins:
+        if not ins or ins.activo is False:
             continue
         lista.append({
             'id': st.id, 'insumo_id': st.insumo_id, 'nombre': ins.nombre,
@@ -778,7 +783,7 @@ def api_recetas():
             'platillos_disponibles': prods + mods,
             'insumos': [
                 {'id': i.id, 'nombre': i.nombre, 'categoria': i.categoria, 'unidad': i.unidad}
-                for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo != False).order_by(InsumoBodegaPro.categoria.asc(), InsumoBodegaPro.nombre.asc()).all()
+                for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False)).order_by(InsumoBodegaPro.categoria.asc(), InsumoBodegaPro.nombre.asc()).all()
                 if 'EXTRA / FUERA DE LISTA' not in i.nombre
             ],
             'recetas': [{
@@ -853,6 +858,8 @@ def api_mermas_registrar():
     cantidad = _num(data.get('cantidad', 1), minimo=0.001, maximo=100000.0)
     costo_raw = data.get('costo_total')
     costo_total = _num(costo_raw) if costo_raw not in (None, '') else None
+    if not buscar_insumo_activo(ins) and not (costo_total and costo_total > 0):
+        return jsonify({'ok': False, 'msg': 'Ese insumo no está en el catálogo. Elígelo de la lista o captura el costo total de la merma.'}), 400
     aplicar_merma(
         ins, cantidad, str(data.get('motivo', 'Merma')).strip(), suc, current_user.username.upper(),
         unidad=str(data.get('unidad', 'PZA')).upper(), costo_total=costo_total
@@ -880,8 +887,9 @@ def api_mermas_resumen():
         q_ult = q_ult.filter_by(sucursal=obtener_sucursal_activa(session))
     return jsonify({
         'ok': True,
+        'insumos_catalogo': [i.nombre for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False)).order_by(InsumoBodegaPro.nombre.asc()).all()
+                             if 'EXTRA / FUERA DE LISTA' not in (i.nombre or '')],
         'total_mes': round(sum(m.costo_total for m in mermas_mes), 2),
-        'insumos_catalogo': [i.nombre for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo != False).order_by(InsumoBodegaPro.nombre.asc()).all() if 'EXTRA / FUERA DE LISTA' not in (i.nombre or '')],
         'por_sucursal': por_sucursal,
         'mermas': [{
             'id': m.id, 'fecha': m.fecha.strftime('%d/%m %H:%M'), 'sucursal': m.sucursal,
@@ -891,10 +899,56 @@ def api_mermas_resumen():
     })
 
 
+
+_DIAS_VENTANA_PERIODO = {'SEMANAL': 7, 'QUINCENAL': 15, 'MENSUAL': 30}
+_ROLES_FINANZAS = ('admin', 'cajero', 'sucursal')
+_ROLES_CREDITO = ('admin', 'gerente', 'cajero', 'sucursal')
+
+
+def _pin_checador_valido(pin):
+    return pin.isdigit() and 4 <= len(pin) <= 12
+
+
+def _dias_asistidos_por_empleado(empleados):
+    """Cuenta días distintos con ENTRADA dentro de la ventana de cada periodo (tope = días base)."""
+    if not empleados:
+        return {}
+    ventana_max = 31
+    desde = inicio_hoy_local() - timedelta(days=ventana_max - 1)
+    regs = RegistroAsistencia.query.filter(RegistroAsistencia.fecha >= desde, RegistroAsistencia.tipo == 'ENTRADA').all()
+    por_nombre = {}
+    for r in regs:
+        por_nombre.setdefault((r.empleado_nombre or '').strip().upper(), set()).add(r.fecha.date())
+    hoy = inicio_hoy_local().date()
+    salida = {}
+    for e in empleados:
+        ventana = _DIAS_VENTANA_PERIODO.get((e.periodo or 'SEMANAL').upper(), 7)
+        corte = hoy - timedelta(days=ventana - 1)
+        dias = {d for d in por_nombre.get((e.nombre or '').strip().upper(), set()) if d >= corte}
+        salida[e.id] = min(len(dias), int(e.dias_base or 6))
+    return salida
+
+
+def _rango_fechas(desde, hasta):
+    """Devuelve (inicio, fin_exclusivo) en hora local. Sin fechas = hoy. Máximo 400 días."""
+    try:
+        d0 = datetime.strptime(desde, '%Y-%m-%d') if desde else inicio_hoy_local().replace(tzinfo=None)
+        d1 = datetime.strptime(hasta, '%Y-%m-%d') if hasta else d0
+    except ValueError:
+        raise ValueError('Fecha inválida')
+    if d1 < d0:
+        d0, d1 = d1, d0
+    if (d1 - d0).days > 400:
+        raise ValueError('Rango demasiado grande')
+    ini = d0.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin = d1.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    return ini, fin
+
+
 @operacion_bp.route('/api/finanzas/datos')
 @login_required
 def api_finanzas_datos():
-    if current_user.role not in ['admin', 'cajero', 'sucursal']:
+    if current_user.role not in _ROLES_FINANZAS:
         return jsonify({'ok': False}), 403
     es_admin = (current_user.role == 'admin')
     empleados = EmpleadoNominaPOS.query.filter_by(activo=True).order_by(EmpleadoNominaPOS.nombre.asc()).all()
@@ -906,22 +960,7 @@ def api_finanzas_datos():
     for c in pendientes_todos:
         adeudo_emp[c.empleado_id] = round(adeudo_emp.get(c.empleado_id, 0.0) + c.monto, 2)
 
-    hace_15 = inicio_hoy_local() - timedelta(days=14)
-    hace_7 = inicio_hoy_local() - timedelta(days=6)
-    asist_rec = RegistroAsistencia.query.filter(
-        RegistroAsistencia.fecha >= hace_15,
-        RegistroAsistencia.tipo == 'ENTRADA'
-    ).all()
-    dias_7, dias_15 = {}, {}
-    for a in asist_rec:
-        nom = (a.empleado_nombre or '').strip().upper()
-        dia_key = a.fecha.strftime('%Y-%m-%d') if a.fecha else ''
-        if not nom or not dia_key:
-            continue
-        dias_15.setdefault(nom, set()).add(dia_key)
-        if a.fecha >= hace_7:
-            dias_7.setdefault(nom, set()).add(dia_key)
-
+    dias_asist = _dias_asistidos_por_empleado(empleados)
     return jsonify({
         'ok': True,
         'es_admin': es_admin,
@@ -930,9 +969,8 @@ def api_finanzas_datos():
             'sueldo_base': e.sueldo_base if es_admin else 0.0, 'periodo': e.periodo,
             'dias_base': int(e.dias_base or 6),
             'pin_checador': (e.pin_checador or '') if es_admin else '',
-            'sucursal': e.sucursal or 'Quiosco Morisco (Matriz)',
-            'dias_asistidos_recientes': len(dias_15.get(e.nombre.upper(), set())) if (e.periodo or '').upper() == 'QUINCENAL' else len(dias_7.get(e.nombre.upper(), set())),
-            'descuento_pct': round(float(e.descuento_pct or 0.0), 2),
+            'descuento_pct': float(e.descuento_pct or 0.0),
+            'dias_asistidos_recientes': dias_asist.get(e.id, 0),
             'consumo_pendiente': adeudo_emp.get(e.id, 0.0)
         } for e in empleados],
         'consumos': [{
@@ -943,13 +981,12 @@ def api_finanzas_datos():
         'recibos': [{
             'id': r.id, 'fecha': r.fecha.strftime('%d/%m/%Y %H:%M'),
             'empleado_nombre': r.empleado_nombre, 'puesto': r.puesto,
-            'periodo_texto': r.periodo_texto,
-            'dias_base': int(r.dias_base or 6),
-            'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6)),
-            'sueldo_base': r.sueldo_base,
+            'periodo_texto': r.periodo_texto, 'sueldo_base': r.sueldo_base,
             'bonos': r.bonos, 'propinas': r.propinas,
             'descuentos_consumo': r.descuentos_consumo, 'otros_descuentos': r.otros_descuentos,
-            'total_neto': r.total_neto, 'pagado_por': r.pagado_por
+            'total_neto': r.total_neto, 'pagado_por': r.pagado_por,
+            'dias_base': int(r.dias_base or 6),
+            'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6))
         } for r in recibos]
     })
 
@@ -959,51 +996,64 @@ def api_finanzas_empleado():
     if current_user.role != 'admin':
         return jsonify({'ok': False, 'msg': 'Solo Admin puede modificar empleados.'}), 403
     data = request.json or {}
+
+    def _pin_limpio(valor, excluir_id=None):
+        pin = str(valor or '').strip()
+        if not pin:
+            return None, None
+        if not _pin_checador_valido(pin):
+            return None, 'El PIN del checador debe ser numérico de 4 a 12 dígitos.'
+        q = EmpleadoNominaPOS.query.filter_by(pin_checador=pin, activo=True)
+        if excluir_id:
+            q = q.filter(EmpleadoNominaPOS.id != excluir_id)
+        if q.first():
+            return None, 'Ese PIN ya lo usa otro empleado.'
+        return pin, None
+
     if request.method == 'POST':
         nom = str(data.get('nombre', '')).strip().upper()
         if not nom:
             return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
-        pin_chk = str(data.get('pin_checador', '')).strip()[:10]
-        if pin_chk and EmpleadoNominaPOS.query.filter_by(pin_checador=pin_chk, activo=True).first():
-            return jsonify({'ok': False, 'msg': 'Ese PIN de checador ya pertenece a otro empleado.'}), 400
-        dias_b = max(1, min(31, int(_num(data.get('dias_base', 6), minimo=1.0, maximo=31.0))))
+        pin, err = _pin_limpio(data.get('pin_checador'))
+        if err:
+            return jsonify({'ok': False, 'msg': err}), 400
+        periodo = str(data.get('periodo', 'SEMANAL')).strip().upper()
+        if periodo not in _DIAS_VENTANA_PERIODO:
+            periodo = 'SEMANAL'
         db.session.add(EmpleadoNominaPOS(
-            nombre=nom, puesto=str(data.get('puesto', 'MESERO')).strip().upper(),
-            sueldo_base=_num(data.get('sueldo_base', 1500)),
-            periodo=str(data.get('periodo', 'SEMANAL')).strip().upper(),
-            descuento_pct=_num(data.get('descuento_pct', 0), minimo=0.0, maximo=100.0),
-            dias_base=dias_b,
-            pin_checador=pin_chk,
-            sucursal=str(data.get('sucursal', 'Quiosco Morisco (Matriz)')).strip(),
-            activo=True
+            nombre=nom, puesto=str(data.get('puesto', 'MESERO')).strip().upper() or 'MESERO',
+            sueldo_base=_num(data.get('sueldo_base', 1500), maximo=1_000_000.0),
+            periodo=periodo, activo=True,
+            dias_base=int(_num(data.get('dias_base', 6), minimo=1, maximo=31)),
+            pin_checador=pin,
+            descuento_pct=_num(data.get('descuento_pct', 0), maximo=100.0)
         ))
         db.session.commit()
         return jsonify({'ok': True})
-    if request.method == 'PUT':
-        e = EmpleadoNominaPOS.query.get_or_404(int(data['id']))
-        if 'descuento_pct' in data:
-            e.descuento_pct = _num(data.get('descuento_pct', 0), minimo=0.0, maximo=100.0)
-        if 'sueldo_base' in data and data['sueldo_base'] not in (None, ''):
-            e.sueldo_base = _num(data.get('sueldo_base', e.sueldo_base))
-        if 'dias_base' in data and data['dias_base'] not in (None, ''):
-            e.dias_base = max(1, min(31, int(_num(data['dias_base'], minimo=1.0, maximo=31.0))))
-        if 'pin_checador' in data:
-            pin_chk = str(data.get('pin_checador') or '').strip()[:10]
-            if pin_chk:
-                dup = EmpleadoNominaPOS.query.filter(
-                    EmpleadoNominaPOS.pin_checador == pin_chk,
-                    EmpleadoNominaPOS.activo == True,
-                    EmpleadoNominaPOS.id != e.id
-                ).first()
-                if dup:
-                    return jsonify({'ok': False, 'msg': f'Ese PIN ya lo usa {dup.nombre}.'}), 400
-            e.pin_checador = pin_chk
-        if 'puesto' in data and str(data.get('puesto', '')).strip():
-            e.puesto = str(data['puesto']).strip().upper()
-        db.session.commit()
-        return jsonify({'ok': True, 'descuento_pct': e.descuento_pct, 'dias_base': e.dias_base, 'pin_checador': e.pin_checador})
+
     e = EmpleadoNominaPOS.query.get_or_404(int(data['id']))
+    if request.method == 'PUT':
+        if 'descuento_pct' in data:
+            e.descuento_pct = _num(data.get('descuento_pct'), maximo=100.0)
+        if 'dias_base' in data:
+            e.dias_base = int(_num(data.get('dias_base'), minimo=1, maximo=31))
+        if 'pin_checador' in data:
+            pin, err = _pin_limpio(data.get('pin_checador'), excluir_id=e.id)
+            if err:
+                return jsonify({'ok': False, 'msg': err}), 400
+            e.pin_checador = pin
+        if 'sueldo_base' in data:
+            e.sueldo_base = _num(data.get('sueldo_base'), maximo=1_000_000.0)
+        if 'puesto' in data and str(data.get('puesto')).strip():
+            e.puesto = str(data.get('puesto')).strip().upper()
+        if 'periodo' in data and str(data.get('periodo')).strip().upper() in _DIAS_VENTANA_PERIODO:
+            e.periodo = str(data.get('periodo')).strip().upper()
+        db.session.commit()
+        registrar_bitacora('EDITAR_EMPLEADO', e.nombre, 0.0, f'Desc:{e.descuento_pct:g}% Días base:{e.dias_base}')
+        return jsonify({'ok': True, 'descuento_pct': float(e.descuento_pct or 0.0), 'dias_base': int(e.dias_base or 6)})
+
     e.activo = False
+    e.pin_checador = None
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -1036,45 +1086,199 @@ def api_finanzas_generar_nomina():
     if current_user.role != 'admin':
         return jsonify({'ok': False, 'msg': 'Solo Admin puede pagar nómina.'}), 403
     data = request.json or {}
+    # Se bloquea al empleado: un doble clic no genera dos recibos ni descuenta dos veces los vales.
     emp = EmpleadoNominaPOS.query.filter_by(id=int(data['empleado_id'])).with_for_update().first_or_404()
-    bonos = _num(data.get('bonos', 0))
-    propinas = _num(data.get('propinas', 0))
-    otros_desc = _num(data.get('otros_descuentos', 0))
-    dias_base = max(1, int(emp.dias_base or 6))
-    dias_trab = _num(data.get('dias_trabajados', dias_base), minimo=0.0, maximo=31.0)
-    sueldo_prop = round((float(emp.sueldo_base or 0.0) / dias_base) * dias_trab, 2)
+    bonos = _num(data.get('bonos', 0), maximo=1_000_000.0)
+    propinas = _num(data.get('propinas', 0), maximo=1_000_000.0)
+    otros_desc = _num(data.get('otros_descuentos', 0), maximo=1_000_000.0)
     periodo_txt = str(data.get('periodo_texto', emp.periodo)).strip().upper()
+    dias_base = max(1, int(emp.dias_base or 6))
+    dias_trab = _num(data.get('dias_trabajados', dias_base), maximo=31.0)
 
-    pendientes = ConsumoEmpleadoPOS.query.filter_by(empleado_id=emp.id, descontado=False).all()
-    desc_consumo = round(sum(p.monto for p in pendientes), 2)
-    total_neto = round(sueldo_prop + bonos + propinas - desc_consumo - otros_desc, 2)
+    pendientes = ConsumoEmpleadoPOS.query.filter_by(empleado_id=emp.id, descontado=False).with_for_update().all()
+    desc_consumo = round(sum(p_.monto for p_ in pendientes), 2)
+    sueldo_prorrata = round((float(emp.sueldo_base or 0.0) / dias_base) * dias_trab, 2)
+    total_neto = round(sueldo_prorrata + bonos + propinas - desc_consumo - otros_desc, 2)
+
     if total_neto < 0 and not bool(data.get('permitir_negativo', False)):
         return jsonify({
-            'ok': False,
-            'requiere_confirmacion': True,
-            'msg': f'Los descuentos (${desc_consumo + otros_desc:.2f}) superan las percepciones (${sueldo_prop + bonos + propinas:.2f}); el neto quedaría en ${total_neto:.2f}.'
-        }), 400
-    for p in pendientes:
-        p.descontado = True
+            'ok': False, 'requiere_confirmacion': True,
+            'msg': f'Los descuentos superan el pago: el neto sería ${total_neto:.2f}.'
+        }), 409
 
+    for p_ in pendientes:
+        p_.descontado = True
     recibo = ReciboNominaPOS(
         fecha=ahora_local(), empleado_id=emp.id, empleado_nombre=emp.nombre, puesto=emp.puesto,
-        periodo_texto=periodo_txt, dias_base=dias_base, dias_trabajados=dias_trab,
-        sueldo_base=sueldo_prop, bonos=bonos, propinas=propinas,
+        periodo_texto=periodo_txt, sueldo_base=sueldo_prorrata, bonos=bonos, propinas=propinas,
         descuentos_consumo=desc_consumo, otros_descuentos=otros_desc,
-        total_neto=total_neto, pagado_por=current_user.username.upper()
+        total_neto=total_neto, pagado_por=current_user.username.upper(),
+        dias_base=dias_base, dias_trabajados=dias_trab
     )
     db.session.add(recibo)
     db.session.commit()
-    registrar_bitacora('PAGO_NOMINA', emp.nombre, total_neto, f'Días:{dias_trab:g}/{dias_base} Base:${sueldo_prop} + Bonos:${bonos} - Vales:${desc_consumo}')
+    registrar_bitacora('PAGO_NOMINA', emp.nombre, total_neto,
+                       f'{dias_trab:g}/{dias_base}d Base:${sueldo_prorrata} + Bonos:${bonos} - Vales:${desc_consumo}')
     return jsonify({'ok': True, 'recibo': {
         'id': recibo.id, 'fecha': recibo.fecha.strftime('%d/%m/%Y %H:%M'),
         'empleado_nombre': recibo.empleado_nombre, 'puesto': recibo.puesto,
-        'periodo_texto': recibo.periodo_texto, 'dias_base': dias_base, 'dias_trabajados': dias_trab,
-        'sueldo_base': recibo.sueldo_base, 'bonos': recibo.bonos, 'propinas': recibo.propinas,
+        'periodo_texto': recibo.periodo_texto, 'sueldo_base': recibo.sueldo_base,
+        'bonos': recibo.bonos, 'propinas': recibo.propinas,
         'descuentos_consumo': recibo.descuentos_consumo,
-        'otros_descuentos': recibo.otros_descuentos, 'total_neto': recibo.total_neto
+        'otros_descuentos': recibo.otros_descuentos, 'total_neto': recibo.total_neto,
+        'dias_base': dias_base, 'dias_trabajados': dias_trab
     }})
+
+
+@operacion_bp.route('/api/checador/pin', methods=['POST'])
+@login_required
+def api_checador_pin():
+    """El empleado teclea su PIN: alterna ENTRADA / SALIDA y queda ligado a la sucursal activa."""
+    if current_user.role not in ('admin', 'gerente', 'cajero', 'sucursal'):
+        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
+    ip = request.remote_addr or 'x'  # ProxyFix (app.py) ya deja aquí la IP real
+    clave_rl = f'checador:{ip}'
+    if limite_intentos_excedido(clave_rl, max_intentos=8, ventana_seg=300):
+        return jsonify({'ok': False, 'msg': 'Demasiados intentos. Espera unos minutos.'}), 429
+    pin = str((request.json or {}).get('pin', '')).strip()
+    emp = EmpleadoNominaPOS.query.filter_by(pin_checador=pin, activo=True).first() if _pin_checador_valido(pin) else None
+    if not emp:
+        registrar_intento_fallido(clave_rl)
+        return jsonify({'ok': False, 'msg': 'PIN inválido.'}), 404
+    limpiar_intentos(clave_rl)
+    suc = obtener_sucursal_activa(session)
+    ahora = ahora_local()
+    ultimo = RegistroAsistencia.query.filter(
+        RegistroAsistencia.empleado_nombre == emp.nombre,
+        RegistroAsistencia.fecha >= inicio_hoy_local()
+    ).order_by(RegistroAsistencia.id.desc()).first()
+    if ultimo and (ahora - ultimo.fecha).total_seconds() < 15:
+        return jsonify({'ok': False, 'msg': f'Ya se registró tu {ultimo.tipo} hace un momento.'}), 400
+    tipo = 'SALIDA' if (ultimo and ultimo.tipo == 'ENTRADA') else 'ENTRADA'
+    db.session.add(RegistroAsistencia(fecha=ahora, sucursal=suc, empleado_nombre=emp.nombre, tipo=tipo, notas='PIN'))
+    db.session.commit()
+    return jsonify({'ok': True, 'tipo': tipo, 'empleado': emp.nombre, 'hora': ahora.strftime('%H:%M'), 'sucursal': suc})
+
+
+# ==============================================================================
+# 5B. CRÉDITOS / FIADOS A CLIENTES
+# ==============================================================================
+def _suc_credito_visible():
+    return None if current_user.role == 'admin' else obtener_sucursal_activa(session)
+
+
+@operacion_bp.route('/api/creditos/datos')
+@login_required
+def api_creditos_datos():
+    if current_user.role not in _ROLES_CREDITO:
+        return jsonify({'ok': False}), 403
+    suc = _suc_credito_visible()
+    qc = ClienteCredito.query.filter_by(activo=True)
+    qm = MovimientoCredito.query
+    if suc:
+        qc = qc.filter_by(sucursal=suc)
+        qm = qm.filter_by(sucursal=suc)
+    clientes = qc.order_by(ClienteCredito.nombre.asc()).all()
+    movs = qm.order_by(MovimientoCredito.id.desc()).limit(100).all()
+    return jsonify({
+        'ok': True,
+        'total_por_cobrar': round(sum(max(0.0, c.saldo_pendiente or 0.0) for c in clientes), 2),
+        'clientes': [{
+            'id': c.id, 'nombre': c.nombre, 'telefono': c.telefono or '', 'sucursal': c.sucursal or '',
+            'limite_credito': float(c.limite_credito or 0.0), 'saldo_pendiente': round(float(c.saldo_pendiente or 0.0), 2)
+        } for c in clientes],
+        'movimientos': [{
+            'id': m.id, 'fecha': m.fecha.strftime('%d/%m %H:%M'), 'cliente_nombre': m.cliente_nombre,
+            'tipo': m.tipo, 'concepto': m.concepto or '', 'monto': float(m.monto or 0.0), 'usuario': m.usuario or ''
+        } for m in movs]
+    })
+
+
+@operacion_bp.route('/api/creditos/cliente', methods=['POST', 'PUT', 'DELETE'])
+@login_required
+def api_creditos_cliente():
+    if current_user.role not in _ROLES_CREDITO:
+        return jsonify({'ok': False}), 403
+    data = request.json or {}
+    if request.method in ('PUT', 'DELETE'):
+        cli = ClienteCredito.query.filter_by(id=int(data['id'])).with_for_update().first_or_404()
+        if current_user.role != 'admin' and (cli.sucursal or '') != obtener_sucursal_activa(session):
+            return jsonify({'ok': False, 'msg': 'Cliente de otra sucursal.'}), 403
+        if request.method == 'DELETE':
+            if abs(float(cli.saldo_pendiente or 0.0)) > 0.01:
+                return jsonify({'ok': False, 'msg': f'No se puede dar de baja: tiene saldo pendiente de ${cli.saldo_pendiente:.2f}.'}), 400
+            cli.activo = False
+            db.session.commit()
+            registrar_bitacora('BAJA_CLIENTE_CREDITO', cli.nombre, 0.0, 'Cliente de crédito dado de baja', sucursal=cli.sucursal)
+            return jsonify({'ok': True})
+        if 'limite_credito' in data:
+            cli.limite_credito = _num(data.get('limite_credito'), maximo=1_000_000.0)
+        if 'telefono' in data:
+            cli.telefono = str(data.get('telefono', '')).strip()[:40]
+        if str(data.get('nombre', '')).strip():
+            cli.nombre = str(data['nombre']).strip().upper()[:120]
+        db.session.commit()
+        registrar_bitacora('EDITAR_CLIENTE_CREDITO', cli.nombre, cli.limite_credito, 'Límite/datos actualizados', sucursal=cli.sucursal)
+        return jsonify({'ok': True})
+    nombre = str(data.get('nombre', '')).strip().upper()[:120]
+    if not nombre:
+        return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
+    suc = obtener_sucursal_activa(session)
+    if ClienteCredito.query.filter_by(nombre=nombre, sucursal=suc, activo=True).first():
+        return jsonify({'ok': False, 'msg': 'Ya existe un cliente de crédito con ese nombre en esta sucursal.'}), 400
+    cli = ClienteCredito(
+        nombre=nombre, telefono=str(data.get('telefono', '')).strip()[:40], sucursal=suc,
+        limite_credito=_num(data.get('limite_credito', 0), maximo=1_000_000.0), saldo_pendiente=0.0, activo=True
+    )
+    db.session.add(cli)
+    db.session.commit()
+    registrar_bitacora('ALTA_CLIENTE_CREDITO', nombre, cli.limite_credito, 'Cliente de crédito', sucursal=suc)
+    return jsonify({'ok': True, 'id': cli.id})
+
+
+@operacion_bp.route('/api/creditos/movimiento', methods=['POST'])
+@login_required
+def api_creditos_movimiento():
+    if current_user.role not in _ROLES_CREDITO:
+        return jsonify({'ok': False}), 403
+    data = request.json or {}
+    cli = ClienteCredito.query.filter_by(id=int(data['cliente_id'])).with_for_update().first_or_404()
+    if current_user.role != 'admin' and (cli.sucursal or '') != obtener_sucursal_activa(session):
+        return jsonify({'ok': False, 'msg': 'Cliente de otra sucursal.'}), 403
+    tipo = str(data.get('tipo', '')).upper()
+    if tipo not in ('CARGO', 'ABONO'):
+        return jsonify({'ok': False, 'msg': 'Tipo inválido'}), 400
+    monto = _num(data.get('monto', 0), maximo=1_000_000.0)
+    if monto <= 0:
+        return jsonify({'ok': False, 'msg': 'Monto inválido'}), 400
+    saldo = float(cli.saldo_pendiente or 0.0)
+    if tipo == 'ABONO' and monto > saldo + 0.01:
+        return jsonify({'ok': False, 'msg': f'El abono (${monto:.2f}) excede el saldo pendiente (${saldo:.2f}).'}), 400
+    if tipo == 'CARGO' and (cli.limite_credito or 0) > 0 and saldo + monto > cli.limite_credito + 0.01:
+        return jsonify({'ok': False, 'msg': f'El cargo rebasa el límite de crédito (${cli.limite_credito:.2f}).'}), 400
+    concepto = str(data.get('concepto', '')).strip().upper()[:200] or ('ABONO' if tipo == 'ABONO' else 'CARGO')
+    cli.saldo_pendiente = round(saldo + (monto if tipo == 'CARGO' else -monto), 2)
+    mov = MovimientoCredito(
+        fecha=ahora_local(), cliente_id=cli.id, cliente_nombre=cli.nombre, tipo=tipo, monto=monto,
+        concepto=concepto, usuario=current_user.username.upper(), sucursal=cli.sucursal
+    )
+    db.session.add(mov)
+
+    if tipo == 'ABONO' and bool(data.get('ingresar_a_caja', False)):
+        turno = obtener_turno_activo(obtener_sucursal_activa(session))
+        db.session.add(MovimientoCajaPOS(
+            turno_id=turno.id, tipo='DEPOSITO', monto=monto, concepto=f'ABONO CREDITO {cli.nombre}'[:200],
+            usuario=current_user.username.upper(), fecha=ahora_local()
+        ))
+        turno.depositos_efectivo = round((turno.depositos_efectivo or 0.0) + monto, 2)
+    db.session.commit()
+    registrar_bitacora(f'CREDITO_{tipo}', cli.nombre, monto, concepto, sucursal=cli.sucursal)
+    return jsonify({
+        'ok': True, 'saldo_pendiente': cli.saldo_pendiente,
+        'recibo': {'id': mov.id, 'fecha': mov.fecha.strftime('%d/%m/%Y %H:%M'), 'cliente': cli.nombre,
+                   'concepto': concepto, 'monto': monto, 'saldo_restante': cli.saldo_pendiente,
+                   'usuario': mov.usuario}
+    })
 
 
 # ==============================================================================
@@ -1191,7 +1395,7 @@ def api_industrial_resumen_whatsapp():
     dif_total = round(sum(a.diferencia for a in cortes_hoy), 2)
 
     lineas = [
-        f"*📊 REPORTE DIARIO • COMENSAL CONECTADO*",
+        "*📊 REPORTE DIARIO • COMENSAL CONECTADO*",
         f"📅 {ahora_local().strftime('%d/%m/%Y %I:%M %p')}",
         "",
         "*💰 VENTAS POR SUCURSAL:*"
@@ -1215,6 +1419,156 @@ def api_industrial_resumen_whatsapp():
     return jsonify({'ok': True, 'texto': texto, 'wa_url': f"https://wa.me/?text={urllib.parse.quote(texto)}"})
 
 
+def _flujo_dinero_datos(suc, desde, hasta):
+    ini, fin = _rango_fechas(desde, hasta)
+    q = db.session.query(MovimientoCajaPOS, TurnoPOS).join(TurnoPOS, TurnoPOS.id == MovimientoCajaPOS.turno_id).filter(
+        MovimientoCajaPOS.fecha >= ini, MovimientoCajaPOS.fecha < fin
+    )
+    if suc and suc != 'TODAS':
+        q = q.filter(TurnoPOS.sucursal == suc)
+    filas = q.order_by(MovimientoCajaPOS.id.desc()).limit(1000).all()
+    entradas = round(sum(m.monto for m, t in filas if m.tipo == 'DEPOSITO'), 2)
+    salidas = round(sum(m.monto for m, t in filas if m.tipo == 'RETIRO'), 2)
+    return {
+        'total_entradas': entradas, 'total_salidas': salidas, 'saldo_neto': round(entradas - salidas, 2),
+        'movimientos': [{
+            'id': m.id, 'fecha': m.fecha.strftime('%d/%m %H:%M'), 'sucursal': t.sucursal or '',
+            'turno_id': t.id, 'tipo': m.tipo, 'concepto': m.concepto, 'monto': float(m.monto),
+            'usuario': m.usuario
+        } for m, t in filas]
+    }
+
+
+@operacion_bp.route('/api/industrial/flujo_dinero', methods=['GET', 'POST'])
+@login_required
+def api_industrial_flujo_dinero():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    if request.method == 'GET':
+        d = _flujo_dinero_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+        d['ok'] = True
+        return jsonify(d)
+    data = request.json or {}
+    suc = str(data.get('sucursal', '')).strip()
+    if suc not in SUCURSALES_OFICIALES:
+        return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
+    tipo = str(data.get('tipo', '')).upper()
+    if tipo not in ('DEPOSITO', 'RETIRO'):
+        return jsonify({'ok': False, 'msg': 'Tipo inválido.'}), 400
+    monto = _num(data.get('monto', 0), maximo=10_000_000.0)
+    concepto = str(data.get('concepto', '')).strip().upper()[:200]
+    if monto <= 0 or not concepto:
+        return jsonify({'ok': False, 'msg': 'Captura monto mayor a 0 y concepto.'}), 400
+    turno = obtener_turno_activo(suc)
+    db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto,
+                                     usuario=current_user.username.upper(), fecha=ahora_local()))
+    if tipo == 'RETIRO':
+        turno.retiros_efectivo = round((turno.retiros_efectivo or 0.0) + monto, 2)
+    else:
+        turno.depositos_efectivo = round((turno.depositos_efectivo or 0.0) + monto, 2)
+    db.session.commit()
+    registrar_bitacora('FLUJO_DINERO_' + tipo, f'TURNO #{turno.id}', monto, concepto,
+                       autorizo=current_user.username.upper(), sucursal=suc)
+    return jsonify({'ok': True})
+
+
+def _ventas_detalle_datos(suc, desde, hasta):
+    ini, fin = _rango_fechas(desde, hasta)
+    q = CuentaPOS.query.filter(CuentaPOS.estado == 'PAGADA', CuentaPOS.cierre >= ini, CuentaPOS.cierre < fin)
+    if suc and suc != 'TODAS':
+        q = q.filter(CuentaPOS.sucursal == suc)
+    cuentas = q.all()
+    venta = round(sum(c.total or 0.0 for c in cuentas), 2)
+    n_cuentas = len({(c.parent_cuenta_id if c.es_subcuenta_parte and c.parent_cuenta_id else c.id) for c in cuentas})
+    fp = {
+        'efectivo': round(sum(max(0.0, (c.pago_efectivo or 0.0) - (c.cambio or 0.0)) for c in cuentas), 2),
+        'tarjeta': round(sum((c.pago_tarjeta_debito or 0.0) + (c.pago_tarjeta_credito or 0.0) for c in cuentas), 2),
+        'transferencia': round(sum(c.pago_transferencia or 0.0 for c in cuentas), 2),
+        'vales': round(sum(c.pago_otros or 0.0 for c in cuentas), 2),
+        'credito': round(sum(c.pago_credito or 0.0 for c in cuentas), 2),
+        'propina_tarjeta': round(sum(c.propina_tarjeta or 0.0 for c in cuentas), 2),
+    }
+    meseros = {}
+    for c in cuentas:
+        m = (c.mesero or 'SIN MESERO').upper()
+        r = meseros.setdefault(m, {'mesero': m, 'cuentas': 0, 'propina': 0.0, 'venta': 0.0})
+        r['cuentas'] += 1
+        r['propina'] = round(r['propina'] + (c.propina_tarjeta or 0.0), 2)
+        r['venta'] = round(r['venta'] + (c.total or 0.0), 2)
+
+    cat_map = {p_.nombre.strip().upper(): (p_.categoria or 'SIN CATEGORIA').strip().upper() for p_ in Producto.query.all()}
+    # Las subcuentas "partes iguales" solo llevan una línea PARTE n/N: los platillos reales viven en la cuenta padre (DIVIDIDA).
+    padres_ids = list({c.parent_cuenta_id for c in cuentas if c.es_subcuenta_parte and c.parent_cuenta_id})
+    cond_cuentas = or_(
+        and_(CuentaPOS.estado == 'PAGADA', CuentaPOS.es_subcuenta_parte.is_not(True),
+             CuentaPOS.cierre >= ini, CuentaPOS.cierre < fin),
+        CuentaPOS.id.in_(padres_ids) if padres_ids else false()
+    )
+    qd = db.session.query(
+        DetallePOS.descripcion, DetallePOS.es_modificador,
+        func.coalesce(func.sum(DetallePOS.cantidad), 0.0), func.coalesce(func.sum(DetallePOS.importe), 0.0)
+    ).join(CuentaPOS, CuentaPOS.id == DetallePOS.cuenta_id).filter(cond_cuentas)
+    if suc and suc != 'TODAS':
+        qd = qd.filter(CuentaPOS.sucursal == suc)
+    qd = qd.group_by(DetallePOS.descripcion, DetallePOS.es_modificador)
+    prods, cats = [], {}
+    for desc, es_mod, cant, imp in qd.all():
+        nombre = (desc or '').strip()
+        if es_mod:
+            if (imp or 0.0) <= 0:
+                continue
+            categoria = 'MODIFICADORES / EXTRAS'
+        else:
+            categoria = cat_map.get(nombre.upper(), 'SIN CATEGORIA')
+        prods.append({'categoria': categoria, 'producto': nombre, 'cantidad': round(float(cant), 2), 'importe': round(float(imp), 2)})
+        c = cats.setdefault(categoria, {'categoria': categoria, 'cantidad': 0.0, 'importe': 0.0})
+        c['cantidad'] = round(c['cantidad'] + float(cant), 2)
+        c['importe'] = round(c['importe'] + float(imp), 2)
+    prods.sort(key=lambda x: x['importe'], reverse=True)
+    return {
+        'venta_total': venta, 'cuentas': n_cuentas,
+        'ticket_promedio': round(venta / n_cuentas, 2) if n_cuentas else 0.0,
+        'formas_pago': fp,
+        'por_categoria': sorted(cats.values(), key=lambda x: x['importe'], reverse=True),
+        'por_mesero': sorted(meseros.values(), key=lambda x: x['venta'], reverse=True),
+        'por_producto': prods[:300]
+    }
+
+
+@operacion_bp.route('/api/industrial/reporte_ventas_detalle')
+@login_required
+def api_industrial_reporte_ventas_detalle():
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    d = _ventas_detalle_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+    d['ok'] = True
+    return jsonify(d)
+
+
+@operacion_bp.route('/api/exportar/flujo_dinero')
+@login_required
+def exportar_flujo_dinero():
+    if current_user.role != 'admin':
+        return "Acceso denegado", 403
+    d = _flujo_dinero_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+    filas = [(m['fecha'], m['sucursal'], m['turno_id'], 'ENTRADA' if m['tipo'] == 'DEPOSITO' else 'SALIDA',
+              m['concepto'], m['monto'], m['usuario']) for m in d['movimientos']]
+    return _csv_excel(('Fecha', 'Sucursal', 'Turno', 'Tipo', 'Concepto', 'Monto', 'Usuario'), filas,
+                      f"Flujo_Dinero_{ahora_local().strftime('%Y%m%d')}.csv")
+
+
+@operacion_bp.route('/api/exportar/ventas_detalle')
+@login_required
+def exportar_ventas_detalle():
+    if current_user.role != 'admin':
+        return "Acceso denegado", 403
+    d = _ventas_detalle_datos(request.args.get('sucursal', 'TODAS'), request.args.get('desde', ''), request.args.get('hasta', ''))
+    filas = [(x['categoria'], x['producto'], x['cantidad'], x['importe']) for x in d['por_producto']]
+    return _csv_excel(('Categoria', 'Producto', 'Cantidad', 'Importe'), filas,
+                      f"Ventas_Detalle_{ahora_local().strftime('%Y%m%d')}.csv")
+
+
+
 @operacion_bp.route('/api/exportar/ventas_sucursales')
 @login_required
 def exportar_ventas_sucursales():
@@ -1226,11 +1580,11 @@ def exportar_ventas_sucursales():
         c.apertura.strftime('%Y-%m-%d %H:%M') if c.apertura else '',
         c.cierre.strftime('%Y-%m-%d %H:%M') if c.cierre else '',
         c.pago_efectivo or 0, c.pago_tarjeta_debito or 0, c.pago_tarjeta_credito or 0,
-        c.pago_transferencia or 0, c.pago_otros or 0, c.tarjeta_ultimos4 or '',
+        c.pago_transferencia or 0, c.pago_otros or 0, c.pago_credito or 0, c.tarjeta_ultimos4 or '',
         c.propina_tarjeta or 0, c.total
     ) for c in cuentas]
     return _csv_excel(
-        ('Folio', 'Sucursal', 'Mesa', 'Mesero', 'Apertura', 'Cierre', 'Efectivo', 'Tarjeta_Debito', 'Tarjeta_Credito', 'Transferencia', 'Vale_Empleado', 'Ult4_Tarjeta', 'Propina_Tarjeta', 'Total'),
+        ('Folio', 'Sucursal', 'Mesa', 'Mesero', 'Apertura', 'Cierre', 'Efectivo', 'Tarjeta_Debito', 'Tarjeta_Credito', 'Transferencia', 'Vale_Empleado', 'Credito_Cliente', 'Ult4_Tarjeta', 'Propina_Tarjeta', 'Total'),
         filas, f"Ventas_4Sucursales_{ahora_local().strftime('%Y%m%d')}.csv"
     )
 
@@ -1263,377 +1617,4 @@ def exportar_cortes_caja():
     return _csv_excel(
         ('Turno_ID', 'Sucursal', 'Fecha', 'Cajero', 'Esperado_Total', 'Declarado_Total', 'Diferencia', 'Efectivo', 'Tarjeta_D', 'Tarjeta_C', 'Transferencia', 'Vales'),
         filas, f"Historial_Cortes_Caja_{ahora_local().strftime('%Y%m%d')}.csv"
-    )
-
-# ==============================================================================
-# 7. ENTRADAS Y SALIDAS DE DINERO POR SUCURSAL (CONSOLIDADO + EXCEL)
-# ==============================================================================
-@operacion_bp.route('/api/industrial/flujo_dinero', methods=['GET', 'POST'])
-@login_required
-def api_industrial_flujo_dinero():
-    if request.method == 'POST':
-        if current_user.role not in ['admin', 'gerente', 'sucursal']:
-            return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
-        data = request.json or {}
-        suc = obtener_sucursal_activa(session) if current_user.role != 'admin' else str(data.get('sucursal', 'Quiosco Morisco (Matriz)')).strip()
-        if suc not in SUCURSALES_OFICIALES:
-            return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
-        tipo = str(data.get('tipo', 'RETIRO')).strip().upper()
-        if tipo not in ('DEPOSITO', 'RETIRO'):
-            return jsonify({'ok': False, 'msg': 'Tipo inválido (DEPOSITO o RETIRO).'}), 400
-        monto = _num(data.get('monto', 0), minimo=0.01, maximo=1_000_000.0)
-        concepto = str(data.get('concepto', '')).strip().upper()
-        if not concepto:
-            return jsonify({'ok': False, 'msg': 'Escribe el concepto del movimiento.'}), 400
-
-        turno = obtener_turno_activo(suc)
-        db.session.add(MovimientoCajaPOS(
-            turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto,
-            usuario=current_user.username.upper(), fecha=ahora_local()
-        ))
-        if tipo == 'RETIRO':
-            turno.retiros_efectivo = round((turno.retiros_efectivo or 0.0) + monto, 2)
-        else:
-            turno.depositos_efectivo = round((turno.depositos_efectivo or 0.0) + monto, 2)
-        db.session.commit()
-        registrar_bitacora(f'CAJA_{tipo}', f'TURNO #{turno.id}', monto, concepto, sucursal=suc)
-        return jsonify({'ok': True})
-
-    if current_user.role not in ['admin', 'gerente', 'sucursal', 'cajero']:
-        return jsonify({'ok': False}), 403
-
-    suc_filtro = obtener_sucursal_activa(session) if current_user.role != 'admin' else request.args.get('sucursal', 'TODAS')
-    desde_str = (request.args.get('desde') or '').strip()
-    hasta_str = (request.args.get('hasta') or '').strip()
-
-    try:
-        dt_desde = datetime.strptime(desde_str, '%Y-%m-%d') if desde_str else (inicio_hoy_local() - timedelta(days=7))
-    except ValueError:
-        dt_desde = inicio_hoy_local() - timedelta(days=7)
-    try:
-        dt_hasta = (datetime.strptime(hasta_str, '%Y-%m-%d') + timedelta(days=1)) if hasta_str else (inicio_hoy_local() + timedelta(days=1))
-    except ValueError:
-        dt_hasta = inicio_hoy_local() + timedelta(days=1)
-
-    q = db.session.query(MovimientoCajaPOS, TurnoPOS.sucursal).join(
-        TurnoPOS, MovimientoCajaPOS.turno_id == TurnoPOS.id
-    ).filter(
-        MovimientoCajaPOS.fecha >= dt_desde,
-        MovimientoCajaPOS.fecha < dt_hasta
-    )
-    if suc_filtro and suc_filtro != 'TODAS':
-        q = q.filter(TurnoPOS.sucursal == suc_filtro)
-
-    filas = q.order_by(MovimientoCajaPOS.id.desc()).limit(250).all()
-    tot_ent = tot_sal = 0.0
-    por_suc = {}
-    items = []
-    for mov, suc_nom in filas:
-        suc_real = suc_nom or 'Quiosco Morisco (Matriz)'
-        por_suc.setdefault(suc_real, {'entradas': 0.0, 'salidas': 0.0})
-        if mov.tipo == 'DEPOSITO':
-            tot_ent = round(tot_ent + mov.monto, 2)
-            por_suc[suc_real]['entradas'] = round(por_suc[suc_real]['entradas'] + mov.monto, 2)
-        else:
-            tot_sal = round(tot_sal + mov.monto, 2)
-            por_suc[suc_real]['salidas'] = round(por_suc[suc_real]['salidas'] + mov.monto, 2)
-        items.append({
-            'id': mov.id,
-            'fecha': mov.fecha.strftime('%d/%m/%Y %H:%M') if mov.fecha else '',
-            'sucursal': suc_real,
-            'turno_id': mov.turno_id,
-            'tipo': mov.tipo,
-            'concepto': mov.concepto,
-            'monto': round(float(mov.monto or 0.0), 2),
-            'usuario': mov.usuario
-        })
-
-    return jsonify({
-        'ok': True,
-        'total_entradas': tot_ent,
-        'total_salidas': tot_sal,
-        'saldo_neto': round(tot_ent - tot_sal, 2),
-        'por_sucursal': por_suc,
-        'movimientos': items
-    })
-
-
-@operacion_bp.route('/api/exportar/flujo_dinero')
-@login_required
-def exportar_flujo_dinero():
-    if current_user.role != 'admin':
-        return "Acceso denegado", 403
-    suc_filtro = request.args.get('sucursal', 'TODAS')
-    q = db.session.query(MovimientoCajaPOS, TurnoPOS.sucursal).join(
-        TurnoPOS, MovimientoCajaPOS.turno_id == TurnoPOS.id
-    )
-    if suc_filtro and suc_filtro != 'TODAS':
-        q = q.filter(TurnoPOS.sucursal == suc_filtro)
-    filas = [(
-        m.id, m.fecha.strftime('%Y-%m-%d %H:%M') if m.fecha else '',
-        suc_nom or 'Quiosco Morisco (Matriz)', f'#{m.turno_id}',
-        'ENTRADA' if m.tipo == 'DEPOSITO' else 'SALIDA',
-        m.concepto, m.monto, m.usuario
-    ) for m, suc_nom in q.order_by(MovimientoCajaPOS.id.desc()).all()]
-    return _csv_excel(
-        ('ID', 'Fecha', 'Sucursal', 'Turno', 'Tipo', 'Concepto', 'Monto', 'Usuario'),
-        filas, f"Flujo_Dinero_Sucursales_{ahora_local().strftime('%Y%m%d')}.csv"
-    )
-
-
-# ==============================================================================
-# 8. CHECADOR AUTOMATICO POR PIN, CREDITOS PENDIENTES Y REPORTES POR FECHAS
-# ==============================================================================
-@operacion_bp.route('/api/checador/pin', methods=['POST'])
-@login_required
-def api_checador_pin():
-    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
-        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
-    data = request.json or {}
-    pin = str(data.get('pin', '')).strip()
-    if not pin:
-        return jsonify({'ok': False, 'msg': 'Ingresa tu PIN de colaborador.'}), 400
-    emp = EmpleadoNominaPOS.query.filter_by(pin_checador=pin, activo=True).first()
-    if not emp:
-        return jsonify({'ok': False, 'msg': 'PIN no encontrado. Pide a Administración asignarte uno.'}), 404
-
-    suc = obtener_sucursal_activa(session)
-    ult = RegistroAsistencia.query.filter(
-        RegistroAsistencia.fecha >= inicio_hoy_local(),
-        db.func.upper(RegistroAsistencia.empleado_nombre) == emp.nombre.upper()
-    ).order_by(RegistroAsistencia.id.desc()).first()
-
-    tipo_auto = 'SALIDA' if (ult and ult.tipo == 'ENTRADA') else 'ENTRADA'
-    ahora = ahora_local()
-    db.session.add(RegistroAsistencia(
-        fecha=ahora, sucursal=suc, empleado_nombre=emp.nombre,
-        tipo=tipo_auto, notas='CHECADOR AUTOMATICO PIN'
-    ))
-    db.session.commit()
-    return jsonify({
-        'ok': True, 'empleado': emp.nombre, 'tipo': tipo_auto,
-        'hora': ahora.strftime('%H:%M:%S'), 'sucursal': suc
-    })
-
-
-@operacion_bp.route('/api/creditos/datos', methods=['GET'])
-@login_required
-def api_creditos_datos():
-    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
-        return jsonify({'ok': False}), 403
-    suc = obtener_sucursal_activa(session)
-    q_cli = ClienteCreditoPOS.query.filter_by(activo=True)
-    q_mov = MovimientoCreditoPOS.query
-    if current_user.role != 'admin':
-        q_cli = q_cli.filter_by(sucursal=suc)
-        q_mov = q_mov.filter_by(sucursal=suc)
-    clientes = q_cli.order_by(ClienteCreditoPOS.saldo_pendiente.desc(), ClienteCreditoPOS.nombre.asc()).all()
-    movs = q_mov.order_by(MovimientoCreditoPOS.id.desc()).limit(120).all()
-    return jsonify({
-        'ok': True,
-        'sucursal': suc,
-        'total_por_cobrar': round(sum(float(c.saldo_pendiente or 0.0) for c in clientes), 2),
-        'clientes': [{
-            'id': c.id, 'nombre': c.nombre, 'telefono': c.telefono or '',
-            'sucursal': c.sucursal or 'Quiosco Morisco (Matriz)',
-            'limite_credito': round(float(c.limite_credito or 0.0), 2),
-            'saldo_pendiente': round(float(c.saldo_pendiente or 0.0), 2)
-        } for c in clientes],
-        'movimientos': [{
-            'id': m.id, 'fecha': m.fecha.strftime('%d/%m/%Y %H:%M') if m.fecha else '',
-            'sucursal': m.sucursal or '', 'cliente_id': m.cliente_credito_id,
-            'cliente_nombre': m.cliente_nombre, 'tipo': m.tipo,
-            'monto': round(float(m.monto or 0.0), 2),
-            'concepto': m.concepto or '', 'usuario': m.usuario or ''
-        } for m in movs]
-    })
-
-
-@operacion_bp.route('/api/creditos/cliente', methods=['POST', 'DELETE'])
-@login_required
-def api_creditos_cliente():
-    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
-        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
-    data = request.json or {}
-    if request.method == 'DELETE':
-        if current_user.role != 'admin':
-            return jsonify({'ok': False, 'msg': 'Solo Admin puede dar de baja clientes de crédito.'}), 403
-        cli = ClienteCreditoPOS.query.get_or_404(int(data['id']))
-        if (cli.saldo_pendiente or 0) > 0.01:
-            return jsonify({'ok': False, 'msg': 'No se puede dar de baja un cliente con saldo pendiente.'}), 400
-        cli.activo = False
-        db.session.commit()
-        return jsonify({'ok': True})
-
-    nom = str(data.get('nombre', '')).strip().upper()
-    if not nom:
-        return jsonify({'ok': False, 'msg': 'Escribe el nombre del cliente.'}), 400
-    suc = obtener_sucursal_activa(session) if current_user.role != 'admin' else str(data.get('sucursal') or obtener_sucursal_activa(session)).strip()
-    if suc not in SUCURSALES_OFICIALES:
-        suc = 'Quiosco Morisco (Matriz)'
-    limite = _num(data.get('limite_credito', 0), minimo=0.0, maximo=1_000_000.0)
-    tel = str(data.get('telefono', '')).strip()[:30]
-    cli = ClienteCreditoPOS(nombre=nom, telefono=tel, sucursal=suc, limite_credito=limite, saldo_pendiente=0.0, activo=True, fecha_alta=ahora_local())
-    db.session.add(cli)
-    db.session.commit()
-    return jsonify({'ok': True, 'id': cli.id})
-
-
-@operacion_bp.route('/api/creditos/movimiento', methods=['POST'])
-@login_required
-def api_creditos_movimiento():
-    if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
-        return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
-    data = request.json or {}
-    cli = ClienteCreditoPOS.query.filter_by(id=int(data['cliente_id']), activo=True).with_for_update().first_or_404()
-    suc = obtener_sucursal_activa(session)
-    if current_user.role != 'admin' and (cli.sucursal or '') != suc:
-        return jsonify({'ok': False, 'msg': 'Este cliente pertenece a otra sucursal.'}), 403
-
-    tipo = str(data.get('tipo', 'ABONO')).strip().upper()
-    if tipo not in ('ABONO', 'CARGO'):
-        return jsonify({'ok': False, 'msg': 'Tipo inválido.'}), 400
-    monto = _num(data.get('monto', 0), minimo=0.01, maximo=1_000_000.0)
-    concepto = str(data.get('concepto', '')).strip().upper() or ('ABONO A CUENTA' if tipo == 'ABONO' else 'CARGO MANUAL')
-
-    if tipo == 'ABONO':
-        if monto > round((cli.saldo_pendiente or 0.0) + 0.01, 2):
-            return jsonify({'ok': False, 'msg': f'El abono (${monto:.2f}) supera el saldo pendiente (${cli.saldo_pendiente:.2f}).'}), 400
-        cli.saldo_pendiente = round(max(0.0, (cli.saldo_pendiente or 0.0) - monto), 2)
-        if bool(data.get('ingresar_a_caja', True)):
-            turno = obtener_turno_activo(cli.sucursal or suc)
-            db.session.add(MovimientoCajaPOS(
-                turno_id=turno.id, tipo='DEPOSITO', monto=monto,
-                concepto=f'ABONO CREDITO {cli.nombre}: {concepto}'[:200],
-                usuario=current_user.username.upper(), fecha=ahora_local()
-            ))
-            turno.depositos_efectivo = round((turno.depositos_efectivo or 0.0) + monto, 2)
-    else:
-        if (cli.limite_credito or 0) > 0 and round((cli.saldo_pendiente or 0.0) + monto, 2) > cli.limite_credito:
-            return jsonify({'ok': False, 'msg': f'Supera el límite de crédito (${cli.limite_credito:.2f}).'}), 400
-        cli.saldo_pendiente = round((cli.saldo_pendiente or 0.0) + monto, 2)
-
-    mov = MovimientoCreditoPOS(
-        fecha=ahora_local(), sucursal=cli.sucursal or suc,
-        cliente_credito_id=cli.id, cliente_nombre=cli.nombre,
-        tipo=tipo, monto=monto, concepto=concepto, usuario=current_user.username.upper()
-    )
-    db.session.add(mov)
-    db.session.commit()
-    registrar_bitacora(f'CREDITO_{tipo}', cli.nombre, monto, f'{concepto} | Saldo: ${cli.saldo_pendiente:.2f}', sucursal=cli.sucursal or suc)
-    return jsonify({
-        'ok': True, 'saldo_pendiente': cli.saldo_pendiente,
-        'recibo': {
-            'id': mov.id, 'fecha': mov.fecha.strftime('%d/%m/%Y %H:%M'),
-            'cliente': cli.nombre, 'tipo': tipo, 'monto': monto,
-            'concepto': concepto, 'saldo_restante': cli.saldo_pendiente,
-            'usuario': mov.usuario
-        }
-    })
-
-
-def _calcular_reporte_ventas_detalle(suc_filtro, desde_str, hasta_str):
-    try:
-        dt_desde = datetime.strptime(desde_str, '%Y-%m-%d') if desde_str else inicio_hoy_local()
-    except ValueError:
-        dt_desde = inicio_hoy_local()
-    try:
-        dt_hasta = (datetime.strptime(hasta_str, '%Y-%m-%d') + timedelta(days=1)) if hasta_str else (inicio_hoy_local() + timedelta(days=1))
-    except ValueError:
-        dt_hasta = inicio_hoy_local() + timedelta(days=1)
-
-    q_ctas = CuentaPOS.query.filter(
-        CuentaPOS.cierre >= dt_desde,
-        CuentaPOS.cierre < dt_hasta,
-        CuentaPOS.estado == 'PAGADA'
-    )
-    if suc_filtro and suc_filtro != 'TODAS':
-        q_ctas = q_ctas.filter_by(sucursal=suc_filtro)
-    cuentas = q_ctas.all()
-
-    venta_total = round(sum(float(c.total or 0.0) for c in cuentas), 2)
-    n_ctas = len(cuentas)
-    ef = round(sum(max(0.0, (c.pago_efectivo or 0.0) - (c.cambio or 0.0)) for c in cuentas), 2)
-    tarj = round(sum((c.pago_tarjeta_debito or 0.0) + (c.pago_tarjeta_credito or 0.0) for c in cuentas), 2)
-    trans = round(sum(c.pago_transferencia or 0.0 for c in cuentas), 2)
-    vales = round(sum(c.pago_otros or 0.0 for c in cuentas), 2)
-    cred = round(sum(c.pago_credito or 0.0 for c in cuentas), 2)
-    prop = round(sum(c.propina_tarjeta or 0.0 for c in cuentas), 2)
-
-    por_mesero = {}
-    for c in cuentas:
-        m = (c.mesero or 'SIN MESERO').upper()
-        por_mesero.setdefault(m, {'mesero': m, 'cuentas': 0, 'venta': 0.0, 'propina': 0.0})
-        por_mesero[m]['cuentas'] += 1
-        por_mesero[m]['venta'] = round(por_mesero[m]['venta'] + float(c.total or 0.0), 2)
-        por_mesero[m]['propina'] = round(por_mesero[m]['propina'] + float(c.propina_tarjeta or 0.0), 2)
-
-    # Detalles de platillos (usando cuentas pagadas reales y padres de subcuentas pagadas)
-    ids_ctas_reales = set()
-    for c in cuentas:
-        if c.es_subcuenta_parte and c.parent_cuenta_id:
-            ids_ctas_reales.add(c.parent_cuenta_id)
-        else:
-            ids_ctas_reales.add(c.id)
-
-    mapa_cat = {p.nombre.strip().upper(): p.categoria for p in Producto.query.all()}
-    por_prod, por_cat = {}, {}
-    if ids_ctas_reales:
-        dets = DetallePOS.query.filter(
-            DetallePOS.cuenta_id.in_(list(ids_ctas_reales)),
-            DetallePOS.es_modificador == False,
-            DetallePOS.clave != 'DIV'
-        ).all()
-        for d in dets:
-            nom = (d.descripcion or '').lstrip('>').strip().upper()
-            cat = mapa_cat.get(nom, d.area_impresion or 'OTROS')
-            por_prod.setdefault(nom, {'producto': nom, 'categoria': cat, 'cantidad': 0.0, 'importe': 0.0})
-            por_prod[nom]['cantidad'] = round(por_prod[nom]['cantidad'] + float(d.cantidad or 0.0), 2)
-            por_prod[nom]['importe'] = round(por_prod[nom]['importe'] + float(d.importe or 0.0), 2)
-
-            por_cat.setdefault(cat, {'categoria': cat, 'cantidad': 0.0, 'importe': 0.0})
-            por_cat[cat]['cantidad'] = round(por_cat[cat]['cantidad'] + float(d.cantidad or 0.0), 2)
-            por_cat[cat]['importe'] = round(por_cat[cat]['importe'] + float(d.importe or 0.0), 2)
-
-    prods_ord = sorted(por_prod.values(), key=lambda x: x['importe'], reverse=True)
-    cats_ord = sorted(por_cat.values(), key=lambda x: x['importe'], reverse=True)
-    meseros_ord = sorted(por_mesero.values(), key=lambda x: x['venta'], reverse=True)
-
-    return {
-        'ok': True,
-        'venta_total': venta_total,
-        'cuentas': n_ctas,
-        'ticket_promedio': round(venta_total / n_ctas, 2) if n_ctas else 0.0,
-        'formas_pago': {'efectivo': ef, 'tarjeta': tarj, 'transferencia': trans, 'vales': vales, 'credito': cred, 'propina_tarjeta': prop},
-        'por_categoria': cats_ord,
-        'por_producto': prods_ord[:80],
-        'por_mesero': meseros_ord
-    }
-
-
-@operacion_bp.route('/api/industrial/reporte_ventas_detalle', methods=['GET'])
-@login_required
-def api_industrial_reporte_ventas_detalle():
-    if current_user.role != 'admin':
-        return jsonify({'ok': False}), 403
-    return jsonify(_calcular_reporte_ventas_detalle(
-        request.args.get('sucursal', 'TODAS'),
-        (request.args.get('desde') or '').strip(),
-        (request.args.get('hasta') or '').strip()
-    ))
-
-
-@operacion_bp.route('/api/exportar/ventas_detalle', methods=['GET'])
-@login_required
-def exportar_ventas_detalle():
-    if current_user.role != 'admin':
-        return "Acceso denegado", 403
-    suc = request.args.get('sucursal', 'TODAS')
-    desde = (request.args.get('desde') or '').strip()
-    hasta = (request.args.get('hasta') or '').strip()
-    rep = _calcular_reporte_ventas_detalle(suc, desde, hasta)
-    filas = [(p['categoria'], p['producto'], p['cantidad'], p['importe']) for p in rep['por_producto']]
-    return _csv_excel(
-        ('Categoria', 'Producto', 'Cantidad_Vendida', 'Importe_Total'),
-        filas, f"Ventas_Productos_{ahora_local().strftime('%Y%m%d')}.csv"
     )
