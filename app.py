@@ -21,7 +21,7 @@ import secrets
 from models import (
     db, login_manager, inicializar_sistema, ahora_local, inicio_hoy_local,
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
-    cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial,
+    cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial, quitar_caracteres_html,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -148,13 +148,10 @@ def _precio_form():
         abort(400, 'Precio inválido.')
 
 
-_CARACTERES_HTML = str.maketrans('', '', '<>"\'`')
-
-
 def _texto_publico(valor, max_len):
     """Texto escrito por el público (pre-órdenes, evaluaciones, fidelidad): quita los caracteres con los que
     se arma HTML/JS. Así, aunque alguna pantalla interna olvide escapar, no se puede inyectar código."""
-    return str(valor or '').translate(_CARACTERES_HTML).strip()[:max_len]
+    return quitar_caracteres_html(valor).strip()[:max_len]
 
 
 _TIPOS_IMAGEN_OK ={'image/jpeg', 'image/png', 'image/webp', 'image/gif'}

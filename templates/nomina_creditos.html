@@ -590,7 +590,14 @@
       })
     });
     const d = await res.json();
-    if (d.ok) { $('emp_nombre').value = ''; $('emp_puesto').value = ''; toast('✓ Empleado dado de alta'); cargarFinanzas(); }
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    $('emp_nombre').value = '';
+    $('emp_puesto').value = '';
+    if ($('emp_desc')) $('emp_desc').value = '0';
+    if ($('emp_dias_base')) $('emp_dias_base').value = '6';
+    if ($('emp_pin')) $('emp_pin').value = '';
+    toast('✓ Empleado dado de alta');
+    cargarFinanzas();
   }
 
   async function editarDescEmpleado(id, nom, actual) {

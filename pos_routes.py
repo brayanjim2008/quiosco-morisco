@@ -12,7 +12,7 @@ from models import (
     obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
     generar_pin_unico, detectar_area_impresion, obtener_turno_activo,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
-    numero_a_letras_mxn,
+    numero_a_letras_mxn, quitar_caracteres_html,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
     ConfigPermisosPOS, TurnoPOS, MovimientoCajaPOS, CuentaPOS, DetallePOS,
     ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
@@ -1955,6 +1955,11 @@ def api_confirmar_preorden_1clic(preorden_id):
         cuenta.observaciones = f"{cuenta.observaciones or ''} | {orden.notas}".strip(' |')
 
     por_area = {'BARRA': [], 'COCINA': []}
+    # El texto de la pre-orden llega sin < > " ' ` (app._texto_publico); el catálogo se compara con la misma
+    # limpieza para que un platillo con apóstrofo o comillas siga encontrándose (precio y área reales).
+    catalogo_norm = {}
+    for p_cat in Producto.query.all():
+        catalogo_norm.setdefault(quitar_caracteres_html(p_cat.nombre).strip().lower(), p_cat)
     for linea in orden.detalle_items.split('\n'):
         linea = linea.strip()
         if not linea:
@@ -1966,7 +1971,7 @@ def api_confirmar_preorden_1clic(preorden_id):
         else:
             cant, nom_prod, precio_u, importe_tot = 1.0, linea.replace('•', '').strip(), 0.0, 0.0
 
-        prod_bd = Producto.query.filter(db.func.lower(Producto.nombre) == nom_prod.lower()).first()
+        prod_bd = catalogo_norm.get(quitar_caracteres_html(nom_prod).strip().lower())
         if cant <= 0 or cant > 99:
             continue
         if prod_bd:
@@ -1977,7 +1982,8 @@ def api_confirmar_preorden_1clic(preorden_id):
         det = DetallePOS(
             cuenta_id=cuenta.id, num_comanda=1, cantidad=cant,
             clave=f"0{prod_bd.id}" if prod_bd else "PRE",
-            descripcion=nom_prod.upper(), area_impresion=area_imp,
+            # Con el nombre oficial del catálogo (no el del cliente) para que coincidan recetas y reportes.
+            descripcion=(prod_bd.nombre if prod_bd else nom_prod).upper()[:150], area_impresion=area_imp,
             es_modificador=False, precio_unitario=precio_u, importe=importe_tot, impreso_comanda=True
         )
         db.session.add(det)

@@ -107,6 +107,15 @@ DATOS_TICKET_SUCURSAL = {
 }
 
 
+_CARACTERES_HTML = str.maketrans('', '', '<>"\'`')
+
+
+def quitar_caracteres_html(valor):
+    """Quita < > " ' ` (con ellos se arma HTML/JS). Se usa para el texto que escribe el público y para
+    comparar ese texto contra el catálogo con la misma limpieza."""
+    return str(valor or '').translate(_CARACTERES_HTML)
+
+
 def obtener_datos_ticket(sucursal):
     return DATOS_TICKET_SUCURSAL.get(sucursal, DATOS_TICKET_SUCURSAL['Quiosco Morisco (Matriz)'])
 
