@@ -448,6 +448,7 @@
         {% endfor %}
       </select>
       {% endif %}
+      <button type="button" id="btnEstacionImpresion" class="pos-top-btn" onclick="toggleEstacionImpresion()" title="Activa solo en la PC conectada a la impresora térmica"><i class="fa-solid fa-print"></i> Imp: ON</button>
       <button type="button" class="pos-top-btn" onclick="sincronizarCuentasEnVivoCaja()"><i class="fa-solid fa-rotate"></i></button>
       <button type="button" class="pos-top-btn" onclick="activarPantallaCompleta()"><i class="fa-solid fa-expand"></i></button>
       {% if current_user.role == 'admin' %}<a href="/industrial" class="pos-top-btn"><i class="fa-solid fa-chart-line"></i> Panel</a>{% endif %}
@@ -558,7 +559,8 @@
               <button type="button" class="pm-btn" onclick="selMetodoPago('TARJD', this)">💳 T. DÉBITO</button>
               <button type="button" class="pm-btn" onclick="selMetodoPago('TARJC', this)">💳 T. CRÉDITO</button>
               <button type="button" class="pm-btn" onclick="selMetodoPago('TRANS', this)">🏦 TRANSF.</button>
-              <button type="button" class="pm-btn" onclick="selMetodoPago('VALE', this)">🎟️ VALE EMP.</button>
+              <button type="button" class="pm-btn" onclick="selMetodoPago('VALE', this)">VALE EMP.</button>
+              <button type="button" class="pm-btn" onclick="selMetodoPago('CRED', this)">CREDITO CLI.</button>
               <button type="button" class="pm-btn" style="background:#fef3c7;" onclick="calcPropinaTerminal(10)">+10% Prop</button>
             </div>
 
@@ -578,6 +580,7 @@
                 <tr><td>Tarj. Crédito</td><td id="cel_tc" style="text-align:right;">$0.00</td><td style="text-align:right;">-</td><td id="tot_tc" style="text-align:right;">$0.00</td></tr>
                 <tr><td>Transferencia</td><td id="cel_tr" style="text-align:right;">$0.00</td><td style="text-align:right;">-</td><td id="tot_tr" style="text-align:right;">$0.00</td></tr>
                 <tr><td>Vale Empleado</td><td id="cel_va" style="text-align:right;">$0.00</td><td style="text-align:right;">-</td><td id="tot_va" style="text-align:right;">$0.00</td></tr>
+                <tr><td>Cr&eacute;dito Cliente</td><td id="cel_cr" style="text-align:right;">$0.00</td><td style="text-align:right;">-</td><td id="tot_cr" style="text-align:right;">$0.00</td></tr>
               </tbody>
             </table>
 
@@ -588,6 +591,14 @@
                 {% if empleados %}
                   {% for emp in empleados %}
                   <option value="{{ emp.id }}">{{ emp.nombre }}</option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+              <select id="selClienteCreditoPago" class="m-inp" style="grid-column:span 2;">
+                <option value="">-- Cliente (si se carga a Cr&eacute;dito / Fiado) --</option>
+                {% if clientes_credito %}
+                  {% for cc in clientes_credito %}
+                  <option value="{{ cc.id }}">{{ cc.nombre }} (Saldo: ${{ "%.2f"|format(cc.saldo_pendiente or 0) }})</option>
                   {% endfor %}
                 {% endif %}
               </select>
@@ -614,7 +625,7 @@
             <button type="button" class="btn-p cobre" style="margin-top:8px;height:42px;font-size:13px;" onclick="enterMontoPago()">
               <i class="fa-solid fa-check"></i> APLICAR MONTO AL MÉTODO
             </button>
-            <button type="button" class="btn-p" style="margin-top:8px;height:48px;font-size:14px;background:#16a34a;border-color:#15803d;" onclick="procesarPagoDefinitivo()">
+            <button type="button" id="btnCobrarDefinitivo" class="btn-p" style="margin-top:8px;height:48px;font-size:14px;background:#16a34a;border-color:#15803d;" onclick="procesarPagoDefinitivo()">
               <i class="fa-solid fa-print"></i> COBRAR E IMPRIMIR (F2)
             </button>
           </div>
@@ -899,6 +910,7 @@
     <div class="modal-body">
       <div id="listaCancelarProds" style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:6px;margin-bottom:10px;"></div>
       <div style="display:flex;flex-direction:column;gap:8px;">
+        <select id="selMotivoCancProds" class="m-inp" onchange="if(this.value) document.getElementById('cancMotivoGral').value=this.value;"><option value="">-- Elegir motivo predefinido (opcional) --</option></select>
         <input type="text" id="cancMotivoGral" class="m-inp" placeholder="Motivo de cancelación (obligatorio)...">
         <input type="password" id="cancClaveAdmin" class="m-inp" placeholder="🔒 Clave de autorización (si aplica)...">
       </div>
@@ -921,6 +933,7 @@
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:13px;font-weight:800;color:#991b1b;">Se cancelará completamente: <span id="lblMesaCancCuenta">-</span></div>
+      <select id="selMotivoCancCta" class="m-inp" onchange="if(this.value) document.getElementById('cancCtaMotivo').value=this.value;"><option value="">-- Elegir motivo predefinido (opcional) --</option></select>
       <input type="text" id="cancCtaMotivo" class="m-inp" placeholder="Motivo de eliminación...">
       <input type="password" id="cancCtaClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente...">
     </div>
@@ -945,7 +958,15 @@
         <button type="button" id="tabDescBtn_gral" class="tab-btn-m activo" onclick="cambiarTabDesc('gral')">Descuento General (%)</button>
         <button type="button" id="tabDescBtn_prod" class="tab-btn-m" onclick="cambiarTabDesc('prod')">Por Producto (%)</button>
       </div>
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px;margin-bottom:10px;">
+        <div style="font-size:11.5px;font-weight:800;color:#166534;margin-bottom:5px;">Descuento Autom&aacute;tico por Persona:</div>
+        <div style="display:flex;gap:6px;">
+          <select id="selPersonaDescPOS" class="m-inp" style="flex:1;"><option value="">-- Seleccionar persona --</option></select>
+          <button type="button" class="btn-p sm" style="background:#16a34a;border-color:#15803d;" onclick="aplicarDescuentoPersonaPOS()">Aplicar Auto</button>
+        </div>
+      </div>
       <div id="tabDesc_gral" style="margin-bottom:10px;">
+        <select id="selTipoDescCaja" class="m-inp" style="margin-bottom:6px;" onchange="aplicarTipoDescPreset(this)"><option value="">-- Elegir tipo de descuento predefinido --</option></select>
         <label style="font-size:12px;font-weight:800;color:#64748b;">Porcentaje sobre toda la cuenta (0 - 100%):</label>
         <input type="number" id="descPctInput" class="m-inp" min="0" max="100" value="10" style="margin-top:4px;">
       </div>
@@ -1521,7 +1542,7 @@
   let modoModalPersonas = 'NUEVA';
   let metodoActual = 'EF';
   let bufferNum = '';
-  let desglosePago = { EF: 0, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, PROP: 0 };
+  let desglosePago = { EF: 0, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, CRED: 0, PROP: 0 };
   let cuentaCambiarPagoId = null;
   let tabDescActual = 'gral';
 
@@ -1589,9 +1610,16 @@
     const comp = document.getElementById('modalCompuesto').style.display === 'flex';
     const pag = document.getElementById('panelCentroPagar').style.display === 'flex';
     if (e.key === 'Escape') {
-      if (comp) cancelarCompuesto();
-      else if (cap) cerrarModal('modalCaptura');
-      else volverAComandaCentro();
+      if (comp) return cancelarCompuesto();
+      if (cap) return cerrarModal('modalCaptura');
+      const extras = ['modalStockMermas', 'modalReportesRespaldo'];
+      for (const mid of extras) {
+        const mEl = document.getElementById(mid);
+        if (mEl && mEl.style.display === 'flex') return cerrarModal(mid);
+      }
+      const abierto = Array.from(document.querySelectorAll('.modal-bg')).find(el => el.style.display === 'flex');
+      if (abierto) return cerrarModal(abierto.id);
+      volverAComandaCentro();
     } else if (e.key === 'F2') {
       e.preventDefault();
       if (comp) finalizarCompuestoYGuardar();
@@ -2475,8 +2503,68 @@
   // =========================================================================
   // 4. CANCELAR PRODUCTOS, ELIMINAR CUENTA, DESCUENTOS Y OPERACIONES DE MESA
   // =========================================================================
+  let cacheMotivosPOS = [];
+  let cacheTiposDescPOS = [];
+
+  async function cargarSelectsReglasPOS() {
+    try {
+      const [rM, rD, rP] = await Promise.all([
+        fetch('/api/pos/motivos_cancelacion'),
+        fetch('/api/pos/tipos_descuento'),
+        fetch('/api/pos/personas_descuento')
+      ]);
+      const dM = await rM.json();
+      const dD = await rD.json();
+      const dP = await rP.json();
+      const sPer = document.getElementById('selPersonaDescPOS');
+      if (sPer && dP.ok) {
+        sPer.innerHTML = '<option value="">-- Seleccionar persona --</option>' +
+          (dP.personas || []).map(p => `<option value="${p.id}">${p.nombre} (${p.puesto}) - ${Number(p.descuento_pct || 0).toFixed(0)}%</option>`).join('');
+      }
+      if (dM.ok) cacheMotivosPOS = dM.motivos || [];
+      if (dD.ok) cacheTiposDescPOS = dD.tipos_descuento || [];
+      const optsM = '<option value="">-- Elegir motivo predefinido (opcional) --</option>' +
+        cacheMotivosPOS.map(m => `<option value="${m.descripcion}">${m.clave} - ${m.descripcion}</option>`).join('');
+      const s1 = document.getElementById('selMotivoCancProds');
+      const s2 = document.getElementById('selMotivoCancCta');
+      if (s1) s1.innerHTML = optsM;
+      if (s2) s2.innerHTML = optsM;
+      const sD = document.getElementById('selTipoDescCaja');
+      if (sD) {
+        sD.innerHTML = '<option value="">-- Elegir tipo de descuento predefinido --</option>' +
+          cacheTiposDescPOS.map(x => `<option value="${x.id}">${x.clave} - ${x.descripcion} (${Number(x.porcentaje || 0).toFixed(0)}%)</option>`).join('');
+      }
+    } catch (_) {}
+  }
+
+  function aplicarTipoDescPreset(sel) {
+    const id = Number(sel.value || 0);
+    const td = cacheTiposDescPOS.find(x => Number(x.id) === id);
+    if (!td) return;
+    const inpPct = document.getElementById('descPctInput');
+    const inpCom = document.getElementById('descComentario');
+    if (inpPct) inpPct.value = Number(td.porcentaje || 0);
+    if (inpCom) inpCom.value = td.descripcion || '';
+  }
+
+  async function aplicarDescuentoPersonaPOS() {
+    if (!cuentaActivaId) return;
+    const persona_id = Number(document.getElementById('selPersonaDescPOS')?.value || 0);
+    if (!persona_id) return alert('Selecciona una persona de la lista.');
+    const res = await fetch('/api/pos/descuento_persona', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cuenta_id: cuentaActivaId, persona_id })
+    });
+    const d = await res.json();
+    if (!res.ok || !d.ok) return alert(d.msg || 'No se pudo aplicar el descuento.');
+    cerrarModal('modalDescuentoAuth');
+    notificarBarra(`Descuento ${d.porcentaje}% aplicado (${d.persona})`);
+    seleccionarCuenta(cuentaActivaId);
+  }
+
   function abrirModalCancelarProds() {
     if (!datosCuentaActiva?.items.length) return notificarBarra('La cuenta no tiene productos.');
+    cargarSelectsReglasPOS();
     document.getElementById('cancMotivoGral').value = '';
     document.getElementById('cancClaveAdmin').value = '';
     document.getElementById('listaCancelarProds').innerHTML = datosCuentaActiva.items.map(it => `
@@ -2512,6 +2600,7 @@
 
   function abrirModalCancelarCuenta() {
     if (!datosCuentaActiva) return;
+    cargarSelectsReglasPOS();
     document.getElementById('lblMesaCancCuenta').innerText = `${datosCuentaActiva.mesa} ($${datosCuentaActiva.total})`;
     document.getElementById('cancCtaMotivo').value = '';
     document.getElementById('cancCtaClave').value = '';
@@ -2537,6 +2626,7 @@
 
   function abrirModalDescuento() {
     if (!datosCuentaActiva) return;
+    cargarSelectsReglasPOS();
     document.getElementById('descComentario').value = '';
     document.getElementById('descClaveAdmin').value = '';
     document.getElementById('listaProdsDesc').innerHTML = datosCuentaActiva.items.filter(i => !i.es_modificador).map(it => `
@@ -2683,10 +2773,11 @@
   // =========================================================================
   function mostrarPagarIntegrado() {
     if (!datosCuentaActiva) return;
-    desglosePago = { EF: datosCuentaActiva.total_num, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, PROP: 0 };
+    desglosePago = { EF: datosCuentaActiva.total_num, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, CRED: 0, PROP: 0 };
     bufferNum = '';
     document.getElementById('inpUlt4Tarjeta').value = '';
     document.getElementById('selEmpValePago').value = '';
+    if (document.getElementById('selClienteCreditoPago')) document.getElementById('selClienteCreditoPago').value = '';
     document.getElementById('p_total_mn').innerText = `$${datosCuentaActiva.total}`;
     document.getElementById('p_visor').innerText = '$0.00';
     document.getElementById('lblCobrarTerminal').innerText = '';
@@ -2714,7 +2805,7 @@
     const con = datosCuentaActiva.total_num;
     const prop = Math.round(con * (pct / 100) * 100) / 100;
     document.getElementById('lblCobrarTerminal').innerText = `Terminal: $${(con + prop).toFixed(2)}`;
-    desglosePago = { EF: 0, TARJD: con, TARJC: 0, TRANS: 0, VALE: 0, PROP: prop };
+    desglosePago = { EF: 0, TARJD: con, TARJC: 0, TRANS: 0, VALE: 0, CRED: 0, PROP: prop };
     refrescarTablaPago();
   }
 
@@ -2746,41 +2837,65 @@
     document.getElementById('tot_tr').innerText = `$${desglosePago.TRANS.toFixed(2)}`;
     document.getElementById('cel_va').innerText = `$${desglosePago.VALE.toFixed(2)}`;
     document.getElementById('tot_va').innerText = `$${desglosePago.VALE.toFixed(2)}`;
+    if (document.getElementById('cel_cr')) document.getElementById('cel_cr').innerText = `$${(desglosePago.CRED || 0).toFixed(2)}`;
+    if (document.getElementById('tot_cr')) document.getElementById('tot_cr').innerText = `$${(desglosePago.CRED || 0).toFixed(2)}`;
     document.getElementById('t_propina').innerText = `$${desglosePago.PROP.toFixed(2)}`;
 
-    const cub = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC + desglosePago.TRANS + desglosePago.VALE;
+    const cub = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC + desglosePago.TRANS + desglosePago.VALE + (desglosePago.CRED || 0);
     document.getElementById('p_saldo').innerText = `$${Math.max(0, datosCuentaActiva.total_num - cub).toFixed(2)}`;
     document.getElementById('p_cambio').innerText = `$${Math.max(0, cub - datosCuentaActiva.total_num).toFixed(2)}`;
   }
 
+  let pagoEnProceso = false;
+
   async function procesarPagoDefinitivo() {
-    const cub = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC + desglosePago.TRANS + desglosePago.VALE;
+    if (pagoEnProceso || !datosCuentaActiva || !cuentaActivaId) return;
+    const cub = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC + desglosePago.TRANS + desglosePago.VALE + (desglosePago.CRED || 0);
     if (cub + 0.01 < datosCuentaActiva.total_num) return alert('El monto capturado no cubre el total de la cuenta.');
     const empId = document.getElementById('selEmpValePago').value;
     if (desglosePago.VALE > 0 && !empId) return alert('Selecciona el empleado al que se le cargará el Vale.');
+    const cliCredId = document.getElementById('selClienteCreditoPago')?.value || '';
+    if ((desglosePago.CRED || 0) > 0 && !cliCredId) return alert('Selecciona el cliente al que se cargará el Crédito.');
 
-    const ult4 = document.getElementById('inpUlt4Tarjeta').value.trim();
-    const resPin = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
-    const pinData = await resPin.json();
+    pagoEnProceso = true;
+    const btnCobrar = document.getElementById('btnCobrarDefinitivo');
+    if (btnCobrar) btnCobrar.disabled = true;
 
-    const res = await fetch('/api/pos/pagar_cuenta', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cuenta_id: cuentaActivaId,
-        efectivo: desglosePago.EF, tarjeta_debito: desglosePago.TARJD,
-        tarjeta_credito: desglosePago.TARJC, transferencia: desglosePago.TRANS,
-        vale_empleado: desglosePago.VALE, propina: desglosePago.PROP,
-        tarjeta_ultimos4: ult4, empleado_id: empId || null
-      })
-    });
-    const d = await res.json();
-    if (!d.ok) return alert('❌ ' + (d.msg || 'No se pudo procesar el pago.'));
+    try {
+      const idCobrado = cuentaActivaId;
+      const snapshotCuenta = datosCuentaActiva;
+      const ult4 = document.getElementById('inpUlt4Tarjeta').value.trim();
 
-    const htmlNota = construirHTMLNotaFinal(datosCuentaActiva, d.folio, desglosePago, d.cambio, ult4, pinData);
-    volverAComandaCentro();
-    mandarImprimirConQR(htmlNota);
-    cuentaActivaId = null;
-    sincronizarCuentasEnVivoCaja();
+      const res = await fetch('/api/pos/pagar_cuenta', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cuenta_id: idCobrado,
+          efectivo: desglosePago.EF, tarjeta_debito: desglosePago.TARJD,
+          tarjeta_credito: desglosePago.TARJC, transferencia: desglosePago.TRANS,
+          vale_empleado: desglosePago.VALE, credito_cliente: desglosePago.CRED || 0, propina: desglosePago.PROP,
+          tarjeta_ultimos4: ult4, empleado_id: empId || null, cliente_credito_id: cliCredId || null
+        })
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) return alert('❌ ' + (d.msg || 'No se pudo procesar el pago.'));
+
+      let pinData = null;
+      try {
+        const resPin = await fetch(`/api/pos/pin_inteligente/${idCobrado}`, { method: 'POST' });
+        if (resPin.ok) pinData = await resPin.json();
+      } catch (_) {}
+
+      const htmlNota = construirHTMLNotaFinal(snapshotCuenta, d.folio, desglosePago, d.cambio, ult4, pinData);
+      volverAComandaCentro();
+      mandarImprimirConQR(htmlNota);
+      cuentaActivaId = null;
+      sincronizarCuentasEnVivoCaja();
+    } catch (e) {
+      alert('❌ Error de conexión al cobrar. Verifica si la cuenta quedó abierta antes de reintentar.');
+    } finally {
+      pagoEnProceso = false;
+      if (btnCobrar) btnCobrar.disabled = false;
+    }
   }
 
   async function abrirModalCuentasPagadas() {
@@ -2910,6 +3025,7 @@
         ${tarjTot > 0 ? `TARJETA${ult4 ? ' (***' + ult4 + ')' : ''}: $${tarjTot.toFixed(2)}<br>` : ''}
         ${pago.TRANS > 0 ? `TRANSFERENCIA: $${pago.TRANS.toFixed(2)}<br>` : ''}
         ${pago.VALE > 0 ? `VALE EMPLEADO: $${pago.VALE.toFixed(2)}<br>` : ''}
+        ${(pago.CRED || 0) > 0 ? `CREDITO CLIENTE: $${(pago.CRED || 0).toFixed(2)}<br>` : ''}
         CAMBIO: $${(cambio || 0).toFixed(2)}
       </div>
       ${armarBloquePinHTML(pinData, c)}
@@ -3055,6 +3171,7 @@
   async function abrirModalCorteX() {
     const res = await fetch('/api/pos/corte_caja');
     const d = await res.json();
+    if (!res.ok || d.ok === false) return alert('❌ ' + (d.msg || 'No se pudo consultar el Corte X.'));
     const meserosTxt = (d.por_mesero || []).map(m =>
       `• ${m.mesero}: Vta $${m.venta.toFixed(2)} | Prop Tarj $${m.propina_tarjeta.toFixed(2)} (${m.cuentas} ctas)`
     ).join('\n') || 'Sin ventas aún.';
@@ -3068,6 +3185,7 @@ DEL ${d.apertura} AL ${d.ahora}
 +TARJ. CRÉDITO:         $${d.tarj_credito}
 +TRANSFERENCIA:         $${d.transferencia}
 +VALES EMPLEADO:        $${d.vales_empleado}
++CREDITO CLIENTES:      $${d.credito_clientes || '0.00'}
 +DEPÓSITOS EFE:         $${d.depositos}
 -RETIROS EFE:           $${d.retiros}
 -PROPINAS TARJETA:      $${d.propinas_pagadas}
@@ -3184,6 +3302,8 @@ DIFERENCIA:$${d.diferencia}
       if (cont) cont.innerHTML = `<span style="color:#dc2626;">${d.msg || 'Sin acceso'}</span>`;
       return;
     }
+    const dlM = document.getElementById('dlInsumosMermaPOS');
+    if (dlM && d.todos_insumos) dlM.innerHTML = d.todos_insumos.map(n => `<option value="${String(n).replace(/"/g, '')}">`).join('');
     if (!d.insumos || !d.insumos.length) {
       if (cont) cont.innerHTML = '<span style="color:#16a34a;font-weight:600;">✓ Todos los insumos están por encima de su stock mínimo.</span>';
       return;
@@ -3781,7 +3901,30 @@ DIFERENCIA:$${d.diferencia}
     });
   }
 
+  function esEstacionImpresionActiva() {
+    const saved = localStorage.getItem('pos_estacion_impresion');
+    if (saved === '1') return true;
+    if (saved === '0') return false;
+    return ROL_POS !== 'admin';
+  }
+
+  function actualizarBotonEstacionImpresion() {
+    const btn = document.getElementById('btnEstacionImpresion');
+    if (!btn) return;
+    const activa = esEstacionImpresionActiva();
+    btn.innerHTML = activa ? '<i class="fa-solid fa-print"></i> Imp: ON' : '<i class="fa-solid fa-print"></i> Imp: OFF';
+    btn.style.background = activa ? 'rgba(22,163,74,0.35)' : 'rgba(255,255,255,0.08)';
+  }
+
+  function toggleEstacionImpresion() {
+    const nuevo = !esEstacionImpresionActiva();
+    localStorage.setItem('pos_estacion_impresion', nuevo ? '1' : '0');
+    actualizarBotonEstacionImpresion();
+    notificarBarra(nuevo ? 'Esta PC recibira comandas e impresiones' : 'Impresion automatica pausada en esta PC');
+  }
+
   async function revisarColaImpresion() {
+    if (!esEstacionImpresionActiva()) return;
     try {
       const r = await fetch('/api/pos/cola_impresion');
       const d = await r.json();
@@ -3793,7 +3936,7 @@ DIFERENCIA:$${d.diferencia}
   let syncCajaEnCurso = false;
 
   async function cicloColaImpresion() {
-    if (colaImpEnCurso) return;
+    if (colaImpEnCurso || !esEstacionImpresionActiva()) return;
     colaImpEnCurso = true;
     try { await revisarColaImpresion(); } finally { colaImpEnCurso = false; }
   }
@@ -3805,6 +3948,7 @@ DIFERENCIA:$${d.diferencia}
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    actualizarBotonEstacionImpresion();
     cargarCatalogoCompletoRaquel();
     cicloCuentasCaja();
     setInterval(cicloColaImpresion, 3000);
@@ -3830,7 +3974,8 @@ DIFERENCIA:$${d.diferencia}
     <div style="border-top:1px solid #e2e8f0;padding-top:14px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📉 Registrar Merma Rápida</div>
       <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:8px;align-items:center;">
-        <input type="text" id="mermaInsumo" placeholder="Insumo (ej. LECHE ENTERA)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+        <datalist id="dlInsumosMermaPOS"></datalist>
+        <input type="text" id="mermaInsumo" list="dlInsumosMermaPOS" placeholder="Insumo (ej. LECHE ENTERA)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
         <input type="number" step="0.01" min="0.01" id="mermaCantidad" placeholder="Cant." style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
         <input type="text" id="mermaMotivo" placeholder="Motivo (caducidad, derrame...)" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
         <button type="button" class="btn-p sm" style="background:#dc2626;" onclick="guardarMermaRapida()">Registrar</button>

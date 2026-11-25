@@ -613,6 +613,7 @@
     <div class="personas-box-mob">
       <h4 style="margin:0 0 8px;color:#b91c1c;font-family:'Lora',serif;">🚫 Cancelar Productos</h4>
       <div id="listaCancelarProdsMob" style="max-height:220px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:8px;padding:6px;margin-bottom:8px;"></div>
+      <select id="selMotivoCancMob" class="m-inp" style="margin-bottom:6px;" onchange="if(this.value) $('cancMobMotivo').value=this.value;"><option value="">-- Elegir motivo predefinido (opcional) --</option></select>
       <input type="text" id="cancMobMotivo" class="m-inp" placeholder="Motivo de cancelación..." style="margin-bottom:6px;">
       <input type="password" id="cancMobClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente..." style="margin-bottom:10px;border-color:#dc2626;">
       <div style="display:flex;gap:8px;">
@@ -626,6 +627,7 @@
     <div class="personas-box-mob">
       <h4 style="margin:0 0 8px;color:#b91c1c;font-family:'Lora',serif;">🗑️ Eliminar / Cancelar Cuenta</h4>
       <p style="font-size:12px;margin:0 0 8px;">Cuenta: <b id="lblMesaCancCtaMob">-</b></p>
+      <select id="selMotivoCancCtaMob" class="m-inp" style="margin-bottom:6px;" onchange="if(this.value) $('cancCtaMobMotivo').value=this.value;"><option value="">-- Elegir motivo predefinido (opcional) --</option></select>
       <input type="text" id="cancCtaMobMotivo" class="m-inp" placeholder="Motivo (si tiene productos)..." style="margin-bottom:6px;">
       <input type="password" id="cancCtaMobClave" class="m-inp" placeholder="🔒 Contraseña de Admin o Gerente..." style="margin-bottom:10px;border-color:#dc2626;">
       <div style="display:flex;gap:8px;">
@@ -1449,7 +1451,19 @@
   }
 
   // 6. CANCELAR, REABRIR, REIMPRIMIR, IMPRESIÓN 80MM OFICIAL Y MI VENTA
+  async function cargarMotivosCancelacionMob() {
+    try {
+      const d = await (await fetch('/api/pos/motivos_cancelacion')).json();
+      if (!d.ok) return;
+      const opts = '<option value="">-- Elegir motivo predefinido (opcional) --</option>' +
+        (d.motivos || []).map(m => `<option value="${escHtml(m.descripcion)}">${escHtml(m.clave)} - ${escHtml(m.descripcion)}</option>`).join('');
+      if ($('selMotivoCancMob')) $('selMotivoCancMob').innerHTML = opts;
+      if ($('selMotivoCancCtaMob')) $('selMotivoCancCtaMob').innerHTML = opts;
+    } catch {}
+  }
+
   async function abrirModalCancelarProdsMob(idOp) {
+    cargarMotivosCancelacionMob();
     const idObj = idOp || cuentaTabletId; if (!idObj) return;
     cuentaCancProdsId = idObj;
     const c = await (await fetch(`/api/pos/detalle_cuenta/${idObj}`)).json();
@@ -1466,7 +1480,7 @@
     cerrarModalMob('modalCancelarProdsMob'); mostrarToast('✓ Productos cancelados'); cargarTarjetasMesas();
     if ($('screenDetalleCuenta').style.display === 'flex') cargarCuentaSeleccionada();
   }
-  function abrirModalCancelarCuentaMob() { cerrarModalMob('modalMenuCuenta2Seg'); $('lblMesaCancCtaMob').innerText = cuentaMenu2SegMesa; $('cancCtaMobMotivo').value = ''; $('cancCtaMobClave').value = ''; $('modalCancelarCuentaMob').style.display = 'flex'; }
+  function abrirModalCancelarCuentaMob() { cerrarModalMob('modalMenuCuenta2Seg'); cargarMotivosCancelacionMob(); $('lblMesaCancCtaMob').innerText = cuentaMenu2SegMesa; $('cancCtaMobMotivo').value = ''; $('cancCtaMobClave').value = ''; $('modalCancelarCuentaMob').style.display = 'flex'; }
   async function ejecutarCancelarCuentaMob() {
     const d = await apiPost('/api/pos/cancelar_cuenta_abierta', { cuenta_id: cuentaMenu2SegId, motivo: $('cancCtaMobMotivo').value, clave_admin: $('cancCtaMobClave').value });
     if (!d.ok) return alert('❌ ' + (d.msg || 'Requiere contraseña de Admin o Gerente.'));

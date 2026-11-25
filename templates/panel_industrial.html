@@ -129,6 +129,8 @@
   <button type="button" class="tab-btn" data-tab="mermas" onclick="cambiarTab('mermas', this)"><i class="fa-solid fa-trash-can-arrow-up"></i> 5. Mermas</button>
   <button type="button" class="tab-btn" data-tab="lentos" onclick="cambiarTab('lentos', this)"><i class="fa-solid fa-arrow-trend-down"></i> 6. Menos Vendidos</button>
   <button type="button" class="tab-btn" data-tab="recetas" onclick="cambiarTab('recetas', this)"><i class="fa-solid fa-mug-hot"></i> 7. Recetas y Stock Local</button>
+  <button type="button" class="tab-btn" data-tab="flujo" onclick="cambiarTab('flujo', this)"><i class="fa-solid fa-money-bill-transfer"></i> 8. Dinero Sucursales</button>
+  <button type="button" class="tab-btn" data-tab="rep_fechas" onclick="cambiarTab('rep_fechas', this)"><i class="fa-solid fa-calendar-days"></i> 9. Reportes / Fechas</button>
 </div>
 
 <div class="container">
@@ -232,7 +234,8 @@
         <select id="mer_sucursal" class="inp">
           {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
         </select>
-        <input type="text" id="mer_insumo" class="inp" placeholder="Insumo / Producto...">
+        <input type="text" id="mer_insumo" list="dlInsumosMermaInd" class="inp" placeholder="Insumo / Producto...">
+        <datalist id="dlInsumosMermaInd"></datalist>
         <input type="number" step="0.1" id="mer_cant" class="inp" placeholder="Cantidad" value="1">
         <input type="text" id="mer_unidad" class="inp" placeholder="Unidad (kg/lt/pz)" value="PZ">
         <input type="number" step="0.5" id="mer_costo" class="inp" placeholder="Costo total ($)">
@@ -311,6 +314,103 @@
 
 </div>
 
+  <!-- TAB 8: ENTRADAS Y SALIDAS DE DINERO POR SUCURSAL -->
+  <section id="sec_flujo" class="panel-sec">
+    <div class="kpi-grid" id="gridKpisFlujo"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-money-bill-transfer" style="color:var(--cobre);"></i> Entradas y Salidas de Dinero por Sucursal</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <a id="btnExpFlujoExcel" href="/api/exportar/flujo_dinero" class="btn sm wa"><i class="fa-solid fa-file-excel"></i> Excel Flujo</a>
+          <button type="button" class="btn sm gris" onclick="cargarFlujoDinero()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        </div>
+      </div>
+
+      <div class="form-row" style="background:var(--hueso);padding:10px;border-radius:10px;border:1px solid var(--borde);margin-bottom:12px;">
+        <select id="fl_reg_suc" class="inp">
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <select id="fl_reg_tipo" class="inp">
+          <option value="DEPOSITO">ENTRADA / DEP&Oacute;SITO</option>
+          <option value="RETIRO">SALIDA / RETIRO</option>
+        </select>
+        <input type="number" step="0.5" min="0.01" id="fl_reg_monto" class="inp" placeholder="Monto ($)...">
+        <input type="text" id="fl_reg_concepto" class="inp" placeholder="Concepto (hielo, fondo, gasto...)">
+        <button type="button" class="btn" onclick="registrarFlujoDinero()">+ Registrar Movimiento</button>
+      </div>
+
+      <div class="form-row" style="margin-bottom:10px;">
+        <select id="fl_fil_suc" class="inp" onchange="cargarFlujoDinero()">
+          <option value="TODAS">Todas las Sucursales</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <input type="date" id="fl_fil_desde" class="inp" onchange="cargarFlujoDinero()">
+        <input type="date" id="fl_fil_hasta" class="inp" onchange="cargarFlujoDinero()">
+        <button type="button" class="btn cobre" onclick="cargarFlujoDinero()"><i class="fa-solid fa-filter"></i> Filtrar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Sucursal</th><th>Turno</th><th>Tipo</th><th>Concepto</th><th style="text-align:right;">Monto</th><th>Usuario</th></tr></thead>
+          <tbody id="tbodyFlujoDinero"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 9: REPORTES POR RANGO DE FECHAS, PRODUCTOS Y CATEGORIAS -->
+  <section id="sec_rep_fechas" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-calendar-days" style="color:var(--cobre);"></i> Reporte Detallado por Fechas y Productos</h3>
+        <a id="btnExpRepDetExcel" href="/api/exportar/ventas_detalle" class="btn sm wa"><i class="fa-solid fa-file-excel"></i> Exportar Productos (Excel)</a>
+      </div>
+      <div class="form-row">
+        <select id="rep_fil_suc" class="inp" onchange="cargarReporteVentasDetalle()">
+          <option value="TODAS">Todas las Sucursales</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <input type="date" id="rep_fil_desde" class="inp" onchange="cargarReporteVentasDetalle()">
+        <input type="date" id="rep_fil_hasta" class="inp" onchange="cargarReporteVentasDetalle()">
+        <button type="button" class="btn cobre" onclick="cargarReporteVentasDetalle()"><i class="fa-solid fa-magnifying-glass-chart"></i> Consultar</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="gridKpisRepDet"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-layer-group" style="color:var(--cobre);"></i> Ventas por Categor&iacute;a</h3></div>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Categor&iacute;a</th><th style="text-align:right;">Cantidad</th><th style="text-align:right;">Importe</th></tr></thead>
+            <tbody id="tbodyRepCats"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-user-tie" style="color:var(--cobre);"></i> Ventas por Mesero</h3></div>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Mesero</th><th style="text-align:right;">Cuentas</th><th style="text-align:right;">Propina Tarj.</th><th style="text-align:right;">Venta Total</th></tr></thead>
+            <tbody id="tbodyRepMeseros"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-utensils" style="color:var(--cobre);"></i> Top Platillos y Bebidas Vendidos</h3></div>
+      <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Categor&iacute;a</th><th>Producto</th><th style="text-align:right;">Unidades</th><th style="text-align:right;">Importe Total</th></tr></thead>
+          <tbody id="tbodyRepProds"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
 <!-- MODAL REPORTE WHATSAPP -->
 <div class="modal-bg" id="modalWhatsApp">
   <div class="modal-box">
@@ -348,6 +448,8 @@
     if (tab === 'checador') cargarChecador();
     if (tab === 'mermas') cargarMermas();
     if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); }
+    if (tab === 'flujo') cargarFlujoDinero();
+    if (tab === 'rep_fechas') cargarReporteVentasDetalle();
   }
 
   // 1. RESUMEN REAL 4 SUCURSALES + CORTES + MENOS VENDIDOS
@@ -466,6 +568,7 @@
         kpis += `<div class="kpi-card"><div class="kpi-title">${esc(s)}</div><div class="kpi-val">$${Number(m).toFixed(2)}</div><div class="kpi-sub">Merma mensual</div></div>`;
       });
       $('gridKpisMermas').innerHTML = kpis;
+      if ($('dlInsumosMermaInd') && d.insumos_catalogo) $('dlInsumosMermaInd').innerHTML = d.insumos_catalogo.map(n => `<option value="${esc(n)}">`).join('');
       $('tbodyMermas').innerHTML = (d.mermas || []).map(m => `<tr>
         <td>${esc(m.fecha)}</td><td>${esc(m.sucursal)}</td><td><b>${esc(m.insumo)}</b></td>
         <td>${esc(m.cantidad)}</td><td style="color:#dc2626;">${esc(m.costo)}</td>
@@ -559,6 +662,87 @@
     });
     const d = await res.json();
     if (d.ok) { $('st_actual').value = ''; toast('✓ Stock local actualizado'); cargarStockSucursal(); }
+  }
+
+  // 5B. FLUJO DE DINERO POR SUCURSAL
+  async function cargarFlujoDinero() {
+    try {
+      const suc = $('fl_fil_suc')?.value || 'TODAS';
+      const desde = $('fl_fil_desde')?.value || '';
+      const hasta = $('fl_fil_hasta')?.value || '';
+      const qs = new URLSearchParams({ sucursal: suc, desde, hasta }).toString();
+      if ($('btnExpFlujoExcel')) $('btnExpFlujoExcel').href = '/api/exportar/flujo_dinero?sucursal=' + encodeURIComponent(suc);
+      const d = await (await fetch('/api/industrial/flujo_dinero?' + qs)).json();
+      if (!d.ok) return;
+      $('gridKpisFlujo').innerHTML = `
+        <div class="kpi-card"><div class="kpi-title">Entradas / Depósitos</div><div class="kpi-val" style="color:#16a34a;">$${Number(d.total_entradas || 0).toFixed(2)}</div><div class="kpi-sub">Periodo filtrado</div></div>
+        <div class="kpi-card rojo"><div class="kpi-title">Salidas / Retiros</div><div class="kpi-val" style="color:#dc2626;">$${Number(d.total_salidas || 0).toFixed(2)}</div><div class="kpi-sub">Periodo filtrado</div></div>
+        <div class="kpi-card cobre"><div class="kpi-title">Saldo Neto Movimientos</div><div class="kpi-val">$${Number(d.saldo_neto || 0).toFixed(2)}</div><div class="kpi-sub">Entradas menos salidas</div></div>`;
+      $('tbodyFlujoDinero').innerHTML = (d.movimientos || []).map(m => `<tr>
+        <td>${esc(m.fecha)}</td>
+        <td><b>${esc(m.sucursal)}</b></td>
+        <td>#${m.turno_id}</td>
+        <td><span class="pill ${m.tipo === 'DEPOSITO' ? 'ok' : 'err'}">${m.tipo === 'DEPOSITO' ? 'ENTRADA' : 'SALIDA'}</span></td>
+        <td>${esc(m.concepto)}</td>
+        <td style="text-align:right;color:${m.tipo === 'DEPOSITO' ? '#16a34a' : '#dc2626'};">${m.tipo === 'DEPOSITO' ? '+' : '-'}$${Number(m.monto || 0).toFixed(2)}</td>
+        <td>${esc(m.usuario)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:16px;">Sin entradas ni salidas en este periodo.</td></tr>';
+    } catch {}
+  }
+
+  async function registrarFlujoDinero() {
+    const monto = parseFloat($('fl_reg_monto').value || 0);
+    const concepto = ($('fl_reg_concepto').value || '').trim();
+    if (monto <= 0 || !concepto) return alert('Captura monto mayor a 0 y concepto.');
+    const res = await fetch('/api/industrial/flujo_dinero', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal: $('fl_reg_suc').value,
+        tipo: $('fl_reg_tipo').value,
+        monto, concepto
+      })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo registrar.');
+    $('fl_reg_monto').value = '';
+    $('fl_reg_concepto').value = '';
+    toast('Movimiento de dinero registrado');
+    cargarFlujoDinero();
+  }
+
+  // 5C. REPORTE DETALLADO POR FECHAS Y PRODUCTOS
+  async function cargarReporteVentasDetalle() {
+    try {
+      const suc = $('rep_fil_suc')?.value || 'TODAS';
+      const desde = $('rep_fil_desde')?.value || '';
+      const hasta = $('rep_fil_hasta')?.value || '';
+      const qs = new URLSearchParams({ sucursal: suc, desde, hasta }).toString();
+      if ($('btnExpRepDetExcel')) $('btnExpRepDetExcel').href = '/api/exportar/ventas_detalle?' + qs;
+      const d = await (await fetch('/api/industrial/reporte_ventas_detalle?' + qs)).json();
+      if (!d.ok) return;
+      const fp = d.formas_pago || {};
+      $('gridKpisRepDet').innerHTML = `
+        <div class="kpi-card cobre"><div class="kpi-title">Venta del Periodo</div><div class="kpi-val">$${Number(d.venta_total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</div><div class="kpi-sub">${d.cuentas || 0} cuentas | Ticket prom: $${Number(d.ticket_promedio || 0).toFixed(2)}</div></div>
+        <div class="kpi-card"><div class="kpi-title">Efectivo / Tarjeta</div><div class="kpi-val" style="font-size:19px;">$${Number(fp.efectivo || 0).toFixed(2)} / $${Number(fp.tarjeta || 0).toFixed(2)}</div><div class="kpi-sub">Propina tarj: $${Number(fp.propina_tarjeta || 0).toFixed(2)}</div></div>
+        <div class="kpi-card"><div class="kpi-title">Transferencia / Vales</div><div class="kpi-val" style="font-size:19px;">$${Number(fp.transferencia || 0).toFixed(2)} / $${Number(fp.vales || 0).toFixed(2)}</div><div class="kpi-sub">Cr&eacute;dito clientes: $${Number(fp.credito || 0).toFixed(2)}</div></div>`;
+      $('tbodyRepCats').innerHTML = (d.por_categoria || []).map(c => `<tr>
+        <td><b>${esc(c.categoria)}</b></td>
+        <td style="text-align:right;">${c.cantidad}</td>
+        <td style="text-align:right;color:var(--verde);"><b>$${Number(c.importe).toFixed(2)}</b></td>
+      </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#64748b;padding:16px;">Sin ventas en este rango.</td></tr>';
+      $('tbodyRepMeseros').innerHTML = (d.por_mesero || []).map(m => `<tr>
+        <td><b>${esc(m.mesero)}</b></td>
+        <td style="text-align:right;">${m.cuentas}</td>
+        <td style="text-align:right;">$${Number(m.propina).toFixed(2)}</td>
+        <td style="text-align:right;color:var(--cobre);"><b>$${Number(m.venta).toFixed(2)}</b></td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:16px;">Sin ventas en este rango.</td></tr>';
+      $('tbodyRepProds').innerHTML = (d.por_producto || []).map(p => `<tr>
+        <td style="font-size:11.5px;color:#64748b;">${esc(p.categoria)}</td>
+        <td><b>${esc(p.producto)}</b></td>
+        <td style="text-align:right;">${p.cantidad}</td>
+        <td style="text-align:right;color:var(--verde);"><b>$${Number(p.importe).toFixed(2)}</b></td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:16px;">Sin productos vendidos en este rango.</td></tr>';
+    } catch {}
   }
 
   // 6. REPORTE WHATSAPP

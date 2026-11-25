@@ -245,6 +245,13 @@ class ConfigPermisosPOS(db.Model):
     cajero_ver_esperado_z = db.Column(db.Boolean, default=False)
 
 
+class ConfigJSONPOS(db.Model):
+    __tablename__ = 'config_json_pos'
+    clave = db.Column(db.String(80), primary_key=True)
+    valor_json = db.Column(db.Text, nullable=False, default='{}')
+    actualizado = db.Column(db.DateTime, default=ahora_local)
+
+
 class TurnoPOS(db.Model):
     __tablename__ = 'turnos_pos'
     id = db.Column(db.Integer, primary_key=True)
@@ -298,6 +305,8 @@ class CuentaPOS(db.Model):
     pago_tarjeta_credito = db.Column(db.Float, default=0.0)
     pago_transferencia = db.Column(db.Float, default=0.0)
     pago_otros = db.Column(db.Float, default=0.0)  # Vale / Consumo empleado
+    pago_credito = db.Column(db.Float, default=0.0)
+    cliente_credito_id = db.Column(db.Integer, nullable=True)
     tarjeta_ultimos4 = db.Column(db.String(10), default='')
     propina_tarjeta = db.Column(db.Float, default=0.0)
     cambio = db.Column(db.Float, default=0.0)
@@ -428,6 +437,7 @@ class InsumoBodegaPro(db.Model):
     stock_actual = db.Column(db.Float, default=0.0)
     stock_minimo = db.Column(db.Float, default=2.0)
     costo_unitario = db.Column(db.Float, default=0.0)
+    activo = db.Column(db.Boolean, default=True)
 
 
 class StockSucursal(db.Model):
@@ -458,6 +468,7 @@ class RequerimientoBodega(db.Model):
     categoria = db.Column(db.String(60), nullable=False, default='ABARROTES')
     cantidad = db.Column(db.Float, default=1.0)
     cantidad_entregada = db.Column(db.Float, nullable=True)
+    cantidad_recibida = db.Column(db.Float, nullable=True)
     unidad = db.Column(db.String(20), default='PZA')
     estado_bodega = db.Column(db.String(25), default='PENDIENTE')
     confirmado_caja = db.Column(db.Boolean, default=False)
@@ -517,6 +528,10 @@ class EmpleadoNominaPOS(db.Model):
     puesto = db.Column(db.String(60), default='MESERO')
     sueldo_base = db.Column(db.Float, default=1500.0)
     periodo = db.Column(db.String(20), default='SEMANAL')
+    descuento_pct = db.Column(db.Float, default=0.0)
+    dias_base = db.Column(db.Integer, default=6)
+    pin_checador = db.Column(db.String(10), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
     activo = db.Column(db.Boolean, default=True)
 
 
@@ -541,6 +556,8 @@ class ReciboNominaPOS(db.Model):
     empleado_nombre = db.Column(db.String(100), nullable=False)
     puesto = db.Column(db.String(60), default='')
     periodo_texto = db.Column(db.String(60), default='SEMANAL')
+    dias_base = db.Column(db.Integer, default=6)
+    dias_trabajados = db.Column(db.Float, default=6.0)
     sueldo_base = db.Column(db.Float, default=0.0)
     bonos = db.Column(db.Float, default=0.0)
     propinas = db.Column(db.Float, default=0.0)
@@ -548,6 +565,32 @@ class ReciboNominaPOS(db.Model):
     otros_descuentos = db.Column(db.Float, default=0.0)
     total_neto = db.Column(db.Float, default=0.0)
     pagado_por = db.Column(db.String(60), default='ADMIN')
+
+
+class ClienteCreditoPOS(db.Model):
+    __tablename__ = 'clientes_credito_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    telefono = db.Column(db.String(30), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    limite_credito = db.Column(db.Float, default=0.0)
+    saldo_pendiente = db.Column(db.Float, default=0.0)
+    activo = db.Column(db.Boolean, default=True)
+    fecha_alta = db.Column(db.DateTime, default=ahora_local)
+
+
+class MovimientoCreditoPOS(db.Model):
+    __tablename__ = 'movimientos_credito_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local)
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    cliente_credito_id = db.Column(db.Integer, db.ForeignKey('clientes_credito_pos.id'), nullable=False)
+    cliente_nombre = db.Column(db.String(120), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False)  # CARGO | ABONO
+    monto = db.Column(db.Float, default=0.0)
+    concepto = db.Column(db.String(200), default='')
+    cuenta_id = db.Column(db.Integer, nullable=True)
+    usuario = db.Column(db.String(60), default='CAJA')
 
 
 # ==============================================================================
@@ -941,7 +984,17 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_puede_retirar BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE config_permisos_pos ADD COLUMN IF NOT EXISTS cajero_ver_esperado_z BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
-            "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_entregada DOUBLE PRECISION;"
+            "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_entregada DOUBLE PRECISION;",
+            "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;",
+            "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_recibida DOUBLE PRECISION;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS descuento_pct DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS pin_checador VARCHAR(10) DEFAULT '';",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS pago_credito DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cliente_credito_id INTEGER;"
         ]
         for sql in migraciones:
             try:

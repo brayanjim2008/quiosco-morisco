@@ -61,6 +61,7 @@ cloudinary.config(
 # --- BASE DE DATOS NEONDB (configura DATABASE_URL en Render) ---
 app.config['SQLALCHEMY_DATABASE_URI'] = _normalizar_db_url(_env_requerida('DATABASE_URL'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True, "pool_recycle": 300, "pool_size": 5, "max_overflow": 5}
 
 db.init_app(app)
@@ -256,6 +257,9 @@ def api_estado_menu_publico():
 @app.route('/crear_preorden', methods=['POST'])
 def crear_preorden():
     try:
+        clave_rl = f"preorden:{_ip_cliente()}"
+        if limite_intentos_excedido(clave_rl, 35, 300):
+            return jsonify({"ok": False, "error": "Demasiados envios recientes. Espera un momento."}), 429
         data = request.get_json()
         if not data:
             return jsonify({"ok": False, "error": "Datos inválidos"}), 400
@@ -280,6 +284,7 @@ def crear_preorden():
             estado="pendiente",
             fecha=ahora_local()
         )
+        registrar_intento_fallido(clave_rl)
         db.session.add(nueva)
         db.session.commit()
         return jsonify({"ok": True, "folio": nueva.id, "hora": nueva.fecha.strftime('%H:%M')})
@@ -389,6 +394,10 @@ def registrar_consumo():
 
 @app.route('/enviar_evaluacion', methods=['POST'])
 def enviar_evaluacion():
+    clave_rl = f"eval:{_ip_cliente()}"
+    if limite_intentos_excedido(clave_rl, 20, 300):
+        flash('Demasiadas evaluaciones recientes. Intenta mas tarde.', 'error')
+        return redirect(url_for('index'))
     try:
         cal_mesero = int(request.form.get('mesero_calificacion', ''))
         cal_limpieza = int(request.form.get('limpieza', ''))
@@ -406,6 +415,7 @@ def enviar_evaluacion():
         comentarios=request.form.get('comentarios', ''),
         fecha=ahora_local()
     ))
+    registrar_intento_fallido(clave_rl)
     db.session.commit()
     flash('¡Gracias por tu evaluación!', 'success')
     return redirect(url_for('index'))
@@ -448,7 +458,7 @@ def logout():
     return resp
 
 
-@app.route('/admin/cargar_menu_quiosco', methods=['GET', 'POST'])
+@app.route('/admin/cargar_menu_quiosco', methods=['POST'])
 @login_required
 def admin_cargar_menu_quiosco():
     if current_user.role != 'admin':
@@ -556,6 +566,11 @@ def nuevo_usuario():
     password = request.form.get('password', '').strip()
     role = request.form.get('role', 'mesero')
     sucursal = request.form.get('sucursal', 'Quiosco Morisco (Matriz)')
+    if role not in ('mesero', 'cajero', 'gerente', 'sucursal', 'almacen', 'admin'):
+        flash('Rol de usuario invalido.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    if sucursal not in SUCURSALES_OFICIALES:
+        sucursal = 'Quiosco Morisco (Matriz)'
     if username and password:
         if User.query.filter(db.func.lower(User.username) == username).first():
             flash('Ese nombre de usuario ya existe.', 'danger')
@@ -665,7 +680,13 @@ def exportar_preordenes():
 def nuevo_premio():
     if current_user.role != 'admin':
         return redirigir_segun_rol(current_user)
-    visitas = request.form.get('visitas')
+    try:
+        visitas = int(request.form.get('visitas', ''))
+        if visitas < 1 or visitas > 500:
+            raise ValueError()
+    except (TypeError, ValueError):
+        flash('El numero de visitas debe ser un entero entre 1 y 500.', 'danger')
+        return redirect(url_for('admin_dashboard'))
     if Premio.query.filter_by(visitas_necesarias=visitas).first():
         flash('Ya existe una meta con ese número de visitas.', 'danger')
     else:

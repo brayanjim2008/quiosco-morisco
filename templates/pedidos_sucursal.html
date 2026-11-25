@@ -246,7 +246,8 @@
       <div class="card">
         <div class="card-head"><h3><i class="fa-solid fa-trash-can" style="color:#dc2626;"></i> Reportar Merma</h3></div>
         <div class="form-row">
-          <input type="text" id="mer_ins" class="inp" placeholder="Insumo / Platillo...">
+          <input type="text" id="mer_ins" list="dlInsumosMermaSuc" class="inp" placeholder="Insumo / Platillo...">
+          <datalist id="dlInsumosMermaSuc"></datalist>
           <input type="number" step="0.1" id="mer_cant" class="inp" value="1" placeholder="Cantidad">
           <input type="text" id="mer_uni" class="inp" value="PZ" placeholder="Unidad">
           <input type="number" step="0.5" id="mer_costo" class="inp" placeholder="Costo aprox ($)">
@@ -327,6 +328,7 @@
       renderCatalogoPedido();
       renderRecepcion();
       renderStockLocal();
+      if ($('dlInsumosMermaSuc')) $('dlInsumosMermaSuc').innerHTML = cacheInsumos.filter(i => !(i.nombre || '').includes('EXTRA / FUERA DE LISTA')).map(i => `<option value="${esc(i.nombre)}">`).join('');
     } catch {}
   }
 
@@ -478,20 +480,31 @@
 
   function renderRecepcion() {
     $('tbodyRecepcion').innerHTML = cacheReqs.map(r => {
-      let badgeEst = '<span class="pill warn">🟡 Pendiente en Bodega</span>';
+      const cantEnt = Number(r.cantidad_entregada ?? r.cantidad);
+      const cantRec = Number(r.cantidad_recibida ?? cantEnt);
+      let badgeEst = '<span class="pill warn">Pendiente en Bodega</span>';
       let accionHtml = '<small style="color:#64748b;">Esperando despacho...</small>';
+      let colEntregado = '-';
 
       if (r.confirmado_caja) {
-        badgeEst = '<span class="pill ok">✅ Recibido (+Stock Local)</span>';
-        accionHtml = '<small style="color:#16a34a;">Confirmado</small>';
+        const dif = Math.abs(cantRec - cantEnt) > 0.001;
+        badgeEst = dif
+          ? '<span class="pill warn">Recibido parcial (+Stock)</span>'
+          : '<span class="pill ok">Recibido (+Stock Local)</span>';
+        colEntregado = dif
+          ? `<b>${cantRec} ${esc(r.unidad)}</b><br><small style="color:#b45309;">Env: ${cantEnt}</small>`
+          : `<b>${cantRec} ${esc(r.unidad)}</b>`;
+        accionHtml = `<button type="button" class="btn sm cobre" onclick="editarCantidadRecibida(${r.id}, ${cantRec}, '${esc(r.insumo_nombre).replace(/'/g, '')}', '${esc(r.unidad).replace(/'/g, '')}')"><i class="fa-solid fa-pen"></i> Modificar</button>`;
       } else if (r.estado_bodega === 'ENTREGADO') {
-        badgeEst = '<span class="pill info">🚚 Entregado por Bodega</span>';
-        accionHtml = `<div style="display:flex;gap:5px;">
-          <button type="button" class="btn sm wa" onclick="confirmarRecepcion(${r.id}, true)">✓ Recibido</button>
-          <button type="button" class="btn sm rojo" onclick="confirmarRecepcion(${r.id}, false)">✕ Faltante</button>
+        badgeEst = '<span class="pill info">Entregado por Bodega</span>';
+        colEntregado = `<b>${cantEnt} ${esc(r.unidad)}</b>`;
+        accionHtml = `<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+          <input type="number" step="0.1" min="0" id="rec_cant_${r.id}" class="qty-inp" style="width:66px;height:30px;" value="${cantEnt}" title="Cantidad realmente recibida">
+          <button type="button" class="btn sm wa" onclick="confirmarRecepcion(${r.id}, true)">Recibido</button>
+          <button type="button" class="btn sm rojo" onclick="confirmarRecepcion(${r.id}, false)">Faltante</button>
         </div>`;
       } else if (r.estado_bodega === 'NO_ENTREGADO') {
-        badgeEst = '<span class="pill err">❌ Agotado / No entregado</span>';
+        badgeEst = '<span class="pill err">Agotado / No entregado</span>';
         accionHtml = '<small style="color:#dc2626;">Sin entrega</small>';
       }
 
@@ -500,7 +513,7 @@
         <td><span class="pill ${r.area === 'BARRA' ? 'info' : 'warn'}">${esc(r.area)}</span></td>
         <td><b>${esc(r.insumo_nombre)}</b>${r.nota ? `<br><small style="color:var(--cobre);">Nota: ${esc(r.nota)}</small>` : ''}</td>
         <td>${r.cantidad} ${esc(r.unidad)}</td>
-        <td><b>${r.estado_bodega === 'ENTREGADO' ? (r.cantidad_entregada + ' ' + esc(r.unidad)) : '-'}</b></td>
+        <td>${colEntregado}</td>
         <td>${badgeEst}</td>
         <td>${accionHtml}</td>
       </tr>`;
@@ -509,13 +522,33 @@
 
   async function confirmarRecepcion(id, recibido) {
     if (!recibido && !confirm('¿Marcar este insumo como FALTANTE (no llegó a tienda)?')) return;
+    const payload = { id, recibido };
+    if (recibido) {
+      const inp = $('rec_cant_' + id);
+      if (inp) payload.cantidad_recibida = parseFloat(inp.value || 0);
+    }
     const res = await fetch('/api/almacen/confirmar_caja', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, recibido })
+      body: JSON.stringify(payload)
     });
     const d = await res.json();
-    if (!d.ok) return alert('⚠️ ' + (d.msg || 'No se pudo confirmar.'));
-    toast(recibido ? '✅ Recibido y sumado a tu Stock Local' : '❌ Reportado como faltante');
+    if (!d.ok) return alert(d.msg || 'No se pudo confirmar.');
+    toast(recibido ? `Recibido (${d.cantidad_recibida ?? ''}) sumado a tu Stock Local` : 'Reportado como faltante');
+    cargarDatosSucursal();
+  }
+
+  async function editarCantidadRecibida(id, actual, nombre, unidad) {
+    const valStr = prompt(`Modificar cantidad recibida de "${nombre}" (${unidad}):`, actual);
+    if (valStr === null) return;
+    const nueva = parseFloat(valStr);
+    if (isNaN(nueva) || nueva < 0) return alert('Cantidad inválida.');
+    const res = await fetch('/api/almacen/confirmar_caja', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, recibido: true, editar_recibido: true, cantidad_recibida: nueva })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo modificar.');
+    toast(`Cantidad recibida actualizada a ${d.cantidad_recibida} ${unidad}`);
     cargarDatosSucursal();
   }
 

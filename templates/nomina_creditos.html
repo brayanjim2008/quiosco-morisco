@@ -138,6 +138,8 @@
     <button type="button" class="tab-btn" onclick="cambiarTab('nomina', this)"><i class="fa-solid fa-money-check-dollar"></i> 2. Pagar Nómina y Recibos</button>
     <button type="button" class="tab-btn" onclick="cambiarTab('personal', this)"><i class="fa-solid fa-users"></i> 3. Personal Activo</button>
     {% endif %}
+    <button type="button" class="tab-btn" onclick="cambiarTab('creditos', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Cr&eacute;ditos Pendientes</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('checador_pin', this)"><i class="fa-solid fa-fingerprint"></i> Checador PIN</button>
   </div>
 
   <div class="container">
@@ -145,6 +147,7 @@
     <div class="kpi-grid">
       <div class="kpi-card"><div class="kpi-title">Personal Activo</div><div class="kpi-val" id="kpiEmpActivos">0</div></div>
       <div class="kpi-card rojo"><div class="kpi-title">Vales Pendientes por Descontar</div><div class="kpi-val" id="kpiValesPend">$0.00</div></div>
+      <div class="kpi-card cobre"><div class="kpi-title">Cr&eacute;ditos por Cobrar</div><div class="kpi-val" id="kpiCreditosPend">$0.00</div></div>
       {% if current_user.role == 'admin' %}
       <div class="kpi-card cobre"><div class="kpi-title">Recibos de Nómina Emitidos</div><div class="kpi-val" id="kpiRecibos">0</div></div>
       {% endif %}
@@ -226,6 +229,10 @@
                 <input type="text" id="nom_periodo" class="inp" placeholder="Ej. SEMANA 47">
               </div>
               <div>
+                <label class="lbl">D&iacute;as Trabajados <small id="lblHintAsistNom" style="color:var(--cobre);"></small></label>
+                <input type="number" step="0.5" min="0" max="31" id="nom_dias" class="inp" value="6" oninput="actualizarCalculoNomina()">
+              </div>
+              <div>
                 <label class="lbl">Bonos ($)</label>
                 <input type="number" step="0.5" id="nom_bonos" class="inp" value="0" oninput="actualizarCalculoNomina()">
               </div>
@@ -277,18 +284,70 @@
             <option value="SEMANAL">SEMANAL</option>
             <option value="QUINCENAL">QUINCENAL</option>
           </select>
+          <input type="number" step="1" min="0" max="100" id="emp_desc" class="inp" placeholder="Desc. auto (%)" value="0">
+          <input type="number" step="1" min="1" max="31" id="emp_dias_base" class="inp" placeholder="D&iacute;as base" value="6">
+          <input type="text" maxlength="10" id="emp_pin" class="inp" placeholder="PIN checador (ej. 1234)">
           <button type="button" class="btn" onclick="crearEmpleado()">+ Dar de Alta</button>
         </div>
 
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nombre</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
             <tbody id="tbodyPersonal"></tbody>
           </table>
         </div>
       </div>
     </section>
     {% endif %}
+
+    <!-- TAB 4: CREDITOS PENDIENTES / CUENTAS POR COBRAR -->
+    <section id="sec_creditos" class="panel-sec">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h3><i class="fa-solid fa-hand-holding-dollar" style="color:var(--cobre);"></i> Clientes con Cr&eacute;dito</h3>
+            <button type="button" class="btn sm gris" onclick="cargarCreditos()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+          </div>
+          <div class="form-row">
+            <input type="text" id="cred_nombre" class="inp" placeholder="Nombre del cliente...">
+            <input type="text" id="cred_tel" class="inp" placeholder="Tel&eacute;fono (opcional)">
+            <input type="number" step="50" min="0" id="cred_limite" class="inp" placeholder="L&iacute;mite $ (0=libre)" value="0">
+            <button type="button" class="btn" onclick="crearClienteCredito()">+ Nuevo Cliente</button>
+          </div>
+          <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Cliente</th><th>Tel&eacute;fono</th><th style="text-align:right;">L&iacute;mite</th><th style="text-align:right;">Saldo</th><th>Acciones</th></tr></thead>
+              <tbody id="tbodyClientesCredito"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3><i class="fa-solid fa-file-invoice" style="color:var(--cobre);"></i> Historial de Cargos y Abonos</h3></div>
+          <div class="table-wrap" style="max-height:480px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Concepto</th><th style="text-align:right;">Monto</th><th>Usuario</th></tr></thead>
+              <tbody id="tbodyMovsCredito"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: CHECADOR AUTOMATICO POR PIN -->
+    <section id="sec_checador_pin" class="panel-sec">
+      <div class="card" style="max-width:520px;margin:0 auto;text-align:center;">
+        <div class="card-head" style="justify-content:center;">
+          <h3><i class="fa-solid fa-fingerprint" style="color:var(--cobre);"></i> Checador Autom&aacute;tico por PIN</h3>
+        </div>
+        <p style="font-size:13px;color:#475569;margin-top:0;">Ingresa tu PIN de colaborador. El sistema registra autom&aacute;ticamente <b>ENTRADA</b> o <b>SALIDA</b> seg&uacute;n tu &uacute;ltimo registro de hoy.</p>
+        <div style="display:flex;gap:8px;max-width:340px;margin:14px auto;">
+          <input type="password" id="inpPinChecador" class="inp" style="text-align:center;font-size:20px;letter-spacing:6px;" placeholder="PIN..." onkeydown="if(event.key==='Enter') checarPorPinAuto()">
+          <button type="button" class="btn wa" onclick="checarPorPinAuto()"><i class="fa-solid fa-clock"></i> Checar</button>
+        </div>
+        <div id="resChecadorPin" style="margin-top:12px;font-weight:800;font-size:14px;color:var(--verde);"></div>
+      </div>
+    </section>
 
   </div>
   <div class="toast" id="toastFin"></div>
@@ -309,6 +368,7 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
     $('sec_' + tab)?.classList.add('activo');
     btn?.classList.add('activo');
+    if (tab === 'creditos') cargarCreditos();
   }
 
   async function cargarFinanzas() {
@@ -370,6 +430,8 @@
           <td>${esc(e.puesto)}</td>
           <td>${esc(e.periodo)}</td>
           <td style="text-align:right;">$${Number(e.sueldo_base || 0).toFixed(2)}</td>
+          <td><button type="button" class="btn sm gris" onclick="editarChecadorEmp(${e.id}, '${esc(e.nombre).replace(/'/g, '')}', ${Number(e.dias_base || 6)}, '${esc(e.pin_checador || '').replace(/'/g, '')}')">${Number(e.dias_base || 6)}d | PIN: ${esc(e.pin_checador || '-')}</button></td>
+          <td style="text-align:right;"><button type="button" class="btn sm cobre" onclick="editarDescEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}', ${Number(e.descuento_pct || 0)})">${Number(e.descuento_pct || 0).toFixed(0)}%</button></td>
           <td style="text-align:right;color:${e.consumo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(e.consumo_pendiente || 0).toFixed(2)}</td>
           <td><button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}')">🗑️ Dar de Baja</button></td>
         </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
@@ -413,20 +475,32 @@
     }
   }
 
+  let ultimoEmpNomId = null;
+
   function actualizarCalculoNomina() {
     if (!$('nom_emp')) return;
     const id = Number($('nom_emp').value || 0);
     const emp = cacheEmpleados.find(e => e.id === id);
     if (!emp) return;
-    if (!$('nom_periodo').value) $('nom_periodo').value = emp.periodo;
-    const base = Number(emp.sueldo_base || 0);
+    const diasBase = Math.max(1, Number(emp.dias_base || 6));
+    if (ultimoEmpNomId !== id) {
+      ultimoEmpNomId = id;
+      $('nom_periodo').value = emp.periodo;
+      const sugeridos = Number(emp.dias_asistidos_recientes || 0) > 0 ? Number(emp.dias_asistidos_recientes) : diasBase;
+      if ($('nom_dias')) $('nom_dias').value = sugeridos;
+    }
+    if ($('lblHintAsistNom')) {
+      $('lblHintAsistNom').innerText = `(Base: ${diasBase}d | Checador: ${Number(emp.dias_asistidos_recientes || 0)}d)`;
+    }
+    const diasTrab = Math.max(0, parseFloat($('nom_dias')?.value ?? diasBase));
+    const base = Math.round((Number(emp.sueldo_base || 0) / diasBase) * diasTrab * 100) / 100;
     const bonos = parseFloat($('nom_bonos').value || 0);
     const prop = parseFloat($('nom_propinas').value || 0);
     const vales = Number(emp.consumo_pendiente || 0);
     const otros = parseFloat($('nom_otros').value || 0);
     const neto = Math.round((base + bonos + prop - vales - otros) * 100) / 100;
 
-    $('calc_base').innerText = `$${base.toFixed(2)}`;
+    $('calc_base').innerText = `$${base.toFixed(2)} (${diasTrab}/${diasBase}d)`;
     $('calc_extras').innerText = `+$${(bonos + prop).toFixed(2)}`;
     $('calc_vales').innerText = `-$${vales.toFixed(2)}`;
     $('calc_otros').innerText = `-$${otros.toFixed(2)}`;
@@ -442,7 +516,7 @@
       FECHA: ${esc(r.fecha)}<br>
       EMPLEADO: <b>${esc(r.empleado_nombre)}</b><br>
       PUESTO: ${esc(r.puesto)}<br>
-      PERIODO: ${esc(r.periodo_texto)}<br>
+      PERIODO: ${esc(r.periodo_texto)} (${r.dias_trabajados ?? r.dias_base ?? 6}/${r.dias_base ?? 6} d&iacute;as)<br>
       ================================<br>
       <table style="width:100%;font-size:12px;">
         <tr><td>SUELDO BASE:</td><td style="text-align:right;">$${Number(r.sueldo_base).toFixed(2)}</td></tr>
@@ -468,17 +542,28 @@
     if (!empleado_id) return;
     if (!confirm('¿Confirmar pago de nómina y marcar como descontados los vales pendientes de este empleado?')) return;
 
-    const res = await fetch('/api/finanzas/generar_nomina', {
+    const payload = {
+      empleado_id,
+      bonos: parseFloat($('nom_bonos').value || 0),
+      propinas: parseFloat($('nom_propinas').value || 0),
+      otros_descuentos: parseFloat($('nom_otros').value || 0),
+      periodo_texto: $('nom_periodo').value || 'SEMANAL',
+      dias_trabajados: parseFloat($('nom_dias')?.value || 6)
+    };
+    let res = await fetch('/api/finanzas/generar_nomina', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        empleado_id,
-        bonos: parseFloat($('nom_bonos').value || 0),
-        propinas: parseFloat($('nom_propinas').value || 0),
-        otros_descuentos: parseFloat($('nom_otros').value || 0),
-        periodo_texto: $('nom_periodo').value || 'SEMANAL'
-      })
+      body: JSON.stringify(payload)
     });
-    const d = await res.json();
+    let d = await res.json();
+    if (!d.ok && d.requiere_confirmacion) {
+      if (!confirm(d.msg + ' ¿Deseas emitir el recibo asi de todas formas?')) return;
+      payload.permitir_negativo = true;
+      res = await fetch('/api/finanzas/generar_nomina', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      d = await res.json();
+    }
     if (!d.ok) return alert(d.msg || 'Error al pagar nómina.');
 
     $('nom_bonos').value = '0';
@@ -497,11 +582,27 @@
       body: JSON.stringify({
         nombre, puesto: $('emp_puesto').value || 'MESERO',
         sueldo_base: parseFloat($('emp_sueldo').value || 1500),
-        periodo: $('emp_periodo').value
+        periodo: $('emp_periodo').value,
+        descuento_pct: parseFloat($('emp_desc')?.value || 0),
+        dias_base: parseInt($('emp_dias_base')?.value || 6),
+        pin_checador: ($('emp_pin')?.value || '').trim()
       })
     });
     const d = await res.json();
     if (d.ok) { $('emp_nombre').value = ''; $('emp_puesto').value = ''; toast('✓ Empleado dado de alta'); cargarFinanzas(); }
+  }
+
+  async function editarDescEmpleado(id, nom, actual) {
+    const valStr = prompt(`Porcentaje de descuento automático en POS para ${nom} (0 a 100%):`, actual);
+    if (valStr === null) return;
+    const pct = parseFloat(valStr);
+    if (isNaN(pct) || pct < 0 || pct > 100) return alert('Porcentaje inválido (0 a 100).');
+    const res = await fetch('/api/finanzas/empleado', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, descuento_pct: pct })
+    });
+    const d = await res.json();
+    if (d.ok) { toast(`Descuento de ${nom}: ${d.descuento_pct}%`); cargarFinanzas(); }
   }
 
   async function darDeBajaEmpleado(id, nom) {
@@ -514,7 +615,118 @@
     if (d.ok) { toast('✓ Empleado dado de baja'); cargarFinanzas(); }
   }
 
-  document.addEventListener('DOMContentLoaded', cargarFinanzas);
+  async function editarChecadorEmp(id, nom, diasAct, pinAct) {
+    const dStr = prompt(`Días base del periodo para ${nom} (ej. 6 semanal, 15 quincenal):`, diasAct);
+    if (dStr === null) return;
+    const pStr = prompt(`PIN de checador automático para ${nom} (vacío para quitar):`, pinAct || '');
+    if (pStr === null) return;
+    const res = await fetch('/api/finanzas/empleado', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, dias_base: parseInt(dStr || 6), pin_checador: pStr.trim() })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo actualizar.');
+    toast(`Configuración de ${nom} actualizada`);
+    cargarFinanzas();
+  }
+
+  async function checarPorPinAuto() {
+    const pin = ($('inpPinChecador')?.value || '').trim();
+    if (!pin) return alert('Ingresa tu PIN.');
+    const res = await fetch('/api/checador/pin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    const d = await res.json();
+    $('inpPinChecador').value = '';
+    if (!d.ok) {
+      $('resChecadorPin').style.color = '#dc2626';
+      $('resChecadorPin').innerText = d.msg || 'PIN inválido';
+      return;
+    }
+    $('resChecadorPin').style.color = d.tipo === 'ENTRADA' ? '#16a34a' : '#c98246';
+    $('resChecadorPin').innerText = `${d.tipo} registrada para ${d.empleado} a las ${d.hora} (${d.sucursal})`;
+    toast(`${d.tipo}: ${d.empleado}`);
+    cargarFinanzas();
+  }
+
+  async function cargarCreditos() {
+    try {
+      const d = await (await fetch('/api/creditos/datos')).json();
+      if (!d.ok) return;
+      if ($('kpiCreditosPend')) $('kpiCreditosPend').innerText = `$${Number(d.total_por_cobrar || 0).toFixed(2)}`;
+      $('tbodyClientesCredito').innerHTML = (d.clientes || []).map(c => `<tr>
+        <td><b>${esc(c.nombre)}</b><br><small style="color:#64748b;">${esc(c.sucursal)}</small></td>
+        <td>${esc(c.telefono || '-')}</td>
+        <td style="text-align:right;">${c.limite_credito > 0 ? '$' + c.limite_credito.toFixed(2) : 'Libre'}</td>
+        <td style="text-align:right;color:${c.saldo_pendiente > 0 ? '#dc2626' : '#16a34a'};"><b>$${c.saldo_pendiente.toFixed(2)}</b></td>
+        <td style="display:flex;gap:4px;">
+          <button type="button" class="btn sm wa" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'ABONO', ${c.saldo_pendiente})">Abonar</button>
+          <button type="button" class="btn sm cobre" onclick="registrarMovCredito(${c.id}, '${esc(c.nombre).replace(/'/g, '')}', 'CARGO', ${c.saldo_pendiente})">+ Cargo</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">Sin clientes con cr&eacute;dito registrados.</td></tr>';
+
+      $('tbodyMovsCredito').innerHTML = (d.movimientos || []).map(m => `<tr>
+        <td>${esc(m.fecha)}</td>
+        <td><b>${esc(m.cliente_nombre)}</b></td>
+        <td><span class="pill ${m.tipo === 'ABONO' ? 'ok' : 'err'}">${esc(m.tipo)}</span></td>
+        <td>${esc(m.concepto)}</td>
+        <td style="text-align:right;color:${m.tipo === 'ABONO' ? '#16a34a' : '#dc2626'};">${m.tipo === 'ABONO' ? '-' : '+'}$${m.monto.toFixed(2)}</td>
+        <td>${esc(m.usuario)}</td>
+      </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">Sin movimientos de cr&eacute;dito.</td></tr>';
+    } catch {}
+  }
+
+  async function crearClienteCredito() {
+    const nombre = ($('cred_nombre')?.value || '').trim();
+    if (!nombre) return alert('Escribe el nombre del cliente.');
+    const res = await fetch('/api/creditos/cliente', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre, telefono: ($('cred_tel')?.value || '').trim(),
+        limite_credito: parseFloat($('cred_limite')?.value || 0)
+      })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    $('cred_nombre').value = ''; $('cred_tel').value = ''; $('cred_limite').value = '0';
+    toast('Cliente de crédito registrado');
+    cargarCreditos();
+  }
+
+  async function registrarMovCredito(clienteId, nombre, tipo, saldoActual) {
+    const mStr = prompt(`${tipo === 'ABONO' ? 'Monto a abonar' : 'Monto a cargar'} a ${nombre} (Saldo actual: $${saldoActual.toFixed(2)}):`, tipo === 'ABONO' ? saldoActual.toFixed(2) : '');
+    if (mStr === null) return;
+    const monto = parseFloat(mStr);
+    if (!monto || monto <= 0) return alert('Monto inválido.');
+    const concepto = prompt('Concepto:', tipo === 'ABONO' ? 'ABONO EFECTIVO' : 'CONSUMO A CREDITO') || '';
+    const ingresarCaja = tipo === 'ABONO' ? confirm('¿Ingresar este abono como depósito de efectivo en el turno activo de caja?') : false;
+    const res = await fetch('/api/creditos/movimiento', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cliente_id: clienteId, tipo, monto, concepto, ingresar_a_caja: ingresarCaja })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo registrar.');
+    toast(`${tipo} registrado. Saldo: $${Number(d.saldo_pendiente).toFixed(2)}`);
+    await cargarCreditos();
+    if (tipo === 'ABONO' && d.recibo && confirm('¿Imprimir comprobante de abono (80mm)?')) {
+      const r = d.recibo;
+      $('zona-impresion-nomina').innerHTML = `
+        <div style="text-align:center;">
+          <b>COMENSAL CONECTADO</b><br>COMPROBANTE DE ABONO #${r.id}<br>
+          ================================<br>
+        </div>
+        FECHA: ${esc(r.fecha)}<br>
+        CLIENTE: <b>${esc(r.cliente)}</b><br>
+        CONCEPTO: ${esc(r.concepto)}<br>
+        <div style="font-size:17px;margin:8px 0;">ABONO: <b>$${Number(r.monto).toFixed(2)}</b></div>
+        <div>SALDO RESTANTE: <b>$${Number(r.saldo_restante).toFixed(2)}</b></div>
+        <div>RECIBIO: ${esc(r.usuario)}</div>`;
+      window.print();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { cargarFinanzas(); cargarCreditos(); });
 </script>
 </body>
 </html>
