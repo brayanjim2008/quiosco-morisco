@@ -159,6 +159,7 @@
   <button type="button" class="tab-btn" onclick="cambiarTab('recepcion', this)"><i class="fa-solid fa-truck-ramp-box"></i> 2. Mis Pedidos y Recepción <span class="badge-cnt" id="cntPorConfirmar">0</span></button>
   <button type="button" class="tab-btn" onclick="cambiarTab('stock', this)"><i class="fa-solid fa-boxes-stacked"></i> 3. Mi Stock Local</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('operacion', this)"><i class="fa-solid fa-user-clock"></i> 4. Checador y Mermas</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('conteo', this); cfCargar();"><i class="fa-solid fa-clipboard-check"></i> 5. Conteo Físico</button>
 </div>
 
 <div class="container">
@@ -264,6 +265,8 @@
       </div>
     </div>
   </section>
+
+  {% with ubicacion_conteo=sucursal %}{% include '_conteo_fisico.html' %}{% endwith %}
 
 </div>
 

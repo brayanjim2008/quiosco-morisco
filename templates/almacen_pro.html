@@ -122,6 +122,7 @@
   <button type="button" class="tab-btn" onclick="cambiarTab('stock', this)"><i class="fa-solid fa-boxes-stacked"></i> 2. Stock Bodega Central</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('movimientos', this)"><i class="fa-solid fa-arrows-rotate"></i> 3. Entradas y Salidas</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('compras', this)"><i class="fa-solid fa-cart-shopping"></i> 4. Compras Sugeridas y Proveedores</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('conteo', this); cfCargar();"><i class="fa-solid fa-clipboard-check"></i> 5. Conteo Físico</button>
 </div>
 
 <div class="container">
@@ -291,6 +292,8 @@
       </div>
     </div>
   </section>
+
+  {% with ubicacion_conteo='BODEGA' %}{% include '_conteo_fisico.html' %}{% endwith %}
 
 </div>
 

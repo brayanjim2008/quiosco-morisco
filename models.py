@@ -667,6 +667,39 @@ class MovimientoCredito(db.Model):
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
 
 
+CONTEO_TOPE_SIN_CLAVE = 500.0  # suma de |valor_diferencia| a partir de la cual se pide clave de Admin/Gerente
+CONTEO_BORRADOR_VIEJO_HORAS = 24
+
+
+class ConteoInventario(db.Model):
+    """Inventario físico: conteo real contra teórico en BODEGA o en una sucursal."""
+    __tablename__ = 'conteos_inventario'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local)
+    ubicacion = db.Column(db.String(100), nullable=False)  # 'BODEGA' o nombre de sucursal
+    usuario = db.Column(db.String(80), nullable=False)
+    estado = db.Column(db.String(15), default='BORRADOR')  # BORRADOR | APLICADO | CANCELADO
+    nota = db.Column(db.String(250), default='')
+    aplicado_en = db.Column(db.DateTime, nullable=True)
+    aplicado_por = db.Column(db.String(80), nullable=True)
+    autorizo = db.Column(db.String(80), nullable=True)
+    valor_abs_total = db.Column(db.Float, default=0.0)  # Σ |valor_diferencia| al aplicar
+
+
+class ConteoInventarioDetalle(db.Model):
+    __tablename__ = 'conteos_inventario_detalle'
+    id = db.Column(db.Integer, primary_key=True)
+    conteo_id = db.Column(db.Integer, db.ForeignKey('conteos_inventario.id'), nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, nullable=False)
+    insumo_nombre = db.Column(db.String(120), nullable=False)
+    unidad = db.Column(db.String(20), default='')
+    teorico = db.Column(db.Float, default=0.0)       # al iniciar = foto; al aplicar = releído en ese momento
+    contado = db.Column(db.Float, nullable=True)      # None = no capturado (se omite, NO se pone en 0)
+    diferencia = db.Column(db.Float, nullable=True)
+    costo_unitario = db.Column(db.Float, default=0.0)
+    valor_diferencia = db.Column(db.Float, nullable=True)
+
+
 class LimiteIntento(db.Model):
     """Contador de intentos por clave (login:usuario, pin:IP, preorden:IP...) compartido por todos los workers."""
     __tablename__ = 'limites_intentos'
@@ -1141,6 +1174,9 @@ ESQUEMA_REQUERIDO = {
     'empleados_nomina_pos': {'sucursal'},
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
+    'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
+    'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
+                                   'costo_unitario', 'valor_diferencia'},
 }
 
 

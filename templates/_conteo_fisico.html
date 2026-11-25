@@ -1,0 +1,203 @@
+{# Conteo físico (inventario real vs. teórico). Se incluye con:
+   {% with ubicacion_conteo='BODEGA' %}{% include '_conteo_fisico.html' %}{% endwith %}
+   Usa $, esc() y toast() de la página que lo incluye. #}
+<section id="sec_conteo" class="panel-sec">
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-clipboard-check" style="color:var(--cobre);"></i> Conteo Físico • {{ ubicacion_conteo }}</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn sm" id="cf_btn_iniciar" onclick="cfIniciar()"><i class="fa-solid fa-play"></i> Iniciar / continuar conteo</button>
+        <button type="button" class="btn sm gris" onclick="cfCargar()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#475569;margin-top:0;">
+      Captura lo que <b>realmente</b> hay. Deja vacío lo que no contaste: <b>no se pone en 0</b>, simplemente no se ajusta.
+      Al aplicar, el teórico se vuelve a leer en ese momento (por si hubo ventas o entregas mientras contaban).
+      Si la suma de diferencias (faltantes + sobrantes, en pesos) supera <b>$<span id="cf_tope">500</span></b>, se pide contraseña de Admin o Gerente.
+    </p>
+
+    <div id="cf_sin_borrador" style="text-align:center;color:#64748b;padding:18px;font-weight:700;">No hay un conteo en curso. Presiona «Iniciar / continuar conteo».</div>
+
+    <div id="cf_borrador" style="display:none;">
+      <div id="cf_aviso_viejo" class="pill warn" style="display:none;margin-bottom:8px;padding:6px 10px;font-size:12px;">
+        ⚠️ Este borrador tiene más de 24 h. Revisa que los conteos sigan vigentes antes de aplicar.
+      </div>
+      <div class="toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <span class="pill info" id="cf_info"></span>
+        <input type="text" id="cf_buscar" class="inp" style="flex:1;min-width:200px;" placeholder="🔍 Buscar insumo..." oninput="cfRender()">
+        <select id="cf_filtro" class="inp" style="width:190px;" onchange="cfRender()">
+          <option value="TODOS">Todos</option>
+          <option value="PENDIENTES">Sin capturar</option>
+          <option value="CAPTURADOS">Capturados</option>
+          <option value="DIFERENCIA">Con diferencia</option>
+        </select>
+      </div>
+      <div class="table-wrap" style="max-height:440px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Insumo</th><th>Categoría</th><th style="text-align:right;">Teórico</th><th>Contado</th>
+            <th style="text-align:right;">Diferencia</th><th style="text-align:right;">Valor</th></tr></thead>
+          <tbody id="cf_tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+        <b style="font-size:13px;">Diferencias estimadas: <span id="cf_total_abs">$0.00</span></b>
+        <span style="flex:1;"></span>
+        <input type="password" id="cf_clave" class="inp" style="width:230px;" placeholder="Clave Admin/Gerente (si supera el tope)">
+        <button type="button" class="btn gris" onclick="cfGuardar()"><i class="fa-solid fa-floppy-disk"></i> Guardar avance</button>
+        <a class="btn cobre" id="cf_csv_borrador" href="#"><i class="fa-solid fa-file-excel"></i> CSV</a>
+        <button type="button" class="btn rojo" onclick="cfCancelar()">Cancelar conteo</button>
+        <button type="button" class="btn wa" onclick="cfAplicar()"><i class="fa-solid fa-check-double"></i> Aplicar ajuste</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--cobre);"></i> Conteos anteriores</h3></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Aplicado</th><th style="text-align:right;">Σ |diferencias|</th><th>Autorizó</th><th>CSV</th></tr></thead>
+        <tbody id="cf_tbody_hist"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+  const CF_UBICACION = JSON.parse('{{ ubicacion_conteo|tojson }}');
+  let cfConteo = null;          // borrador actual (con líneas)
+  let cfCambios = {};           // insumo_id -> valor capturado sin guardar ('' = quitar)
+
+  const cfFmt$ = v => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cfNum = v => (v === null || v === undefined || String(v).trim() === '') ? null : Number(v);
+
+  async function cfCargar() {
+    try {
+      const d = await (await fetch('/api/conteos?ubicacion=' + encodeURIComponent(CF_UBICACION))).json();
+      if (!d.ok) { toast(d.msg || 'Sin acceso al conteo'); return; }
+      cfConteo = d.borrador;
+      cfCambios = {};
+      cfPintarBorrador();
+      $('cf_tbody_hist').innerHTML = (d.historial || []).map(c => `<tr>
+        <td>#${Number(c.id)}</td><td>${esc(c.fecha)}</td><td>${esc(c.usuario)}</td>
+        <td><span class="pill ${c.estado === 'APLICADO' ? 'ok' : 'err'}">${esc(c.estado)}</span></td>
+        <td>${esc(c.aplicado_en || '-')}${c.aplicado_por ? ' • ' + esc(c.aplicado_por) : ''}</td>
+        <td style="text-align:right;">${cfFmt$(c.valor_abs_total)}</td><td>${esc(c.autorizo || '-')}</td>
+        <td><a class="btn sm cobre" href="/api/exportar/conteo/${Number(c.id)}"><i class="fa-solid fa-download"></i></a></td>
+      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:14px;">Aún no hay conteos aplicados.</td></tr>';
+    } catch (e) { toast('Error al cargar el conteo'); }
+  }
+
+  function cfPintarBorrador() {
+    const hay = Boolean(cfConteo);
+    $('cf_sin_borrador').style.display = hay ? 'none' : 'block';
+    $('cf_borrador').style.display = hay ? 'block' : 'none';
+    if (!hay) return;
+    $('cf_tope').innerText = Number(cfConteo.tope_sin_clave || 500).toLocaleString('es-MX');
+    $('cf_aviso_viejo').style.display = cfConteo.borrador_viejo ? 'inline-block' : 'none';
+    $('cf_csv_borrador').href = '/api/exportar/conteo/' + Number(cfConteo.id);
+    cfRender();
+  }
+
+  function cfValorLinea(l) {
+    return Object.prototype.hasOwnProperty.call(cfCambios, l.insumo_id) ? cfNum(cfCambios[l.insumo_id]) : l.contado;
+  }
+
+  function cfRender() {
+    if (!cfConteo) return;
+    const q = ($('cf_buscar').value || '').toLowerCase().trim();
+    const flt = $('cf_filtro').value;
+    let capt = 0, totalAbs = 0;
+    cfConteo.lineas.forEach(l => {
+      const v = cfValorLinea(l);
+      if (v !== null && !isNaN(v)) { capt++; totalAbs += Math.abs((v - l.teorico) * (l.costo_unitario || 0)); }
+    });
+    $('cf_info').innerText = `Conteo #${cfConteo.id} • ${cfConteo.usuario} • ${cfConteo.fecha} • ${capt} de ${cfConteo.lineas.length} capturados`;
+    $('cf_total_abs').innerText = cfFmt$(totalAbs) + (totalAbs > (cfConteo.tope_sin_clave || 500) ? ' (requiere clave)' : '');
+    const filas = cfConteo.lineas.filter(l => {
+      const v = cfValorLinea(l);
+      if (flt === 'PENDIENTES' && v !== null) return false;
+      if (flt === 'CAPTURADOS' && v === null) return false;
+      if (flt === 'DIFERENCIA' && (v === null || Math.abs(v - l.teorico) < 0.0005)) return false;
+      if (q && !(String(l.insumo_nombre).toLowerCase().includes(q) || String(l.categoria).toLowerCase().includes(q))) return false;
+      return true;
+    });
+    $('cf_tbody').innerHTML = filas.map(l => {
+      const v = cfValorLinea(l);
+      const dif = v === null || isNaN(v) ? null : Math.round((v - l.teorico) * 1000) / 1000;
+      const val = dif === null ? null : dif * (l.costo_unitario || 0);
+      const color = dif === null ? '#64748b' : (dif < 0 ? '#dc2626' : (dif > 0 ? '#16a34a' : '#13423b'));
+      return `<tr>
+        <td><b>${esc(l.insumo_nombre)}</b></td>
+        <td style="font-size:11px;color:#64748b;">${esc(l.categoria)}</td>
+        <td style="text-align:right;">${l.teorico} ${esc(l.unidad)}</td>
+        <td><input type="number" step="0.01" min="0" class="inp" style="width:100px;height:32px;text-align:center;" data-ins="${Number(l.insumo_id)}"
+             value="${v === null || isNaN(v) ? '' : v}" placeholder="—" oninput="cfCambio(this)"></td>
+        <td style="text-align:right;color:${color};"><b>${dif === null ? '-' : (dif > 0 ? '+' : '') + dif}</b></td>
+        <td style="text-align:right;color:${color};">${val === null ? '-' : cfFmt$(val)}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:14px;">Sin insumos con este filtro.</td></tr>';
+  }
+
+  function cfCambio(inp) {
+    cfCambios[Number(inp.dataset.ins)] = inp.value;
+    clearTimeout(cfCambio._t);
+    cfCambio._t = setTimeout(() => {      // recalcula totales sin perder el foco del campo
+      const pos = inp.selectionStart; const id = inp.dataset.ins;
+      cfRender();
+      const nuevo = document.querySelector(`#cf_tbody input[data-ins="${id}"]`);
+      if (nuevo) { nuevo.focus(); try { nuevo.setSelectionRange(pos, pos); } catch (e) {} }
+    }, 450);
+  }
+
+  async function cfIniciar() {
+    const res = await fetch('/api/conteos/iniciar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ubicacion: CF_UBICACION })
+    });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo iniciar el conteo.');
+    toast(d.continuado ? 'Continuando el conteo en curso' : 'Conteo iniciado');
+    cfCargar();
+  }
+
+  async function cfGuardar(silencioso) {
+    if (!cfConteo) return true;
+    const lineas = Object.entries(cfCambios).map(([id, v]) => ({ insumo_id: Number(id), contado: String(v).trim() === '' ? null : v }));
+    if (!lineas.length) { if (!silencioso) toast('No hay cambios por guardar'); return true; }
+    const res = await fetch(`/api/conteos/${Number(cfConteo.id)}/capturar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lineas })
+    });
+    const d = await res.json();
+    if (!d.ok) { alert(d.msg || 'No se pudo guardar.'); return false; }
+    cfConteo = d.conteo; cfCambios = {};
+    cfPintarBorrador();
+    if (!silencioso) toast(`✓ Avance guardado (${d.guardadas})`);
+    return true;
+  }
+
+  async function cfAplicar() {
+    if (!cfConteo) return;
+    if (!(await cfGuardar(true))) return;
+    if (!confirm('¿Aplicar el ajuste? El stock de los insumos capturados quedará igual a lo contado. No se puede deshacer.')) return;
+    const res = await fetch(`/api/conteos/${Number(cfConteo.id)}/aplicar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clave_admin: $('cf_clave').value || '' })
+    });
+    const d = await res.json();
+    $('cf_clave').value = '';
+    if (!d.ok) {
+      if (d.requiere_admin) $('cf_clave').focus();
+      return alert(d.msg || 'No se pudo aplicar.');
+    }
+    toast(`✅ Conteo aplicado: ${d.ajustes} ajuste(s), ${cfFmt$(d.valor_abs_total)} en diferencias`);
+    cfCargar();
+  }
+
+  async function cfCancelar() {
+    if (!cfConteo || !confirm('¿Cancelar este conteo? Lo capturado se conserva en el historial pero no ajusta nada.')) return;
+    const res = await fetch(`/api/conteos/${Number(cfConteo.id)}/cancelar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo cancelar.');
+    toast('Conteo cancelado');
+    cfCargar();
+  }
+</script>

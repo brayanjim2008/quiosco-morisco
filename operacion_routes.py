@@ -16,7 +16,8 @@ from models import (
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
-    SUCURSAL_DEFAULT
+    SUCURSAL_DEFAULT, validar_clave_admin, ConteoInventario, ConteoInventarioDetalle,
+    CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS
 )
 
 from models import aplicar_merma, buscar_insumo_activo
@@ -1735,3 +1736,246 @@ def exportar_cortes_caja():
         ('Turno_ID', 'Sucursal', 'Fecha', 'Cajero', 'Esperado_Total', 'Declarado_Total', 'Diferencia', 'Efectivo', 'Tarjeta_D', 'Tarjeta_C', 'Transferencia', 'Vales'),
         filas, f"Historial_Cortes_Caja_{ahora_local().strftime('%Y%m%d')}.csv"
     )
+
+
+# ==============================================================================
+# 7. INVENTARIO FÍSICO (CONTEO REAL VS. TEÓRICO) EN BODEGA Y SUCURSALES
+# ==============================================================================
+UBICACION_BODEGA = 'BODEGA'
+
+
+def _ubicacion_conteo_valida(ubicacion):
+    return ubicacion == UBICACION_BODEGA or ubicacion in SUCURSALES_OFICIALES
+
+
+def _puede_operar_conteo(ubicacion):
+    """BODEGA: admin y almacén. Sucursal: admin, o el usuario 'sucursal' de ESA sucursal."""
+    if not _ubicacion_conteo_valida(ubicacion):
+        return False
+    if current_user.role == 'admin':
+        return True
+    if ubicacion == UBICACION_BODEGA:
+        return current_user.role == 'almacen'
+    return current_user.role == 'sucursal' and obtener_sucursal_activa(session) == ubicacion
+
+
+def _insumos_contables():
+    return [i for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False))
+            .order_by(InsumoBodegaPro.categoria.asc(), InsumoBodegaPro.nombre.asc()).all()
+            if 'EXTRA / FUERA DE LISTA' not in (i.nombre or '')]
+
+
+def _stock_teorico(ubicacion, insumo, bloquear=False):
+    """(fila_de_stock, cantidad). BODEGA = InsumoBodegaPro.stock_actual; sucursal = StockSucursal (puede no existir)."""
+    if ubicacion == UBICACION_BODEGA:
+        return insumo, float(insumo.stock_actual or 0.0)
+    q = StockSucursal.query.filter_by(sucursal=ubicacion, insumo_id=insumo.id)
+    if bloquear:
+        q = q.with_for_update()
+    st = q.first()
+    return st, float(st.stock_actual or 0.0) if st else 0.0
+
+
+def _conteo_json(c, con_lineas=True):
+    lineas = ConteoInventarioDetalle.query.filter_by(conteo_id=c.id).order_by(ConteoInventarioDetalle.id.asc()).all() if con_lineas else []
+    cats = {i.id: i.categoria for i in InsumoBodegaPro.query.all()} if con_lineas else {}
+    viejo = c.estado == 'BORRADOR' and c.fecha and c.fecha < ahora_local() - timedelta(hours=CONTEO_BORRADOR_VIEJO_HORAS)
+    capturadas = ConteoInventarioDetalle.query.filter(ConteoInventarioDetalle.conteo_id == c.id,
+                                                      ConteoInventarioDetalle.contado.isnot(None)).count()
+    total = ConteoInventarioDetalle.query.filter_by(conteo_id=c.id).count()
+    return {
+        'id': c.id, 'fecha': c.fecha.strftime('%d/%m/%Y %H:%M') if c.fecha else '', 'ubicacion': c.ubicacion,
+        'usuario': c.usuario, 'estado': c.estado, 'nota': c.nota or '',
+        'aplicado_en': c.aplicado_en.strftime('%d/%m/%Y %H:%M') if c.aplicado_en else '',
+        'aplicado_por': c.aplicado_por or '', 'autorizo': c.autorizo or '',
+        'valor_abs_total': round(float(c.valor_abs_total or 0.0), 2),
+        'borrador_viejo': bool(viejo), 'capturadas': capturadas, 'total_lineas': total,
+        'tope_sin_clave': CONTEO_TOPE_SIN_CLAVE,
+        'lineas': [{
+            'insumo_id': l.insumo_id, 'insumo_nombre': l.insumo_nombre, 'unidad': l.unidad or '',
+            'categoria': cats.get(l.insumo_id, ''), 'teorico': round(float(l.teorico or 0.0), 3),
+            'contado': None if l.contado is None else round(float(l.contado), 3),
+            'diferencia': None if l.diferencia is None else round(float(l.diferencia), 3),
+            'costo_unitario': round(float(l.costo_unitario or 0.0), 4),
+            'valor_diferencia': None if l.valor_diferencia is None else round(float(l.valor_diferencia), 2),
+        } for l in lineas],
+    }
+
+
+def _conteo_o_error(conteo_id, bloquear=False):
+    q = ConteoInventario.query.filter_by(id=conteo_id)
+    if bloquear:
+        q = q.with_for_update()
+    c = q.first()
+    if not c:
+        return None, (jsonify({'ok': False, 'msg': 'Conteo no encontrado.'}), 404)
+    if not _puede_operar_conteo(c.ubicacion):
+        return None, (jsonify({'ok': False, 'msg': 'Sin permiso para esta ubicación.'}), 403)
+    return c, None
+
+
+@operacion_bp.route('/api/conteos')
+@login_required
+def api_conteos():
+    ubicacion = str(request.args.get('ubicacion', '')).strip()
+    if not _puede_operar_conteo(ubicacion):
+        return jsonify({'ok': False, 'msg': 'Sin permiso para esta ubicación.'}), 403
+    borrador = ConteoInventario.query.filter_by(ubicacion=ubicacion, estado='BORRADOR').order_by(ConteoInventario.id.desc()).first()
+    historial = ConteoInventario.query.filter(ConteoInventario.ubicacion == ubicacion, ConteoInventario.estado != 'BORRADOR') \
+        .order_by(ConteoInventario.id.desc()).limit(20).all()
+    return jsonify({'ok': True, 'ubicacion': ubicacion,
+                    'borrador': _conteo_json(borrador) if borrador else None,
+                    'historial': [_conteo_json(c, con_lineas=False) for c in historial]})
+
+
+@operacion_bp.route('/api/conteos/iniciar', methods=['POST'])
+@login_required
+def api_conteos_iniciar():
+    data = request.get_json(silent=True) or {}
+    ubicacion = str(data.get('ubicacion', '')).strip()
+    if not _puede_operar_conteo(ubicacion):
+        return jsonify({'ok': False, 'msg': 'Sin permiso para esta ubicación.'}), 403
+    # Un solo borrador por ubicación: si ya hay uno, se continúa ese.
+    existente = ConteoInventario.query.filter_by(ubicacion=ubicacion, estado='BORRADOR').first()
+    if existente:
+        return jsonify({'ok': True, 'continuado': True, 'conteo': _conteo_json(existente)})
+    c = ConteoInventario(fecha=ahora_local(), ubicacion=ubicacion, usuario=current_user.username.upper(),
+                         estado='BORRADOR', nota=str(data.get('nota', '')).strip()[:250])
+    db.session.add(c)
+    db.session.flush()
+    for ins in _insumos_contables():
+        _, teorico = _stock_teorico(ubicacion, ins)
+        db.session.add(ConteoInventarioDetalle(
+            conteo_id=c.id, insumo_id=ins.id, insumo_nombre=ins.nombre, unidad=ins.unidad,
+            teorico=round(teorico, 3), contado=None, costo_unitario=float(ins.costo_unitario or 0.0)))
+    db.session.commit()
+    return jsonify({'ok': True, 'continuado': False, 'conteo': _conteo_json(c)})
+
+
+@operacion_bp.route('/api/conteos/<int:conteo_id>/capturar', methods=['POST'])
+@login_required
+def api_conteos_capturar(conteo_id):
+    """Guarda avances del borrador. contado vacío/null = 'no capturado' (se omite al aplicar)."""
+    c, err = _conteo_o_error(conteo_id, bloquear=True)
+    if err:
+        return err
+    if c.estado != 'BORRADOR':
+        return jsonify({'ok': False, 'msg': f'El conteo está {c.estado}; ya no se puede editar.'}), 409
+    data = request.get_json(silent=True) or {}
+    lineas = {l.insumo_id: l for l in ConteoInventarioDetalle.query.filter_by(conteo_id=c.id).all()}
+    guardadas = 0
+    for item in (data.get('lineas') or [])[:2000]:
+        try:
+            lin = lineas.get(int(item.get('insumo_id')))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if not lin:
+            continue
+        valor = item.get('contado')
+        lin.contado = None if valor is None or str(valor).strip() == '' else round(_num(valor, maximo=10_000_000.0), 3)
+        guardadas += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'guardadas': guardadas, 'conteo': _conteo_json(c)})
+
+
+@operacion_bp.route('/api/conteos/<int:conteo_id>/aplicar', methods=['POST'])
+@login_required
+def api_conteos_aplicar(conteo_id):
+    """Ajusta el stock real al contado. El teórico se RELEE ahora (pudo haber ventas mientras contaban).
+    Solo líneas capturadas; las no capturadas no se tocan. Si Σ|valor_diferencia| > tope, pide clave."""
+    c, err = _conteo_o_error(conteo_id, bloquear=True)
+    if err:
+        return err
+    if c.estado != 'BORRADOR':
+        return jsonify({'ok': False, 'msg': f'El conteo ya está {c.estado}.'}), 409
+    data = request.get_json(silent=True) or {}
+    capturadas = ConteoInventarioDetalle.query.filter(ConteoInventarioDetalle.conteo_id == c.id,
+                                                      ConteoInventarioDetalle.contado.isnot(None)).all()
+    if not capturadas:
+        return jsonify({'ok': False, 'msg': 'No hay ninguna cantidad capturada.'}), 400
+
+    calculo = []  # (linea, insumo, fila_stock, teorico, diferencia, costo_u, valor)
+    for lin in capturadas:
+        ins = InsumoBodegaPro.query.filter_by(id=lin.insumo_id).with_for_update().first()
+        if not ins:
+            continue
+        fila, teorico = _stock_teorico(c.ubicacion, ins, bloquear=True)
+        dif = round(float(lin.contado) - teorico, 3)
+        costo_u = float(ins.costo_unitario or 0.0)
+        calculo.append((lin, ins, fila, teorico, dif, costo_u, round(dif * costo_u, 2)))
+    valor_abs = round(sum(abs(x[6]) for x in calculo), 2)  # absolutos: un sobrante no compensa un faltante
+
+    autorizo = None
+    if valor_abs > CONTEO_TOPE_SIN_CLAVE:
+        autorizo = validar_clave_admin(data.get('clave_admin', ''))
+        if not autorizo:
+            db.session.rollback()
+            return jsonify({'ok': False, 'requiere_admin': True, 'valor_abs_total': valor_abs,
+                            'msg': f'El ajuste suma ${valor_abs:,.2f} en diferencias (tope ${CONTEO_TOPE_SIN_CLAVE:,.0f}). '
+                                   'Requiere contraseña de Admin o Gerente.'}), 403
+
+    ahora = ahora_local()
+    ajustes = 0
+    for lin, ins, fila, teorico, dif, costo_u, valor in calculo:
+        lin.teorico, lin.diferencia, lin.costo_unitario, lin.valor_diferencia = round(teorico, 3), dif, costo_u, valor
+        if abs(dif) < 0.0005:
+            continue
+        if c.ubicacion == UBICACION_BODEGA:
+            ins.stock_actual = round(float(lin.contado), 3)
+        else:
+            if fila is None:
+                fila = StockSucursal(sucursal=c.ubicacion, insumo_id=ins.id, stock_actual=0.0, stock_minimo=2.0)
+                db.session.add(fila)
+            fila.stock_actual = round(float(lin.contado), 3)
+        db.session.add(MovimientoAlmacen(
+            fecha=ahora, tipo='AJUSTE_CONTEO', insumo_nombre=ins.nombre, cantidad=dif, costo_total=valor,
+            proveedor='', usuario=current_user.username.upper(),
+            nota=f'[{c.ubicacion}] Conteo #{c.id}: teórico {teorico:g} -> contado {float(lin.contado):g}'[:200]))
+        ajustes += 1
+    c.estado = 'APLICADO'
+    c.aplicado_en = ahora
+    c.aplicado_por = current_user.username.upper()
+    c.autorizo = autorizo
+    c.valor_abs_total = valor_abs
+    db.session.commit()
+    registrar_bitacora('AJUSTE_INVENTARIO', f'CONTEO #{c.id}', valor_abs,
+                       f'{c.ubicacion}: {ajustes} ajuste(s) de {len(calculo)} capturado(s); Σ|dif| ${valor_abs:,.2f}',
+                       autorizo=autorizo or '', sucursal=c.ubicacion)
+    return jsonify({'ok': True, 'ajustes': ajustes, 'valor_abs_total': valor_abs, 'autorizo': autorizo or '',
+                    'conteo': _conteo_json(c)})
+
+
+@operacion_bp.route('/api/conteos/<int:conteo_id>/cancelar', methods=['POST'])
+@login_required
+def api_conteos_cancelar(conteo_id):
+    c, err = _conteo_o_error(conteo_id, bloquear=True)
+    if err:
+        return err
+    if c.estado != 'BORRADOR':
+        return jsonify({'ok': False, 'msg': f'El conteo ya está {c.estado}.'}), 409
+    c.estado = 'CANCELADO'
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@operacion_bp.route('/api/exportar/conteo/<int:conteo_id>')
+@login_required
+def exportar_conteo(conteo_id):
+    c, err = _conteo_o_error(conteo_id)
+    if err:
+        return err
+    filas = []
+    for l in ConteoInventarioDetalle.query.filter_by(conteo_id=c.id).order_by(ConteoInventarioDetalle.id.asc()).all():
+        capturado = l.contado is not None
+        filas.append((
+            l.insumo_nombre, l.unidad or '', round(float(l.teorico or 0.0), 3),
+            round(float(l.contado), 3) if capturado else '',
+            round(float(l.diferencia), 3) if l.diferencia is not None else '',
+            round(float(l.costo_unitario or 0.0), 4),
+            round(float(l.valor_diferencia), 2) if l.valor_diferencia is not None else '',
+            'Capturado' if capturado else 'No capturado'
+        ))
+    suc_archivo = ''.join(ch for ch in c.ubicacion if ch.isalnum()) or 'X'
+    return _csv_excel(
+        ('Insumo', 'Unidad', 'Teorico', 'Contado', 'Diferencia', 'Costo_Unitario', 'Valor_Diferencia', 'Estado_Linea'),
+        filas, f"Conteo_{c.id}_{suc_archivo}_{c.estado}.csv")
