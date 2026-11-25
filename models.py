@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+import os
 import random
+import secrets
 import string
 import threading
 import time
@@ -565,14 +567,46 @@ def obtener_sucursal_activa(session_obj=None):
     return MAPA_SUCURSAL_USUARIO.get(current_user.username.lower(), 'Quiosco Morisco (Matriz)')
 
 
+_INTENTOS_FALLIDOS = {}
+_INTENTOS_LOCK = threading.Lock()
+
+
+def limite_intentos_excedido(clave, max_intentos=5, ventana_seg=300):
+    """True si esa clave (usuario/IP) acumuló demasiados fallos recientes. Es por proceso (cada worker lleva su cuenta)."""
+    ahora = time.time()
+    with _INTENTOS_LOCK:
+        recientes = [t for t in _INTENTOS_FALLIDOS.get(clave, []) if ahora - t < ventana_seg]
+        _INTENTOS_FALLIDOS[clave] = recientes
+        return len(recientes) >= max_intentos
+
+
+def registrar_intento_fallido(clave):
+    with _INTENTOS_LOCK:
+        _INTENTOS_FALLIDOS.setdefault(clave, []).append(time.time())
+        if len(_INTENTOS_FALLIDOS) > 5000:
+            ahora = time.time()
+            for k in [k for k, v in _INTENTOS_FALLIDOS.items() if not v or ahora - v[-1] > 3600]:
+                _INTENTOS_FALLIDOS.pop(k, None)
+
+
+def limpiar_intentos(clave):
+    with _INTENTOS_LOCK:
+        _INTENTOS_FALLIDOS.pop(clave, None)
+
+
 def validar_clave_admin(clave_ingresada):
     """Autoriza operaciones sensibles con la contraseña de cualquier Admin o Gerente."""
     clave = str(clave_ingresada or '').strip()
     if not clave:
         return None
+    id_rl = f"adminkey:{getattr(current_user, 'id', 'anon')}"
+    if limite_intentos_excedido(id_rl, 5, 300):
+        return None  # bloqueado temporalmente por demasiados intentos fallidos
     for auth_u in User.query.filter(User.role.in_(['admin', 'gerente'])).all():
         if check_password_hash(auth_u.password, clave):
+            limpiar_intentos(id_rl)
             return f"{auth_u.username.upper()} ({auth_u.role.upper()})"
+    registrar_intento_fallido(id_rl)
     return None
 
 
@@ -822,7 +856,7 @@ def descontar_recetas_local(cuenta_obj):
 
     suc = cuenta_obj.sucursal or 'Quiosco Morisco (Matriz)'
     for det in cuenta_obj.detalles:
-        desc_raw = det.descripcion.strip().upper()
+        desc_raw = (det.descripcion or '').strip().upper()
         desc_sin_gt = desc_raw.lstrip('>').strip()
         recs = mapa_recetas.get(desc_raw) or mapa_recetas.get(desc_sin_gt) or []
         for r in recs:
@@ -833,6 +867,34 @@ def descontar_recetas_local(cuenta_obj):
             st.stock_actual = round(max(0.0, st.stock_actual - (r.cantidad_descontar * det.cantidad)), 3)
 
     cuenta_obj.recetas_descontadas = True
+
+
+def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', costo_unitario=0.0, costo_total=None):
+    """Registra una merma de forma unificada (POS y Almacén): descuenta stock (sucursal o bodega),
+    guarda RegistroMerma (con usuario) y deja el movimiento en MovimientoAlmacen.
+    No hace commit: lo hace quien la llama. Devuelve el costo total."""
+    nombre = str(nombre or '').strip().upper()
+    ins = InsumoBodegaPro.query.filter(db.func.upper(InsumoBodegaPro.nombre) == nombre).first()
+    unidad_f = ins.unidad if ins else (str(unidad or 'PZA').strip().upper() or 'PZA')
+    costo_u = float(ins.costo_unitario or 0.0) if ins else float(costo_unitario or 0.0)
+    costo_tot = round(float(costo_total), 2) if costo_total is not None else round(cantidad * costo_u, 2)
+    if ins:
+        st = StockSucursal.query.filter_by(sucursal=sucursal, insumo_id=ins.id).first()
+        if st:
+            st.stock_actual = round(float(st.stock_actual or 0.0) - cantidad, 3)
+        else:
+            ins.stock_actual = round(float(ins.stock_actual or 0.0) - cantidad, 3)
+    nombre_final = ins.nombre if ins else nombre
+    db.session.add(RegistroMerma(
+        fecha=ahora_local(), sucursal=sucursal, insumo_nombre=nombre_final,
+        cantidad=cantidad, unidad=unidad_f, costo_total=costo_tot, motivo=motivo, usuario=usuario
+    ))
+    db.session.add(MovimientoAlmacen(
+        fecha=ahora_local(), tipo='MERMA', insumo_nombre=nombre_final,
+        cantidad=cantidad, costo_total=costo_tot, proveedor='',
+        usuario=usuario, nota=f'[{sucursal}] {motivo}'
+    ))
+    return costo_tot
 
 
 # ==============================================================================
@@ -919,22 +981,24 @@ def inicializar_sistema(app_obj):
             db.session.commit()
 
         cuentas_equipo = [
-            ('raquel', 'raquel2026', 'admin', 'Quiosco Morisco (Matriz)'),
-            ('gerente', 'gerente2026', 'gerente', 'Quiosco Morisco (Matriz)'),
-            ('almacen', 'almacen123', 'almacen', 'Quiosco Morisco (Matriz)'),
-            ('quiosco', 'quiosco123', 'sucursal', 'Quiosco Morisco (Matriz)'),
-            ('caminante1', 'caminante1123', 'sucursal', 'Caminante 1'),
-            ('caminante2', 'caminante2123', 'sucursal', 'Caminante 2'),
-            ('caminante3', 'caminante3123', 'sucursal', 'Caminante 3'),
-            ('brayan', 'brayan123', 'cajero', 'Quiosco Morisco (Matriz)'),
-            ('emili', 'emili123', 'cajero', 'Quiosco Morisco (Matriz)'),
-            ('paola', 'paola123', 'mesero', 'Quiosco Morisco (Matriz)'),
-            ('daniel', 'daniel123', 'mesero', 'Quiosco Morisco (Matriz)')
+            ('raquel', None, 'admin', 'Quiosco Morisco (Matriz)'),
+            ('gerente', None, 'gerente', 'Quiosco Morisco (Matriz)'),
+            ('almacen', None, 'almacen', 'Quiosco Morisco (Matriz)'),
+            ('quiosco', None, 'sucursal', 'Quiosco Morisco (Matriz)'),
+            ('caminante1', None, 'sucursal', 'Caminante 1'),
+            ('caminante2', None, 'sucursal', 'Caminante 2'),
+            ('caminante3', None, 'sucursal', 'Caminante 3'),
+            ('brayan', None, 'cajero', 'Quiosco Morisco (Matriz)'),
+            ('emili', None, 'cajero', 'Quiosco Morisco (Matriz)'),
+            ('paola', None, 'mesero', 'Quiosco Morisco (Matriz)'),
+            ('daniel', None, 'mesero', 'Quiosco Morisco (Matriz)')
         ]
         try:
             for usr, pwd, rol, suc in cuentas_equipo:
                 existente = User.query.filter_by(username=usr).first()
                 if not existente:
+                    pwd = os.environ.get(f"PASS_INICIAL_{usr.upper()}") or secrets.token_urlsafe(9)
+                    print(f"[INICIO] Usuario '{usr}' creado con clave temporal: {pwd}  (cámbiala desde el panel de admin)")
                     db.session.add(User(username=usr, password=generate_password_hash(pwd), role=rol, sucursal=suc))
                 elif not existente.sucursal:
                     existente.sucursal = suc

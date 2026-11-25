@@ -8,10 +8,12 @@ from datetime import timedelta
 
 import cloudinary
 import cloudinary.uploader
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session, abort
 from flask_login import login_user, login_required, logout_user, current_user
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import HTTPException
+import math
 
 from models import (
     db, login_manager, inicializar_sistema, ahora_local, inicio_hoy_local,
@@ -22,25 +24,42 @@ from models import (
 )
 from pos_routes import pos_bp
 from operacion_routes import operacion_bp
+from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_quiosco')
+def _env_requerida(nombre):
+    """Lee una variable de entorno obligatoria; si falta, la app NO arranca (así nunca usa credenciales por defecto)."""
+    valor = os.environ.get(nombre, '').strip()
+    if not valor:
+        raise RuntimeError(f"Falta la variable de entorno {nombre}. Defínela en Render (o en tu terminal local).")
+    return valor
+
+
+def _normalizar_db_url(url):
+    return 'postgresql://' + url[len('postgres://'):] if url.startswith('postgres://') else url
+
+
+app.secret_key = _env_requerida('SECRET_KEY')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
+# Cookies más seguras. En Render define COOKIE_SECURE=1 (requiere HTTPS); en local déjalo sin definir.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('COOKIE_SECURE', '0') == '1'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = app.config['SESSION_COOKIE_SECURE']
 
 # --- CLOUDINARY (configura estas variables en Render para máxima seguridad) ---
 cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'sgz4qrxq'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY', '881332363648736'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'I7go-7PnNv1DQLJiGdkMB5wtXkc'),
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
     secure=True
 )
 
 # --- BASE DE DATOS NEONDB (configura DATABASE_URL en Render) ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL',
-    'postgresql+psycopg2://neondb_owner:npg_MdstoSpT2lu8@ep-blue-butterfly-befvzhn4-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require'
-)
+app.config['SQLALCHEMY_DATABASE_URI'] = _normalizar_db_url(_env_requerida('DATABASE_URL'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True, "pool_recycle": 300, "pool_size": 5, "max_overflow": 5}
 
@@ -51,6 +70,50 @@ login_manager.login_message = None
 
 app.register_blueprint(pos_bp)
 app.register_blueprint(operacion_bp)
+
+
+# ------------------------------------------------------------------------------
+# Manejo global de errores: siempre rollback; las rutas /api/ responden JSON.
+# ------------------------------------------------------------------------------
+@app.errorhandler(Exception)
+def _manejar_error_global(e):
+    db.session.rollback()
+    codigo = e.code if isinstance(e, HTTPException) else 500
+    if request.path.startswith('/api/'):
+        if codigo >= 500:
+            app.logger.exception(e)
+            msg = 'Error interno del servidor.'
+        else:
+            msg = getattr(e, 'description', None) or 'Solicitud no válida.'
+        return jsonify({'ok': False, 'msg': msg, 'error': msg}), codigo
+    if isinstance(e, HTTPException):
+        return e
+    if app.debug:
+        raise e
+    app.logger.exception(e)
+    return 'Error interno del servidor.', 500
+
+
+def _numero_seguro(valor, minimo=0.0, maximo=1_000_000.0):
+    try:
+        x = float(valor or 0)
+    except (TypeError, ValueError):
+        raise ValueError('Número inválido')
+    if not math.isfinite(x) or x < minimo or x > maximo:
+        raise ValueError('Número fuera de rango')
+    return round(x, 2)
+
+
+def _precio_form():
+    try:
+        return _numero_seguro(request.form.get('precio', ''), 0.0, 100000.0)
+    except ValueError:
+        abort(400, 'Precio inválido.')
+
+
+def _ip_cliente():
+    xff = request.headers.get('X-Forwarded-For', '')
+    return (xff.split(',')[0].strip() if xff else request.remote_addr) or 'desconocida'
 
 
 @login_manager.user_loader
@@ -91,8 +154,9 @@ def ping_keep_alive():
 
 
 @app.route('/api/traducir')
+@login_required
 def api_traducir():
-    texto = request.args.get('q', '').strip()
+    texto = request.args.get('q', '').strip()[:300]
     if not texto:
         return jsonify({"ok": False, "traduccion": ""})
     try:
@@ -201,6 +265,10 @@ def crear_preorden():
         if not mesa or not nombre or not items_txt:
             return jsonify({"ok": False, "error": "Faltan datos de mesa o nombre"}), 400
 
+        try:
+            total_seguro = _numero_seguro(data.get('total', 0))
+        except ValueError:
+            return jsonify({"ok": False, "error": "Total inválido"}), 400
         nueva = PreOrden(
             mesa=mesa,
             cliente_nombre=nombre,
@@ -208,7 +276,7 @@ def crear_preorden():
             metodo_pago=str(data.get('metodo_pago', 'Efectivo')).strip(),
             detalle_items=items_txt,
             notas=str(data.get('notas', '')).strip(),
-            total=float(data.get('total', 0)),
+            total=total_seguro,
             estado="pendiente",
             fecha=ahora_local()
         )
@@ -217,7 +285,8 @@ def crear_preorden():
         return jsonify({"ok": True, "folio": nueva.id, "hora": nueva.fecha.strftime('%H:%M')})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": str(e)}), 500
+        app.logger.exception(e)
+        return jsonify({"ok": False, "error": "No se pudo registrar el pedido. Intenta de nuevo."}), 500
 
 
 @app.route('/api/preordenes_pendientes')
@@ -247,6 +316,8 @@ def atender_preorden(id):
         return redirigir_segun_rol(current_user)
     orden = PreOrden.query.get_or_404(id)
     accion = request.form.get('accion', 'atendido')
+    if accion not in ('atendido', 'cancelado'):
+        accion = 'atendido'
     orden.estado = accion
     orden.atendido_por = current_user.username
     db.session.commit()
@@ -267,14 +338,25 @@ def registrar_consumo():
     telefono = request.form.get('telefono', '').strip()
     pin_ingresado = request.form.get('pin', '').upper().strip()
 
-    pin_valido = PinCaja.query.filter_by(codigo=pin_ingresado, activo=True).first()
-    if not pin_valido:
-        flash('PIN inválido o ya utilizado.', 'error')
+    clave_rl = f"pin:{_ip_cliente()}"
+    if limite_intentos_excedido(clave_rl, 10, 300):
+        flash('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.', 'error')
+        return redirect(url_for('index'))
+    if not nombre or len(nombre) > 100 or not (telefono.isdigit() and len(telefono) == 10):
+        flash('Escribe tu nombre y un teléfono de 10 dígitos.', 'error')
         return redirect(url_for('index'))
 
-    pin_valido.activo = False
-    pin_valido.usado_por = f"{nombre} ({telefono})"
-    pin_valido.fecha_uso = ahora_local()
+    # El PIN se "reclama" con un UPDATE condicional: si dos personas lo usan a la vez, solo una lo consigue.
+    reclamado = PinCaja.query.filter_by(codigo=pin_ingresado, activo=True).update(
+        {'activo': False, 'usado_por': f"{nombre} ({telefono})", 'fecha_uso': ahora_local()},
+        synchronize_session=False
+    )
+    if reclamado != 1:
+        db.session.rollback()
+        registrar_intento_fallido(clave_rl)
+        flash('PIN inválido o ya utilizado.', 'error')
+        return redirect(url_for('index'))
+    limpiar_intentos(clave_rl)
 
     cliente = Cliente.query.filter_by(telefono=telefono).first()
     premios_bd = Premio.query.order_by(Premio.visitas_necesarias.asc()).all()
@@ -307,11 +389,20 @@ def registrar_consumo():
 
 @app.route('/enviar_evaluacion', methods=['POST'])
 def enviar_evaluacion():
+    try:
+        cal_mesero = int(request.form.get('mesero_calificacion', ''))
+        cal_limpieza = int(request.form.get('limpieza', ''))
+        cal_comida = int(request.form.get('calidad_comida', ''))
+    except (TypeError, ValueError):
+        cal_mesero = cal_limpieza = cal_comida = 0
+    if not all(1 <= v <= 5 for v in (cal_mesero, cal_limpieza, cal_comida)):
+        flash('Selecciona una calificación válida.', 'error')
+        return redirect(url_for('index'))
     db.session.add(Evaluacion(
         mesero_nombre=request.form.get('mesero_nombre'),
-        mesero_calificacion=int(request.form.get('mesero_calificacion')),
-        limpieza=int(request.form.get('limpieza')),
-        calidad_comida=int(request.form.get('calidad_comida')),
+        mesero_calificacion=cal_mesero,
+        limpieza=cal_limpieza,
+        calidad_comida=cal_comida,
         comentarios=request.form.get('comentarios', ''),
         fecha=ahora_local()
     ))
@@ -330,13 +421,19 @@ def admin_login():
     if request.method == 'POST':
         username_input = request.form.get('username', '').strip().lower()
         password_input = request.form.get('password', '')
+        clave_rl = f"login:{username_input}"
+        if limite_intentos_excedido(clave_rl, 8, 300):
+            flash('Demasiados intentos fallidos. Espera 5 minutos e inténtalo de nuevo.', 'error')
+            return render_template('admin_login.html')
         user = User.query.filter(db.func.lower(User.username) == username_input).first()
         if user and check_password_hash(user.password, password_input):
+            limpiar_intentos(clave_rl)
             session.permanent = True
             login_user(user, remember=True, duration=timedelta(days=365))
             if user.role == 'admin':
                 session['sucursal_activa'] = user.sucursal or 'Quiosco Morisco (Matriz)'
             return redirigir_segun_rol(user)
+        registrar_intento_fallido(clave_rl)
         flash('Usuario o contraseña incorrectos.', 'error')
     return render_template('admin_login.html')
 
@@ -641,7 +738,7 @@ def nuevo_producto():
     db.session.add(Producto(
         nombre=request.form['nombre'], nombre_en=request.form.get('nombre_en', ''),
         descripcion=request.form['descripcion'], descripcion_en=request.form.get('descripcion_en', ''),
-        precio=float(request.form['precio']), categoria=request.form['categoria'],
+        precio=_precio_form(), categoria=request.form['categoria'],
         imagen_url=img_url, destacado=(request.form.get('destacado') == 'on'),
         agotado=(request.form.get('agotado') == 'on')
     ))
@@ -689,7 +786,7 @@ def editar_producto(id):
     if request.method == 'POST':
         p.nombre, p.nombre_en = request.form['nombre'], request.form.get('nombre_en', '')
         p.descripcion, p.descripcion_en = request.form['descripcion'], request.form.get('descripcion_en', '')
-        p.precio, p.categoria = float(request.form['precio']), request.form['categoria']
+        p.precio, p.categoria = _precio_form(), request.form['categoria']
         p.destacado = (request.form.get('destacado') == 'on')
         p.agotado = (request.form.get('agotado') == 'on')
         if 'foto' in request.files and request.files['foto'].filename != '':
@@ -742,7 +839,7 @@ def editar_galeria(id):
     return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/eliminar_galeria/<int:id>', methods=['POST', 'GET'])
+@app.route('/eliminar_galeria/<int:id>', methods=['POST'])
 @login_required
 def eliminar_galeria(id):
     if current_user.role != 'admin':
@@ -841,4 +938,4 @@ if os.environ.get('RUN_DB_INIT', '0') == '1':
 
 if __name__ == '__main__':
     inicializar_sistema(app)
-    app.run(debug=True, port=10000)
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1', port=10000)

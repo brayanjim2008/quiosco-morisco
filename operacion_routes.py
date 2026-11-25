@@ -1,3 +1,4 @@
+import math
 import csv
 import urllib.parse
 from io import StringIO
@@ -13,7 +14,32 @@ from models import (
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS
 )
 
+from models import aplicar_merma
+
 operacion_bp = Blueprint('operacion', __name__)
+
+
+def _num(valor, minimo=0.0, maximo=10_000_000.0):
+    """Convierte a número finito dentro de rango; si no, lanza ValueError (la ruta responde 400)."""
+    try:
+        x = float(valor or 0)
+    except (TypeError, ValueError):
+        raise ValueError('Número inválido')
+    if not math.isfinite(x) or x < minimo or x > maximo:
+        raise ValueError('Número fuera de rango')
+    return x
+
+
+@operacion_bp.errorhandler(ValueError)
+def _op_valor_invalido(e):
+    db.session.rollback()
+    return jsonify({'ok': False, 'msg': 'Dato numérico inválido o fuera de rango.'}), 400
+
+
+@operacion_bp.errorhandler(KeyError)
+def _op_dato_faltante(e):
+    db.session.rollback()
+    return jsonify({'ok': False, 'msg': f'Falta el dato requerido: {e}'}), 400
 
 
 def _csv_excel(encabezados, filas, nombre_archivo):
@@ -408,7 +434,7 @@ def api_almacen_solicitar():
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
     ins = InsumoBodegaPro.query.get(int(data['insumo_id'])) if data.get('insumo_id') else None
-    cant = float(data.get('cantidad', 1))
+    cant = _num(data.get('cantidad', 1))
     if cant <= 0:
         return jsonify({'ok': False, 'msg': 'Cantidad inválida'}), 400
     suc_real = obtener_sucursal_activa(session) if current_user.role == 'sucursal' else str(data.get('sucursal', 'Quiosco Morisco (Matriz)'))
@@ -445,7 +471,7 @@ def api_almacen_solicitar_lote():
     creados = 0
 
     for it in items:
-        cant = float(it.get('cantidad', 0))
+        cant = _num(it.get('cantidad', 0))
         if cant <= 0:
             continue
         ins = InsumoBodegaPro.query.get(int(it['insumo_id'])) if it.get('insumo_id') else None
@@ -503,7 +529,7 @@ def api_almacen_estado_bodega():
         return jsonify({'ok': False, 'msg': 'La sucursal ya confirmó recepción de este insumo.'}), 400
 
     cant_ant = r.cantidad_entregada if r.cantidad_entregada is not None else r.cantidad
-    cant_ent = float(data['cantidad_entregada']) if ('cantidad_entregada' in data and data['cantidad_entregada'] is not None) else r.cantidad
+    cant_ent = _num(data['cantidad_entregada']) if ('cantidad_entregada' in data and data['cantidad_entregada'] is not None) else r.cantidad
     ins = InsumoBodegaPro.query.get(r.insumo_id) if r.insumo_id else None
     es_extra = ins and ('EXTRA / FUERA DE LISTA' in ins.nombre)
 
@@ -541,6 +567,8 @@ def api_almacen_confirmar_caja():
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
     r = RequerimientoBodega.query.get_or_404(int(data['id']))
+    if current_user.role != 'admin' and (r.sucursal or '') != obtener_sucursal_activa(session):
+        return jsonify({'ok': False, 'msg': 'Este pedido pertenece a otra sucursal.'}), 403
     recibido = bool(data.get('recibido', True))
 
     if recibido:
@@ -579,9 +607,9 @@ def api_almacen_insumo():
         db.session.add(InsumoBodegaPro(
             nombre=nom, categoria=str(data.get('categoria', 'BARRA | Otros')).strip(),
             unidad=str(data.get('unidad', 'pz')).strip(),
-            stock_actual=float(data.get('stock_actual', 0)),
-            stock_minimo=float(data.get('stock_minimo', 2)),
-            costo_unitario=float(data.get('costo_unitario', 0))
+            stock_actual=_num(data.get('stock_actual', 0)),
+            stock_minimo=_num(data.get('stock_minimo', 2)),
+            costo_unitario=_num(data.get('costo_unitario', 0))
         ))
         db.session.commit()
         return jsonify({'ok': True})
@@ -598,8 +626,8 @@ def api_almacen_movimiento():
     data = request.json or {}
     ins = InsumoBodegaPro.query.get_or_404(int(data['insumo_id']))
     tipo = str(data.get('tipo', 'ENTRADA_COMPRA')).upper()
-    cant = float(data.get('cantidad', 0))
-    costo = float(data.get('costo_total', 0))
+    cant = _num(data.get('cantidad', 0), minimo=-10_000_000.0)
+    costo = _num(data.get('costo_total', 0))
     if cant <= 0:
         return jsonify({'ok': False, 'msg': 'Cantidad inválida'}), 400
 
@@ -625,14 +653,14 @@ def api_almacen_proveedor():
     data = request.json or {}
     if data.get('pagar_id'):
         p = ProveedorAlmacen.query.get_or_404(int(data['pagar_id']))
-        p.saldo_pendiente = max(0.0, round(p.saldo_pendiente - float(data.get('abono', 0)), 2))
+        p.saldo_pendiente = max(0.0, round(p.saldo_pendiente - _num(data.get('abono', 0)), 2))
         db.session.commit()
         return jsonify({'ok': True})
     db.session.add(ProveedorAlmacen(
         nombre=str(data.get('nombre', '')).strip().upper(),
         telefono=str(data.get('telefono', '')).strip(),
         categoria=str(data.get('categoria', 'GENERAL')).strip().upper(),
-        saldo_pendiente=float(data.get('saldo_pendiente', 0))
+        saldo_pendiente=_num(data.get('saldo_pendiente', 0))
     ))
     db.session.commit()
     return jsonify({'ok': True})
@@ -675,9 +703,9 @@ def api_stock_sucursal():
         if not st:
             st = StockSucursal(sucursal=suc, insumo_id=ins_id)
             db.session.add(st)
-        st.stock_actual = max(0.0, float(d.get('stock_actual', 0)))
+        st.stock_actual = max(0.0, _num(d.get('stock_actual', 0), minimo=-10_000_000.0))
         if 'stock_minimo' in d:
-            st.stock_minimo = max(0.0, float(d['stock_minimo']))
+            st.stock_minimo = max(0.0, _num(d['stock_minimo'], minimo=-10_000_000.0))
         db.session.commit()
         return jsonify({'ok': True})
 
@@ -728,7 +756,7 @@ def api_recetas():
     if request.method == 'POST':
         plat = str(data.get('platillo_nombre', '')).strip().upper()
         ins_id = int(data.get('insumo_id', 0))
-        cant = float(data.get('cantidad_descontar', 0))
+        cant = _num(data.get('cantidad_descontar', 0))
         if not plat or ins_id <= 0 or cant <= 0:
             return jsonify({'ok': False, 'msg': 'Completa platillo, insumo y cantidad mayor a 0.'}), 400
         db.session.add(RecetaPOS(platillo_nombre=plat, insumo_id=ins_id, cantidad_descontar=cant))
@@ -784,12 +812,13 @@ def api_mermas_registrar():
     ins = str(data.get('insumo_nombre', '')).strip().upper()
     if not ins:
         return jsonify({'ok': False, 'msg': 'Nombre de insumo requerido'}), 400
-    db.session.add(RegistroMerma(
-        fecha=ahora_local(), sucursal=suc, insumo_nombre=ins,
-        cantidad=float(data.get('cantidad', 1)), unidad=str(data.get('unidad', 'PZA')).upper(),
-        costo_total=float(data.get('costo_total', 0)), motivo=str(data.get('motivo', 'Merma')).strip(),
-        usuario=current_user.username.upper()
-    ))
+    cantidad = _num(data.get('cantidad', 1), minimo=0.001, maximo=100000.0)
+    costo_raw = data.get('costo_total')
+    costo_total = _num(costo_raw) if costo_raw not in (None, '') else None
+    aplicar_merma(
+        ins, cantidad, str(data.get('motivo', 'Merma')).strip(), suc, current_user.username.upper(),
+        unidad=str(data.get('unidad', 'PZA')).upper(), costo_total=costo_total
+    )
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -873,7 +902,7 @@ def api_finanzas_empleado():
             return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
         db.session.add(EmpleadoNominaPOS(
             nombre=nom, puesto=str(data.get('puesto', 'MESERO')).strip().upper(),
-            sueldo_base=float(data.get('sueldo_base', 1500)),
+            sueldo_base=_num(data.get('sueldo_base', 1500)),
             periodo=str(data.get('periodo', 'SEMANAL')).strip().upper(), activo=True
         ))
         db.session.commit()
@@ -891,7 +920,7 @@ def api_finanzas_consumo_empleado():
         return jsonify({'ok': False}), 403
     data = request.json or {}
     emp = EmpleadoNominaPOS.query.get_or_404(int(data['empleado_id']))
-    monto = float(data.get('monto', 0))
+    monto = _num(data.get('monto', 0))
     if monto <= 0:
         return jsonify({'ok': False, 'msg': 'Monto inválido'}), 400
     concepto = str(data.get('concepto', 'Consumo personal')).strip().upper()
@@ -913,9 +942,9 @@ def api_finanzas_generar_nomina():
         return jsonify({'ok': False, 'msg': 'Solo Admin puede pagar nómina.'}), 403
     data = request.json or {}
     emp = EmpleadoNominaPOS.query.get_or_404(int(data['empleado_id']))
-    bonos = float(data.get('bonos', 0))
-    propinas = float(data.get('propinas', 0))
-    otros_desc = float(data.get('otros_descuentos', 0))
+    bonos = _num(data.get('bonos', 0))
+    propinas = _num(data.get('propinas', 0))
+    otros_desc = _num(data.get('otros_descuentos', 0))
     periodo_txt = str(data.get('periodo_texto', emp.periodo)).strip().upper()
 
     pendientes = ConsumoEmpleadoPOS.query.filter_by(empleado_id=emp.id, descontado=False).all()
