@@ -540,6 +540,38 @@
             </div>
 
             <div class="col-md-6">
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning fw-bold">🧾 Datos de Ticket y Wi-Fi por Sucursal</div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">Lo que se imprime en tickets y el Wi-Fi que ve el comensal en el menú (según el QR/NFC de su sucursal). Campos vacíos usan el valor de siempre.</p>
+                        <select id="dt_sucursal" class="form-select form-select-sm mb-2" onchange="cargarDatosTicket()">
+                            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+                        </select>
+                        <div class="row">
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Nombre comercial</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_nombre_comercial"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Razón social</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_razon_social"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">RFC</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_rfc"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Dirección</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_direccion"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Ciudad / CP</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_ciudad"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Teléfono</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_telefono"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Red Wi-Fi (SSID)</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_wifi_red"></div>
+                            <div class="col-md-6 mb-2"><label class="small fw-bold text-muted">Clave Wi-Fi</label>
+                                <input type="text" class="form-control form-control-sm" id="dt_wifi_clave"></div>
+                        </div>
+                        <button type="button" class="btn btn-warning btn-sm fw-bold w-100" onclick="guardarDatosTicket()">💾 Guardar datos de esta sucursal</button>
+                        <div id="dt_msg" class="small mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
                 <div class="card shadow-sm mb-4 border-success">
                     <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                         <span>📍 Las 10 Plaquitas Oficiales de Mesa (NFC / QR Fijos)</span>
@@ -896,6 +928,37 @@
 
         destino.placeholder = "Escribe manual";
     }
+
+        // ---------- Datos de ticket y Wi-Fi por sucursal ----------
+    const CAMPOS_TICKET = ['nombre_comercial', 'razon_social', 'rfc', 'direccion', 'ciudad', 'telefono', 'wifi_red', 'wifi_clave'];
+    let cacheDatosTicket = {};
+    async function cargarDatosTicket(recargar) {
+        const msg = document.getElementById('dt_msg');
+        try {
+            if (recargar || !Object.keys(cacheDatosTicket).length) {
+                const d = await (await fetch('/api/admin/datos_ticket')).json();
+                if (!d.ok) { msg.textContent = d.msg || 'Sin acceso'; return; }
+                cacheDatosTicket = d.sucursales || {};
+            }
+            const datos = cacheDatosTicket[document.getElementById('dt_sucursal').value] || {};
+            CAMPOS_TICKET.forEach(c => { document.getElementById('dt_' + c).value = datos[c] || ''; });
+            msg.textContent = '';
+        } catch (e) { msg.textContent = 'No se pudieron cargar los datos.'; }
+    }
+    async function guardarDatosTicket() {
+        const msg = document.getElementById('dt_msg');
+        const sucursal = document.getElementById('dt_sucursal').value;
+        const datos = {};
+        CAMPOS_TICKET.forEach(c => { datos[c] = document.getElementById('dt_' + c).value.trim(); });
+        const res = await fetch('/api/admin/datos_ticket', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sucursal, datos })
+        });
+        const d = await res.json();
+        msg.className = 'small mt-2 fw-bold ' + (d.ok ? 'text-success' : 'text-danger');
+        msg.textContent = d.ok ? '✓ Guardado. Tickets y menú público ya usan estos datos.' : (d.msg || 'No se pudo guardar.');
+        if (d.ok) { cacheDatosTicket[sucursal] = d.datos; cargarDatosTicket(); }
+    }
+    document.addEventListener('DOMContentLoaded', () => cargarDatosTicket(true));
 
     function generarQRsMesasFijas() {
         let grid = document.getElementById('grid-qrs-mesas');

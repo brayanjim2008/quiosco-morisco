@@ -310,7 +310,11 @@
         <div class="card">
           <div class="card-head">
             <h3><i class="fa-solid fa-hand-holding-dollar" style="color:var(--cobre);"></i> Clientes con Cr&eacute;dito</h3>
-            <button type="button" class="btn sm gris" onclick="cargarCreditos()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <a class="btn sm cobre" href="/api/exportar/creditos"><i class="fa-solid fa-file-excel"></i> Excel saldos</a>
+              <a class="btn sm cobre" href="/api/exportar/creditos_movimientos"><i class="fa-solid fa-file-excel"></i> Excel movimientos</a>
+              <button type="button" class="btn sm gris" onclick="cargarCreditos()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+            </div>
           </div>
           <div class="form-row">
             <input type="text" id="cred_nombre" class="inp" placeholder="Nombre del cliente...">

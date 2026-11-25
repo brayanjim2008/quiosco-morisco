@@ -453,6 +453,7 @@ def api_pos_detalle_cuenta(cuenta_id):
         'cierre': c.cierre.strftime('%d/%m/%Y %I:%M:%S %p') if c.cierre else '',
         'impresa': bool(c.impresa), 'observaciones': c.observaciones or '',
         'subtotal': f"{c.subtotal:.2f}", 'descuento_pct': c.descuento_pct or 0.0,
+        'descuento_fijo': round(float(c.descuento_fijo or 0.0), 2),
         'descuento_monto': f"{(c.descuento_monto or 0.0):.2f}", 'iva': f"{c.iva:.2f}",
         'total': f"{c.total:.2f}", 'total_num': c.total,
         'total_letras': numero_a_letras_mxn(c.total),
@@ -1020,7 +1021,14 @@ def api_pos_descuento_autorizado():
     _e = _no_abierta(c)
     if _e:
         return _e
-    pct = max(0.0, min(100.0, _num(data.get('porcentaje', 0), minimo=-1_000_000.0, maximo=1_000_000.0)))
+    # Descuento general: porcentaje (0-100) O monto fijo en pesos (excluyentes; el último aplicado reemplaza al otro).
+    es_monto = str(data.get('tipo', '')).upper() == 'MONTO'
+    if es_monto:
+        monto_fijo = round(_num(data.get('monto', 0), maximo=1_000_000.0), 2)
+        pct = 0.0
+    else:
+        monto_fijo = 0.0
+        pct = max(0.0, min(100.0, _num(data.get('porcentaje', 0), minimo=-1_000_000.0, maximo=1_000_000.0)))
     comentario = str(data.get('comentario', '')).strip()
 
     permisos = ConfigPermisosPOS.query.first()
@@ -1030,17 +1038,19 @@ def api_pos_descuento_autorizado():
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Contraseña de autorización incorrecta.'}), 403
 
     c.descuento_pct = pct
+    c.descuento_fijo = monto_fijo
     recalcular_totales_cuenta(c)
 
     al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
-    motivo_txt = comentario or f'Descuento {pct:g}%'
+    etiqueta = f'${monto_fijo:,.2f} fijo' if es_monto else f'{pct:g}%'
+    motivo_txt = comentario or f'Descuento {etiqueta}'
     if not al:
         db.session.add(AlertaMesaPOS(cuenta_id=c.id, descuento_motivo=motivo_txt, fecha_alerta=ahora_local()))
     else:
         al.descuento_motivo = motivo_txt
 
     db.session.commit()
-    registrar_bitacora('DESCUENTO', c.mesa, c.descuento_monto, f'{pct:g}% ({motivo_txt})', autorizo=autorizo, sucursal=c.sucursal)
+    registrar_bitacora('DESCUENTO', c.mesa, c.descuento_monto, f'{etiqueta} ({motivo_txt})', autorizo=autorizo, sucursal=c.sucursal)
     return jsonify({'ok': True, 'descuento_monto': c.descuento_monto, 'total': c.total})
 
 
@@ -1076,6 +1086,7 @@ def api_pos_descuento_persona():
         return jsonify({'ok': False, 'msg': 'Esa persona no tiene un descuento configurado.'}), 400
     pct = max(0.0, min(100.0, float(emp.descuento_pct)))
     c.descuento_pct = pct
+    c.descuento_fijo = 0.0
     recalcular_totales_cuenta(c)
     al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
     motivo_txt = f'Descuento {pct:g}% - {emp.nombre}'
@@ -1214,6 +1225,8 @@ def api_pos_dividir_cuenta_real():
         return jsonify({'ok': False, 'msg': 'La cuenta no está abierta.'}), 400
     if c_orig.impresa:
         return jsonify({'ok': False, 'msg': 'No se puede dividir una cuenta impresa.'}), 400
+    if (c_orig.descuento_fijo or 0) > 0:
+        return jsonify({'ok': False, 'msg': 'Esta cuenta tiene un descuento en pesos: quítalo (o usa %) antes de dividirla por productos.'}), 400
 
     # Soporta formato multi-cuenta { "A": [{id, cantidad}], "B": [...] } o simple item_ids: [1,2]
     subcuentas_map = data.get('subcuentas')
@@ -1335,6 +1348,8 @@ def api_pos_juntar_cuentas():
         return jsonify({'ok': False, 'msg': 'Solo se pueden juntar cuentas abiertas.'}), 409
     if c_dest.impresa or c_orig.impresa:
         return jsonify({'ok': False, 'msg': 'No se pueden juntar cuentas impresas.'}), 400
+    if (c_orig.descuento_fijo or 0) > 0:
+        return jsonify({'ok': False, 'msg': f'La cuenta {c_orig.mesa} tiene un descuento en pesos: quítalo antes de juntarla (se perdería).'}), 400
 
     for det in list(c_orig.detalles):
         det.cuenta_id = c_dest.id
@@ -1370,6 +1385,11 @@ def api_pos_pagar_cuenta():
     c = CuentaPOS.query.filter_by(id=int(data['cuenta_id'])).with_for_update().first_or_404()
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+    # Idempotencia: si se cae la red DESPUÉS de cobrar, el reintento con la misma llave recibe el mismo
+    # resultado (folio y cambio) en lugar de "ya fue cerrada", y nunca se cobra dos veces.
+    idem = re.sub(r'[^A-Za-z0-9_-]', '', str(data.get('idem') or ''))[:64] or None
+    if c.estado == 'PAGADA' and idem and c.cobro_idem == idem:
+        return jsonify({'ok': True, 'folio': c.folio, 'cambio': c.cambio, 'repetido': True})
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'Esta cuenta ya fue cerrada.'}), 400
     ult4 = str(data.get('tarjeta_ultimos4', '')).strip()[:4]
@@ -1435,6 +1455,7 @@ def api_pos_pagar_cuenta():
     c.cambio = round(min(ef, max(0.0, cubierto - c.total)), 2)
     c.cierre = ahora_local()
     c.estado = 'PAGADA'
+    c.cobro_idem = idem
 
     # Descuento automático de recetas en stock local de esta sucursal (Opción A)
     descontar_recetas_local(c)

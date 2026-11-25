@@ -1,4 +1,5 @@
 import os
+import re
 import csv
 import json
 import urllib.request
@@ -24,7 +25,7 @@ from models import (
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
     cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial, quitar_caracteres_html,
     PREFIJO_SUCURSAL, SUCURSAL_DEFAULT, sucursal_desde_codigo, sucursal_filtro, obtener_datos_ticket,
-    esquema_faltante,
+    esquema_faltante, CAMPOS_DATOS_TICKET, CLAVE_CFG_DATOS_TICKET, cfg_cargar, cfg_guardar, registrar_bitacora,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -1113,6 +1114,39 @@ def eliminar_pin_individual(id):
     db.session.commit()
     flash(f'PIN {cod} anulado.', 'success')
     return redirect(url_for('admin_dashboard' if current_user.role == 'admin' else 'cajero_dashboard'))
+
+
+@app.route('/api/admin/datos_ticket', methods=['GET', 'POST'])
+@login_required
+def api_admin_datos_ticket():
+    """Datos fiscales del ticket y Wi-Fi por sucursal, editables por el admin (se guardan en config_pos)."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'campos': list(CAMPOS_DATOS_TICKET),
+                        'sucursales': {s: obtener_datos_ticket(s) for s in SUCURSALES_OFICIALES}})
+    data = request.get_json(silent=True) or {}
+    suc = str(data.get('sucursal', '')).strip()
+    if suc not in SUCURSALES_OFICIALES:
+        return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
+    nuevos = {}
+    for campo, largo in CAMPOS_DATOS_TICKET.items():
+        valor = str((data.get('datos') or {}).get(campo, '')).strip()
+        if len(valor) > largo:
+            return jsonify({'ok': False, 'msg': f'"{campo}" admite máximo {largo} caracteres.'}), 400
+        nuevos[campo] = valor
+    if nuevos['rfc'] and not re.fullmatch(r'[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}', nuevos['rfc'].upper()):
+        return jsonify({'ok': False, 'msg': 'RFC con formato inválido (12 o 13 caracteres).'}), 400
+    nuevos['rfc'] = nuevos['rfc'].upper()
+    if nuevos['wifi_clave'] and len(nuevos['wifi_clave']) < 8:
+        return jsonify({'ok': False, 'msg': 'La clave de Wi-Fi (WPA) debe tener al menos 8 caracteres.'}), 400
+    todo = cfg_cargar(CLAVE_CFG_DATOS_TICKET, {})
+    todo = todo if isinstance(todo, dict) else {}
+    todo[suc] = nuevos
+    cfg_guardar(CLAVE_CFG_DATOS_TICKET, todo)
+    invalidar_cache_publico()  # tickets, menú público (Wi-Fi) y otros workers ven el cambio
+    registrar_bitacora('DATOS_TICKET', suc, 0.0, 'Datos de ticket / Wi-Fi actualizados', sucursal=suc)
+    return jsonify({'ok': True, 'datos': obtener_datos_ticket(suc)})
 
 
 @app.route('/admin/limpiar_pins_activos', methods=['POST'])

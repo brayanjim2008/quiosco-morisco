@@ -979,7 +979,13 @@
       </div>
       <div id="tabDesc_gral" style="margin-bottom:10px;">
         <select id="selTipoDescCaja" class="m-inp" style="margin-bottom:6px;" onchange="aplicarTipoDescPreset(this)"><option value="">-- Elegir tipo de descuento predefinido --</option></select>
-        <label style="font-size:12px;font-weight:800;color:#64748b;">Porcentaje sobre toda la cuenta (0 - 100%):</label>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+          <label style="font-size:12px;font-weight:800;color:#64748b;flex:1;" id="lblDescGral">Porcentaje sobre toda la cuenta (0 - 100%):</label>
+          <select id="descModoGral" class="m-inp" style="width:130px;" onchange="cambiarModoDescGral()">
+            <option value="PCT">% Porcentaje</option>
+            <option value="MONTO">$ Monto fijo</option>
+          </select>
+        </div>
         <input type="number" id="descPctInput" class="m-inp" min="0" max="100" value="10" style="margin-top:4px;">
       </div>
       <div id="tabDesc_prod" style="display:none;margin-bottom:10px;">
@@ -2663,18 +2669,31 @@
     });
   }
 
+  // Descuento general: % sobre la cuenta o monto fijo en pesos (excluyentes).
+  function cambiarModoDescGral() {
+    const esMonto = document.getElementById('descModoGral').value === 'MONTO';
+    const inp = document.getElementById('descPctInput');
+    document.getElementById('lblDescGral').innerText = esMonto
+      ? 'Monto fijo en pesos sobre toda la cuenta ($):'
+      : 'Porcentaje sobre toda la cuenta (0 - 100%):';
+    if (esMonto) { inp.removeAttribute('max'); inp.step = '0.5'; } else { inp.max = '100'; inp.step = '1'; }
+  }
+
   async function ejecutarDescuento() {
     const clave = document.getElementById('descClaveAdmin').value;
     const motivo = document.getElementById('descComentario').value;
     let res;
     if (tabDescActual === 'gral') {
+      const esMonto = document.getElementById('descModoGral')?.value === 'MONTO';
+      const valor = parseFloat(document.getElementById('descPctInput').value || 0);
+      if (esMonto && datosCuentaActiva && valor > Number(datosCuentaActiva.total_num || 0) + Number(datosCuentaActiva.descuento_monto || 0)) {
+        if (!confirm('El monto es mayor que la cuenta; el total quedará en $0.00. ¿Continuar?')) return;
+      }
       res = await fetch('/api/pos/descuento_autorizado', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cuenta_id: cuentaActivaId,
-          porcentaje: parseFloat(document.getElementById('descPctInput').value || 0),
-          comentario: motivo, clave_admin: clave
-        })
+        body: JSON.stringify(esMonto
+          ? { cuenta_id: cuentaActivaId, tipo: 'MONTO', monto: valor, comentario: motivo, clave_admin: clave }
+          : { cuenta_id: cuentaActivaId, porcentaje: valor, comentario: motivo, clave_admin: clave })
       });
     } else {
       const items = Array.from(document.querySelectorAll('.inp-desc-prod')).map(i => ({
@@ -2882,6 +2901,17 @@
 
   let pagoEnProceso = false;
 
+  // Llave de idempotencia del cobro: la misma para los reintentos de ESA cuenta hasta que el cobro se confirme.
+  let idemCobro = { cuentaId: null, clave: null };
+  function llaveCobro(cuentaId) {
+    if (idemCobro.cuentaId !== cuentaId || !idemCobro.clave) {
+      const azar = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+      idemCobro = { cuentaId, clave: String(azar).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) };
+    }
+    return idemCobro.clave;
+  }
+
   async function procesarPagoDefinitivo() {
     if (pagoEnProceso || !datosCuentaActiva || !cuentaActivaId) return;
     const cub = desglosePago.EF + desglosePago.TARJD + desglosePago.TARJC + desglosePago.TRANS + desglosePago.VALE + (desglosePago.CRED || 0);
@@ -2907,11 +2937,14 @@
           efectivo: desglosePago.EF, tarjeta_debito: desglosePago.TARJD,
           tarjeta_credito: desglosePago.TARJC, transferencia: desglosePago.TRANS,
           vale_empleado: desglosePago.VALE, credito_cliente: desglosePago.CRED || 0, propina: desglosePago.PROP,
-          tarjeta_ultimos4: ult4, empleado_id: empId || null, cliente_credito_id: cliCredId || null
+          tarjeta_ultimos4: ult4, empleado_id: empId || null, cliente_credito_id: cliCredId || null,
+          idem: llaveCobro(idCobrado)
         })
       });
       const d = await res.json();
       if (!res.ok || !d.ok) return alert('❌ ' + (d.msg || 'No se pudo procesar el pago.'));
+      idemCobro = { cuentaId: null, clave: null };
+      if (d.repetido) notificarBarra('El cobro ya se había registrado; se reimprime el ticket sin cobrar de nuevo.');
 
       let pinData = null;
       try {
@@ -2925,7 +2958,7 @@
       cuentaActivaId = null;
       sincronizarCuentasEnVivoCaja();
     } catch (e) {
-      alert('❌ Error de conexión al cobrar. Verifica si la cuenta quedó abierta antes de reintentar.');
+      alert('❌ Error de conexión al cobrar. Puedes reintentar: si el cobro ya había entrado, NO se cobrará dos veces.');
     } finally {
       pagoEnProceso = false;
       if (btnCobrar) btnCobrar.disabled = false;

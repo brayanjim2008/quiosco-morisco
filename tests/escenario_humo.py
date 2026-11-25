@@ -214,6 +214,9 @@ ejecutar_escenario('b2.py')
 # Casos de B1 (conteo físico)
 ejecutar_escenario('b1.py')
 
+# Fase 2: descuento en pesos, idempotencia del cobro, datos de ticket editables, CSV de créditos
+ejecutar_escenario('f2.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

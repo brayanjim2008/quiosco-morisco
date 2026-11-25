@@ -1399,6 +1399,50 @@ def api_creditos_movimiento():
     })
 
 
+
+@operacion_bp.route('/api/exportar/creditos')
+@login_required
+def exportar_creditos():
+    """Clientes de crédito con su saldo por cobrar. Admin: todas las sucursales; caja/sucursal: solo la suya."""
+    if current_user.role not in _ROLES_CREDITO:
+        return jsonify({'ok': False}), 403
+    suc = _suc_credito_visible()
+    q = ClienteCredito.query
+    if suc:
+        q = q.filter_by(sucursal=suc)
+    filas = [(c.id, c.nombre, c.telefono or '', c.sucursal or '', 'ACTIVO' if c.activo else 'BAJA',
+              round(float(c.limite_credito or 0.0), 2) or 'LIBRE', round(float(c.saldo_pendiente or 0.0), 2),
+              c.creado.strftime('%Y-%m-%d') if c.creado else '')
+             for c in q.order_by(ClienteCredito.saldo_pendiente.desc(), ClienteCredito.nombre.asc()).all()]
+    return _csv_excel(('ID', 'Cliente', 'Telefono', 'Sucursal', 'Estado', 'Limite', 'Saldo_Pendiente', 'Alta'),
+                      filas, f"Creditos_Clientes_{ahora_local().strftime('%Y%m%d')}.csv")
+
+
+@operacion_bp.route('/api/exportar/creditos_movimientos')
+@login_required
+def exportar_creditos_movimientos():
+    """Historial de cargos y abonos de crédito (filtrable por ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD)."""
+    if current_user.role not in _ROLES_CREDITO:
+        return jsonify({'ok': False}), 403
+    suc = _suc_credito_visible()
+    q = MovimientoCredito.query
+    if suc:
+        q = q.filter_by(sucursal=suc)
+    for nombre, op in (('desde', '>='), ('hasta', '<')):
+        valor = request.args.get(nombre, '').strip()
+        if valor:
+            try:
+                fecha = datetime.strptime(valor, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'ok': False, 'msg': f'Fecha "{nombre}" inválida (usa AAAA-MM-DD).'}), 400
+            q = q.filter(MovimientoCredito.fecha >= fecha) if op == '>=' else q.filter(MovimientoCredito.fecha < fecha + timedelta(days=1))
+    filas = [(m.id, m.fecha.strftime('%Y-%m-%d %H:%M') if m.fecha else '', m.sucursal or '', m.cliente_nombre, m.tipo,
+              round(float(m.monto or 0.0), 2), m.concepto or '', m.cuenta_id or '', m.usuario or '')
+             for m in q.order_by(MovimientoCredito.id.desc()).all()]
+    return _csv_excel(('ID', 'Fecha', 'Sucursal', 'Cliente', 'Tipo', 'Monto', 'Concepto', 'Cuenta_POS', 'Usuario'),
+                      filas, f"Creditos_Movimientos_{ahora_local().strftime('%Y%m%d')}.csv")
+
+
 # ==============================================================================
 # 6. PANEL INDUSTRIAL (RESUMEN REAL 4 SUCURSALES, WHATSAPP Y EXCEL)
 # ==============================================================================

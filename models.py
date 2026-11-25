@@ -175,8 +175,37 @@ def quitar_caracteres_html(valor):
     return str(valor or '').translate(_CARACTERES_HTML)
 
 
+CLAVE_CFG_DATOS_TICKET = 'datos_ticket_sucursal'
+CAMPOS_DATOS_TICKET = {  # campo -> largo máximo
+    'nombre_comercial': 80, 'razon_social': 120, 'rfc': 13, 'direccion': 150, 'ciudad': 120,
+    'telefono': 20, 'wifi_red': 32, 'wifi_clave': 63,
+}
+
+
+def _datos_ticket_editados():
+    """Lo que el admin editó desde el panel (config_pos), con caché que se invalida al guardar."""
+    cache = cache_get('datos_ticket_bd', 60)
+    if cache is not None:
+        return cache
+    try:
+        datos = cfg_cargar(CLAVE_CFG_DATOS_TICKET, {})
+    except Exception:
+        datos = {}
+    return cache_set('datos_ticket_bd', datos if isinstance(datos, dict) else {})
+
+
 def obtener_datos_ticket(sucursal):
-    return DATOS_TICKET_SUCURSAL.get(sucursal, DATOS_TICKET_SUCURSAL['Quiosco Morisco (Matriz)'])
+    """Datos fiscales y Wi-Fi de la sucursal: valores base del código + lo editado por el admin."""
+    base = dict(DATOS_TICKET_SUCURSAL.get(sucursal, DATOS_TICKET_SUCURSAL[SUCURSAL_DEFAULT_TICKET]))
+    editados = _datos_ticket_editados().get(sucursal) or {}
+    for campo in CAMPOS_DATOS_TICKET:
+        valor = editados.get(campo)
+        if isinstance(valor, str) and valor.strip():
+            base[campo] = valor.strip()
+    return base
+
+
+SUCURSAL_DEFAULT_TICKET = 'Quiosco Morisco (Matriz)'
 
 
 def ahora_local():
@@ -376,6 +405,8 @@ class CuentaPOS(db.Model):
 
     recetas_descontadas = db.Column(db.Boolean, default=False)
     estado = db.Column(db.String(20), default='ABIERTA')  # ABIERTA | PAGADA | DIVIDIDA | COMBINADA | CANCELADA
+    descuento_fijo = db.Column(db.Float, default=0.0)  # descuento general en pesos (excluyente con descuento_pct)
+    cobro_idem = db.Column(db.String(64), nullable=True)  # llave de idempotencia del cobro (reintentos por red)
     detalles = db.relationship('DetallePOS', backref='cuenta', lazy=True, cascade="all, delete-orphan")
 
 
@@ -1069,7 +1100,11 @@ def recalcular_totales_cuenta(c):
         d.importe = round(max(0.0, bruto_item - (d.descuento_monto or 0.0)), 2)
         bruto_cuenta += d.importe
 
-    desc_gral = round(bruto_cuenta * ((c.descuento_pct or 0.0) / 100.0), 2)
+    if (c.descuento_pct or 0.0) > 0:
+        desc_gral = round(bruto_cuenta * ((c.descuento_pct or 0.0) / 100.0), 2)
+    else:
+        # Descuento en pesos: nunca mayor que la cuenta (el total no puede quedar negativo).
+        desc_gral = round(min(max(0.0, float(c.descuento_fijo or 0.0)), bruto_cuenta), 2)
     c.descuento_monto = desc_gral
     c.total = round(max(0.0, bruto_cuenta - desc_gral), 2)
     c.subtotal = round(c.total / 1.16, 2)
@@ -1174,6 +1209,7 @@ ESQUEMA_REQUERIDO = {
     'empleados_nomina_pos': {'sucursal'},
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
+    'cuentas_pos': {'descuento_fijo', 'cobro_idem'},
     'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
     'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
                                    'costo_unitario', 'valor_diferencia'},
@@ -1263,7 +1299,10 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE cola_impresion_pos ADD COLUMN IF NOT EXISTS reclamado_en TIMESTAMP;",
             "ALTER TABLE cola_impresion_pos ADD COLUMN IF NOT EXISTS reclamado_por VARCHAR(60);",
             "UPDATE cola_impresion_pos SET estado = 'IMPRESO' WHERE impreso = TRUE AND (estado IS NULL OR estado = 'PENDIENTE');",
-            "UPDATE cola_impresion_pos SET estado = 'PENDIENTE' WHERE estado IS NULL;"
+            "UPDATE cola_impresion_pos SET estado = 'PENDIENTE' WHERE estado IS NULL;",
+            # Fase 2: descuento en pesos e idempotencia del cobro
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS descuento_fijo DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cobro_idem VARCHAR(64);"
         ]
         es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:
