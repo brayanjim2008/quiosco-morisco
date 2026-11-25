@@ -666,7 +666,8 @@ def api_almacen_movimiento():
     if current_user.role not in ['admin', 'almacen']:
         return jsonify({'ok': False, 'msg': 'Acceso denegado'}), 403
     data = request.json or {}
-    ins = InsumoBodegaPro.query.get_or_404(int(data['insumo_id']))
+    # Fila bloqueada: dos compras simultáneas del mismo insumo no deben calcular el promedio sobre el mismo stock.
+    ins = InsumoBodegaPro.query.filter_by(id=int(data['insumo_id'])).with_for_update().first_or_404()
     tipo = str(data.get('tipo', 'ENTRADA_COMPRA')).upper()
     if tipo not in ('ENTRADA_COMPRA', 'SALIDA_MERMA', 'TRASPASO'):
         return jsonify({'ok': False, 'msg': 'Tipo de movimiento inválido.'}), 400
@@ -676,6 +677,10 @@ def api_almacen_movimiento():
         return jsonify({'ok': False, 'msg': 'Cantidad inválida'}), 400
 
     if tipo == 'ENTRADA_COMPRA':
+        if costo > 0:
+            # Se calcula con la existencia ANTES de sumar esta compra.
+            ins.costo_unitario = costo_promedio_ponderado(
+                float(ins.costo_unitario or 0.0), existencia_total_insumo(ins), cant, costo)
         ins.stock_actual = round(ins.stock_actual + cant, 2)
     elif tipo in ('SALIDA_MERMA', 'TRASPASO'):
         ins.stock_actual = max(0.0, round(ins.stock_actual - cant, 2))
@@ -686,7 +691,24 @@ def api_almacen_movimiento():
         usuario=current_user.username.upper(), nota=str(data.get('nota', '')).strip()
     ))
     db.session.commit()
-    return jsonify({'ok': True, 'stock_actual': ins.stock_actual})
+    return jsonify({'ok': True, 'stock_actual': ins.stock_actual, 'costo_unitario': round(float(ins.costo_unitario or 0.0), 4)})
+
+
+def existencia_total_insumo(ins):
+    """Existencia en todo el sistema: Bodega Central + stock local de todas las sucursales (misma mercancía, mismo costo)."""
+    en_sucursales = db.session.query(func.coalesce(func.sum(StockSucursal.stock_actual), 0.0)).filter(
+        StockSucursal.insumo_id == ins.id).scalar() or 0.0
+    return round(float(ins.stock_actual or 0.0) + float(en_sucursales), 4)
+
+
+def costo_promedio_ponderado(costo_actual, existencia_total, cantidad, costo_compra):
+    """Nuevo costo unitario tras una compra (costo_compra = total pagado por `cantidad`).
+    Sin costo previo (<= 0) o sin existencia (<= 0) se toma directo el costo de la compra: promediar contra
+    existencias históricas en $0 bajaría el costo de forma artificial."""
+    costo_compra_unit = costo_compra / cantidad
+    if costo_actual <= 0 or existencia_total <= 0:
+        return round(costo_compra_unit, 4)
+    return round((existencia_total * costo_actual + costo_compra) / (existencia_total + cantidad), 4)
 
 
 @operacion_bp.route('/api/almacen/proveedor', methods=['POST'])
@@ -810,6 +832,74 @@ def api_recetas():
     db.session.delete(RecetaPOS.query.get_or_404(int(data['id'])))
     db.session.commit()
     return jsonify({'ok': True})
+
+
+IVA_FACTOR = 1.16  # los precios del menú ya incluyen IVA
+
+
+@operacion_bp.route('/api/recetas/costeo')
+@login_required
+def api_recetas_costeo():
+    """Costo teórico y margen por platillo/modificador: costo = Σ cantidad_descontar × costo_unitario del insumo;
+    margen sobre el precio SIN IVA (precio / 1.16)."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    insumos = {i.id: i for i in InsumoBodegaPro.query.all()}
+    recetas_por_plat = {}
+    for r in RecetaPOS.query.all():
+        recetas_por_plat.setdefault(r.platillo_nombre.strip().upper(), []).append(r)
+
+    vendibles = []  # (clave_receta, nombre_visible, categoria, precio, es_modificador)
+    vistos = set()
+    for p in Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all():
+        clave = p.nombre.strip().upper()
+        if clave not in vistos:
+            vistos.add(clave)
+            vendibles.append((clave, p.nombre, p.categoria, float(p.precio or 0.0), False))
+    for m in ModificadorPOS.query.filter_by(activo=True).order_by(ModificadorPOS.grupo.asc(), ModificadorPOS.nombre.asc()).all():
+        clave = '>' + m.nombre.strip().upper()
+        if clave not in vistos:
+            vistos.add(clave)
+            vendibles.append((clave, clave, f'MODIFICADOR • {m.grupo or ""}', float(m.precio or 0.0), True))
+
+    filas = []
+    for clave, nombre, categoria, precio, es_mod in vendibles:
+        recs = recetas_por_plat.get(clave, [])
+        costo, insumos_sin_costo, lineas = 0.0, [], []
+        for r in recs:
+            ins = insumos.get(r.insumo_id)
+            cu = float(ins.costo_unitario or 0.0) if ins else 0.0
+            sub = round(float(r.cantidad_descontar or 0.0) * cu, 4)
+            costo += sub
+            nombre_ins = ins.nombre if ins else f'#{r.insumo_id} (no existe)'
+            if cu <= 0:
+                insumos_sin_costo.append(nombre_ins)
+            lineas.append({'insumo': nombre_ins, 'cantidad': r.cantidad_descontar, 'unidad': ins.unidad if ins else '',
+                           'costo_unitario': round(cu, 4), 'subtotal': round(sub, 2)})
+        precio_sin_iva = round(precio / IVA_FACTOR, 2)
+        costo = round(costo, 2)
+        utilidad = round(precio_sin_iva - costo, 2)
+        margen = round(utilidad / precio_sin_iva * 100, 1) if precio_sin_iva > 0 else None
+        filas.append({
+            'clave': clave, 'nombre': nombre, 'categoria': categoria, 'es_modificador': es_mod,
+            'precio': round(precio, 2), 'precio_sin_iva': precio_sin_iva,
+            'costo': costo, 'utilidad': utilidad, 'margen_pct': margen,
+            'sin_receta': not recs,
+            'insumos_sin_costo': insumos_sin_costo,
+            'costo_supera_precio': bool(recs) and costo > precio_sin_iva,
+            'lineas': lineas,
+        })
+    con_receta = [f for f in filas if not f['sin_receta'] and f['margen_pct'] is not None]
+    return jsonify({
+        'ok': True, 'filas': filas,
+        'resumen': {
+            'total': len(filas),
+            'sin_receta': sum(1 for f in filas if f['sin_receta']),
+            'con_insumos_sin_costo': sum(1 for f in filas if f['insumos_sin_costo']),
+            'costo_supera_precio': sum(1 for f in filas if f['costo_supera_precio']),
+            'margen_promedio': round(sum(f['margen_pct'] for f in con_receta) / len(con_receta), 1) if con_receta else None,
+        }
+    })
 
 
 # ==============================================================================

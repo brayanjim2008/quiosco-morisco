@@ -311,6 +311,34 @@
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-scale-balanced" style="color:var(--cobre);"></i> Costo y Margen por Platillo</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="cost_buscar" class="inp" style="width:210px;height:32px;" placeholder="Buscar platillo..." oninput="renderCosteo()">
+          <select id="cost_filtro" class="inp" style="width:200px;height:32px;" onchange="renderCosteo()">
+            <option value="TODOS">Todos</option>
+            <option value="ALERTAS">Solo con alertas</option>
+            <option value="SIN_RECETA">Sin receta</option>
+            <option value="CON_RECETA">Con receta</option>
+          </select>
+          <button type="button" class="btn sm gris" onclick="cargarCosteo()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#475569;margin-top:0;">
+        Costo teórico = suma de (cantidad de la receta × costo promedio del insumo). El margen se calcula sobre el precio <b>sin IVA</b> (precio ÷ 1.16).
+        Revisa que la cantidad de la receta esté en la <b>misma unidad</b> con la que se compra el insumo (kg con kg, pza con pza).
+      </p>
+      <div class="kpi-grid" id="gridKpisCosteo"></div>
+      <div class="table-wrap" style="max-height:460px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Platillo</th><th>Categoría</th><th style="text-align:right;">Precio</th><th style="text-align:right;">Sin IVA</th>
+            <th style="text-align:right;">Costo</th><th style="text-align:right;">Utilidad</th><th style="text-align:right;">Margen</th><th>Alertas</th></tr></thead>
+          <tbody id="tbodyCosteo"></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
 </div>
@@ -448,7 +476,7 @@
     if (tab === 'cancelaciones') cargarCancelaciones();
     if (tab === 'checador') cargarChecador();
     if (tab === 'mermas') cargarMermas();
-    if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); }
+    if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); cargarCosteo(); }
     if (tab === 'flujo') cargarFlujoDinero();
     if (tab === 'rep_fechas') cargarReporteVentasDetalle();
   }
@@ -624,13 +652,66 @@
       body: JSON.stringify({ platillo_nombre, insumo_id, cantidad_descontar })
     });
     const d = await res.json();
-    if (d.ok) { $('rec_cant').value = ''; toast('✓ Receta guardada'); cargarRecetas(); }
+    if (d.ok) { $('rec_cant').value = ''; toast('✓ Receta guardada'); cargarRecetas(); cargarCosteo(); }
     else alert(d.msg || 'Error');
   }
 
   async function borrarReceta(id) {
     await fetch('/api/recetas', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    toast('Receta eliminada'); cargarRecetas();
+    toast('Receta eliminada'); cargarRecetas(); cargarCosteo();
+  }
+
+  // COSTO Y MARGEN POR PLATILLO
+  let cacheCosteo = [];
+  const fmt$ = v => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  async function cargarCosteo() {
+    try {
+      const d = await (await fetch('/api/recetas/costeo')).json();
+      if (!d.ok) return;
+      cacheCosteo = d.filas || [];
+      const r = d.resumen || {};
+      $('gridKpisCosteo').innerHTML = `
+        <div class="kpi-card cobre"><div class="kpi-title">Margen promedio (con receta)</div><div class="kpi-val">${r.margen_promedio === null || r.margen_promedio === undefined ? '-' : Number(r.margen_promedio).toFixed(1) + '%'}</div><div class="kpi-sub">${Number(r.total || 0)} platillos y modificadores</div></div>
+        <div class="kpi-card"><div class="kpi-title">Sin receta</div><div class="kpi-val">${Number(r.sin_receta || 0)}</div><div class="kpi-sub">No se puede calcular su costo</div></div>
+        <div class="kpi-card rojo"><div class="kpi-title">Insumos sin costo</div><div class="kpi-val">${Number(r.con_insumos_sin_costo || 0)}</div><div class="kpi-sub">Registra compras con costo en Bodega</div></div>
+        <div class="kpi-card rojo"><div class="kpi-title">Costo mayor al precio</div><div class="kpi-val">${Number(r.costo_supera_precio || 0)}</div><div class="kpi-sub">Pierden dinero (o unidad mal capturada)</div></div>`;
+      renderCosteo();
+    } catch {}
+  }
+
+  function renderCosteo() {
+    const q = ($('cost_buscar')?.value || '').toLowerCase().trim();
+    const flt = $('cost_filtro')?.value || 'TODOS';
+    const lista = cacheCosteo.filter(f => {
+      const alerta = f.sin_receta || f.costo_supera_precio || (f.insumos_sin_costo || []).length > 0;
+      if (flt === 'ALERTAS' && !alerta) return false;
+      if (flt === 'SIN_RECETA' && !f.sin_receta) return false;
+      if (flt === 'CON_RECETA' && f.sin_receta) return false;
+      if (q && !(String(f.nombre).toLowerCase().includes(q) || String(f.categoria).toLowerCase().includes(q))) return false;
+      return true;
+    });
+    $('tbodyCosteo').innerHTML = lista.map(f => {
+      const alertas = [];
+      if (f.sin_receta) alertas.push('<span class="pill warn">Sin receta</span>');
+      if (f.costo_supera_precio) alertas.push('<span class="pill err">Costo &gt; precio</span>');
+      if ((f.insumos_sin_costo || []).length) alertas.push(`<span class="pill err" title="${esc(f.insumos_sin_costo.join(', '))}">Insumo sin costo: ${esc(f.insumos_sin_costo.join(', '))}</span>`);
+      if (!alertas.length) alertas.push('<span class="pill ok">OK</span>');
+      const m = f.margen_pct;
+      const colorM = (m === null || f.sin_receta) ? '#64748b' : (m < 0 ? '#dc2626' : (m < 50 ? '#b45309' : '#16a34a'));
+      const detalle = (f.lineas || []).map(l => `${l.cantidad} ${l.unidad} ${l.insumo} × ${fmt$(l.costo_unitario)} = ${fmt$(l.subtotal)}`).join('\n');
+      const filaRoja = f.costo_supera_precio ? 'background:#fef2f2;' : '';
+      return `<tr style="${filaRoja}" title="${esc(detalle)}">
+        <td><b>${esc(f.nombre)}</b></td>
+        <td style="font-size:11px;color:#64748b;">${esc(f.categoria)}</td>
+        <td style="text-align:right;">${fmt$(f.precio)}</td>
+        <td style="text-align:right;color:#64748b;">${fmt$(f.precio_sin_iva)}</td>
+        <td style="text-align:right;">${f.sin_receta ? '-' : fmt$(f.costo)}</td>
+        <td style="text-align:right;">${f.sin_receta ? '-' : fmt$(f.utilidad)}</td>
+        <td style="text-align:right;color:${colorM};"><b>${(m === null || f.sin_receta) ? '-' : Number(m).toFixed(1) + '%'}</b></td>
+        <td>${alertas.join(' ')}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:14px;">Sin platillos con este filtro.</td></tr>';
   }
 
   async function cargarStockSucursal() {
