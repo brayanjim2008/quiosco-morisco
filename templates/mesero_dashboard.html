@@ -1520,7 +1520,7 @@
     if (!p.ok) return mostrarToast('❌ No se pudo generar el PIN');
     const c = datosCuentaActual;
     const dt = c.datos_ticket || { nombre_comercial: 'QUIOSCO MORISCO BISTRO', razon_social: 'RAQUEL ABIGAIL BERMUDEZ GARCIA', rfc: 'BEGR020115TD5', direccion: 'CALLE GUADALUPE VICTORIA, SIN NUM. COL. CENTRO', ciudad: 'SAN CRISTOBAL DE LAS CASAS CHIAPAS MEXICO CP 29200', telefono: '9671802660', wifi_red: 'QuioscoMoriscoB', wifi_clave: 'Corazonsc31' };
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/?pin=' + p.codigo)}`;
+    const qrUrl = `${window.location.origin}/qr.svg?data=${encodeURIComponent(window.location.origin + '/?pin=' + p.codigo)}`;
     const filas = c.items.filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it =>
       `<tr><td style="width:14%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td><td style="width:62%;">${escHtml(it.descripcion.replace(/^>+/, ''))}</td><td style="width:24%;text-align:right;">$${it.importe}</td></tr>`
     ).join('');

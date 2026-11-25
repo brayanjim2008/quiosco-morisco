@@ -3,9 +3,10 @@ import csv
 import json
 import urllib.request
 import urllib.parse
-from io import StringIO
+from io import StringIO, BytesIO
 from datetime import timedelta
 
+import segno
 import cloudinary
 import cloudinary.uploader
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session, abort
@@ -22,6 +23,7 @@ from models import (
     db, login_manager, inicializar_sistema, ahora_local, inicio_hoy_local,
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
     cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial, quitar_caracteres_html,
+    PREFIJO_SUCURSAL, SUCURSAL_DEFAULT, sucursal_desde_codigo, sucursal_filtro, obtener_datos_ticket,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -306,9 +308,56 @@ def obtener_contexto_publico():
     return cache_set('menu_publico', ctx)
 
 
+def _sucursal_publica():
+    """Sucursal del comensal: ?suc=QM|C1|C2|C3 en el QR/NFC de la mesa. Se recuerda en su sesión para que no se
+    pierda tras enviar un formulario. Un enlace de mesa SIN ?suc= (los QR/NFC ya instalados) vuelve a la Matriz."""
+    codigo = request.args.get('suc', '').strip().upper()
+    if codigo in PREFIJO_SUCURSAL.values():
+        session['suc_publica'] = codigo
+    elif 'mesa' in request.args or 'pin' in request.args:
+        session.pop('suc_publica', None)
+    return sucursal_desde_codigo(session.get('suc_publica'))
+
+
+def _escape_wifi(valor):
+    """Escapa los caracteres especiales del formato de QR de Wi-Fi (WIFI:T:WPA;S:...;P:...;;)."""
+    return ''.join('\\' + ch if ch in '\\;,:"' else ch for ch in str(valor or ''))
+
+
+def _contexto_sucursal_publica():
+    suc = _sucursal_publica()
+    datos = obtener_datos_ticket(suc)
+    return {
+        'sucursal_publica': suc,
+        'suc_codigo': PREFIJO_SUCURSAL.get(suc, 'QM'),
+        'wifi_red': datos.get('wifi_red', ''),
+        'wifi_clave': datos.get('wifi_clave', ''),
+        'wifi_qr_data': f"WIFI:T:WPA;S:{_escape_wifi(datos.get('wifi_red'))};P:{_escape_wifi(datos.get('wifi_clave'))};;",
+    }
+
+
 @app.route('/')
 def index():
-    return render_template('index.html', **obtener_contexto_publico())
+    return render_template('index.html', **obtener_contexto_publico(), **_contexto_sucursal_publica())
+
+
+@app.route('/qr.svg')
+def qr_svg():
+    """QR generado en el propio servidor (sin depender de api.qrserver.com): tickets, PINs, mesas y Wi-Fi."""
+    data = request.args.get('data', '')
+    if not data or len(data) > 300:
+        abort(400, 'Texto de QR vacío o mayor a 300 caracteres.')
+    try:
+        tam = max(1, min(20, int(request.args.get('escala', 6))))
+    except (TypeError, ValueError):
+        tam = 6
+    buf = BytesIO()
+    segno.make(data, error='m', micro=False).save(buf, kind='svg', scale=tam, border=2, xmldecl=False)
+    resp = Response(buf.getvalue(), mimetype='image/svg+xml')
+    resp.headers['Content-Type'] = 'image/svg+xml'
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 
 @app.route('/api/estado_menu_publico')
@@ -353,7 +402,9 @@ def crear_preorden():
             notas=_texto_publico(data.get('notas', ''), 300),
             total=total_seguro,
             estado="pendiente",
-            fecha=ahora_local()
+            fecha=ahora_local(),
+            # ?suc= del QR/NFC (lo manda index.html); si no viene, la recordada en sesión; si no, Matriz.
+            sucursal=sucursal_desde_codigo(data.get('suc') or session.get('suc_publica'))
         )
         db.session.add(nueva)
         db.session.commit()
@@ -369,9 +420,13 @@ def crear_preorden():
 def api_preordenes_pendientes():
     if current_user.role not in ['admin', 'gerente', 'cajero', 'mesero', 'sucursal']:
         return jsonify({"total_pendientes": 0, "ordenes": []}), 403
-    ordenes = PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all()
+    suc = sucursal_filtro(session)
+    ordenes = _preordenes_pendientes(suc)
+    q_pins = PinCaja.query.filter_by(activo=True)
+    if suc:
+        q_pins = q_pins.filter(PinCaja.sucursal == suc)
     resultado = [{
-        "id": o.id, "mesa": o.mesa, "cliente_nombre": o.cliente_nombre,
+        "id": o.id, "mesa": o.mesa, "cliente_nombre": o.cliente_nombre, "sucursal": o.sucursal or SUCURSAL_DEFAULT,
         "modalidad": o.modalidad, "metodo_pago": o.metodo_pago,
         "detalle_items": o.detalle_items, "notas": o.notas or "",
         "total": o.total, "hora": o.fecha.strftime('%H:%M') if o.fecha else ""
@@ -380,8 +435,29 @@ def api_preordenes_pendientes():
         "total_pendientes": len(resultado),
         "ordenes": resultado,
         "agotados_ids": [p.id for p in Producto.query.filter_by(agotado=True).all()],
-        "pins_activos": PinCaja.query.filter_by(activo=True).count()
+        "pins_activos": q_pins.count()
     })
+
+
+def _preordenes_pendientes(suc):
+    """Pre-órdenes pendientes; suc=None (admin) = todas las sucursales."""
+    q = PreOrden.query.filter_by(estado='pendiente')
+    if suc:
+        q = q.filter(PreOrden.sucursal == suc)
+    return q.order_by(PreOrden.fecha.desc()).all()
+
+
+def _pins_activos(suc):
+    q = PinCaja.query.filter_by(activo=True)
+    if suc:
+        q = q.filter(PinCaja.sucursal == suc)
+    return q.all()
+
+
+def _registro_de_mi_sucursal(registro):
+    """El admin opera cualquier sucursal; los demás roles solo registros de su sucursal activa."""
+    suc = sucursal_filtro(session)
+    return suc is None or (registro.sucursal or SUCURSAL_DEFAULT) == suc
 
 
 @app.route('/atender_preorden/<int:id>', methods=['POST'])
@@ -390,6 +466,9 @@ def atender_preorden(id):
     if current_user.role not in ['admin', 'gerente', 'cajero', 'mesero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     orden = PreOrden.query.get_or_404(id)
+    if not _registro_de_mi_sucursal(orden):
+        flash('Esa pre-orden pertenece a otra sucursal.', 'danger')
+        return redirigir_segun_rol(current_user)
     accion = request.form.get('accion', 'atendido')
     if accion not in ('atendido', 'cancelado'):
         accion = 'atendido'
@@ -458,7 +537,7 @@ def registrar_consumo():
     db.session.commit()
     return render_template(
         'index.html', cliente=cliente, progreso=cliente.visitas,
-        premio_actual=premio_actual, **obtener_contexto_publico()
+        premio_actual=premio_actual, **obtener_contexto_publico(), **_contexto_sucursal_publica()
     )
 
 
@@ -598,13 +677,15 @@ def cajero_dashboard():
     if current_user.role not in ['gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     hoy_inicio = inicio_hoy_local()
+    suc = obtener_sucursal_activa(session)  # este panel no lo usa el admin: siempre filtra por sucursal
     return render_template(
         'cajero_dashboard.html',
-        sucursal=obtener_sucursal_activa(session),
-        pins=PinCaja.query.filter_by(activo=True).all(),
-        preordenes=PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all(),
+        sucursal=suc,
+        pins=_pins_activos(suc),
+        preordenes=_preordenes_pendientes(suc),
         mis_pins_hoy=PinCaja.query.filter(PinCaja.creado_por == current_user.username, PinCaja.fecha_creacion >= hoy_inicio).count(),
-        historial_caja_hoy=PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio).order_by(PinCaja.id.desc()).limit(30).all()
+        historial_caja_hoy=PinCaja.query.filter(PinCaja.fecha_creacion >= hoy_inicio, PinCaja.sucursal == suc)
+                                        .order_by(PinCaja.id.desc()).limit(30).all()
     )
 
 
@@ -617,7 +698,7 @@ def mesero_dashboard():
         'mesero_dashboard.html',
         sucursal=obtener_sucursal_activa(session),
         sucursales=SUCURSALES_OFICIALES,
-        preordenes=PreOrden.query.filter_by(estado='pendiente').order_by(PreOrden.fecha.desc()).all(),
+        preordenes=_preordenes_pendientes(sucursal_filtro(session)),
         productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
     )
 
@@ -999,10 +1080,11 @@ def generar_pin():
         cantidad = 1
     folio_sr = request.form.get('folio_sr', '').strip()[:50]
     ahora = ahora_local()
+    suc_pin = obtener_sucursal_activa(session)
     for _ in range(cantidad):
         db.session.add(PinCaja(
             codigo=generar_pin_unico(), creado_por=current_user.username,
-            folio_sr=folio_sr, fecha_creacion=ahora
+            folio_sr=folio_sr, fecha_creacion=ahora, sucursal=suc_pin
         ))
     db.session.commit()
     flash(f'Se generaron {cantidad} PIN(s) a nombre de {current_user.username.capitalize()}.', 'success')
@@ -1015,6 +1097,9 @@ def eliminar_pin_individual(id):
     if current_user.role not in ['admin', 'gerente', 'cajero', 'sucursal']:
         return redirigir_segun_rol(current_user)
     pin = PinCaja.query.get_or_404(id)
+    if not _registro_de_mi_sucursal(pin):
+        flash('Ese PIN pertenece a otra sucursal.', 'danger')
+        return redirigir_segun_rol(current_user)
     cod = pin.codigo
     db.session.delete(pin)
     db.session.commit()
@@ -1038,10 +1123,18 @@ if os.environ.get('RUN_DB_INIT', '0') == '1':
 else:
     # Red de seguridad: si faltan las tablas nuevas (primer deploy de esta versión), se crean solas
     # aunque RUN_DB_INIT no esté activo. Es una sola consulta ligera al arrancar.
+    # Se revisa que existan las tablas y la última columna agregada (pre_orden.sucursal): si falta algo,
+    # se migra solo (ALTER ... IF NOT EXISTS, sin borrar datos). Si no, la app consultaría columnas inexistentes.
     try:
         from sqlalchemy import inspect as _sa_inspect
         with app.app_context():
-            if not _sa_inspect(db.engine).has_table('clientes_credito'):
+            _insp = _sa_inspect(db.engine)
+            _falta_esquema = (
+                not _insp.has_table('pre_orden')
+                or not _insp.has_table('clientes_credito')
+                or 'sucursal' not in {c['name'] for c in _insp.get_columns('pre_orden')}
+            )
+            if _falta_esquema:
                 inicializar_sistema(app)
     except Exception as _e_init:
         print('Aviso: no se pudo verificar el esquema al arrancar:', _e_init)

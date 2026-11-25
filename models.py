@@ -202,6 +202,7 @@ class PinCaja(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=ahora_local)
     usado_por = db.Column(db.String(120), nullable=True)
     fecha_uso = db.Column(db.DateTime, nullable=True)
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
 
 
 class Evaluacion(db.Model):
@@ -238,6 +239,7 @@ class PreOrden(db.Model):
     estado = db.Column(db.String(30), default="pendiente")
     atendido_por = db.Column(db.String(80), nullable=True)
     fecha = db.Column(db.DateTime, default=ahora_local)
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
 
 
 # ==============================================================================
@@ -534,6 +536,7 @@ class EmpleadoNominaPOS(db.Model):
     dias_base = db.Column(db.Integer, default=6)
     pin_checador = db.Column(db.String(12), nullable=True)
     descuento_pct = db.Column(db.Float, default=0.0)
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')  # sucursal principal
 
 
 class ConsumoEmpleadoPOS(db.Model):
@@ -547,6 +550,7 @@ class ConsumoEmpleadoPOS(db.Model):
     monto = db.Column(db.Float, default=0.0)
     descontado = db.Column(db.Boolean, default=False)
     registrado_por = db.Column(db.String(60), default='CAJA')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')  # donde se registró el vale
 
 
 class ReciboNominaPOS(db.Model):
@@ -566,6 +570,7 @@ class ReciboNominaPOS(db.Model):
     pagado_por = db.Column(db.String(60), default='ADMIN')
     dias_base = db.Column(db.Integer, default=6)
     dias_trabajados = db.Column(db.Float, default=6.0)
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')  # sucursal principal del empleado
 
 
 class ClienteCredito(db.Model):
@@ -617,6 +622,23 @@ def obtener_sucursal_activa(session_obj=None):
     if usr_suc in SUCURSALES_OFICIALES:
         return usr_suc
     return MAPA_SUCURSAL_USUARIO.get(current_user.username.lower(), 'Quiosco Morisco (Matriz)')
+
+
+SUCURSAL_POR_PREFIJO = {v: k for k, v in PREFIJO_SUCURSAL.items()}  # 'C1' -> 'Caminante 1'
+SUCURSAL_DEFAULT = 'Quiosco Morisco (Matriz)'
+
+
+def sucursal_desde_codigo(codigo):
+    """Código corto de los QR/NFC de mesa (?suc=QM|C1|C2|C3). Sin código o inválido -> Matriz,
+    así los QR/NFC ya instalados (sin ?suc=) siguen llegando a Quiosco Morisco."""
+    return SUCURSAL_POR_PREFIJO.get(str(codigo or '').strip().upper(), SUCURSAL_DEFAULT)
+
+
+def sucursal_filtro(session_obj=None):
+    """None = el admin ve todas las sucursales; cualquier otro rol solo ve su sucursal activa."""
+    if current_user.is_authenticated and current_user.role == 'admin':
+        return None
+    return obtener_sucursal_activa(session_obj)
 
 
 _INTENTOS_FALLIDOS = {}
@@ -1053,14 +1075,29 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS pin_checador VARCHAR(12);",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS descuento_pct DOUBLE PRECISION DEFAULT 0.0;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
-            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;"
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
+            # Aislamiento por sucursal (los registros existentes quedan en la Matriz; no se reescribe la tabla).
+            "ALTER TABLE pre_orden ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "ALTER TABLE consumos_empleados_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT 'Quiosco Morisco (Matriz)';",
+            "UPDATE pre_orden SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
+            "UPDATE pin_caja SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
+            "UPDATE empleados_nomina_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
+            "UPDATE consumos_empleados_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;",
+            "UPDATE recibos_nomina_pos SET sucursal = 'Quiosco Morisco (Matriz)' WHERE sucursal IS NULL;"
         ]
+        es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
-            except Exception:
+            except Exception as e_mig:
                 db.session.rollback()
+                # En SQLite (pruebas locales) "IF NOT EXISTS" no existe en ALTER: create_all ya creó las columnas.
+                if es_postgres:
+                    app_obj.logger.warning('Migración falló: %s | %s', sql, e_mig)
 
         indices = [
             "CREATE INDEX IF NOT EXISTS idx_cuentas_pos_suc_est ON cuentas_pos (sucursal, estado);",
@@ -1079,14 +1116,18 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_producto_cat_agot ON producto (categoria, agotado);",
             "CREATE INDEX IF NOT EXISTS idx_stock_suc_suc_ins ON stock_sucursal (sucursal, insumo_id);",
             "CREATE INDEX IF NOT EXISTS idx_consumo_emp_desc ON consumos_empleados_pos (descontado, empleado_id);",
-            "CREATE INDEX IF NOT EXISTS idx_prod_grupo_mod_plat ON producto_grupo_mod (platillo_nombre, orden);"
+            "CREATE INDEX IF NOT EXISTS idx_prod_grupo_mod_plat ON producto_grupo_mod (platillo_nombre, orden);",
+            "CREATE INDEX IF NOT EXISTS idx_pre_orden_suc_estado ON pre_orden (sucursal, estado);",
+            "CREATE INDEX IF NOT EXISTS idx_pin_caja_suc_activo ON pin_caja (sucursal, activo);",
+            "CREATE INDEX IF NOT EXISTS idx_empleados_nomina_suc ON empleados_nomina_pos (sucursal, activo);"
         ]
         for sql in indices:
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
-            except Exception:
+            except Exception as e_idx:
                 db.session.rollback()
+                app_obj.logger.warning('Índice falló: %s | %s', sql, e_idx)
 
         if not ConfigPermisosPOS.query.first():
             db.session.add(ConfigPermisosPOS())

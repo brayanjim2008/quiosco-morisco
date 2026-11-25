@@ -3011,7 +3011,7 @@
   function armarBloquePinHTML(pinData, c) {
     if (!pinData || !pinData.ok) return '';
     const dt = (c && c.datos_ticket) ? c.datos_ticket : DATOS_TICKET_DEF;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(window.location.origin + '/?pin=' + pinData.codigo)}`;
+    const qrUrl = `${window.location.origin}/qr.svg?data=${encodeURIComponent(window.location.origin + '/?pin=' + pinData.codigo)}`;
     return `<div style="border-top:2px dashed #000;margin:8px 0;padding-top:6px;text-align:center;">
       <div style="font-size:11.5px;font-weight:900;">¡SELLA TU VISITA Y GANA PREMIOS!</div>
       <img src="${qrUrl}" style="width:118px;height:118px;margin:4px auto;display:block;">

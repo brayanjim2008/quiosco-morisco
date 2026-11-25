@@ -12,7 +12,7 @@ from models import (
     obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
     generar_pin_unico, detectar_area_impresion, obtener_turno_activo,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
-    numero_a_letras_mxn, quitar_caracteres_html,
+    numero_a_letras_mxn, quitar_caracteres_html, SUCURSAL_DEFAULT,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
     ConfigPermisosPOS, TurnoPOS, MovimientoCajaPOS, CuentaPOS, DetallePOS,
     ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
@@ -290,7 +290,7 @@ def vista_pos_soft():
     cuentas = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').order_by(CuentaPOS.id.asc()).all()
     categorias_bd = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
     productos = Producto.query.filter_by(agotado=False).order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
-    empleados = EmpleadoNominaPOS.query.filter_by(activo=True).order_by(EmpleadoNominaPOS.nombre.asc()).all()
+    empleados = EmpleadoNominaPOS.query.filter_by(activo=True, sucursal=suc).order_by(EmpleadoNominaPOS.nombre.asc()).all()
     clientes_credito = ClienteCredito.query.filter_by(sucursal=suc, activo=True).order_by(ClienteCredito.nombre.asc()).all()
     return render_template(
         'pos_soft.html',
@@ -1049,7 +1049,8 @@ def api_pos_personas_descuento():
     if current_user.role not in ROLES_POS:
         return jsonify({'ok': False}), 403
     personas = EmpleadoNominaPOS.query.filter(
-        EmpleadoNominaPOS.activo == True, EmpleadoNominaPOS.descuento_pct > 0
+        EmpleadoNominaPOS.activo == True, EmpleadoNominaPOS.descuento_pct > 0,
+        EmpleadoNominaPOS.sucursal == obtener_sucursal_activa(session)
     ).order_by(EmpleadoNominaPOS.nombre.asc()).all()
     return jsonify({'ok': True, 'personas': [{
         'id': e.id, 'nombre': e.nombre, 'puesto': e.puesto, 'descuento_pct': float(e.descuento_pct or 0.0)
@@ -1391,7 +1392,8 @@ def api_pos_pagar_cuenta():
         db.session.add(ConsumoEmpleadoPOS(
             fecha=ahora_local(), empleado_id=emp.id, empleado_nombre=emp.nombre,
             tipo='CONSUMO', concepto=f'CONSUMO POS MESA {c.mesa} ({c.orden})',
-            monto=vale_emp, descontado=False, registrado_por=current_user.username.upper()
+            monto=vale_emp, descontado=False, registrado_por=current_user.username.upper(),
+            sucursal=c.sucursal
         ))
 
     cli_cred = None
@@ -1743,7 +1745,8 @@ def api_pos_pin_inteligente(cuenta_id):
 
     nuevo_pin = PinCaja(
         codigo=generar_pin_unico(), activo=True,
-        creado_por=current_user.username, folio_sr=ref_folio, fecha_creacion=ahora_local()
+        creado_por=current_user.username, folio_sr=ref_folio, fecha_creacion=ahora_local(),
+        sucursal=c.sucursal
     )
     db.session.add(nuevo_pin)
     db.session.commit()
@@ -1927,7 +1930,10 @@ def api_confirmar_preorden_1clic(preorden_id):
         return jsonify({'ok': False, 'msg': 'Esta pre-orden fue cancelada o ya no está pendiente.'}), 400
 
     data = request.get_json(silent=True) or {}
-    suc = obtener_sucursal_activa(session)
+    suc_orden = orden.sucursal or SUCURSAL_DEFAULT
+    if current_user.role != 'admin' and suc_orden != obtener_sucursal_activa(session):
+        return jsonify({'ok': False, 'msg': f'Esta pre-orden es de {suc_orden}.'}), 403
+    suc = suc_orden
     mesero_asignado = (data.get('mesero') or current_user.username).strip().upper()
     orden.estado = 'atendido'
     orden.atendido_por = mesero_asignado

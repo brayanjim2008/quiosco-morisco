@@ -15,7 +15,8 @@ from models import (
     MovimientoAlmacen, ProveedorAlmacen, RegistroAsistencia, RegistroMerma,
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
-    obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
+    obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
+    SUCURSAL_DEFAULT
 )
 
 from models import aplicar_merma, buscar_insumo_activo
@@ -110,7 +111,7 @@ def almacen_hoja_ruta_descarga():
 def vista_nomina_creditos():
     if current_user.role not in ['admin', 'cajero', 'sucursal']:
         return redirect(url_for('admin_login'))
-    return render_template('nomina_creditos.html')
+    return render_template('nomina_creditos.html', sucursales=SUCURSALES_OFICIALES)
 
 
 @operacion_bp.route('/industrial')
@@ -951,9 +952,20 @@ def api_finanzas_datos():
     if current_user.role not in _ROLES_FINANZAS:
         return jsonify({'ok': False}), 403
     es_admin = (current_user.role == 'admin')
-    empleados = EmpleadoNominaPOS.query.filter_by(activo=True).order_by(EmpleadoNominaPOS.nombre.asc()).all()
-    consumos = ConsumoEmpleadoPOS.query.order_by(ConsumoEmpleadoPOS.id.desc()).limit(100).all()
-    pendientes_todos = ConsumoEmpleadoPOS.query.filter_by(descontado=False).all()
+    q_emp = EmpleadoNominaPOS.query.filter_by(activo=True)
+    q_cons = ConsumoEmpleadoPOS.query
+    if not es_admin:
+        # Caja/sucursal: solo su personal (sucursal principal) y los vales de ese personal.
+        q_emp = q_emp.filter(EmpleadoNominaPOS.sucursal == obtener_sucursal_activa(session))
+    empleados = q_emp.order_by(EmpleadoNominaPOS.nombre.asc()).all()
+    ids_emp = [e.id for e in empleados]
+    if not es_admin:
+        q_cons = q_cons.filter(ConsumoEmpleadoPOS.empleado_id.in_(ids_emp or [-1]))
+    consumos = q_cons.order_by(ConsumoEmpleadoPOS.id.desc()).limit(100).all()
+    # El adeudo cuenta TODOS los vales pendientes del empleado, aunque los haya hecho cubriendo otra sucursal.
+    pendientes_todos = ConsumoEmpleadoPOS.query.filter(
+        ConsumoEmpleadoPOS.descontado == False, ConsumoEmpleadoPOS.empleado_id.in_(ids_emp or [-1])
+    ).all()
     recibos = ReciboNominaPOS.query.order_by(ReciboNominaPOS.id.desc()).limit(60).all() if es_admin else []
 
     adeudo_emp = {}
@@ -970,13 +982,15 @@ def api_finanzas_datos():
             'dias_base': int(e.dias_base or 6),
             'pin_checador': (e.pin_checador or '') if es_admin else '',
             'descuento_pct': float(e.descuento_pct or 0.0),
+            'sucursal': e.sucursal or SUCURSAL_DEFAULT,
             'dias_asistidos_recientes': dias_asist.get(e.id, 0),
             'consumo_pendiente': adeudo_emp.get(e.id, 0.0)
         } for e in empleados],
         'consumos': [{
             'id': c.id, 'fecha': c.fecha.strftime('%d/%m %H:%M'),
             'empleado_id': c.empleado_id, 'empleado_nombre': c.empleado_nombre,
-            'tipo': c.tipo, 'concepto': c.concepto, 'monto': c.monto, 'descontado': c.descontado
+            'tipo': c.tipo, 'concepto': c.concepto, 'monto': c.monto, 'descontado': c.descontado,
+            'sucursal': c.sucursal or SUCURSAL_DEFAULT
         } for c in consumos],
         'recibos': [{
             'id': r.id, 'fecha': r.fecha.strftime('%d/%m/%Y %H:%M'),
@@ -984,7 +998,7 @@ def api_finanzas_datos():
             'periodo_texto': r.periodo_texto, 'sueldo_base': r.sueldo_base,
             'bonos': r.bonos, 'propinas': r.propinas,
             'descuentos_consumo': r.descuentos_consumo, 'otros_descuentos': r.otros_descuentos,
-            'total_neto': r.total_neto, 'pagado_por': r.pagado_por,
+            'total_neto': r.total_neto, 'pagado_por': r.pagado_por, 'sucursal': r.sucursal or SUCURSAL_DEFAULT,
             'dias_base': int(r.dias_base or 6),
             'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6))
         } for r in recibos]
@@ -1020,7 +1034,11 @@ def api_finanzas_empleado():
         periodo = str(data.get('periodo', 'SEMANAL')).strip().upper()
         if periodo not in _DIAS_VENTANA_PERIODO:
             periodo = 'SEMANAL'
+        suc_emp = str(data.get('sucursal') or SUCURSAL_DEFAULT).strip()
+        if suc_emp not in SUCURSALES_OFICIALES:
+            return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
         db.session.add(EmpleadoNominaPOS(
+            sucursal=suc_emp,
             nombre=nom, puesto=str(data.get('puesto', 'MESERO')).strip().upper() or 'MESERO',
             sueldo_base=_num(data.get('sueldo_base', 1500), maximo=1_000_000.0),
             periodo=periodo, activo=True,
@@ -1048,9 +1066,14 @@ def api_finanzas_empleado():
             e.puesto = str(data.get('puesto')).strip().upper()
         if 'periodo' in data and str(data.get('periodo')).strip().upper() in _DIAS_VENTANA_PERIODO:
             e.periodo = str(data.get('periodo')).strip().upper()
+        if 'sucursal' in data:
+            if data.get('sucursal') not in SUCURSALES_OFICIALES:
+                return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
+            e.sucursal = data.get('sucursal')
         db.session.commit()
         registrar_bitacora('EDITAR_EMPLEADO', e.nombre, 0.0, f'Desc:{e.descuento_pct:g}% Días base:{e.dias_base}')
-        return jsonify({'ok': True, 'descuento_pct': float(e.descuento_pct or 0.0), 'dias_base': int(e.dias_base or 6)})
+        return jsonify({'ok': True, 'descuento_pct': float(e.descuento_pct or 0.0), 'dias_base': int(e.dias_base or 6),
+                        'sucursal': e.sucursal or SUCURSAL_DEFAULT})
 
     e.activo = False
     e.pin_checador = None
@@ -1065,6 +1088,9 @@ def api_finanzas_consumo_empleado():
         return jsonify({'ok': False}), 403
     data = request.json or {}
     emp = EmpleadoNominaPOS.query.get_or_404(int(data['empleado_id']))
+    suc_actual = obtener_sucursal_activa(session)
+    if current_user.role != 'admin' and (emp.sucursal or SUCURSAL_DEFAULT) != suc_actual:
+        return jsonify({'ok': False, 'msg': 'Ese empleado pertenece a otra sucursal.'}), 403
     monto = _num(data.get('monto', 0))
     if monto <= 0:
         return jsonify({'ok': False, 'msg': 'Monto inválido'}), 400
@@ -1073,7 +1099,8 @@ def api_finanzas_consumo_empleado():
     db.session.add(ConsumoEmpleadoPOS(
         fecha=ahora_local(), empleado_id=emp.id, empleado_nombre=emp.nombre,
         tipo=tipo, concepto=concepto, monto=monto, descontado=False,
-        registrado_por=current_user.username.upper()
+        registrado_por=current_user.username.upper(),
+        sucursal=(emp.sucursal or SUCURSAL_DEFAULT) if current_user.role == 'admin' else suc_actual
     ))
     db.session.commit()
     registrar_bitacora('VALE_EMPLEADO', emp.nombre, monto, f'{tipo}: {concepto}')
@@ -1113,7 +1140,7 @@ def api_finanzas_generar_nomina():
         periodo_texto=periodo_txt, sueldo_base=sueldo_prorrata, bonos=bonos, propinas=propinas,
         descuentos_consumo=desc_consumo, otros_descuentos=otros_desc,
         total_neto=total_neto, pagado_por=current_user.username.upper(),
-        dias_base=dias_base, dias_trabajados=dias_trab
+        dias_base=dias_base, dias_trabajados=dias_trab, sucursal=emp.sucursal or SUCURSAL_DEFAULT
     )
     db.session.add(recibo)
     db.session.commit()

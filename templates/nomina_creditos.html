@@ -288,12 +288,15 @@
           <input type="number" step="1" min="0" max="100" id="emp_desc" class="inp" placeholder="Desc. auto (%)" value="0">
           <input type="number" step="1" min="1" max="31" id="emp_dias_base" class="inp" placeholder="D&iacute;as base" value="6">
           <input type="text" maxlength="10" id="emp_pin" class="inp" placeholder="PIN checador (ej. 1234)">
+          <select id="emp_sucursal" class="inp" title="Sucursal principal">
+            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
           <button type="button" class="btn" onclick="crearEmpleado()">+ Dar de Alta</button>
         </div>
 
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nombre</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Sucursal</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
             <tbody id="tbodyPersonal"></tbody>
           </table>
         </div>
@@ -358,6 +361,7 @@
 
 <script>
   const $ = id => document.getElementById(id);
+  const SUCURSALES_NOM = JSON.parse('{{ sucursales|tojson }}');
   let cacheEmpleados = [], cacheConsumos = [], cacheRecibos = [];
   let esAdmin = false;
 
@@ -428,6 +432,9 @@
       if ($('tbodyPersonal')) {
         $('tbodyPersonal').innerHTML = cacheEmpleados.map(e => `<tr>
           <td><b>${esc(e.nombre)}</b></td>
+          <td><select class="inp" style="height:30px;font-size:11px;min-width:150px;" onchange="cambiarSucursalEmp(${e.id}, this.value)">
+            ${SUCURSALES_NOM.map(s => `<option value="${esc(s)}" ${s === e.sucursal ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+          </select></td>
           <td>${esc(e.puesto)}</td>
           <td>${esc(e.periodo)}</td>
           <td style="text-align:right;">$${Number(e.sueldo_base || 0).toFixed(2)}</td>
@@ -435,7 +442,7 @@
           <td style="text-align:right;"><button type="button" class="btn sm cobre" onclick="editarDescEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}', ${Number(e.descuento_pct || 0)})">${Number(e.descuento_pct || 0).toFixed(0)}%</button></td>
           <td style="text-align:right;color:${e.consumo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(e.consumo_pendiente || 0).toFixed(2)}</td>
           <td><button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${e.id}, '${esc(e.nombre).replace(/'/g, '')}')">🗑️ Dar de Baja</button></td>
-        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
       }
     } catch {}
   }
@@ -586,7 +593,8 @@
         periodo: $('emp_periodo').value,
         descuento_pct: parseFloat($('emp_desc')?.value || 0),
         dias_base: parseInt($('emp_dias_base')?.value || 6),
-        pin_checador: ($('emp_pin')?.value || '').trim()
+        pin_checador: ($('emp_pin')?.value || '').trim(),
+        sucursal: $('emp_sucursal')?.value || SUCURSALES_NOM[0]
       })
     });
     const d = await res.json();
@@ -597,6 +605,17 @@
     if ($('emp_dias_base')) $('emp_dias_base').value = '6';
     if ($('emp_pin')) $('emp_pin').value = '';
     toast('✓ Empleado dado de alta');
+    cargarFinanzas();
+  }
+
+  async function cambiarSucursalEmp(id, sucursal) {
+    const res = await fetch('/api/finanzas/empleado', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, sucursal })
+    });
+    const d = await res.json();
+    if (!d.ok) { alert(d.msg || 'No se pudo cambiar la sucursal.'); return cargarFinanzas(); }
+    toast(`Sucursal principal: ${d.sucursal}`);
     cargarFinanzas();
   }
 

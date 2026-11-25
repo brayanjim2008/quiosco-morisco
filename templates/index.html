@@ -300,10 +300,10 @@
         <h3 style="border-bottom: none; margin-top: 0; color: var(--verde-quiosco);"><i class="fas fa-wifi text-primary"></i> <span data-i18n="menu_wifi">Wi-Fi Gratis</span></h3>
         <p style="font-size: 14px; color: var(--texto-claro);" data-i18n="wifi_desc">Escanea el código QR con tu cámara para conectarte o copia la contraseña.</p>
         <div style="background: white; padding: 15px; border-radius: 16px; display: inline-block; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=WIFI:T:WPA;S:QuioscoMoriscoB;P:Corazonsc31;;" alt="Wi-Fi QR" style="width: 150px; height: 150px;">
+            <img src="/qr.svg?escala=5&data={{ wifi_qr_data|urlencode }}" alt="Wi-Fi QR" style="width: 150px; height: 150px;">
         </div>
-        <p style="margin: 0; font-weight: bold; font-size: 15px;">Red: <span style="color: var(--cobre);">QuioscoMoriscoB</span></p>
-        <div style="background: var(--fondo-hueso); padding: 12px; border-radius: 12px; font-family: monospace; font-size: 20px; font-weight: bold; color: var(--verde-quiosco); margin: 10px 0; border: 1px solid var(--border-color);" id="wifi-pass">Corazonsc31</div>
+        <p style="margin: 0; font-weight: bold; font-size: 15px;">Red: <span style="color: var(--cobre);">{{ wifi_red }}</span></p>
+        <div style="background: var(--fondo-hueso); padding: 12px; border-radius: 12px; font-family: monospace; font-size: 20px; font-weight: bold; color: var(--verde-quiosco); margin: 10px 0; border: 1px solid var(--border-color);" id="wifi-pass">{{ wifi_clave }}</div>
         <div class="modal-buttons">
             <button onclick="cerrarModalInfo('modal-wifi');" class="btn-cancelar" data-i18n="btn_cerrar">Cerrar</button>
             <button onclick="copiarWifi();" class="btn-llamar" style="background: #007bff;" id="btn-copiar-wifi"><i class="fas fa-copy"></i> <span data-i18n="wifi_copiar">Copiar</span></button>
@@ -831,6 +831,10 @@
 </footer>
 
 <script>
+    // Sucursal del QR/NFC (?suc=QM|C1|C2|C3); sin ?suc= es la Matriz.
+    const SUC_PUBLICA = "{{ suc_codigo }}";
+</script>
+<script>
     const TASA_USD = 19.5;
     const traducciones = {
         es: {
@@ -1073,7 +1077,7 @@
             let res = await fetch('/crear_preorden', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mesa: mesa, cliente_nombre: nombre, modalidad: modalidad, metodo_pago: metodoPago, detalle_items: resumenTxt, notas: notas, total: totalMonto })
+                body: JSON.stringify({ suc: SUC_PUBLICA, mesa: mesa, cliente_nombre: nombre, modalidad: modalidad, metodo_pago: metodoPago, detalle_items: resumenTxt, notas: notas, total: totalMonto })
             });
             let data = await res.json();
             if (data.ok) {
@@ -1265,7 +1269,7 @@
         actualizarInsigniaMesa(mesa);
         await fetch('/crear_preorden', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mesa: mesa, cliente_nombre: "Asistencia en Mesa", modalidad: "Llamado Mesero", metodo_pago: "-", detalle_items: motivoMeseroActual, notas: "", total: 0 })
+            body: JSON.stringify({ suc: SUC_PUBLICA, mesa: mesa, cliente_nombre: "Asistencia en Mesa", modalidad: "Llamado Mesero", metodo_pago: "-", detalle_items: motivoMeseroActual, notas: "", total: 0 })
         });
         cerrarModalInfo('modal-mesero');
         alert(`✅ Aviso enviado a la tablet de tu mesero para la Plaquita / Mesa ${mesa}.`);

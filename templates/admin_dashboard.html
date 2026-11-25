@@ -230,7 +230,7 @@
                                      data-hora="{{ pin.fecha_creacion.strftime('%d/%m/%Y %H:%M') if pin.fecha_creacion else '' }}">
                                     <small class="text-muted d-block" style="font-size:10px;">👤 {{ (pin.creado_por or 'Caja')|capitalize }} {{ ('• #' ~ pin.folio_sr) if pin.folio_sr else '' }}</small>
                                     <h4 class="fw-bold mb-1 text-dark" style="letter-spacing: 3px;">{{ pin.codigo }}</h4>
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ (request.host_url ~ '?pin=' ~ pin.codigo)|urlencode }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
+                                    <img src="/qr.svg?escala=4&data={{ (request.host_url ~ '?pin=' ~ pin.codigo)|urlencode }}" class="img-fluid rounded mb-2" style="max-width: 80px;">
                                     <div class="d-flex gap-1">
                                         <button type="button" onclick="imprimirTicketUnico(this.closest('[data-pin-activo]'))" class="btn btn-sm btn-dark flex-grow-1 fw-bold" style="font-size: 11px;">🖨️ Ticket</button>
                                         <form action="{{ url_for('eliminar_pin_individual', id=pin.id) }}" method="POST" class="m-0" data-pin-cod="{{ pin.codigo }}" onsubmit="return confirm('¿Borrar PIN ' + this.getAttribute('data-pin-cod') + '?');">
@@ -547,6 +547,12 @@
                     </div>
                     <div class="card-body">
                         <p class="small text-muted mb-2">Estos son los 10 enlaces fijos para grabar en los chips NFC e imprimir en las 10 plaquitas del restaurante:</p>
+                        <select id="sel-suc-plaquitas" class="form-select form-select-sm mb-2" onchange="generarQRsMesasFijas()">
+                            <option value="QM">Quiosco Morisco (Matriz) — enlaces actuales, sin ?suc=</option>
+                            <option value="C1">Caminante 1 (&amp;suc=C1)</option>
+                            <option value="C2">Caminante 2 (&amp;suc=C2)</option>
+                            <option value="C3">Caminante 3 (&amp;suc=C3)</option>
+                        </select>
                         <div id="grid-qrs-mesas" class="row" style="max-height: 310px; overflow-y: auto;"></div>
                     </div>
                 </div>
@@ -894,10 +900,13 @@
     function generarQRsMesasFijas() {
         let grid = document.getElementById('grid-qrs-mesas');
         let baseUrl = window.location.origin;
+        const selSuc = document.getElementById('sel-suc-plaquitas');
+        const codSuc = selSuc ? selSuc.value : 'QM';
+        const sufijoSuc = codSuc && codSuc !== 'QM' ? `&suc=${codSuc}` : '';  // Matriz sin ?suc= (QR/NFC ya instalados)
         grid.innerHTML = '';
         for (let m = 1; m <= 10; m++) {
-            let linkMesa = `${baseUrl}/?mesa=${m}`;
-            let qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(linkMesa)}`;
+            let linkMesa = `${baseUrl}/?mesa=${m}${sufijoSuc}`;
+            let qrImg = `${baseUrl}/qr.svg?escala=4&data=${encodeURIComponent(linkMesa)}`;
             grid.innerHTML += `
                 <div class="col-6 mb-3">
                     <div class="border rounded p-2 text-center bg-white shadow-sm">
@@ -928,7 +937,7 @@ function renderizarPreordenesAdmin(ordenes) {
                 <div class="p-3 preorden-card h-100 d-flex flex-column justify-content-between">
                     <div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-dark fs-6">📍 Plaquita / Mesa ${escHtmlPre(o.mesa)}</span>
+                            <span class="badge bg-dark fs-6">📍 Plaquita / Mesa ${escHtmlPre(o.mesa)}</span>${o.sucursal ? ` <span class="badge bg-secondary">${escHtmlPre(o.sucursal)}</span>` : ''}
                             <span class="badge bg-secondary">Folio #${escHtmlPre(o.id)} • ${escHtmlPre(o.hora)}</span>
                         </div>
                         <h6 class="fw-bold mb-1">👤 Cliente: <span class="text-primary">${escHtmlPre(o.cliente_nombre)}</span></h6>
@@ -977,7 +986,7 @@ function renderizarPreordenesAdmin(ordenes) {
         const cajero = el.getAttribute('data-cajero') || 'ADMIN';
         const folio = el.getAttribute('data-folio') || '';
         const hora = el.getAttribute('data-hora') || new Date().toLocaleString('es-MX');
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.origin + '/?pin=' + codigo)}`;
+        const qrUrl = `${window.location.origin}/qr.svg?data=${encodeURIComponent(window.location.origin + '/?pin=' + codigo)}`;
         const lineaFolio = folio ? `<p style="font-size:10px; margin:2px 0; font-weight:bold;">Folio Caja: #${folio}</p>` : '';
 
         return `
