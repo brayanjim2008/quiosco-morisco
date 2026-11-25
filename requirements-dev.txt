@@ -1,0 +1,4 @@
+# Solo para desarrollo y pruebas (Render usa requirements.txt).
+-r requirements.txt
+pytest==8.3.3
+pyflakes==3.2.0

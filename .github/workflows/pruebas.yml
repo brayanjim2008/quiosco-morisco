@@ -1,0 +1,48 @@
+name: Pruebas
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sqlite:
+    name: Pruebas (SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Lint (pyflakes)
+        run: python -m pyflakes app.py models.py pos_routes.py operacion_routes.py
+      - name: Pruebas
+        run: python -m pytest
+
+  postgres:
+    # Igual que producción (Neon): ALTER ... IF NOT EXISTS, FOR UPDATE SKIP LOCKED, ON CONFLICT, advisory locks.
+    # Base vacía y desechable creada por GitHub Actions; NUNCA apuntar a la base real.
+    name: Pruebas (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pruebas
+          POSTGRES_PASSWORD: pruebas
+          POSTGRES_DB: comensal_pruebas
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pruebas" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PRUEBAS_DATABASE_URL: postgresql://pruebas:pruebas@localhost:5432/comensal_pruebas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Pruebas
+        run: python -m pytest
