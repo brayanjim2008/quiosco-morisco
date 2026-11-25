@@ -177,11 +177,11 @@ def _subir_imagen(archivo):
 
 
 def _limitar_publico(nombre, max_req=15, ventana=300):
-    """Limita peticiones por IP en rutas públicas (por proceso). True si ya se excedió."""
+    """Limita peticiones por IP en rutas públicas (compartido entre workers vía limites_intentos). True si ya se excedió."""
     clave = f"{nombre}:{_ip_cliente()}"
     if limite_intentos_excedido(clave, max_req, ventana):
         return True
-    registrar_intento_fallido(clave)
+    registrar_intento_fallido(clave, ventana_seg=ventana)
     return False
 
 
@@ -511,7 +511,6 @@ def registrar_consumo():
         registrar_intento_fallido(clave_rl)
         flash('PIN inválido o ya utilizado.', 'error')
         return redirect(url_for('index'))
-    limpiar_intentos(clave_rl)
 
     cliente = Cliente.query.filter_by(telefono=telefono).first()
     premios_bd = Premio.query.order_by(Premio.visitas_necesarias.asc()).all()
@@ -536,6 +535,7 @@ def registrar_consumo():
         flash(f'¡Visita sellada, {nombre}! Llevas {cliente.visitas} consumos.', 'success')
 
     db.session.commit()
+    limpiar_intentos(clave_rl)  # después del commit: solo se limpia si la visita sí quedó guardada
     return render_template(
         'index.html', cliente=cliente, progreso=cliente.visitas,
         premio_actual=premio_actual, **obtener_contexto_publico(), **_contexto_sucursal_publica()

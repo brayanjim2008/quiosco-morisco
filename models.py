@@ -23,7 +23,52 @@ _CACHE_LOCK = threading.Lock()
 _CACHE_STORE = {}
 
 
+# ------------------------------------------------------------------------------
+# Caché en memoria por worker + versión compartida en PostgreSQL (config_pos.version_cache_publico).
+# invalidar_cache_publico() sube la versión; cada worker la revisa como máximo cada CACHE_REVISION_SEG
+# y, si cambió, vacía su caché. Así un platillo agotado se ve en ~3 s en TODOS los workers (antes hasta 45 s).
+# Las lecturas/escrituras de la versión usan su propia conexión: no tocan la transacción de la ruta.
+# ------------------------------------------------------------------------------
+CACHE_REVISION_SEG = 3
+CLAVE_VERSION_CACHE = 'version_cache_publico'
+_CACHE_VERSION = {'local': None, 'revisado': 0.0}
+
+
+def _log_aviso(msg, *args):
+    try:
+        from flask import current_app
+        current_app.logger.warning(msg, *args)
+    except Exception:
+        import logging
+        logging.getLogger('comensal').warning(msg, *args)
+
+
+def _leer_version_cache():
+    with db.engine.connect() as conn:
+        v = conn.execute(text("SELECT valor_json FROM config_pos WHERE clave = :c"), {'c': CLAVE_VERSION_CACHE}).scalar()
+    return str(v) if v is not None else '0'
+
+
+def _sincronizar_version_cache():
+    """Si otro worker invalidó la caché (subió la versión), vacía la caché local. Falla abierta."""
+    ahora = time.monotonic()
+    with _CACHE_LOCK:
+        if ahora - _CACHE_VERSION['revisado'] < CACHE_REVISION_SEG:
+            return
+        _CACHE_VERSION['revisado'] = ahora
+    try:
+        version = _leer_version_cache()
+    except Exception as e:
+        _log_aviso('No se pudo leer la versión de caché (se sigue con la caché local): %s', e)
+        return
+    with _CACHE_LOCK:
+        if _CACHE_VERSION['local'] is not None and version != _CACHE_VERSION['local']:
+            _CACHE_STORE.clear()
+        _CACHE_VERSION['local'] = version
+
+
 def cache_get(clave, ttl_segundos):
+    _sincronizar_version_cache()
     with _CACHE_LOCK:
         item = _CACHE_STORE.get(clave)
         if item and (time.monotonic() - item[0]) < ttl_segundos:
@@ -38,9 +83,23 @@ def cache_set(clave, valor):
 
 
 def invalidar_cache_publico():
+    """Vacía la caché de este worker y sube la versión compartida para que los demás la vacíen.
+    Llamar DESPUÉS del commit de la ruta (si no, otro worker podría recargar datos viejos)."""
     with _CACHE_LOCK:
-        _CACHE_STORE.pop('menu_publico', None)
-        _CACHE_STORE.pop('estado_agotados', None)
+        _CACHE_STORE.clear()
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO config_pos (clave, valor_json) VALUES (:c, '1') "
+                "ON CONFLICT (clave) DO UPDATE SET valor_json = "
+                "CAST(CAST(config_pos.valor_json AS INTEGER) + 1 AS VARCHAR(20))"
+            ), {'c': CLAVE_VERSION_CACHE})
+        version = _leer_version_cache()
+        with _CACHE_LOCK:
+            _CACHE_VERSION['local'] = version
+            _CACHE_VERSION['revisado'] = time.monotonic()
+    except Exception as e:
+        _log_aviso('No se pudo publicar la invalidación de caché (los otros workers tardarán hasta su TTL): %s', e)
 
 SUCURSALES_OFICIALES = [
     'Quiosco Morisco (Matriz)',
@@ -608,6 +667,14 @@ class MovimientoCredito(db.Model):
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
 
 
+class LimiteIntento(db.Model):
+    """Contador de intentos por clave (login:usuario, pin:IP, preorden:IP...) compartido por todos los workers."""
+    __tablename__ = 'limites_intentos'
+    clave = db.Column(db.String(200), primary_key=True)
+    conteo = db.Column(db.Integer, nullable=False, default=0)
+    ventana_inicio = db.Column(db.DateTime, nullable=False, default=ahora_local)
+
+
 class ConfigPOS(db.Model):
     """Configuración en base de datos (reemplaza los .json locales, que se pierden en cada deploy de Render)."""
     __tablename__ = 'config_pos'
@@ -649,8 +716,6 @@ def sucursal_filtro(session_obj=None):
     return obtener_sucursal_activa(session_obj)
 
 
-_INTENTOS_FALLIDOS = {}
-_INTENTOS_LOCK = threading.Lock()
 
 
 def cfg_cargar(clave, default, archivo_legado=None):
@@ -685,27 +750,61 @@ def cfg_guardar(clave, valor):
     db.session.commit()
 
 
+# ------------------------------------------------------------------------------
+# Límite de intentos compartido por todos los workers (tabla limites_intentos, ventana fija por clave).
+# - Las escrituras usan su PROPIA conexión (db.engine.begin()): un db.session.rollback() de la ruta no borra
+#   el intento fallido, y registrar un intento no hace commit de la transacción de la ruta.
+# - Si la base falla, se "falla abierto" (se deja pasar y se avisa en el log) para no tumbar el menú público.
+# ------------------------------------------------------------------------------
+LIMPIEZA_INTENTOS_CADA = 200          # ~1 de cada 200 escrituras borra registros vencidos
+LIMPIEZA_INTENTOS_VIGENCIA_SEG = 3600  # mayor que la ventana más larga en uso (600 s)
+
+
 def limite_intentos_excedido(clave, max_intentos=5, ventana_seg=300):
-    """True si esa clave (usuario/IP) acumuló demasiados fallos recientes. Es por proceso (cada worker lleva su cuenta)."""
-    ahora = time.time()
-    with _INTENTOS_LOCK:
-        recientes = [t for t in _INTENTOS_FALLIDOS.get(clave, []) if ahora - t < ventana_seg]
-        _INTENTOS_FALLIDOS[clave] = recientes
-        return len(recientes) >= max_intentos
+    """True si esa clave (usuario/IP) acumuló max_intentos dentro de su ventana actual."""
+    try:
+        with db.engine.connect() as conn:
+            fila = conn.execute(text(
+                "SELECT conteo, ventana_inicio FROM limites_intentos WHERE clave = :c"
+            ), {'c': str(clave)[:200]}).first()
+    except Exception as e:
+        _log_aviso('Límite de intentos no disponible (se deja pasar): %s', e)
+        return False
+    if not fila:
+        return False
+    conteo, inicio = fila[0], fila[1]
+    if isinstance(inicio, str):  # SQLite devuelve texto con conexiones crudas
+        inicio = datetime.fromisoformat(inicio)
+    if inicio is None or inicio < ahora_local() - timedelta(seconds=ventana_seg):
+        return False  # la ventana ya venció
+    return int(conteo or 0) >= max_intentos
 
 
-def registrar_intento_fallido(clave):
-    with _INTENTOS_LOCK:
-        _INTENTOS_FALLIDOS.setdefault(clave, []).append(time.time())
-        if len(_INTENTOS_FALLIDOS) > 5000:
-            ahora = time.time()
-            for k in [k for k, v in _INTENTOS_FALLIDOS.items() if not v or ahora - v[-1] > 3600]:
-                _INTENTOS_FALLIDOS.pop(k, None)
+def registrar_intento_fallido(clave, ventana_seg=300):
+    """Suma 1 intento (atómico con ON CONFLICT). Si la ventana de esa clave ya venció, reinicia en 1."""
+    ahora = ahora_local()
+    corte = ahora - timedelta(seconds=ventana_seg)
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO limites_intentos (clave, conteo, ventana_inicio) VALUES (:c, 1, :ahora) "
+                "ON CONFLICT (clave) DO UPDATE SET "
+                "conteo = CASE WHEN limites_intentos.ventana_inicio < :corte THEN 1 ELSE limites_intentos.conteo + 1 END, "
+                "ventana_inicio = CASE WHEN limites_intentos.ventana_inicio < :corte THEN :ahora ELSE limites_intentos.ventana_inicio END"
+            ), {'c': str(clave)[:200], 'ahora': ahora, 'corte': corte})
+            if secrets.randbelow(LIMPIEZA_INTENTOS_CADA) == 0:
+                conn.execute(text("DELETE FROM limites_intentos WHERE ventana_inicio < :viejo"),
+                             {'viejo': ahora - timedelta(seconds=LIMPIEZA_INTENTOS_VIGENCIA_SEG)})
+    except Exception as e:
+        _log_aviso('No se pudo registrar el intento de %s: %s', clave, e)
 
 
 def limpiar_intentos(clave):
-    with _INTENTOS_LOCK:
-        _INTENTOS_FALLIDOS.pop(clave, None)
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text("DELETE FROM limites_intentos WHERE clave = :c"), {'c': str(clave)[:200]})
+    except Exception as e:
+        _log_aviso('No se pudo limpiar los intentos de %s: %s', clave, e)
 
 
 def validar_clave_admin(clave_ingresada):
@@ -1041,6 +1140,7 @@ ESQUEMA_REQUERIDO = {
     'pin_caja': {'sucursal'},
     'empleados_nomina_pos': {'sucursal'},
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
+    'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
 }
 
 
