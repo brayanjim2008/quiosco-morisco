@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reservaciones • {{ sucursal }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246; --hueso: #fdfaf6; --borde: #e2d9ce; }
+  * { box-sizing: border-box; font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; }
+  .topbar { background: var(--verde-oscuro); color: #fff; padding: 10px 16px; border-bottom: 3px solid var(--cobre);
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .topbar b { font-size: 17px; }
+  .nav a, .nav select { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(201,130,70,.55); padding: 6px 10px;
+                        border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; }
+  .nav select option { color: #000; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border: 1.5px solid var(--borde); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  h3 { margin: 0 0 10px; color: var(--verde); font-size: 16px; }
+  .fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .inp { width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 13px; }
+  .btn { height: 38px; padding: 0 14px; border-radius: 8px; border: none; background: var(--verde); color: #fff; font-weight: 800; cursor: pointer; }
+  .btn.sm { height: 30px; padding: 0 9px; font-size: 11.5px; }
+  .btn.cobre { background: var(--cobre); } .btn.rojo { background: #dc2626; } .btn.gris { background: #e2e8f0; color: #334155; }
+  .btn.wa { background: #16a34a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--verde); color: #fff; padding: 8px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .pill { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; }
+  .PENDIENTE { background: #fef9c3; color: #854d0e; } .CONFIRMADA { background: #dbeafe; color: #1e40af; }
+  .LLEGO { background: #dcfce7; color: #166534; } .NO_LLEGO, .CANCELADA { background: #fee2e2; color: #b91c1c; }
+  .acc { display: flex; gap: 4px; flex-wrap: wrap; }
+  .toast { position: fixed; bottom: 16px; right: 16px; background: var(--verde); color: #fff; padding: 10px 16px; border-radius: 22px; font-weight: 800; display: none; }
+  .tabla { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <b><i class="fa-regular fa-calendar-check"></i> Reservaciones • <span id="lblSuc">{{ sucursal }}</span></b>
+  <div class="nav" style="display:flex;gap:6px;flex-wrap:wrap;">
+    {% if current_user.role == 'admin' %}
+    <select id="selSuc" onchange="cargar()">
+      {% for s in sucursales %}<option value="{{ s }}" {% if s == sucursal %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <a href="/pos"><i class="fa-solid fa-cash-register"></i> POS</a>
+    <a href="/mesero_dashboard"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
+    <a href="/logout"><i class="fa-solid fa-door-open"></i> Salir</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h3><i class="fa-solid fa-plus"></i> Nueva reservación</h3>
+    <div class="fila">
+      <input type="text" id="r_nombre" class="inp" placeholder="Nombre del cliente">
+      <input type="tel" id="r_tel" class="inp" placeholder="Teléfono">
+      <input type="date" id="r_fecha" class="inp">
+      <input type="time" id="r_hora" class="inp" value="14:00">
+      <input type="number" id="r_personas" class="inp" min="1" value="2" placeholder="Personas">
+      <input type="text" id="r_mesa" class="inp" placeholder="Mesa (ej. M4, T05)">
+      <input type="text" id="r_notas" class="inp" placeholder="Notas (cumpleaños, silla bebé...)">
+      <button type="button" class="btn wa" onclick="crear()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <h3 style="margin:0;">Agenda del día</h3>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="btn sm gris" onclick="moverDia(-1)">◀</button>
+        <input type="date" id="f_dia" class="inp" style="width:160px;height:30px;" onchange="cargar()">
+        <button type="button" class="btn sm gris" onclick="moverDia(1)">▶</button>
+        <button type="button" class="btn sm" onclick="hoy()">Hoy</button>
+      </div>
+    </div>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Hora</th><th>Cliente</th><th>Personas</th><th>Mesa</th><th>Notas</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function toast(m) { const t = $('toast'); t.innerText = m; t.style.display = 'block'; setTimeout(() => { if (t.innerText === m) t.style.display = 'none'; }, 2800); }
+  const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  let lista = [];
+  const sucParam = () => $('selSuc') ? '&sucursal=' + encodeURIComponent($('selSuc').value) : '';
+
+  function hoy() { $('f_dia').value = hoyISO(); cargar(); }
+  function moverDia(n) { const d = new Date(($('f_dia').value || hoyISO()) + 'T12:00:00'); d.setDate(d.getDate() + n); $('f_dia').value = d.toISOString().slice(0, 10); cargar(); }
+
+  async function cargar() {
+    if ($('selSuc')) $('lblSuc').innerText = $('selSuc').value;
+    const d = await (await fetch('/api/reservaciones?fecha=' + ($('f_dia').value || hoyISO()) + sucParam())).json();
+    if (!d.ok) return toast(d.msg || 'Sin acceso');
+    lista = d.reservaciones || [];
+    $('tbody').innerHTML = lista.map((r, i) => {
+      const activa = r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA';
+      const acc = activa ? `
+          ${r.estado === 'PENDIENTE' ? `<button type="button" class="btn sm" onclick="estado(${i}, 'CONFIRMADA')">Confirmar</button>` : ''}
+          <button type="button" class="btn sm wa" onclick="estado(${i}, 'LLEGO')">Llegó → abrir mesa</button>
+          <button type="button" class="btn sm gris" onclick="cambiarMesa(${i})">Mesa</button>
+          <button type="button" class="btn sm cobre" onclick="estado(${i}, 'NO_LLEGO')">No llegó</button>
+          <button type="button" class="btn sm rojo" onclick="estado(${i}, 'CANCELADA')">Cancelar</button>`
+        : (r.estado === 'LLEGO' ? `<small>Cuenta #${Number(r.cuenta_id || 0)}</small>`
+           : `<button type="button" class="btn sm gris" onclick="estado(${i}, 'PENDIENTE')">Reactivar</button>`);
+      return `<tr>
+        <td><b>${esc(r.hora)}</b></td>
+        <td><b>${esc(r.nombre)}</b>${r.telefono ? `<br><small>${esc(r.telefono)}</small>` : ''}</td>
+        <td>${Number(r.personas)}</td><td><b>${esc(r.mesa || '—')}</b></td><td>${esc(r.notas)}</td>
+        <td><span class="pill ${esc(r.estado)}">${esc(r.estado.replace('_', ' '))}</span></td>
+        <td><div class="acc">${acc}</div></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:18px;">Sin reservaciones este día.</td></tr>';
+  }
+
+  async function post(url, body) {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return r.json();
+  }
+
+  async function crear(forzar) {
+    const body = { nombre: $('r_nombre').value.trim(), telefono: $('r_tel').value.trim(), fecha: $('r_fecha').value,
+                   hora: $('r_hora').value, personas: Number($('r_personas').value || 2), mesa: $('r_mesa').value.trim(),
+                   notas: $('r_notas').value.trim(), forzar: Boolean(forzar) };
+    if ($('selSuc')) body.sucursal = $('selSuc').value;
+    if (!body.nombre || !body.fecha || !body.hora) return alert('Nombre, fecha y hora son obligatorios.');
+    const d = await post('/api/reservaciones', body);
+    if (!d.ok && d.choque) { if (confirm(d.msg + '\n\n¿Guardar de todos modos?')) return crear(true); return; }
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    ['r_nombre', 'r_tel', 'r_mesa', 'r_notas'].forEach(id => $(id).value = '');
+    $('f_dia').value = body.fecha;
+    toast('Reservación guardada'); cargar();
+  }
+
+  async function estado(i, nuevo) {
+    const r = lista[i];
+    if (!r) return;
+    if (nuevo === 'CANCELADA' && !confirm(`¿Cancelar la reservación de ${r.nombre}?`)) return;
+    const d = await post('/api/reservaciones/' + Number(r.id), { estado: nuevo });
+    if (!d.ok) return alert(d.msg || 'No se pudo actualizar.');
+    toast(nuevo === 'LLEGO' ? `Mesa ${r.mesa} abierta (cuenta #${d.cuenta_id})` : 'Actualizado');
+    cargar();
+  }
+
+  async function cambiarMesa(i, forzar) {
+    const r = lista[i];
+    if (!r) return;
+    const mesa = forzar ? forzar : prompt(`Mesa para ${r.nombre}:`, r.mesa || '');
+    if (mesa === null) return;
+    const d = await post('/api/reservaciones/' + Number(r.id), { mesa, forzar: Boolean(forzar) });
+    if (!d.ok && d.choque) { if (confirm(d.msg + '\n\n¿Asignarla de todos modos?')) return cambiarMesa(i, mesa); return; }
+    if (!d.ok) return alert(d.msg || 'No se pudo cambiar.');
+    toast('Mesa actualizada'); cargar();
+  }
+
+  $('r_fecha').value = hoyISO();
+  hoy();
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ import time
 import zlib
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, current_user
-from sqlalchemy import text
+from sqlalchemy import text, event
 from werkzeug.security import generate_password_hash, check_password_hash
 
 try:
@@ -438,6 +438,35 @@ class DetallePOS(db.Model):
     promo_aplicada = db.Column(db.String(100), nullable=True)
     importe = db.Column(db.Float, default=0.0)
     impreso_comanda = db.Column(db.Boolean, default=False)
+    # Monitor de cocina/barra (KDS)
+    enviado_en = db.Column(db.DateTime, nullable=True)        # cuándo se mandó a cocina/barra
+    kds_estado = db.Column(db.String(12), default='PENDIENTE')  # PENDIENTE | PREPARANDO | LISTO | ENTREGADO
+    kds_listo_en = db.Column(db.DateTime, nullable=True)
+
+
+@event.listens_for(DetallePOS.impreso_comanda, 'set')
+def _marcar_envio_cocina(target, value, oldvalue, initiator):
+    """Registra la hora en que el platillo se manda a cocina/barra (alimenta el KDS) sin tocar cada ruta de envío.
+    Si quien crea el detalle pasa enviado_en explícito (p. ej. al dividir una cuenta), ese valor prevalece."""
+    if value and target.enviado_en is None:
+        target.enviado_en = ahora_local()
+
+
+class Reservacion(db.Model):
+    """Reservación ligada a una mesa: al llegar el cliente se abre (o liga) la cuenta de esa mesa."""
+    __tablename__ = 'reservaciones'
+    id = db.Column(db.Integer, primary_key=True)
+    sucursal = db.Column(db.String(100), nullable=False)
+    fecha_hora = db.Column(db.DateTime, nullable=False)
+    nombre = db.Column(db.String(100), nullable=False)
+    telefono = db.Column(db.String(20), default='')
+    personas = db.Column(db.Integer, default=2)
+    mesa = db.Column(db.String(25), nullable=True)
+    notas = db.Column(db.String(250), default='')
+    estado = db.Column(db.String(15), default='PENDIENTE')  # PENDIENTE | CONFIRMADA | LLEGO | NO_LLEGO | CANCELADA
+    creado_por = db.Column(db.String(80), nullable=False)
+    creado_en = db.Column(db.DateTime, default=ahora_local)
+    cuenta_id = db.Column(db.Integer, nullable=True)
 
 
 class ColaImpresionPOS(db.Model):
@@ -1246,6 +1275,8 @@ ESQUEMA_REQUERIDO = {
     'movimientos_caja_pos': {'categoria_gasto'},
     'arqueos_turno_pos': {'denominaciones_json'},
     'traspasos_sucursal': {'origen', 'destino', 'insumo_id', 'cantidad', 'cantidad_recibida', 'estado'},
+    'detalles_pos': {'enviado_en', 'kds_estado', 'kds_listo_en'},
+    'reservaciones': {'sucursal', 'fecha_hora', 'mesa', 'estado', 'cuenta_id'},
     'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
     'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
                                    'costo_unitario', 'valor_diferencia'},
@@ -1341,7 +1372,11 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cobro_idem VARCHAR(64);",
             # Fase 3: gastos por categoría y arqueo por denominaciones
             "ALTER TABLE movimientos_caja_pos ADD COLUMN IF NOT EXISTS categoria_gasto VARCHAR(60);",
-            "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS denominaciones_json TEXT;"
+            "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS denominaciones_json TEXT;",
+            # Fase 4a: monitor de cocina/barra (las comandas ya enviadas antes no aparecen: enviado_en queda NULL)
+            "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS enviado_en TIMESTAMP;",
+            "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS kds_estado VARCHAR(12) DEFAULT 'PENDIENTE';",
+            "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS kds_listo_en TIMESTAMP;"
         ]
         es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:
@@ -1378,7 +1413,9 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_cola_imp_suc_estado ON cola_impresion_pos (sucursal, estado);",
             "CREATE INDEX IF NOT EXISTS idx_traspasos_destino_estado ON traspasos_sucursal (destino, estado);",
             "CREATE INDEX IF NOT EXISTS idx_traspasos_origen ON traspasos_sucursal (origen, fecha);",
-            "CREATE INDEX IF NOT EXISTS idx_mov_caja_tipo_fecha ON movimientos_caja_pos (tipo, fecha);"
+            "CREATE INDEX IF NOT EXISTS idx_mov_caja_tipo_fecha ON movimientos_caja_pos (tipo, fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_detalles_pos_enviado ON detalles_pos (enviado_en, kds_estado);",
+            "CREATE INDEX IF NOT EXISTS idx_reservaciones_suc_fecha ON reservaciones (sucursal, fecha_hora);"
         ]
         for sql in indices:
             try:

@@ -220,6 +220,9 @@ ejecutar_escenario('f2.py')
 # Fase 3: traspasos entre sucursales, catálogo de gastos, arqueo por denominaciones
 ejecutar_escenario('f3.py')
 
+# Fase 4a: monitor de cocina/barra (KDS) y reservaciones
+ejecutar_escenario('f4a.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

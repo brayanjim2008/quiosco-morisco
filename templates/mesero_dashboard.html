@@ -895,7 +895,7 @@
         ontouchstart="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" ontouchend="cancelarPresionLarga()"
         onmousedown="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" onmouseup="cancelarPresionLarga()" onmouseleave="cancelarPresionLarga()">
         ${opts}<div class="mob-tc-header"><span>${t.codigo.startsWith('T') ? 'TERRAZA' : 'COMEDOR'}</span>${reloj}</div>
-        <div class="mob-tc-center">${escHtml(t.titulo)}${sub}${alerta}</div>
+        <div class="mob-tc-center">${escHtml(t.titulo)}${sub}${alerta}${t.reserva ? `<small style="display:block;color:#b45309;font-weight:800;">📅 ${escHtml(t.reserva)}</small>` : ''}</div>
         <div class="mob-tc-footer ${fCls}">${fTxt}</div>
       </div>`;
     });

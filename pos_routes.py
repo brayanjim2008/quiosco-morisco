@@ -585,6 +585,11 @@ def api_pos_mesas_tablet_v2():
         if c.id not in vistas_ids:
             tarjetas.insert(0, _card_abierta(c.mesa, c))
 
+    # Mesas con reservación próxima (de -30 min a +3 h): la tablet las marca para no sentar a otros clientes.
+    from servicio_routes import reservas_proximas_por_mesa  # import tardío: servicio_routes importa este módulo
+    reservas = reservas_proximas_por_mesa(suc)
+    for t in tarjetas:
+        t['reserva'] = reservas.get(t['codigo'], '')
     return jsonify({'ok': True, 'sucursal': suc, 'tarjetas': tarjetas})
 
 
@@ -1283,7 +1288,8 @@ def api_pos_dividir_cuenta_real():
                     cantidad=cant_mover, clave=det.clave, descripcion=det.descripcion,
                     area_impresion=det.area_impresion, es_modificador=det.es_modificador,
                     precio_unitario=det.precio_unitario, descuento_pct=det.descuento_pct,
-                    importe=round(cant_mover * det.precio_unitario, 2), impreso_comanda=det.impreso_comanda
+                    importe=round(cant_mover * det.precio_unitario, 2), impreso_comanda=det.impreso_comanda,
+                    enviado_en=det.enviado_en, kds_estado=det.kds_estado, kds_listo_en=det.kds_listo_en
                 )
                 db.session.add(clon)
                 if not det.es_modificador:
@@ -1297,7 +1303,8 @@ def api_pos_dividir_cuenta_real():
                             cantidad=c_h, clave=h.clave, descripcion=h.descripcion,
                             area_impresion=h.area_impresion, es_modificador=True,
                             precio_unitario=h.precio_unitario, importe=round(h.importe * razon, 2),
-                            impreso_comanda=h.impreso_comanda
+                            impreso_comanda=h.impreso_comanda,
+                            enviado_en=h.enviado_en, kds_estado=h.kds_estado, kds_listo_en=h.kds_listo_en
                         ))
                         h.cantidad = round(h.cantidad - c_h, 3)
                         h.importe = round(h.importe - round(h.importe * razon, 2), 2)

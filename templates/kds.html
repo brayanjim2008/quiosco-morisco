@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor Cocina / Barra • {{ sucursal }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --fondo: #0b1512; --tarjeta: #13221d; --borde: #24413a; --texto: #e7f2ee; --tenue: #8fb0a6;
+          --cobre: #c98246; --verde: #16a34a; --amarillo: #f59e0b; --rojo: #dc2626; }
+  * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { margin: 0; background: var(--fondo); color: var(--texto); min-height: 100vh; }
+  .barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px;
+           background: #08100d; border-bottom: 3px solid var(--cobre); position: sticky; top: 0; z-index: 10; }
+  .barra h1 { margin: 0; font-size: 19px; letter-spacing: .5px; }
+  .barra .esp { flex: 1; }
+  .btn { background: #1d332c; color: var(--texto); border: 1px solid var(--borde); border-radius: 9px;
+         padding: 8px 14px; font-size: 14px; font-weight: 800; cursor: pointer; text-decoration: none; }
+  .btn.activo { background: var(--cobre); border-color: #ffd28a; color: #fff; }
+  .btn.verde { background: var(--verde); border-color: #4ade80; }
+  .btn.amar { background: #92400e; border-color: var(--amarillo); }
+  .dato { font-size: 13px; color: var(--tenue); font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; padding: 14px; }
+  .ticket { background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+  .ticket.amarillo { border-color: var(--amarillo); }
+  .ticket.rojo { border-color: var(--rojo); box-shadow: 0 0 0 2px rgba(220,38,38,.35); animation: latir 1.6s infinite; }
+  .ticket.listo { border-color: var(--verde); }
+  @keyframes latir { 50% { box-shadow: 0 0 0 6px rgba(220,38,38,.15); } }
+  .t-head { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; background: #0f1c18; }
+  .t-mesa { font-size: 22px; font-weight: 900; }
+  .t-min { font-size: 20px; font-weight: 900; }
+  .t-min.amarillo { color: var(--amarillo); } .t-min.rojo { color: #ff6b6b; } .t-min.listo { color: #4ade80; }
+  .t-sub { padding: 4px 12px; font-size: 12px; color: var(--tenue); font-weight: 700; display: flex; justify-content: space-between; }
+  .t-lineas { padding: 6px 12px; flex: 1; }
+  .linea { padding: 7px 4px; border-bottom: 1px dashed var(--borde); cursor: pointer; font-size: 17px; font-weight: 800; }
+  .linea:last-child { border-bottom: none; }
+  .linea.listo { color: #4ade80; text-decoration: line-through; opacity: .75; }
+  .linea .mods { font-size: 13.5px; color: #ffd28a; font-weight: 700; margin-left: 26px; }
+  .nota { margin: 6px 12px; padding: 6px 8px; background: #3b2a12; border-left: 4px solid var(--cobre); font-size: 14px; font-weight: 800; border-radius: 6px; }
+  .pill { font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 10px; background: #1d4ed8; }
+  .t-acciones { display: flex; gap: 6px; padding: 8px; background: #0f1c18; }
+  .t-acciones .btn { flex: 1; font-size: 15px; padding: 11px 6px; }
+  .vacio { text-align: center; color: var(--tenue); font-size: 20px; padding: 60px 10px; font-weight: 800; }
+  .config { display: none; gap: 6px; align-items: center; }
+  .config input { width: 60px; padding: 6px; border-radius: 7px; border: 1px solid var(--borde); background: #0f1c18; color: var(--texto); font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="barra">
+  <h1><i class="fa-solid fa-fire-burner" style="color:var(--cobre);"></i> Monitor <span id="lblArea">COCINA</span></h1>
+  <button type="button" class="btn" id="btnCOCINA" onclick="cambiarArea('COCINA')">🍳 Cocina</button>
+  <button type="button" class="btn" id="btnBARRA" onclick="cambiarArea('BARRA')">☕ Barra</button>
+  <span class="dato">{{ sucursal }}</span>
+  <span class="dato" id="lblPromedio"></span>
+  <span class="esp"></span>
+  <span class="dato" id="lblConteo"></span>
+  <span class="dato"><i class="fa-regular fa-clock"></i> <span id="lblReloj">--:--</span></span>
+  {% if current_user.role == 'admin' %}
+  <button type="button" class="btn" onclick="toggleConfig()"><i class="fa-solid fa-gear"></i></button>
+  <span class="config" id="boxConfig">
+    <span class="dato">Amarillo</span><input type="number" id="cfgAmarillo" min="1">
+    <span class="dato">Rojo</span><input type="number" id="cfgRojo" min="2">
+    <button type="button" class="btn verde" onclick="guardarConfig()">Guardar</button>
+  </span>
+  {% endif %}
+  <button type="button" class="btn" onclick="pantallaCompleta()"><i class="fa-solid fa-expand"></i></button>
+  <a href="/pos" class="btn">POS</a>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  let area = 'COCINA';
+  try { area = localStorage.getItem('kds_area') || 'COCINA'; } catch (e) {}
+  let tickets = [], alertas = { amarillo: 10, rojo: 20 }, clavesVistas = null, cargando = false;
+
+  function cambiarArea(a) {
+    area = a;
+    try { localStorage.setItem('kds_area', a); } catch (e) {}
+    clavesVistas = null;
+    cargar();
+  }
+
+  function sonar() {   // aviso corto cuando entra un ticket nuevo
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      o.start(); o.stop(ctx.currentTime + 0.4);
+    } catch (e) {}
+  }
+
+  async function cargar() {
+    if (cargando) return;
+    cargando = true;
+    try {
+      const d = await (await fetch('/api/kds?area=' + area)).json();
+      if (!d.ok) return;
+      tickets = d.tickets || []; alertas = d.alertas || alertas;
+      const claves = new Set(tickets.map(t => t.clave));
+      if (clavesVistas && tickets.some(t => !clavesVistas.has(t.clave))) sonar();
+      clavesVistas = claves;
+      $('lblPromedio').innerText = d.promedio_min !== null && d.promedio_min !== undefined ? `Promedio hoy: ${d.promedio_min} min` : '';
+      if ($('cfgAmarillo') && !$('cfgAmarillo').matches(':focus')) { $('cfgAmarillo').value = alertas.amarillo; $('cfgRojo').value = alertas.rojo; }
+      pintar();
+    } catch (e) {} finally { cargando = false; }
+  }
+
+  function claseTiempo(t) {
+    if (t.estado === 'LISTO') return 'listo';
+    if (t.minutos >= alertas.rojo) return 'rojo';
+    if (t.minutos >= alertas.amarillo) return 'amarillo';
+    return '';
+  }
+
+  function pintar() {
+    $('lblArea').innerText = area;
+    ['COCINA', 'BARRA'].forEach(a => $('btn' + a).classList.toggle('activo', a === area));
+    $('lblConteo').innerText = `${tickets.length} pedido(s)`;
+    $('grid').innerHTML = tickets.map((t, i) => {
+      const cls = claseTiempo(t);
+      const lineas = t.lineas.map((l, j) => `<div class="linea ${l.estado === 'LISTO' ? 'listo' : ''}" onclick="toggleLinea(${i}, ${j})">
+          ${Number(l.cantidad) !== 1 ? `<b>${Number(l.cantidad)}×</b> ` : ''}${esc(l.descripcion)}
+          ${(l.mods || []).filter(Boolean).map(m => `<div class="mods">› ${esc(m)}</div>`).join('')}
+        </div>`).join('');
+      const notas = (t.notas || []).map(n => `<div class="nota">📝 ${esc(n)}</div>`).join('');
+      const acc = t.estado === 'LISTO'
+        ? `<button type="button" class="btn verde" onclick="marcar(${i}, 'ENTREGADO')">✔ Entregado</button>
+           <button type="button" class="btn" onclick="marcar(${i}, 'PREPARANDO')">↺</button>`
+        : `<button type="button" class="btn amar" onclick="marcar(${i}, 'PREPARANDO')" ${t.estado === 'PREPARANDO' ? 'disabled' : ''}>🔥 Preparando</button>
+           <button type="button" class="btn verde" onclick="marcar(${i}, 'LISTO')">✔ Listo</button>`;
+      return `<div class="ticket ${cls}">
+        <div class="t-head"><span class="t-mesa">${esc(t.mesa)}</span><span class="t-min ${cls}">${t.minutos} min</span></div>
+        <div class="t-sub"><span>${esc(t.mesero)} • ${esc(t.orden)} • ${esc(t.enviado)}</span>
+          ${t.cuenta_pagada ? '<span class="pill">PAGADA</span>' : (t.estado === 'PREPARANDO' ? '<span class="pill" style="background:#92400e;">EN PREPARACIÓN</span>' : '')}</div>
+        ${notas}<div class="t-lineas">${lineas}</div>
+        <div class="t-acciones">${acc}</div>
+      </div>`;
+    }).join('') || '<div class="vacio" style="grid-column:1/-1;">✅ Sin pedidos pendientes</div>';
+  }
+
+  async function enviar(ids, estado) {
+    const r = await fetch('/api/kds/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, estado }) });
+    const d = await r.json();
+    if (!d.ok) alert(d.msg || 'No se pudo actualizar.');
+    cargar();
+  }
+  function marcar(i, estado) { const t = tickets[i]; if (t) enviar(t.ids, estado); }
+  function toggleLinea(i, j) {
+    const l = tickets[i] && tickets[i].lineas[j];
+    if (l) enviar(l.ids, l.estado === 'LISTO' ? 'PREPARANDO' : 'LISTO');
+  }
+
+  function toggleConfig() { const b = $('boxConfig'); b.style.display = b.style.display === 'flex' ? 'none' : 'flex'; }
+  async function guardarConfig() {
+    const r = await fetch('/api/kds/config', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amarillo: Number($('cfgAmarillo').value), rojo: Number($('cfgRojo').value) }) });
+    const d = await r.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    alertas = d.alertas; toggleConfig(); pintar();
+  }
+  function pantallaCompleta() { try { document.documentElement.requestFullscreen(); } catch (e) {} }
+
+  setInterval(() => { $('lblReloj').innerText = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }); }, 1000);
+  setInterval(() => { if (!document.hidden) cargar(); }, 5000);
+  cargar();
+</script>
+</body>
+</html>
