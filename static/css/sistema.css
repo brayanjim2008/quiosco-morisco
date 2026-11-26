@@ -1,0 +1,86 @@
+/* =====================================================================
+   Estilo común de Comensal Conectado (todas las pantallas del personal).
+   Se carga DESPUÉS del <style> de cada página, así que aquí se unifican
+   colores, barra de módulos y pestañas sin tocar la lógica de cada pantalla.
+   ===================================================================== */
+:root {
+  --verde: #13423b; --verde-oscuro: #0b2924; --verde-claro: #1c5b52;
+  --cobre: #c98246; --cobre-oscuro: #a8642c; --dorado: #ffd700;
+  --hueso: #fdfaf6; --borde: #d9cfc2; --texto: #1e293b; --gris: #64748b;
+  --rojo: #dc2626; --ok: #16a34a;
+}
+
+/* ---------- Barra de módulos (igual en todas las pantallas) ---------- */
+.mod-bar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.mod-btn {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,0.45);
+  padding: 6px 10px; border-radius: 8px; font: 800 11.5px 'Open Sans', sans-serif; white-space: nowrap;
+  line-height: 1.2;
+}
+.mod-btn i { color: var(--cobre); font-size: 12px; }
+.mod-btn:hover { background: rgba(201,130,70,0.25); color: #fff; }
+.mod-btn.activo { background: var(--cobre); border-color: var(--dorado); color: #fff; }
+.mod-btn.activo i { color: #fff; }
+.mod-btn.salir { background: #b91c1c; border-color: #ef4444; color: #fff; }
+.mod-btn.salir i { color: #fff; }
+.mod-btn.extra { background: #16a34a; border-color: #22c55e; color: #fff; }
+.mod-btn.extra i { color: #fff; }
+.mod-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.2); margin: 0 4px; }
+
+/* ---------- Pestañas: en varias filas, nunca cortadas ---------- */
+.tabs-bar { flex-wrap: wrap !important; overflow-x: visible !important; row-gap: 6px; }
+.tab-btn { flex: 0 0 auto; }
+
+/* ---------- Barra superior estándar ---------- */
+.sis-top {
+  background: var(--verde-oscuro); color: #fff; padding: 8px 16px; border-bottom: 3px solid var(--cobre);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  position: sticky; top: 0; z-index: 100;
+}
+.sis-brand { display: flex; align-items: center; gap: 10px; font: 700 18px 'Lora', serif; color: #fff; flex-wrap: wrap; }
+.sis-badge { background: var(--cobre); color: #fff; font: 800 10px 'Open Sans', sans-serif; padding: 3px 9px; border-radius: 12px; letter-spacing: .5px; }
+.sis-sub { display: block; font: 600 11px 'Open Sans', sans-serif; color: #cbd5e1; }
+
+/* ---------- KPIs (mismo estilo que Reportes / Bodega) ---------- */
+.sis-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.sis-kpi { background: #fff; border-radius: 14px; border: 1.5px solid var(--borde); border-top: 4px solid var(--verde); padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.04); }
+.sis-kpi.cobre { border-top-color: var(--cobre); }
+.sis-kpi.rojo { border-top-color: var(--rojo); }
+.sis-kpi small { display: block; font-size: 11px; font-weight: 800; color: var(--gris); text-transform: uppercase; }
+.sis-kpi b { display: block; font-size: 24px; font-weight: 800; color: var(--verde-oscuro); margin-top: 2px; }
+.sis-kpi span { font-size: 12px; font-weight: 700; color: var(--cobre); }
+
+/* =====================================================================
+   Pantallas hechas con Bootstrap (Admin y Caja PINs): misma paleta que el resto.
+   ===================================================================== */
+body.tema-sistema { background: var(--hueso) !important; color: var(--texto); font-family: 'Open Sans', sans-serif; }
+.tema-sistema h1, .tema-sistema h2, .tema-sistema h3, .tema-sistema .card-header h5, .tema-sistema .card-header h6 { font-family: 'Lora', serif; }
+.tema-sistema .card { border: 1.5px solid var(--borde) !important; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.04) !important; overflow: hidden; }
+.tema-sistema .card-header { font-weight: 800; }
+.tema-sistema .bg-dark { background: var(--verde) !important; color: #fff !important; }
+.tema-sistema .bg-primary, .tema-sistema .bg-info { background: var(--verde-claro) !important; color: #fff !important; }
+.tema-sistema .bg-success { background: var(--verde) !important; color: #fff !important; }
+.tema-sistema .bg-warning { background: var(--cobre) !important; color: #fff !important; }
+.tema-sistema .text-primary, .tema-sistema .text-info { color: var(--verde-claro) !important; }
+.tema-sistema .text-warning { color: var(--cobre) !important; }
+
+.tema-sistema .btn { font-weight: 800; border-radius: 8px; }
+.tema-sistema .btn-primary, .tema-sistema .btn-info, .tema-sistema .btn-success, .tema-sistema .btn-dark {
+  background: var(--verde) !important; border-color: var(--verde-oscuro) !important; color: #fff !important; }
+.tema-sistema .btn-warning { background: var(--cobre) !important; border-color: var(--cobre-oscuro) !important; color: #fff !important; }
+.tema-sistema .btn-primary:hover, .tema-sistema .btn-info:hover, .tema-sistema .btn-success:hover,
+.tema-sistema .btn-dark:hover, .tema-sistema .btn-warning:hover { filter: brightness(1.1); }
+.tema-sistema .btn-outline-primary, .tema-sistema .btn-outline-info, .tema-sistema .btn-outline-success, .tema-sistema .btn-outline-dark {
+  color: var(--verde) !important; border-color: var(--verde) !important; background: #fff !important; }
+.tema-sistema .btn-outline-primary:hover, .tema-sistema .btn-outline-info:hover, .tema-sistema .btn-outline-success:hover,
+.tema-sistema .btn-outline-dark:hover { background: var(--verde) !important; color: #fff !important; }
+.tema-sistema .btn-outline-warning { color: var(--cobre-oscuro) !important; border-color: var(--cobre) !important; background: #fff !important; }
+.tema-sistema .btn-outline-warning:hover { background: var(--cobre) !important; color: #fff !important; }
+.tema-sistema .table > thead > tr > th { background: var(--verde) !important; color: #fff !important; font-size: 12px; text-transform: uppercase; border-color: var(--verde) !important; }
+.tema-sistema .form-control:focus, .tema-sistema .form-select:focus { border-color: var(--cobre); box-shadow: 0 0 0 .2rem rgba(201,130,70,.2); }
+
+@media (max-width: 760px) {
+  .mod-btn span { display: none; }
+  .mod-btn { padding: 7px 9px; }
+}

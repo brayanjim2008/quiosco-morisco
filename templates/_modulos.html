@@ -1,0 +1,23 @@
+{# Barra de módulos común: mismos botones, mismo orden y el módulo actual resaltado.
+   Solo aparecen los módulos a los que el rol puede entrar (mismas reglas que las rutas).
+   Uso: {% include '_modulos.html' %}  — botones extra de la página van antes del include. #}
+{% set _rol = current_user.role %}
+{% set _mods = [
+  ('/pos',              'fa-cash-register',        'Caja',     _rol in ['admin','gerente','cajero','sucursal']),
+  ('/cajero_dashboard', 'fa-qrcode',               'PINs',     _rol in ['gerente','cajero','sucursal']),
+  ('/mesero_dashboard', 'fa-tablet-screen-button', 'Meseros',  _rol in ['admin','gerente','cajero','mesero','sucursal']),
+  ('/kds',              'fa-fire',          'Cocina',   _rol in ['admin','gerente','cajero','mesero','sucursal']),
+  ('/reservaciones',    'fa-calendar-check',       'Reservas', _rol in ['admin','gerente','cajero','mesero','sucursal']),
+  ('/pedidos_sucursal', 'fa-store',                'Sucursal', _rol in ['admin','sucursal']),
+  ('/almacen_pro',      'fa-boxes-stacked',        'Bodega',   _rol in ['admin','almacen']),
+  ('/nomina_creditos',  'fa-receipt',              'Nómina',   _rol in ['admin','cajero','sucursal']),
+  ('/industrial',       'fa-chart-line',           'Reportes', _rol == 'admin'),
+  ('/admin_dashboard',  'fa-gear',                 'Admin',    _rol == 'admin'),
+] %}
+<nav class="mod-bar" aria-label="Módulos">
+  {% for ruta, icono, nombre, visible in _mods if visible %}
+  <a href="{{ ruta }}" class="mod-btn{% if request.path == ruta %} activo{% endif %}" title="{{ nombre }}"><i class="fa-solid {{ icono }}"></i><span>{{ nombre }}</span></a>
+  {% endfor %}
+  <span class="mod-sep"></span>
+  <a href="/logout" class="mod-btn salir" title="Salir"><i class="fa-solid fa-door-open"></i><span>Salir</span></a>
+</nav>

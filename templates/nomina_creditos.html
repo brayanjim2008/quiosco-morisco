@@ -108,6 +108,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 </head>
 <body>
 
@@ -118,18 +119,7 @@
       <span>Comensal Conectado • {{ current_user.username|upper }}</span>
     </div>
     <div class="nav-links">
-      <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> POS Caja</a>
-      <a href="/mesero_dashboard" class="nav-btn"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
-      {% if current_user.role == 'admin' %}
-      <a href="/industrial" class="nav-btn"><i class="fa-solid fa-industry"></i> Industrial</a>
-      <a href="/almacen_pro" class="nav-btn"><i class="fa-solid fa-boxes-stacked"></i> Bodega</a>
-      <a href="/admin_dashboard" class="nav-btn"><i class="fa-solid fa-gear"></i> Panel</a>
-      {% elif current_user.role == 'sucursal' %}
-      <a href="/pedidos_sucursal" class="nav-btn"><i class="fa-solid fa-clipboard-list"></i> Pedidos</a>
-      {% else %}
-      <a href="/cajero_dashboard" class="nav-btn"><i class="fa-solid fa-qrcode"></i> Caja PINs</a>
-      {% endif %}
-      <a href="/logout" class="nav-btn salir"><i class="fa-solid fa-door-open"></i> Salir</a>
+      {% include '_modulos.html' %}
     </div>
   </div>
 

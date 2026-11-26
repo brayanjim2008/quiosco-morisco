@@ -12,7 +12,8 @@
     <link rel="manifest" href='data:application/manifest+json,{"name":"Caja - Comensal Conectado","short_name":"Caja Morisco","start_url":"/cajero_dashboard","display":"standalone","background_color":"%23f4f6f9","theme_color":"%2313423b"}'>
     <title>Caja | Comensal Conectado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .pin-tarjeta { border: 2px dashed #ffc107; background: #fffdf2; border-radius: 14px; transition: 0.2s; }
         .pin-tarjeta:hover { transform: translateY(-3px); }
@@ -36,29 +37,23 @@
             .ticket-footer { font-size: 9px; margin-top: 8px; line-height: 1.2; }
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 </head>
-<body style="background-color: #f4f6f9;">
+<body class="tema-sistema">
 
-<div id="no-print-area" class="container py-4" style="max-width: 920px;">
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded shadow-sm flex-wrap gap-2">
-        <div>
-            <h3 class="fw-bold m-0" style="color: #13423b;"><i class="fas fa-cash-register text-warning"></i> Caja • Comensal Conectado</h3>
-            <small class="text-muted fw-bold">
-                <span class="punto-vivo"></span> En vivo cada 3s • 📍 {{ sucursal }} • 👤 <span class="text-success text-uppercase">{{ current_user.username }}</span> • PINs hoy: <span class="badge bg-dark">{{ mis_pins_hoy }}</span>
-            </small>
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="/pos" class="btn btn-warning btn-sm fw-bold">🖥️ Abrir Comensal Conectado POS</a>
-            <a href="/mesero_dashboard" class="btn btn-outline-dark btn-sm fw-bold">📱 Tablet</a>
-            <a href="/nomina_creditos" class="btn btn-outline-primary btn-sm fw-bold">🍽️ Vales</a>
-            {% if current_user.role == 'sucursal' %}
-            <a href="/pedidos_sucursal" class="btn btn-info btn-sm fw-bold">📦 Pedidos Bodega</a>
-            {% endif %}
-            <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="btn btn-warning btn-sm fw-bold">💻 Fijar en PC</button>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-sign-out-alt"></i> Salir</a>
-        </div>
+<div id="no-print-area">
+<div class="sis-top">
+    <div class="sis-brand">
+        <span class="sis-badge">CAJA • PINs</span><span>{{ sucursal }}</span>
+        <small class="sis-sub"><span class="punto-vivo"></span> En vivo • {{ current_user.username|upper }} • PINs hoy: {{ mis_pins_hoy }}</small>
     </div>
+    <div class="mod-bar">
+        <button type="button" id="btn-instalar-caja" onclick="instalarAppCaja()" style="display:none;" class="mod-btn extra"><i class="fa-solid fa-desktop"></i><span>Fijar en PC</span></button>
+        {% include '_modulos.html' %}
+    </div>
+</div>
+<div class="container py-4" style="max-width: 920px;">
+
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -232,6 +227,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <div id="zona-impresion-termica"></div>

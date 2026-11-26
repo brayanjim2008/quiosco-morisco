@@ -103,22 +103,18 @@
   .wa-preview { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12.5px; white-space: pre-wrap; max-height: 360px; overflow-y: auto; margin: 10px 0; font-weight: 700; color: #14532d; }
   .toast { position: fixed; bottom: 18px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 </head>
 <body>
 
 <div class="topbar">
   <div class="brand">
-    <span class="brand-badge">PANEL INDUSTRIAL</span>
+    <span class="brand-badge">REPORTES</span>
     <span>Comensal Conectado</span>
   </div>
   <div class="nav-links">
-    <button type="button" class="nav-btn wa" onclick="abrirModalWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Reporte WhatsApp</button>
-    <a href="/pos" class="nav-btn"><i class="fa-solid fa-cash-register"></i> POS Caja</a>
-    <a href="/mesero_dashboard" class="nav-btn"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
-    <a href="/almacen_pro" class="nav-btn"><i class="fa-solid fa-boxes-stacked"></i> Bodega Central</a>
-    <a href="/nomina_creditos" class="nav-btn"><i class="fa-solid fa-receipt"></i> Vales / Nómina</a>
-    <a href="/admin_dashboard" class="nav-btn"><i class="fa-solid fa-gear"></i> Menú / Admin</a>
-    <a href="/logout" class="nav-btn salir"><i class="fa-solid fa-door-open"></i> Salir</a>
+    <button type="button" class="mod-btn extra" onclick="abrirModalWhatsApp()"><i class="fa-brands fa-whatsapp"></i><span>Reporte WhatsApp</span></button>
+    {% include '_modulos.html' %}
   </div>
 </div>
 

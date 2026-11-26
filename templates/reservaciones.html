@@ -35,19 +35,18 @@
   .toast { position: fixed; bottom: 16px; right: 16px; background: var(--verde); color: #fff; padding: 10px 16px; border-radius: 22px; font-weight: 800; display: none; }
   .tabla { overflow-x: auto; }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 </head>
 <body>
-<div class="topbar">
-  <b><i class="fa-regular fa-calendar-check"></i> Reservaciones • <span id="lblSuc">{{ sucursal }}</span></b>
-  <div class="nav" style="display:flex;gap:6px;flex-wrap:wrap;">
+<div class="topbar sis-top">
+  <div class="sis-brand"><span class="sis-badge">RESERVACIONES</span><span id="lblSuc">{{ sucursal }}</span></div>
+  <div class="nav" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     {% if current_user.role == 'admin' %}
     <select id="selSuc" onchange="cargar()">
       {% for s in sucursales %}<option value="{{ s }}" {% if s == sucursal %}selected{% endif %}>{{ s }}</option>{% endfor %}
     </select>
     {% endif %}
-    <a href="/pos"><i class="fa-solid fa-cash-register"></i> POS</a>
-    <a href="/mesero_dashboard"><i class="fa-solid fa-tablet-screen-button"></i> Tablet</a>
-    <a href="/logout"><i class="fa-solid fa-door-open"></i> Salir</a>
+    {% include '_modulos.html' %}
   </div>
 </div>
 
