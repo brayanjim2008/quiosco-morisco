@@ -112,3 +112,17 @@ table th { font-weight: 600; letter-spacing: .03em; }
 .mod-btn { font-weight: 600; }
 .kpi-title, .sis-kpi small { font-weight: 600; letter-spacing: .04em; }
 .kpi-val, .sis-kpi b { font-weight: 700; letter-spacing: -0.01em; }
+
+/* ---------- Ayuda "?" (static/js/ayuda.js) ---------- */
+.mod-btn.ay-btn { background: #fff7ed; color: var(--verde-oscuro); border-color: var(--cobre); }
+.mod-btn.ay-btn i { color: var(--cobre); }
+.ay-flotante { position: fixed; left: 14px; bottom: 14px; z-index: 900; }
+.ay-fondo { position: fixed; inset: 0; background: rgba(11,41,36,.6); display: none; align-items: center; justify-content: center; z-index: 10050; padding: 14px; }
+.ay-caja { background: #fff; width: 560px; max-width: 96vw; max-height: 86vh; border-radius: 14px; border: 2px solid var(--cobre); overflow: hidden; display: flex; flex-direction: column; }
+.ay-head { background: var(--verde-oscuro); color: #fff; padding: 12px 16px; font-weight: 700; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.ay-head i { color: var(--cobre); }
+.ay-x { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+.ay-body { padding: 14px 18px; overflow-y: auto; }
+.ay-sec h4 { margin: 6px 0 4px; color: var(--verde); font-size: 14px; }
+.ay-sec ol { margin: 0 0 10px; padding-left: 20px; }
+.ay-sec li { font-size: 13.5px; line-height: 1.5; margin: 2px 0; color: #1e293b; }

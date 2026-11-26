@@ -223,11 +223,10 @@ def redirigir_segun_rol(user):
         return redirect('/pos')
     if user.role == 'almacen':
         return redirect('/almacen_pro')
-    if user.role == 'sucursal':
-        return redirect('/pedidos_sucursal')
     if user.role == 'mesero':
         return redirect(url_for('mesero_dashboard'))
-    return redirect(url_for('cajero_dashboard'))
+    # Cajero y sucursal trabajan en la Caja: entran directo ahí.
+    return redirect('/pos')
 
 
 @app.route('/ping')
