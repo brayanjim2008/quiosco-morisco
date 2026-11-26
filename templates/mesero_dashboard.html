@@ -112,6 +112,8 @@
   .mob-tc-footer.ocupada { background: var(--rojo); }
   .mob-tc-footer.impresa { background: var(--amarillo); color: #1e293b; }
   .mob-tc-footer.dividida { background: var(--morado); color: #fff; }
+  .mob-tc-footer.ajena { background: #94a3b8; color: #fff; }
+  .mob-table-card.ajena { opacity: .72; }
 
   /* ================= CAPAS DE PANTALLA (BLANCO ELEGANTE) ================= */
   .screen-layer {
@@ -880,17 +882,26 @@
       if (filtroEstadoTablet === 'DIVIDIDAS' && !t.dividida) return;
 
       let fCls = 'libre', fTxt = 'Disponible';
-      if (t.ocupada) {
+      if (t.ajena) { fCls = 'ajena'; fTxt = `Ocupada • ${escHtml((t.mesero || '').slice(0, 10))}`; }
+      else if (t.ocupada) {
         if (t.dividida) { fCls = 'dividida'; fTxt = `Dividida (${(t.subcuentas || []).length})`; }
         else if (t.impresa) { fCls = 'impresa'; fTxt = `IMPRESA • $${t.total}`; }
         else { fCls = 'ocupada'; fTxt = parseFloat(t.total) > 0 ? `$${t.total}` : 'Ocupada'; }
       }
       const idCta = t.cuenta_id || 0;
       const reloj = t.ocupada ? `<span class="mob-tc-time ${t.minutos >= 45 ? 'largo' : ''}">⏱️ ${t.minutos}m</span>` : '';
-      const sub = t.ocupada ? (t.dividida ? `<small>Total: $${t.total}</small>` : `<small>👥 ${t.personas} • ${escHtml((t.mesero || '').slice(0, 8))}</small>`) : '';
+      const sub = t.ajena ? `<small>🔒 Otro mesero</small>` : t.ocupada ? (t.dividida ? `<small>Total: $${t.total}</small>` : `<small>👥 ${t.personas} • ${escHtml((t.mesero || '').slice(0, 8))}</small>`) : '';
       const alerta = t.solicito_cuenta ? `<div class="mob-tc-alerta">🔔 Cuenta pedida</div>` : '';
-      const opts = (t.ocupada && !t.dividida) ? `<button type="button" class="mob-tc-opts-btn" onclick="event.stopPropagation(); abrirMenuOpcionesCuenta(${idCta}, ${jsArg(t.codigo)}, ${t.impresa})"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '';
+      const opts = (t.ocupada && !t.dividida && !t.ajena) ? `<button type="button" class="mob-tc-opts-btn" onclick="event.stopPropagation(); abrirMenuOpcionesCuenta(${idCta}, ${jsArg(t.codigo)}, ${t.impresa})"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '';
 
+      if (t.ajena) {
+        html += `<div class="mob-table-card ajena" onclick="tocarTarjetaMesa(${idx})">
+        <div class="mob-tc-header"><span>${t.codigo.startsWith('T') ? 'TERRAZA' : 'COMEDOR'}</span>${reloj}</div>
+        <div class="mob-tc-center">${escHtml(t.titulo)}${sub}</div>
+        <div class="mob-tc-footer ajena">${fTxt}</div>
+      </div>`;
+        return;
+      }
       html += `<div class="mob-table-card" onclick="tocarTarjetaMesa(${idx})"
         ontouchstart="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" ontouchend="cancelarPresionLarga()"
         onmousedown="iniciarPresionLarga(${idCta}, ${jsArg(t.codigo)}, ${t.impresa}, ${Boolean(t.dividida)})" onmouseup="cancelarPresionLarga()" onmouseleave="cancelarPresionLarga()">
@@ -908,6 +919,7 @@
   function tocarTarjetaMesa(idx) {
     if (fuePresionLarga) { fuePresionLarga = false; return; }
     const t = tarjetasCache[idx]; if (!t) return;
+    if (t.ajena) return mostrarToast(`🔒 ${t.codigo} la atiende ${t.mesero || 'otro mesero'}`);
     if (!t.ocupada) return abrirCuadritoPersonasTablet(t.codigo);
     if (t.dividida && t.subcuentas?.length) return abrirSelectorSubcuentasDividida(t);
     abrirDetalleCuentaPorId(t.cuenta_id);

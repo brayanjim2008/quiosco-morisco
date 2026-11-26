@@ -20,6 +20,7 @@ os.environ['RUN_DB_INIT'] = '1'
 os.environ['PASS_INICIAL_RAQUEL'] = 'admin12345'
 os.environ['PASS_INICIAL_BRAYAN'] = 'cajero12345'
 os.environ['PASS_INICIAL_PAOLA'] = 'mesero12345'
+os.environ['PASS_INICIAL_DANIEL'] = 'mesero12345'
 os.environ['PASS_INICIAL_ALMACEN'] = 'almacen12345'
 os.environ['PASS_INICIAL_QUIOSCO'] = 'sucursal12345'
 os.environ['PASS_INICIAL_GERENTE'] = 'gerente12345'
@@ -225,6 +226,9 @@ ejecutar_escenario('f4a.py')
 
 # Fase 4b: presentaciones de compra, sub-recetas con producción, órdenes de compra
 ejecutar_escenario('f4b.py')
+
+# Meseros: cada uno solo ve y opera sus cuentas
+ejecutar_escenario('meseros.py')
 
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):

@@ -25,6 +25,7 @@ from models import (
 pos_bp = Blueprint('pos', __name__)
 ROLES_POS = ('admin', 'gerente', 'cajero', 'mesero', 'sucursal')
 ROLES_CAJA = ('admin', 'gerente', 'cajero', 'sucursal')
+MSG_CUENTA_AJENA = 'Esta cuenta es de otra sucursal o de otro mesero.'
 ROLES_AUTH = ('admin', 'gerente')
 
 
@@ -78,10 +79,26 @@ def _precio_servidor(es_mod, desc_limpia, clave, precio_enviado, mapas):
     return precio_enviado
 
 
+def _es_mesero():
+    return getattr(current_user, 'role', '') == 'mesero'
+
+
+def _yo_mesero():
+    return (current_user.username or '').strip().upper()
+
+
+def _cuenta_es_mia(c):
+    """Un mesero solo ve y opera sus propias cuentas (las que abrió o le asignaron en caja)."""
+    return not _es_mesero() or (c.mesero or '').strip().upper() == _yo_mesero()
+
+
 def _cuenta_permitida(c):
-    """Evita que un usuario de una sucursal opere cuentas de otra sucursal."""
+    """Evita que un usuario de una sucursal opere cuentas de otra sucursal, y que un mesero
+    opere cuentas de otro mesero."""
     if current_user.role == 'admin':
         return True
+    if not _cuenta_es_mia(c):
+        return False
     return (c.sucursal or 'Quiosco Morisco (Matriz)') == obtener_sucursal_activa(session)
 
 
@@ -330,6 +347,8 @@ def api_pos_abrir_mesa():
 
     existente = CuentaPOS.query.filter_by(sucursal=suc, mesa=mesa_nom, estado='ABIERTA').first()
     if existente:
+        if not _cuenta_es_mia(existente):
+            return jsonify({'ok': False, 'msg': f'La mesa {mesa_nom} la atiende {existente.mesero or "otro mesero"}.'}), 409
         return jsonify({'ok': True, 'cuenta_id': existente.id, 'ya_existia': True})
 
     turno = obtener_turno_activo(suc)
@@ -340,7 +359,7 @@ def api_pos_abrir_mesa():
     nueva = CuentaPOS(
         turno_id=turno.id, sucursal=suc, orden=f"A{num_orden}",
         area=area, mesa=mesa_nom,
-        mesero=str(data.get('mesero', current_user.username)).strip().upper(),
+        mesero=_yo_mesero() if _es_mesero() else str(data.get('mesero', current_user.username)).strip().upper(),
         personas=max(1, int(data.get('personas', 1))),
         apertura=ahora_local(), estado='ABIERTA'
     )
@@ -358,7 +377,7 @@ def api_pos_renombrar_mesa():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(c)
     if _e:
         return _e
@@ -385,7 +404,7 @@ def api_pos_mover_mesa_rapido():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(c)
     if _e:
         return _e
@@ -423,7 +442,7 @@ def api_pos_detalle_cuenta(cuenta_id):
         return jsonify({'ok': False}), 403
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     detalles_ord = DetallePOS.query.filter_by(cuenta_id=c.id).order_by(DetallePOS.id.asc()).all()
     items = [{
         'id': d.id,
@@ -478,6 +497,7 @@ def api_pos_cuentas_abiertas_vivo():
         return jsonify({'ok': False, 'cuentas': []}), 403
     suc = obtener_sucursal_activa(session)
     abiertas = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').order_by(CuentaPOS.id.asc()).all()
+    abiertas = [c for c in abiertas if _cuenta_es_mia(c)]
     ids_abiertas = [c.id for c in abiertas]
     alertas = (
         {a.cuenta_id: a.solicito_cuenta for a in AlertaMesaPOS.query.filter(AlertaMesaPOS.cuenta_id.in_(ids_abiertas)).all()}
@@ -590,6 +610,21 @@ def api_pos_mesas_tablet_v2():
     reservas = reservas_proximas_por_mesa(suc)
     for t in tarjetas:
         t['reserva'] = reservas.get(t['codigo'], '')
+        t['ajena'] = False
+    if _es_mesero():
+        yo = _yo_mesero()
+        for t in tarjetas:
+            if not t['ocupada']:
+                continue
+            if t['dividida']:
+                t['subcuentas'] = [x for x in t['subcuentas'] if (x['mesero'] or '').strip().upper() == yo]
+                if t['subcuentas']:
+                    t['cuenta_id'] = t['subcuentas'][0]['cuenta_id']
+                    t['total'] = f"{sum(float(x['total']) for x in t['subcuentas']):.2f}"
+                    continue
+            elif (t['mesero'] or '').strip().upper() == yo:
+                continue
+            t.update(ajena=True, cuenta_id=None, total='0.00', subcuentas=[], solicito_cuenta=False, orden='')
     return jsonify({'ok': True, 'sucursal': suc, 'tarjetas': tarjetas})
 
 
@@ -604,7 +639,7 @@ def api_pos_capturar_item():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
     if c.impresa:
@@ -774,7 +809,7 @@ def api_pos_enviar_comanda(cuenta_id):
         return jsonify({'ok': False}), 403
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if not _generar_comandas_pendientes(c):
         return jsonify({'ok': False, 'msg': 'No hay productos nuevos por enviar a cocina/barra.'})
     db.session.commit()
@@ -790,7 +825,7 @@ def api_pos_enviar_ronda_lote():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
     if c.impresa:
@@ -876,7 +911,7 @@ def api_pos_cancelar_item():
     item = DetallePOS.query.get_or_404(int(data['item_id']))
     _cta_item = CuentaPOS.query.get(item.cuenta_id)
     if _cta_item is not None and not _cuenta_permitida(_cta_item):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     cuenta = item.cuenta
     _e = _no_abierta(cuenta)
     if _e:
@@ -928,7 +963,7 @@ def api_pos_cancelar_items_lote():
     data = request.json or {}
     cuenta = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(cuenta):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(cuenta)
     if _e:
         return _e
@@ -986,7 +1021,7 @@ def api_pos_cancelar_cuenta_abierta():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta ya no está abierta.'}), 400
 
@@ -1022,7 +1057,7 @@ def api_pos_descuento_autorizado():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(c)
     if _e:
         return _e
@@ -1082,7 +1117,7 @@ def api_pos_descuento_persona():
     data = request.json or {}
     c = CuentaPOS.query.filter_by(id=int(data['cuenta_id'])).with_for_update().first_or_404()
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(c)
     if _e:
         return _e
@@ -1114,7 +1149,7 @@ def api_pos_descuento_productos():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     _e = _no_abierta(c)
     if _e:
         return _e
@@ -1158,7 +1193,7 @@ def api_pos_dividir_partes():
     data = request.json or {}
     c_orig = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c_orig):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c_orig.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta no está abierta.'}), 400
     if c_orig.impresa:
@@ -1225,7 +1260,7 @@ def api_pos_dividir_cuenta_real():
     data = request.json or {}
     c_orig = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c_orig):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c_orig.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'La cuenta no está abierta.'}), 400
     if c_orig.impresa:
@@ -1343,10 +1378,10 @@ def api_pos_juntar_cuentas():
     data = request.json or {}
     c_orig = CuentaPOS.query.get_or_404(int(data['origen_id']))
     if not _cuenta_permitida(c_orig):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     c_dest = CuentaPOS.query.get_or_404(int(data['destino_id']))
     if not _cuenta_permitida(c_dest):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c_orig.id == c_dest.id:
         return jsonify({'ok': False, 'msg': 'Selecciona una cuenta diferente.'}), 400
     if c_orig.sucursal != c_dest.sucursal:
@@ -1391,7 +1426,7 @@ def api_pos_pagar_cuenta():
     # Se bloquea la fila de la cuenta: si dos cajeros cobran a la vez, el segundo la verá ya PAGADA.
     c = CuentaPOS.query.filter_by(id=int(data['cuenta_id'])).with_for_update().first_or_404()
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     # Idempotencia: si se cae la red DESPUÉS de cobrar, el reintento con la misma llave recibe el mismo
     # resultado (folio y cambio) en lugar de "ya fue cerrada", y nunca se cobra dos veces.
     idem = re.sub(r'[^A-Za-z0-9_-]', '', str(data.get('idem') or ''))[:64] or None
@@ -1501,7 +1536,7 @@ def api_pos_cambiar_forma_pago():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c.estado != 'PAGADA':
         return jsonify({'ok': False, 'msg': 'Solo aplica a cuentas ya pagadas.'}), 400
 
@@ -1776,7 +1811,7 @@ def api_pos_pin_inteligente(cuenta_id):
         return jsonify({'ok': False}), 403
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     c.impresa = True
     ref_folio = f"CTA-{c.id}-{c.orden}"
 
@@ -1863,7 +1898,7 @@ def api_pos_solicitar_cuenta(cuenta_id):
         return jsonify({'ok': False}), 403
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     al = AlertaMesaPOS.query.filter_by(cuenta_id=c.id).first()
     if not al:
         db.session.add(AlertaMesaPOS(cuenta_id=c.id, solicito_cuenta=True, fecha_alerta=ahora_local()))
@@ -1882,7 +1917,7 @@ def api_pos_guardar_obs():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     c.observaciones = str(data.get('observaciones', '')).strip()
     db.session.commit()
     return jsonify({'ok': True})
@@ -1896,7 +1931,9 @@ def api_pos_cambiar_mesero():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
+    if _es_mesero():
+        return jsonify({'ok': False, 'msg': 'Solo caja o gerencia pueden cambiar el mesero de una cuenta.'}), 403
     nuevo_mesero = str(data.get('nuevo_mesero', '')).strip().upper()
     if not nuevo_mesero:
         return jsonify({'ok': False, 'msg': 'Selecciona un mesero.'}), 400
@@ -1915,7 +1952,7 @@ def api_pos_reabrir_cuenta():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': f'La cuenta está {c.estado}; no se puede reabrir desde aquí.'}), 409
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=False)
@@ -1938,7 +1975,7 @@ def api_pos_reimprimir_productos():
     data = request.json or {}
     c = CuentaPOS.query.get_or_404(int(data['cuenta_id']))
     if not _cuenta_permitida(c):
-        return jsonify({'ok': False, 'msg': 'Cuenta de otra sucursal.'}), 403
+        return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
     item_ids = [int(x) for x in data.get('item_ids', [])]
     if not item_ids:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
@@ -1978,6 +2015,7 @@ def api_pos_mi_venta():
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
     todas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id).order_by(CuentaPOS.id.desc()).all()
+    todas = [c for c in todas if _cuenta_es_mia(c)]
     abiertas, por_pagar, pagadas = [], [], []
     for c in todas:
         if c.estado in ('CANCELADA', 'DIVIDIDA', 'COMBINADA'):
@@ -2022,7 +2060,7 @@ def api_confirmar_preorden_1clic(preorden_id):
     if current_user.role != 'admin' and suc_orden != obtener_sucursal_activa(session):
         return jsonify({'ok': False, 'msg': f'Esta pre-orden es de {suc_orden}.'}), 403
     suc = suc_orden
-    mesero_asignado = (data.get('mesero') or current_user.username).strip().upper()
+    mesero_asignado = _yo_mesero() if _es_mesero() else (data.get('mesero') or current_user.username).strip().upper()
     orden.estado = 'atendido'
     orden.atendido_por = mesero_asignado
 
