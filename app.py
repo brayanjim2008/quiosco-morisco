@@ -50,7 +50,12 @@ def _env_requerida(nombre):
 
 
 def _normalizar_db_url(url):
-    return 'postgresql://' + url[len('postgres://'):] if url.startswith('postgres://') else url
+    """postgres:// o postgresql:// -> postgresql+psycopg2:// (el driver instalado en requirements.txt).
+    SQLAlchemy 2.1 cambió el driver por defecto a psycopg 3, que no está instalado."""
+    for prefijo in ('postgres://', 'postgresql://'):
+        if url.startswith(prefijo):
+            return 'postgresql+psycopg2://' + url[len(prefijo):]
+    return url
 
 
 app.secret_key = _env_requerida('SECRET_KEY')
