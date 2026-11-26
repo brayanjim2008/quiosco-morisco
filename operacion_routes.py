@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import re
@@ -22,6 +23,8 @@ from models import (
     CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal, PresentacionInsumo
 )
 from pos_routes import catalogo_gastos, categoria_gasto_valida
+import nomina_routes as _nom
+from models import DOCUMENTOS_EMPLEADO
 
 from models import aplicar_merma, buscar_insumo_activo
 
@@ -115,7 +118,8 @@ def almacen_hoja_ruta_descarga():
 def vista_nomina_creditos():
     if current_user.role not in ['admin', 'cajero', 'sucursal']:
         return redirect(url_for('admin_login'))
-    return render_template('nomina_creditos.html', sucursales=SUCURSALES_OFICIALES)
+    return render_template('nomina_creditos.html', sucursales=SUCURSALES_OFICIALES,
+                           documentos_empleado=DOCUMENTOS_EMPLEADO)
 
 
 @operacion_bp.route('/industrial')
@@ -1092,6 +1096,7 @@ def api_finanzas_datos():
     return jsonify({
         'ok': True,
         'es_admin': es_admin,
+        'aniversarios': _nom.aniversarios(empleados) if es_admin else [],
         'empleados': [{
             'id': e.id, 'nombre': e.nombre, 'puesto': e.puesto,
             'sueldo_base': e.sueldo_base if es_admin else 0.0, 'periodo': e.periodo,
@@ -1118,11 +1123,15 @@ def api_finanzas_datos():
             'descuentos_consumo': r.descuentos_consumo, 'otros_descuentos': r.otros_descuentos,
             'total_neto': r.total_neto, 'pagado_por': r.pagado_por, 'sucursal': r.sucursal or SUCURSAL_DEFAULT,
             'dias_base': int(r.dias_base or 6),
-            'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6))
+            'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6)),
+            'detalle': json.loads(r.detalle_json) if r.detalle_json else {}
         } for r in recibos]
     })
 
 _CURP_RE = re.compile(r'^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$')
+_RFC_RE = re.compile(r'^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$')
+_NSS_RE = re.compile(r'^\d{11}$')
+_DOCS_VALIDOS = {k for k, _ in DOCUMENTOS_EMPLEADO}
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
@@ -1134,6 +1143,11 @@ def _ficha_empleado(e):
         'contacto_emergencia': e.contacto_emergencia or '', 'telefono_emergencia': e.telefono_emergencia or '',
         'curp': e.curp or '', 'acta_nacimiento': bool(e.acta_nacimiento), 'domicilio': e.domicilio or '',
         'fecha_ingreso': e.fecha_ingreso.strftime('%Y-%m-%d') if e.fecha_ingreso else '',
+        'nss': e.nss or '', 'rfc': e.rfc or '', 'infonavit': float(e.infonavit or 0.0),
+        'area': e.area or '', 'turno': e.turno or '', 'sexo': e.sexo or '', 'estado_civil': e.estado_civil or '',
+        'fecha_nacimiento': e.fecha_nacimiento.strftime('%Y-%m-%d') if e.fecha_nacimiento else '',
+        'documentos': [d for d in (e.documentos or '').split(',') if d],
+        'antiguedad': _nom.antiguedad_anios(e),
     }
 
 
@@ -1145,6 +1159,8 @@ def _aplicar_ficha(e, data):
         e.sueldo_diario = _num(data.get('sueldo_diario'), maximo=100_000.0)
     if 'sueldo_hora' in data:
         e.sueldo_hora = _num(data.get('sueldo_hora'), maximo=10_000.0)
+    if float(e.sueldo_diario or 0) > 0 and float(e.sueldo_hora or 0) <= 0:
+        e.sueldo_hora = round(float(e.sueldo_diario) / 8, 2)   # jornada de 8 h, como el sistema anterior
     if 'telefono' in data:
         e.telefono = txt('telefono', 30)
     if 'telefono_emergencia' in data:
@@ -1165,12 +1181,36 @@ def _aplicar_ficha(e, data):
         e.curp = curp or None
     if 'acta_nacimiento' in data:
         e.acta_nacimiento = bool(data.get('acta_nacimiento'))
-    if 'fecha_ingreso' in data:
-        f = txt('fecha_ingreso', 10)
-        try:
-            e.fecha_ingreso = datetime.strptime(f, '%Y-%m-%d').date() if f else None
-        except ValueError:
-            return 'Fecha de ingreso inválida.'
+    for campo, nombre in (('fecha_ingreso', 'de ingreso'), ('fecha_nacimiento', 'de nacimiento')):
+        if campo in data:
+            f = txt(campo, 10)
+            try:
+                setattr(e, campo, datetime.strptime(f, '%Y-%m-%d').date() if f else None)
+            except ValueError:
+                return f'Fecha {nombre} inválida.'
+    if 'rfc' in data:
+        rfc = (txt('rfc', 13) or '').upper()
+        if rfc and not _RFC_RE.match(rfc):
+            return 'RFC inválido (12 o 13 caracteres).'
+        e.rfc = rfc or None
+    if 'nss' in data:
+        nss = (txt('nss', 20) or '').replace('-', '').replace(' ', '')
+        if nss and not _NSS_RE.match(nss):
+            return 'El número de seguro social (NSS) debe tener 11 dígitos.'
+        e.nss = nss or None
+    if 'infonavit' in data:
+        e.infonavit = _num(data.get('infonavit'), maximo=100_000.0)
+    for campo, n in (('area', 60), ('turno', 60), ('sexo', 10), ('estado_civil', 20)):
+        if campo in data:
+            setattr(e, campo, (txt(campo, n) or '').upper() or None)
+    if 'documentos' in data:
+        docs = [d for d in (data.get('documentos') or []) if d in _DOCS_VALIDOS]
+        e.documentos = ','.join(sorted(set(docs))) or None
+        e.acta_nacimiento = 'acta' in docs
+    elif 'acta_nacimiento' in data:
+        docs = {d for d in (e.documentos or '').split(',') if d}
+        docs.add('acta') if e.acta_nacimiento else docs.discard('acta')
+        e.documentos = ','.join(sorted(docs)) or None
     return None
 
 
@@ -1255,9 +1295,19 @@ def api_finanzas_empleado():
         return jsonify({'ok': True, 'descuento_pct': float(e.descuento_pct or 0.0), 'dias_base': int(e.dias_base or 6),
                         'sucursal': e.sucursal or SUCURSAL_DEFAULT})
 
+    motivo = str(data.get('motivo_baja') or '').strip().upper()[:120]
+    if not motivo:
+        return jsonify({'ok': False, 'msg': 'Indica el motivo de la baja.'}), 400
+    try:
+        fb = str(data.get('fecha_baja') or '').strip()[:10]
+        e.fecha_baja = datetime.strptime(fb, '%Y-%m-%d').date() if fb else ahora_local().date()
+    except ValueError:
+        return jsonify({'ok': False, 'msg': 'Fecha de baja inválida.'}), 400
     e.activo = False
+    e.motivo_baja = motivo
     e.pin_checador = None
     db.session.commit()
+    registrar_bitacora('BAJA_EMPLEADO', e.nombre, 0.0, motivo, sucursal=e.sucursal)
     return jsonify({'ok': True})
 
 
@@ -1332,10 +1382,28 @@ def api_finanzas_generar_nomina():
     dias_base = max(1, int(emp.dias_base or 6))
     dias_trab = _num(data.get('dias_trabajados', dias_base), maximo=31.0)
 
+    turnos_extra = _num(data.get('turnos_extra', 0), maximo=31.0)
+    horas_extra = _num(data.get('horas_extra', 0), maximo=200.0)
+    faltas = _num(data.get('faltas', 0), maximo=31.0)
+    retardos = int(_num(data.get('retardos', 0), maximo=100.0))
+    observaciones = str(data.get('observaciones') or '').strip()[:250]
+
     pendientes = ConsumoEmpleadoPOS.query.filter_by(empleado_id=emp.id, descontado=False).with_for_update().all()
     desc_consumo = round(sum(p_.monto for p_ in pendientes), 2)
     sueldo_prorrata = round((float(emp.sueldo_base or 0.0) / dias_base) * dias_trab, 2)
-    total_neto = round(sueldo_prorrata + bonos + propinas - desc_consumo - otros_desc, 2)
+    diario, hora = _nom.sueldo_diario(emp), _nom.sueldo_hora(emp)
+    auto = _nom.pendientes_para_nomina(emp, bloquear=True)
+    det = {
+        'turnos_extra': turnos_extra, 'monto_turnos_extra': round(turnos_extra * diario, 2),
+        'horas_extra': horas_extra, 'monto_horas_extra': round(horas_extra * hora, 2),
+        'faltas': faltas, 'monto_faltas': round(faltas * diario * 2, 2),   # cada falta descuenta doble, como antes
+        'dias_permiso_sin_goce': auto['dias_permiso_sin_goce'], 'monto_permisos': auto['monto_permisos'],
+        'prima_vacacional': auto['prima_vacacional'], 'infonavit': auto['infonavit'],
+        'descuentos_empleado': auto['descuentos_empleado'], 'retardos': retardos, 'observaciones': observaciones,
+    }
+    percepciones = det['monto_turnos_extra'] + det['monto_horas_extra'] + det['prima_vacacional']
+    deducciones = det['monto_faltas'] + det['monto_permisos'] + det['infonavit'] + det['descuentos_empleado']
+    total_neto = round(sueldo_prorrata + bonos + propinas + percepciones - desc_consumo - otros_desc - deducciones, 2)
 
     if total_neto < 0 and not bool(data.get('permitir_negativo', False)):
         return jsonify({
@@ -1346,6 +1414,7 @@ def api_finanzas_generar_nomina():
     for p_ in pendientes:
         p_.descontado = True
     recibo = ReciboNominaPOS(
+        detalle_json=json.dumps(det, ensure_ascii=False),
         fecha=ahora_local(), empleado_id=emp.id, empleado_nombre=emp.nombre, puesto=emp.puesto,
         periodo_texto=periodo_txt, sueldo_base=sueldo_prorrata, bonos=bonos, propinas=propinas,
         descuentos_consumo=desc_consumo, otros_descuentos=otros_desc,
@@ -1353,6 +1422,9 @@ def api_finanzas_generar_nomina():
         dias_base=dias_base, dias_trabajados=dias_trab, sucursal=emp.sucursal or SUCURSAL_DEFAULT
     )
     db.session.add(recibo)
+    db.session.flush()
+    for reg in auto['permisos'] + auto['vacaciones'] + auto['descuentos']:
+        reg.aplicado, reg.recibo_id = True, recibo.id
     db.session.commit()
     registrar_bitacora('PAGO_NOMINA', emp.nombre, total_neto,
                        f'{dias_trab:g}/{dias_base}d Base:${sueldo_prorrata} + Bonos:${bonos} - Vales:${desc_consumo}')
@@ -1363,7 +1435,7 @@ def api_finanzas_generar_nomina():
         'bonos': recibo.bonos, 'propinas': recibo.propinas,
         'descuentos_consumo': recibo.descuentos_consumo,
         'otros_descuentos': recibo.otros_descuentos, 'total_neto': recibo.total_neto,
-        'dias_base': dias_base, 'dias_trabajados': dias_trab
+        'dias_base': dias_base, 'dias_trabajados': dias_trab, 'detalle': det
     }})
 
 

@@ -233,6 +233,9 @@ ejecutar_escenario('meseros.py')
 # Como Soft: cancelación con aviso a cocina, corte X/Z con desglose completo
 ejecutar_escenario('soft.py')
 
+# Auxiliar de nómina: descuentos, aguinaldo, bonos, permisos, vacaciones, catálogos y bajas
+ejecutar_escenario('nomina.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

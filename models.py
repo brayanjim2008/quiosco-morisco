@@ -740,6 +740,124 @@ class EmpleadoNominaPOS(db.Model):
     acta_nacimiento = db.Column(db.Boolean, default=False)  # ¿entregó acta de nacimiento?
     domicilio = db.Column(db.String(250), nullable=True)
     fecha_ingreso = db.Column(db.Date, nullable=True)
+    nss = db.Column(db.String(20), nullable=True)
+    rfc = db.Column(db.String(13), nullable=True)
+    infonavit = db.Column(db.Float, default=0.0)            # descuento Infonavit por periodo de pago
+    area = db.Column(db.String(60), nullable=True)
+    turno = db.Column(db.String(60), nullable=True)
+    fecha_nacimiento = db.Column(db.Date, nullable=True)
+    sexo = db.Column(db.String(10), nullable=True)
+    estado_civil = db.Column(db.String(20), nullable=True)
+    documentos = db.Column(db.String(200), nullable=True)    # claves de DOCUMENTOS_EMPLEADO entregados, separadas por coma
+    fecha_baja = db.Column(db.Date, nullable=True)
+    motivo_baja = db.Column(db.String(120), nullable=True)
+
+
+# Checklist de documentos del expediente (igual al sistema anterior)
+DOCUMENTOS_EMPLEADO = [
+    ('acta', 'Copia de acta de nacimiento'), ('curp', 'Copia de CURP'), ('credencial', 'Copia de credencial (INE)'),
+    ('medico', 'Certificado médico'), ('domicilio', 'Comprobante de domicilio'),
+    ('recomendacion', 'Carta de recomendación'), ('finiquito', 'Carta de renuncia o finiquito'),
+]
+
+
+class DescuentoEmpleadoPOS(db.Model):
+    """Descuentos al empleado (uniformes, trastes rotos, comandas a crédito, abono a deuda, adelanto de sueldo).
+    Se aplican en la siguiente nómina (aplicado=True + recibo_id)."""
+    __tablename__ = 'descuentos_empleado_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local)
+    empleado_id = db.Column(db.Integer, nullable=False, index=True)
+    empleado_nombre = db.Column(db.String(100), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    saldo_anterior = db.Column(db.Float, default=0.0)   # deuda que traía
+    playeras = db.Column(db.Float, default=0.0)
+    gorras = db.Column(db.Float, default=0.0)
+    mandiles = db.Column(db.Float, default=0.0)
+    trastes_rotos = db.Column(db.Float, default=0.0)
+    comandas_credito = db.Column(db.Float, default=0.0)
+    abono_deuda = db.Column(db.Float, default=0.0)
+    adelanto_sueldo = db.Column(db.Float, default=0.0)
+    total = db.Column(db.Float, default=0.0)
+    saldo = db.Column(db.Float, default=0.0)            # deuda que queda = saldo_anterior - abono_deuda
+    aplicado = db.Column(db.Boolean, default=False)
+    recibo_id = db.Column(db.Integer, nullable=True)
+    usuario = db.Column(db.String(60), default='')
+
+
+class AguinaldoEmpleadoPOS(db.Model):
+    __tablename__ = 'aguinaldos_empleado_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha_pago = db.Column(db.Date, nullable=False)
+    empleado_id = db.Column(db.Integer, nullable=False, index=True)
+    empleado_nombre = db.Column(db.String(100), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    sueldo_diario = db.Column(db.Float, default=0.0)
+    sueldo_quincena = db.Column(db.Float, default=0.0)   # sueldo diario x 15
+    dias_laborados = db.Column(db.Integer, default=0)
+    monto = db.Column(db.Float, default=0.0)             # (sueldo quincena / 365) x días laborados
+    usuario = db.Column(db.String(60), default='')
+    creado = db.Column(db.DateTime, default=ahora_local)
+
+
+class BonoEmpleadoPOS(db.Model):
+    __tablename__ = 'bonos_empleado_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False)
+    empleado_id = db.Column(db.Integer, nullable=False, index=True)
+    empleado_nombre = db.Column(db.String(100), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    sueldo_diario = db.Column(db.Float, default=0.0)
+    dias_trabajados = db.Column(db.Integer, default=0)
+    sueldo_quincena = db.Column(db.Float, default=0.0)   # días trabajados x sueldo diario
+    liderazgo = db.Column(db.Float, default=0.0)
+    iniciativa = db.Column(db.Float, default=0.0)
+    puntualidad = db.Column(db.Float, default=0.0)
+    eficiencia = db.Column(db.Float, default=0.0)
+    productividad = db.Column(db.Float, default=0.0)
+    total_pct = db.Column(db.Float, default=0.0)         # suma de los 5 rubros (tope 100%)
+    importe = db.Column(db.Float, default=0.0)           # sueldo quincena x total% / 100
+    usuario = db.Column(db.String(60), default='')
+    creado = db.Column(db.DateTime, default=ahora_local)
+
+
+class PermisoEmpleadoPOS(db.Model):
+    __tablename__ = 'permisos_empleado_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    empleado_id = db.Column(db.Integer, nullable=False, index=True)
+    empleado_nombre = db.Column(db.String(100), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    tipo = db.Column(db.String(60), default='')
+    con_goce = db.Column(db.Boolean, default=True)
+    fecha_inicio = db.Column(db.Date, nullable=False)
+    fecha_fin = db.Column(db.Date, nullable=False)
+    dias = db.Column(db.Integer, default=1)
+    observaciones = db.Column(db.String(250), default='')
+    aplicado = db.Column(db.Boolean, default=False)      # sin goce: ya se descontó en una nómina
+    recibo_id = db.Column(db.Integer, nullable=True)
+    usuario = db.Column(db.String(60), default='')
+    creado = db.Column(db.DateTime, default=ahora_local)
+
+
+class VacacionEmpleadoPOS(db.Model):
+    __tablename__ = 'vacaciones_empleado_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    empleado_id = db.Column(db.Integer, nullable=False, index=True)
+    empleado_nombre = db.Column(db.String(100), default='')
+    sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    antiguedad = db.Column(db.Integer, default=0)
+    dias = db.Column(db.Integer, default=0)
+    fecha_inicio = db.Column(db.Date, nullable=False)
+    fecha_fin = db.Column(db.Date, nullable=False)       # se saltan los domingos
+    sueldo_diario = db.Column(db.Float, default=0.0)
+    salario = db.Column(db.Float, default=0.0)           # sueldo diario x días
+    prima_pct = db.Column(db.Float, default=25.0)
+    prima = db.Column(db.Float, default=0.0)
+    importe = db.Column(db.Float, default=0.0)
+    aplicado = db.Column(db.Boolean, default=False)      # la prima ya se pagó en una nómina
+    recibo_id = db.Column(db.Integer, nullable=True)
+    usuario = db.Column(db.String(60), default='')
+    creado = db.Column(db.DateTime, default=ahora_local)
 
 
 class ConsumoEmpleadoPOS(db.Model):
@@ -774,6 +892,7 @@ class ReciboNominaPOS(db.Model):
     dias_base = db.Column(db.Integer, default=6)
     dias_trabajados = db.Column(db.Float, default=6.0)
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')  # sucursal principal del empleado
+    detalle_json = db.Column(db.Text, nullable=True)  # turnos/horas extra, faltas, permisos, prima, infonavit, descuentos
 
 
 class ClienteCredito(db.Model):
@@ -1332,7 +1451,7 @@ ESQUEMA_REQUERIDO = {
     'clientes_credito': set(),
     'pre_orden': {'sucursal'},
     'pin_caja': {'sucursal'},
-    'empleados_nomina_pos': {'sucursal', 'sueldo_diario', 'sueldo_hora', 'foto_url', 'telefono', 'email', 'contacto_emergencia', 'telefono_emergencia', 'curp', 'acta_nacimiento', 'domicilio', 'fecha_ingreso'},
+    'empleados_nomina_pos': {'sucursal', 'sueldo_diario', 'sueldo_hora', 'foto_url', 'telefono', 'email', 'contacto_emergencia', 'telefono_emergencia', 'curp', 'acta_nacimiento', 'domicilio', 'fecha_ingreso', 'nss', 'rfc', 'infonavit', 'area', 'turno', 'fecha_nacimiento', 'sexo', 'estado_civil', 'documentos', 'fecha_baja', 'motivo_baja'},
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
     'cuentas_pos': {'descuento_fijo', 'cobro_idem'},
@@ -1346,6 +1465,12 @@ ESQUEMA_REQUERIDO = {
     'recetas_elaborados': {'elaborado_id', 'insumo_id', 'cantidad'},
     'ordenes_compra': {'proveedor_id', 'estado', 'total_estimado', 'total_real'},
     'ordenes_compra_detalle': {'orden_id', 'insumo_id', 'factor', 'cantidad', 'cantidad_recibida', 'costo_real'},
+    'recibos_nomina_pos': {'detalle_json'},
+    'descuentos_empleado_pos': {'aplicado'},
+    'aguinaldos_empleado_pos': {'monto'},
+    'bonos_empleado_pos': {'importe'},
+    'permisos_empleado_pos': {'con_goce', 'aplicado'},
+    'vacaciones_empleado_pos': {'prima', 'aplicado'},
     'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
     'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
                                    'costo_unitario', 'valor_diferencia'},
@@ -1427,6 +1552,18 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS acta_nacimiento BOOLEAN DEFAULT FALSE;",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS domicilio VARCHAR(250);",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS fecha_ingreso DATE;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS nss VARCHAR(20);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS rfc VARCHAR(13);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS infonavit DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS area VARCHAR(60);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS turno VARCHAR(60);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sexo VARCHAR(10);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS estado_civil VARCHAR(20);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS documentos VARCHAR(200);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS fecha_baja DATE;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS motivo_baja VARCHAR(120);",
+            "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS detalle_json TEXT;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
             # Aislamiento por sucursal (los registros existentes quedan en la Matriz; no se reescribe la tabla).

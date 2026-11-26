@@ -1,0 +1,513 @@
+<!-- Auxiliar de nómina (solo admin): descuentos, aguinaldo, bonos, permisos, vacaciones, reporte y catálogos -->
+<style>
+  .sub-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sub-tab { background: #fff; border: 1.5px solid var(--borde); color: var(--verde); padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; }
+  .sub-tab.activo { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .pr-panel { display: none; }
+  .pr-panel.activo { display: block; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .chip { background: var(--hueso); border: 1px solid var(--borde); border-radius: 20px; padding: 4px 10px; font-size: 11.5px; font-weight: 800; color: var(--verde-oscuro); }
+  .chip.alerta { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+  .chip.ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+  .cat-ta { width: 100%; min-height: 120px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 8px; font-family: monospace; font-size: 12.5px; }
+  .hint { font-size: 11px; color: #64748b; margin: 2px 0 6px; }
+  .modal-baja { position: fixed; inset: 0; background: rgba(11,41,36,.65); display: none; align-items: center; justify-content: center; z-index: 850; }
+  .modal-baja .caja { background: #fff; border: 2px solid var(--cobre); border-radius: 12px; padding: 16px; width: 92%; max-width: 420px; }
+</style>
+
+<!-- TAB 4b: PRESTACIONES -->
+<section id="sec_prestaciones" class="panel-sec">
+  <div class="card">
+    <div class="card-head">
+      <h3><i class="fa-solid fa-hand-holding-heart" style="color:var(--cobre);"></i> Auxiliar de Nómina</h3>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <label class="lbl" style="margin:0;">Empleado</label>
+        <select id="pr_emp" class="inp" style="width:auto;min-width:240px;" onchange="prestCargarEmpleado()"></select>
+      </div>
+    </div>
+    <div class="chips" id="pr_chips"></div>
+    <div class="sub-tabs">
+      <button type="button" class="sub-tab activo" data-p="desc" onclick="prestSub('desc', this)">Descuentos</button>
+      <button type="button" class="sub-tab" data-p="agui" onclick="prestSub('agui', this)">Aguinaldo</button>
+      <button type="button" class="sub-tab" data-p="bono" onclick="prestSub('bono', this)">Bonos</button>
+      <button type="button" class="sub-tab" data-p="perm" onclick="prestSub('perm', this)">Permisos</button>
+      <button type="button" class="sub-tab" data-p="vac" onclick="prestSub('vac', this)">Vacaciones</button>
+      <button type="button" class="sub-tab" data-p="rep" onclick="prestSub('rep', this)">Reporte general</button>
+    </div>
+
+    <!-- DESCUENTOS -->
+    <div class="pr-panel activo" id="pr_desc">
+      <div class="grid-2">
+        <div>
+          <div class="form-row">
+            <div><label class="lbl">Playeras ($)</label><input type="number" min="0" step="1" id="d_playeras" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Gorras ($)</label><input type="number" min="0" step="1" id="d_gorras" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Mandiles ($)</label><input type="number" min="0" step="1" id="d_mandiles" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Trastes rotos ($)</label><input type="number" min="0" step="1" id="d_trastes" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Adelanto de sueldo ($)</label><input type="number" min="0" step="1" id="d_adelanto" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Deuda que trae ($)</label><input type="number" min="0" step="1" id="d_saldo_ant" class="inp" value="0" oninput="calcDesc()"></div>
+            <div><label class="lbl">Abono a deuda ($)</label><input type="number" min="0" step="1" id="d_abono" class="inp" value="0" oninput="calcDesc()"></div>
+          </div>
+          <label class="ficha-check"><input type="checkbox" id="d_comandas" checked onchange="calcDesc()"> Incluir sus comandas a crédito (vales pendientes)</label>
+          <p class="hint">La deuda solo se captura la primera vez; después el sistema arrastra el saldo. Se aplica en la siguiente nómina.</p>
+        </div>
+        <div>
+          <div class="resumen-nomina-box" id="d_resumen"></div>
+          <button type="button" class="btn" onclick="guardarPrest('descuento')"><i class="fa-solid fa-floppy-disk"></i> Registrar descuento</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGUINALDO -->
+    <div class="pr-panel" id="pr_agui">
+      <div class="grid-2">
+        <div class="form-row">
+          <div><label class="lbl">Fecha de pago</label><input type="date" id="a_fecha" class="inp" onchange="calcAgui()"></div>
+          <div><label class="lbl">Días laborados en el año</label><input type="number" min="1" max="366" step="1" id="a_dias" class="inp" oninput="calcAgui()"></div>
+        </div>
+        <div>
+          <div class="resumen-nomina-box" id="a_resumen"></div>
+          <button type="button" class="btn" onclick="guardarPrest('aguinaldo')"><i class="fa-solid fa-gift"></i> Pagar aguinaldo e imprimir</button>
+        </div>
+      </div>
+      <p class="hint">Sueldo quincena = sueldo diario × 15 · Aguinaldo = (sueldo quincena ÷ 365) × días laborados. Solo uno por año.</p>
+    </div>
+
+    <!-- BONOS -->
+    <div class="pr-panel" id="pr_bono">
+      <div class="grid-2">
+        <div class="form-row">
+          <div><label class="lbl">Fecha</label><input type="date" id="b_fecha" class="inp"></div>
+          <div><label class="lbl">Días trabajados</label><input type="number" min="1" max="31" step="1" id="b_dias" class="inp" value="15" oninput="calcBono()"></div>
+          <div><label class="lbl">% Liderazgo</label><input type="number" min="0" max="100" id="b_liderazgo" class="inp b-pct" value="0" oninput="calcBono()"></div>
+          <div><label class="lbl">% Iniciativa</label><input type="number" min="0" max="100" id="b_iniciativa" class="inp b-pct" value="0" oninput="calcBono()"></div>
+          <div><label class="lbl">% Puntualidad</label><input type="number" min="0" max="100" id="b_puntualidad" class="inp b-pct" value="0" oninput="calcBono()"></div>
+          <div><label class="lbl">% Eficiencia</label><input type="number" min="0" max="100" id="b_eficiencia" class="inp b-pct" value="0" oninput="calcBono()"></div>
+          <div><label class="lbl">% Productividad</label><input type="number" min="0" max="100" id="b_productividad" class="inp b-pct" value="0" oninput="calcBono()"></div>
+        </div>
+        <div>
+          <div class="resumen-nomina-box" id="b_resumen"></div>
+          <button type="button" class="btn" onclick="guardarPrest('bono')"><i class="fa-solid fa-award"></i> Pagar bono e imprimir</button>
+        </div>
+      </div>
+      <p class="hint">Sueldo quincena = días × sueldo diario · Importe = sueldo quincena × (suma de % ÷ 100), tope 100 %. Solo uno por año.</p>
+    </div>
+
+    <!-- PERMISOS -->
+    <div class="pr-panel" id="pr_perm">
+      <div class="grid-2">
+        <div class="form-row">
+          <div><label class="lbl">Tipo de permiso</label><select id="p_tipo" class="inp" onchange="calcPerm()"></select></div>
+          <div><label class="lbl">Inicio</label><input type="date" id="p_ini" class="inp" onchange="calcPerm()"></div>
+          <div><label class="lbl">Fin</label><input type="date" id="p_fin" class="inp" onchange="calcPerm()"></div>
+          <div style="grid-column:1/-1;"><label class="lbl">Observaciones</label><input type="text" id="p_obs" class="inp" maxlength="250"></div>
+        </div>
+        <div>
+          <div class="resumen-nomina-box" id="p_resumen"></div>
+          <button type="button" class="btn" onclick="guardarPrest('permiso')"><i class="fa-solid fa-calendar-check"></i> Registrar permiso</button>
+        </div>
+      </div>
+      <p class="hint">Los permisos sin goce se descuentan solos en la siguiente nómina (días × sueldo diario).</p>
+    </div>
+
+    <!-- VACACIONES -->
+    <div class="pr-panel" id="pr_vac">
+      <div class="grid-2">
+        <div class="form-row">
+          <div><label class="lbl">Inicio de vacaciones</label><input type="date" id="v_ini" class="inp" onchange="calcVac()"></div>
+        </div>
+        <div>
+          <div class="resumen-nomina-box" id="v_resumen"></div>
+          <button type="button" class="btn" onclick="guardarPrest('vacacion')"><i class="fa-solid fa-umbrella-beach"></i> Registrar vacaciones e imprimir</button>
+        </div>
+      </div>
+      <p class="hint">Días según la Ley Federal del Trabajo 2023 (1 año = 12 días, +2 por año hasta 20; luego +2 cada 5 años). El fin no cuenta domingos.
+        La prima vacacional se paga en la siguiente nómina.</p>
+    </div>
+
+    <!-- REPORTE GENERAL -->
+    <div class="pr-panel" id="pr_rep">
+      <div class="form-row">
+        <div><label class="lbl">Reporte</label><select id="r_tipo" class="inp">
+          <option value="descuento">Descuentos</option><option value="aguinaldo">Aguinaldos</option><option value="bono">Bonos</option>
+          <option value="permiso">Permisos</option><option value="vacacion">Vacaciones</option></select></div>
+        <div><label class="lbl">Sucursal</label><select id="r_suc" class="inp"><option value="TODAS">Todas</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+        <div><label class="lbl">Desde</label><input type="date" id="r_desde" class="inp"></div>
+        <div><label class="lbl">Hasta</label><input type="date" id="r_hasta" class="inp"></div>
+        <div style="display:flex;gap:6px;align-items:flex-end;">
+          <button type="button" class="btn" onclick="cargarReporteNom()"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+          <button type="button" class="btn cobre" onclick="excelReporteNom()"><i class="fa-solid fa-file-excel"></i> Excel</button>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:460px;overflow:auto;"><table id="r_tabla"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--cobre);"></i> Historial del empleado</h3></div>
+    <div class="table-wrap" style="max-height:360px;overflow:auto;"><table id="pr_hist"></table></div>
+  </div>
+</section>
+
+<!-- TAB 5: CATÁLOGOS DE NÓMINA -->
+<section id="sec_catalogos" class="panel-sec">
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-list-check" style="color:var(--cobre);"></i> Catálogos de Nómina</h3>
+      <button type="button" class="btn" onclick="guardarCatalogos()"><i class="fa-solid fa-floppy-disk"></i> Guardar catálogos</button></div>
+    <div class="grid-2">
+      <div>
+        <label class="lbl">Áreas y puestos</label>
+        <p class="hint">Un área por renglón: <b>ÁREA: PUESTO, PUESTO</b></p>
+        <textarea id="cat_areas" class="cat-ta"></textarea>
+        <label class="lbl" style="margin-top:8px;">Turnos</label>
+        <p class="hint">Un turno por renglón: <b>NOMBRE 07:00-15:00</b></p>
+        <textarea id="cat_turnos" class="cat-ta" style="min-height:80px;"></textarea>
+      </div>
+      <div>
+        <label class="lbl">Tipos de baja</label>
+        <p class="hint">Uno por renglón.</p>
+        <textarea id="cat_bajas" class="cat-ta" style="min-height:90px;"></textarea>
+        <label class="lbl" style="margin-top:8px;">Tipos de permiso</label>
+        <p class="hint">Uno por renglón: <b>NOMBRE | CON GOCE</b> o <b>NOMBRE | SIN GOCE</b></p>
+        <textarea id="cat_permisos" class="cat-ta" style="min-height:90px;"></textarea>
+        <div class="form-row" style="margin-top:8px;">
+          <div><label class="lbl">Prima vacacional (%)</label><input type="number" min="25" max="100" step="1" id="cat_prima" class="inp"></div>
+          <div><label class="lbl">Máx. días de permiso con goce al año</label><input type="number" min="0" max="365" step="1" id="cat_goce" class="inp"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Ventana de baja -->
+<div class="modal-baja" id="modalBaja" onclick="if(event.target===this)this.style.display='none'">
+  <div class="caja">
+    <h3 style="margin:0 0 10px;color:#b91c1c;font-family:'Lora',serif;">Dar de baja a <span id="bajaNombre"></span></h3>
+    <label class="lbl">Motivo</label><select id="bajaMotivo" class="inp"></select>
+    <label class="lbl" style="margin-top:8px;">Fecha de baja</label><input type="date" id="bajaFecha" class="inp">
+    <p class="hint">Su historial (recibos, descuentos, vacaciones) se conserva y se puede reactivar.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+      <button type="button" class="btn gris" onclick="$('modalBaja').style.display='none'">Cancelar</button>
+      <button type="button" class="btn rojo" onclick="confirmarBaja()">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let CAT = null, prestDatos = null, bajaEmpId = 0, ultimoReporte = [];
+  const pendNomCache = {};
+  const hoyISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const m2 = n => '$' + Number(n || 0).toFixed(2);
+  const linea = (t, v, color) => `<div class="resumen-linea"><span>${t}</span><span${color ? ` style="color:${color}"` : ''}>${v}</span></div>`;
+  const totalLinea = (t, v) => `<div class="resumen-linea total"><span>${t}</span><span>${v}</span></div>`;
+  const num = id => Math.max(0, parseFloat($(id)?.value || 0) || 0);
+
+  // ---------------- catálogos
+  async function cargarCatalogos() {
+    try { CAT = (await (await fetch('/api/nomina/catalogos')).json()).catalogos; } catch { CAT = null; }
+    if (!CAT) return;
+    $('p_tipo').innerHTML = CAT.tipos_permiso.map(t => `<option value="${esc(t.nombre)}">${esc(t.nombre)} (${t.con_goce ? 'con goce' : 'sin goce'})</option>`).join('');
+    $('bajaMotivo').innerHTML = CAT.tipos_baja.map(b => `<option>${esc(b)}</option>`).join('');
+  }
+  function catLlenarSelectsFicha(area, turno) {
+    if (!CAT) return;
+    const areas = CAT.areas.map(a => a.nombre);
+    if (area && !areas.includes(area)) areas.push(area);
+    $('emp_area').innerHTML = '<option value=""></option>' + areas.map(a => `<option>${esc(a)}</option>`).join('');
+    const turnos = CAT.turnos.map(t => t.nombre);
+    if (turno && !turnos.includes(turno)) turnos.push(turno);
+    $('emp_turno').innerHTML = '<option value=""></option>' + turnos.map(t => {
+      const x = CAT.turnos.find(y => y.nombre === t);
+      return `<option value="${esc(t)}">${esc(t)}${x && x.entrada ? ` (${x.entrada}-${x.salida})` : ''}</option>`;
+    }).join('');
+  }
+  function filtrarPuestosArea() {
+    if (!CAT) return;
+    const a = CAT.areas.find(x => x.nombre === $('emp_area').value);
+    const puestos = a ? a.puestos : CAT.areas.flatMap(x => x.puestos);
+    $('dlPuestos').innerHTML = puestos.map(p => `<option value="${esc(p)}">`).join('');
+  }
+  function catPintar() {
+    if (!CAT) return;
+    $('cat_areas').value = CAT.areas.map(a => `${a.nombre}: ${a.puestos.join(', ')}`).join('\n');
+    $('cat_turnos').value = CAT.turnos.map(t => `${t.nombre} ${t.entrada || ''}${t.salida ? '-' + t.salida : ''}`.trim()).join('\n');
+    $('cat_bajas').value = CAT.tipos_baja.join('\n');
+    $('cat_permisos').value = CAT.tipos_permiso.map(t => `${t.nombre} | ${t.con_goce ? 'CON GOCE' : 'SIN GOCE'}`).join('\n');
+    $('cat_prima').value = CAT.prima_vacacional_pct;
+    $('cat_goce').value = CAT.max_dias_permiso_con_goce;
+  }
+  async function guardarCatalogos() {
+    const lineas = id => $(id).value.split('\n').map(x => x.trim()).filter(Boolean);
+    const areas = lineas('cat_areas').map(l => { const [n, p = ''] = l.split(':'); return { nombre: n.trim(), puestos: p.split(',').map(x => x.trim()).filter(Boolean) }; });
+    const turnos = lineas('cat_turnos').map(l => {
+      const m = l.match(/^(.*?)\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
+      const hh = h => h.padStart(5, '0');
+      return m ? { nombre: m[1].trim(), entrada: hh(m[2]), salida: hh(m[3]) } : { nombre: l, entrada: '', salida: '' };
+    });
+    const permisos = lineas('cat_permisos').map(l => { const [n, g = ''] = l.split('|'); return { nombre: n.trim(), con_goce: !/SIN/i.test(g) }; });
+    const res = await fetch('/api/nomina/catalogos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ areas, turnos, tipos_baja: lineas('cat_bajas'), tipos_permiso: permisos,
+        prima_vacacional_pct: parseFloat($('cat_prima').value || 25), max_dias_permiso_con_goce: parseInt($('cat_goce').value || 0) }) });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    await cargarCatalogos(); catPintar(); toast('✓ Catálogos guardados');
+  }
+
+  // ---------------- aniversarios y bajas
+  function pintarAniversarios(lista) {
+    const box = $('avisoAniversarios');
+    if (!box) return;
+    box.style.display = lista.length ? 'block' : 'none';
+    box.innerHTML = '🎉 <b>Aniversarios laborales</b>' + lista.map(a =>
+      `<div>${esc(a.nombre)} ${a.dif === 0 ? 'cumple HOY' : (a.dif > 0 ? 'cumplirá' : 'cumplió')} ${a.anios} año(s) con nosotros (${esc(a.fecha)}${a.dif ? ', ' + esc(a.cuando) : ''})</div>`).join('');
+  }
+  async function cargarBajas() {
+    const d = await (await fetch('/api/nomina/bajas')).json();
+    if (!d.ok || !$('tbodyBajas')) return;
+    $('tbodyBajas').innerHTML = d.bajas.map(e => `<tr><td><b>${esc(e.nombre)}</b></td><td>${esc(e.sucursal)}</td><td>${esc(e.puesto)}</td>
+      <td>${esc(e.fecha_ingreso)}</td><td>${esc(e.fecha_baja)}</td><td>${esc(e.motivo_baja)}</td>
+      <td><button type="button" class="btn sm" onclick="reactivarEmp(${Number(e.id)})">↩ Reactivar</button></td></tr>`).join('')
+      || '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:12px;">Sin bajas.</td></tr>';
+  }
+  function abrirBaja(id) {
+    const e = empleadoPorId(id);
+    if (!e) return;
+    bajaEmpId = id;
+    $('bajaNombre').innerText = e.nombre;
+    $('bajaFecha').value = hoyISO();
+    $('modalBaja').style.display = 'flex';
+  }
+  async function confirmarBaja() {
+    const res = await fetch('/api/finanzas/empleado', { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bajaEmpId, motivo_baja: $('bajaMotivo').value, fecha_baja: $('bajaFecha').value }) });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo dar de baja.');
+    $('modalBaja').style.display = 'none';
+    toast('✓ Empleado dado de baja'); cargarFinanzas(); cargarBajas();
+  }
+  async function reactivarEmp(id) {
+    if (!confirm('¿Reactivar a este empleado?')) return;
+    const d = await (await fetch(`/api/nomina/reactivar/${id}`, { method: 'POST' })).json();
+    if (d.ok) { toast('✓ Reactivado'); cargarFinanzas(); cargarBajas(); }
+  }
+
+  // ---------------- conceptos automáticos en la pantalla de nómina
+  function nomConceptos(emp) {
+    const p = pendNomCache[emp.id];
+    if (p === undefined) {
+      pendNomCache[emp.id] = null;
+      fetch(`/api/nomina/empleado/${emp.id}`).then(r => r.json()).then(d => {
+        pendNomCache[emp.id] = d.ok ? d : null; actualizarCalculoNomina();
+      });
+      return 0;
+    }
+    if (!p) return 0;
+    const pn = p.pendientes_nomina, diario = p.sueldo_diario, hora = p.sueldo_hora;
+    const te = num('nom_turnos') * diario, he = num('nom_horas') * hora, fa = num('nom_faltas') * diario * 2;
+    const filas = [
+      ['+ Turnos extra', te, '#16a34a'], ['+ Horas extra', he, '#16a34a'], ['+ Prima vacacional', pn.prima_vacacional, '#16a34a'],
+      ['- Faltas (doble)', fa, '#dc2626'], [`- Permisos sin goce (${pn.dias_permiso_sin_goce} d)`, pn.monto_permisos, '#dc2626'],
+      ['- Infonavit', pn.infonavit, '#dc2626'], ['- Descuentos (uniformes, deuda...)', pn.descuentos_empleado, '#dc2626'],
+    ].filter(f => f[1] > 0);
+    $('calc_auto').innerHTML = filas.map(f => linea(f[0], (f[0][0] === '-' ? '-' : '+') + m2(f[1]), f[2])).join('');
+    return te + he + pn.prima_vacacional - fa - pn.monto_permisos - pn.infonavit - pn.descuentos_empleado;
+  }
+  function filasDetalleRecibo(det) {
+    const f = [['+ TURNOS EXTRA', det.monto_turnos_extra], ['+ HORAS EXTRA', det.monto_horas_extra], ['+ PRIMA VACACIONAL', det.prima_vacacional],
+      ['- FALTAS', det.monto_faltas], ['- PERMISOS S/GOCE', det.monto_permisos], ['- INFONAVIT', det.infonavit], ['- DESCUENTOS', det.descuentos_empleado]]
+      .filter(x => Number(x[1] || 0) > 0);
+    let h = f.map(x => `<tr><td>${x[0]}:</td><td style="text-align:right;">${x[0][0] === '-' ? '-' : ''}$${Number(x[1]).toFixed(2)}</td></tr>`).join('');
+    if (det.retardos) h += `<tr><td>RETARDOS:</td><td style="text-align:right;">${Number(det.retardos)}</td></tr>`;
+    if (det.observaciones) h += `<tr><td colspan="2">OBS: ${esc(det.observaciones)}</td></tr>`;
+    return h;
+  }
+
+  // ---------------- prestaciones
+  function prestSub(p, btn) {
+    document.querySelectorAll('.pr-panel').forEach(x => x.classList.remove('activo'));
+    document.querySelectorAll('.sub-tab').forEach(x => x.classList.remove('activo'));
+    $('pr_' + p).classList.add('activo'); btn.classList.add('activo');
+  }
+  function prestRefrescar() {
+    const sel = $('pr_emp'), actual = sel.value;
+    sel.innerHTML = '<option value="">Selecciona...</option>' + cacheEmpleados.map(e =>
+      `<option value="${e.id}">${esc(e.nombre)} · ${esc(e.puesto)} · ${esc(e.sucursal)}</option>`).join('');
+    if (actual) sel.value = actual;
+    ['a_fecha', 'b_fecha', 'p_ini', 'p_fin', 'v_ini'].forEach(k => { if (!$(k).value) $(k).value = hoyISO(); });
+    if (sel.value) prestCargarEmpleado();
+  }
+  async function prestCargarEmpleado() {
+    const id = Number($('pr_emp').value || 0);
+    prestDatos = null;
+    if (!id) { $('pr_chips').innerHTML = ''; $('pr_hist').innerHTML = ''; return; }
+    const d = await (await fetch(`/api/nomina/empleado/${id}`)).json();
+    if (!d.ok) return alert(d.msg || 'Error');
+    prestDatos = d;
+    pendNomCache[id] = d;
+    const pn = d.pendientes_nomina;
+    const chip = (t, cls) => `<span class="chip ${cls || ''}">${t}</span>`;
+    $('pr_chips').innerHTML = [
+      chip(`Diario ${m2(d.sueldo_diario)}`), chip(`Hora ${m2(d.sueldo_hora)}`),
+      chip(`Antigüedad ${d.antiguedad} año(s)` + (d.empleado.fecha_ingreso ? '' : ' (sin fecha de ingreso)'), d.empleado.fecha_ingreso ? '' : 'alerta'),
+      chip(`Vacaciones: ${d.dias_vacaciones} días`), chip(`Deuda ${m2(d.saldo_deuda)}`, d.saldo_deuda > 0 ? 'alerta' : ''),
+      chip(`Vales pendientes ${m2(d.vales_pendientes)}`, d.vales_pendientes > 0 ? 'alerta' : ''),
+      chip(`Permisos con goce ${d.dias_goce_usados}/${d.max_dias_goce} días`),
+      chip(d.aguinaldo_pagado_anio ? 'Aguinaldo del año: pagado' : 'Aguinaldo del año: pendiente', d.aguinaldo_pagado_anio ? 'ok' : ''),
+      chip(d.bono_pagado_anio ? 'Bono del año: pagado' : 'Bono del año: pendiente', d.bono_pagado_anio ? 'ok' : ''),
+      chip(`Próxima nómina: -${m2(pn.descuentos_empleado + pn.monto_permisos + pn.infonavit)} / +${m2(pn.prima_vacacional)}`),
+    ].join('');
+    const primera = !(d.historial.descuento || []).length;
+    $('d_saldo_ant').value = d.saldo_deuda.toFixed(2);
+    $('d_saldo_ant').disabled = !primera;
+    $('a_dias').value = d.dias_laborados_anio;
+    pintarHistorial();
+    calcDesc(); calcAgui(); calcBono(); calcPerm(); calcVac();
+  }
+  function calcDesc() {
+    if (!prestDatos) return;
+    const unif = num('d_playeras') + num('d_gorras') + num('d_mandiles');
+    const com = $('d_comandas').checked ? prestDatos.vales_pendientes : 0;
+    const ant = num('d_saldo_ant'), ab = num('d_abono');
+    const tot = unif + num('d_trastes') + com + ab + num('d_adelanto');
+    $('d_resumen').innerHTML = linea('Uniformes', m2(unif)) + linea('Trastes rotos', m2(num('d_trastes'))) +
+      linea('Comandas a crédito', m2(com)) + linea('Abono a deuda', m2(ab)) + linea('Adelanto de sueldo', m2(num('d_adelanto'))) +
+      linea('Deuda que queda', m2(ant - ab), ab > ant ? '#dc2626' : '') + totalLinea('TOTAL A DESCONTAR', m2(tot));
+  }
+  function calcAgui() {
+    if (!prestDatos) return;
+    const q = prestDatos.sueldo_diario * 15, dias = num('a_dias');
+    $('a_resumen').innerHTML = linea('Sueldo diario', m2(prestDatos.sueldo_diario)) + linea('Sueldo quincena (×15)', m2(q)) +
+      linea('Días laborados', dias) + totalLinea('AGUINALDO', m2(q / 365 * dias));
+  }
+  function calcBono() {
+    if (!prestDatos) return;
+    const q = num('b_dias') * prestDatos.sueldo_diario;
+    const pct = [...document.querySelectorAll('.b-pct')].reduce((a, i) => a + Math.max(0, parseFloat(i.value || 0) || 0), 0);
+    $('b_resumen').innerHTML = linea('Sueldo quincena', m2(q)) + linea('Total %', pct.toFixed(0) + ' %', pct > 100 ? '#dc2626' : '') +
+      totalLinea('IMPORTE', m2(q * Math.min(pct, 100) / 100));
+  }
+  function calcPerm() {
+    if (!prestDatos || !CAT) return;
+    const t = CAT.tipos_permiso.find(x => x.nombre === $('p_tipo').value);
+    const a = new Date($('p_ini').value), b = new Date($('p_fin').value);
+    const dias = isNaN(a) || isNaN(b) ? 0 : Math.round((b - a) / 86400000) + 1;
+    let h = linea('Días', dias > 0 ? dias : '—');
+    if (t && t.con_goce) h += linea('Con goce usados este año', `${prestDatos.dias_goce_usados} + ${Math.max(dias, 0)} de ${prestDatos.max_dias_goce}`,
+      prestDatos.dias_goce_usados + dias > prestDatos.max_dias_goce ? '#dc2626' : '');
+    if (t && !t.con_goce) h += totalLinea('SE DESCONTARÁ', m2(Math.max(dias, 0) * prestDatos.sueldo_diario));
+    $('p_resumen').innerHTML = h;
+  }
+  function finSinDomingos(iniISO, dias) {
+    let d = new Date(iniISO + 'T12:00:00'), c = 0;
+    if (isNaN(d) || dias <= 0) return '';
+    while (true) { if (d.getDay() !== 0 && ++c === dias) return d.toISOString().slice(0, 10); d.setDate(d.getDate() + 1); }
+  }
+  function calcVac() {
+    if (!prestDatos) return;
+    const dias = prestDatos.dias_vacaciones, sal = dias * prestDatos.sueldo_diario, prima = sal * prestDatos.prima_vacacional_pct / 100;
+    $('v_resumen').innerHTML = dias <= 0 ? '<b style="color:#dc2626;">Aún no le tocan vacaciones (menos de 1 año o sin fecha de ingreso).</b>' :
+      linea('Antigüedad', prestDatos.antiguedad + ' año(s)') + linea('Días de disfrute', dias) +
+      linea('Último día de vacaciones', finSinDomingos($('v_ini').value, dias)) + linea('Salario', m2(sal)) +
+      linea(`Prima vacacional (${prestDatos.prima_vacacional_pct}%)`, m2(prima)) + totalLinea('IMPORTE', m2(sal + prima));
+  }
+  async function guardarPrest(tipo) {
+    if (!prestDatos) return alert('Selecciona un empleado.');
+    const empleado_id = prestDatos.empleado.id;
+    const cuerpo = {
+      descuento: () => ({ empleado_id, playeras: num('d_playeras'), gorras: num('d_gorras'), mandiles: num('d_mandiles'),
+        trastes_rotos: num('d_trastes'), adelanto_sueldo: num('d_adelanto'), abono_deuda: num('d_abono'),
+        saldo_anterior: num('d_saldo_ant'), incluir_comandas: $('d_comandas').checked }),
+      aguinaldo: () => ({ empleado_id, fecha_pago: $('a_fecha').value, dias_laborados: num('a_dias') }),
+      bono: () => ({ empleado_id, fecha: $('b_fecha').value, dias_trabajados: num('b_dias'), liderazgo: num('b_liderazgo'),
+        iniciativa: num('b_iniciativa'), puntualidad: num('b_puntualidad'), eficiencia: num('b_eficiencia'), productividad: num('b_productividad') }),
+      permiso: () => ({ empleado_id, tipo: $('p_tipo').value, fecha_inicio: $('p_ini').value, fecha_fin: $('p_fin').value, observaciones: $('p_obs').value }),
+      vacacion: () => ({ empleado_id, fecha_inicio: $('v_ini').value }),
+    }[tipo]();
+    const res = await fetch(`/api/nomina/${tipo}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    toast('✓ Registrado');
+    if (tipo === 'descuento') ['d_playeras', 'd_gorras', 'd_mandiles', 'd_trastes', 'd_adelanto', 'd_abono'].forEach(k => $(k).value = '0');
+    if (tipo === 'permiso') $('p_obs').value = '';
+    if (['aguinaldo', 'bono', 'vacacion'].includes(tipo)) imprimirPrest(tipo, d.registro);
+    delete pendNomCache[empleado_id];
+    await prestCargarEmpleado();
+    cargarFinanzas();
+  }
+  const COLS_HIST = {
+    descuento: [['fecha', 'Fecha'], ['total', 'Total', 1], ['saldo', 'Deuda queda', 1], ['comandas_credito', 'Comandas', 1], ['aplicado', 'En nómina']],
+    aguinaldo: [['fecha_pago', 'Fecha pago'], ['dias_laborados', 'Días'], ['monto', 'Aguinaldo', 1]],
+    bono: [['fecha', 'Fecha'], ['total_pct', '% total'], ['importe', 'Importe', 1]],
+    permiso: [['tipo', 'Tipo'], ['fecha_inicio', 'Inicio'], ['fecha_fin', 'Fin'], ['dias', 'Días'], ['aplicado', 'Aplicado']],
+    vacacion: [['fecha_inicio', 'Inicio'], ['fecha_fin', 'Fin'], ['dias', 'Días'], ['prima', 'Prima', 1], ['importe', 'Importe', 1], ['aplicado', 'Prima pagada']],
+  };
+  const NOMBRE_TIPO = { descuento: 'Descuento', aguinaldo: 'Aguinaldo', bono: 'Bono', permiso: 'Permiso', vacacion: 'Vacaciones' };
+  function celda(v, dinero) {
+    if (typeof v === 'boolean') return v ? '✔' : '—';
+    return dinero ? m2(v) : esc(v ?? '');
+  }
+  function pintarHistorial() {
+    const h = prestDatos.historial;
+    let html = '';
+    Object.keys(COLS_HIST).forEach(tipo => {
+      const filas = h[tipo] || [];
+      if (!filas.length) return;
+      html += `<thead><tr><th colspan="8" style="background:var(--cobre);">${NOMBRE_TIPO[tipo]}</th></tr><tr>` +
+        COLS_HIST[tipo].map(c => `<th>${c[1]}</th>`).join('') + '<th></th></tr></thead><tbody>' +
+        filas.map((f, i) => `<tr>${COLS_HIST[tipo].map(c => `<td>${celda(f[c[0]], c[2])}</td>`).join('')}<td style="white-space:nowrap;">
+          ${['aguinaldo', 'bono', 'vacacion'].includes(tipo) ? `<button type="button" class="btn sm cobre" onclick="imprimirPrest('${tipo}', prestDatos.historial.${tipo}[${i}])">🖨️</button>` : ''}
+          ${f.aplicado && tipo !== 'permiso' ? '' : `<button type="button" class="btn sm rojo" onclick="borrarPrest('${tipo}', ${Number(f.id)})">🗑️</button>`}</td></tr>`).join('') + '</tbody>';
+    });
+    $('pr_hist').innerHTML = html || '<tr><td style="text-align:center;color:#64748b;padding:14px;">Sin movimientos.</td></tr>';
+  }
+  async function borrarPrest(tipo, id) {
+    if (!confirm('¿Borrar este registro? (para corregir una captura equivocada)')) return;
+    const d = await (await fetch(`/api/nomina/${tipo}/${id}`, { method: 'DELETE' })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo borrar.');
+    delete pendNomCache[prestDatos.empleado.id];
+    toast('✓ Borrado'); prestCargarEmpleado();
+  }
+  function imprimirPrest(tipo, r) {
+    const titulo = { aguinaldo: 'RECIBO DE AGUINALDO', bono: 'RECIBO DE BONO', vacacion: 'RECIBO DE VACACIONES' }[tipo];
+    const filas = {
+      aguinaldo: [['FECHA DE PAGO', r.fecha_pago], ['SUELDO DIARIO', m2(r.sueldo_diario)], ['SUELDO QUINCENA', m2(r.sueldo_quincena)], ['DÍAS LABORADOS', r.dias_laborados]],
+      bono: [['FECHA', r.fecha], ['DÍAS TRABAJADOS', r.dias_trabajados], ['SUELDO QUINCENA', m2(r.sueldo_quincena)], ['LIDERAZGO', r.liderazgo + '%'],
+        ['INICIATIVA', r.iniciativa + '%'], ['PUNTUALIDAD', r.puntualidad + '%'], ['EFICIENCIA', r.eficiencia + '%'], ['PRODUCTIVIDAD', r.productividad + '%'], ['TOTAL', r.total_pct + '%']],
+      vacacion: [['ANTIGÜEDAD', r.antiguedad + ' AÑO(S)'], ['DÍAS', r.dias], ['DEL', r.fecha_inicio], ['AL', r.fecha_fin], ['SALARIO', m2(r.salario)], [`PRIMA ${r.prima_pct}%`, m2(r.prima)]],
+    }[tipo];
+    const total = { aguinaldo: r.monto, bono: r.importe, vacacion: r.importe }[tipo];
+    $('zona-impresion-nomina').innerHTML = `<div style="text-align:center;"><b>COMENSAL CONECTADO</b><br>${titulo} #${r.id}<br>================================</div>
+      EMPLEADO: <b>${esc(r.empleado_nombre)}</b><br>SUCURSAL: ${esc(r.sucursal)}<br>================================<br>
+      <table style="width:100%;font-size:12px;">${filas.map(f => `<tr><td>${f[0]}:</td><td style="text-align:right;">${esc(f[1])}</td></tr>`).join('')}</table>
+      ================================<br><div style="text-align:right;font-size:17px;"><b>TOTAL: ${m2(total)}</b></div>
+      <div style="font-size:10px;margin-top:6px;">Recibí de conformidad la cantidad señalada.</div>
+      <br><br><div style="border-top:1px solid #000;text-align:center;">FIRMA DE CONFORMIDAD</div>`;
+    window.print();
+  }
+
+  // ---------------- reporte general
+  async function cargarReporteNom() {
+    const tipo = $('r_tipo').value;
+    const qs = new URLSearchParams({ sucursal: $('r_suc').value, desde: $('r_desde').value, hasta: $('r_hasta').value });
+    const d = await (await fetch(`/api/nomina/reporte/${tipo}?${qs}`)).json();
+    if (!d.ok) return alert(d.msg || 'Error');
+    ultimoReporte = d.filas;
+    const cols = [['empleado_nombre', 'Empleado'], ['sucursal', 'Sucursal'], ...COLS_HIST[tipo]];
+    $('r_tabla').innerHTML = `<thead><tr>${cols.map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>` +
+      (d.filas.map(f => `<tr>${cols.map(c => `<td>${celda(f[c[0]], c[2])}</td>`).join('')}</tr>`).join('') ||
+        `<tr><td colspan="${cols.length}" style="text-align:center;color:#64748b;padding:12px;">Sin registros.</td></tr>`) +
+      `</tbody><tfoot><tr><td colspan="${cols.length}" style="text-align:right;font-weight:900;">TOTAL: ${tipo === 'permiso' ? d.total + ' días' : m2(d.total)}</td></tr></tfoot>`;
+  }
+  function excelReporteNom() {
+    if (!ultimoReporte.length) return alert('Primero consulta el reporte.');
+    const cols = Object.keys(ultimoReporte[0]);
+    const csv = [cols.join(','), ...ultimoReporte.map(f => cols.map(c => `"${String(f[c] ?? '').replace(/"/g, '""')}"`).join(','))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `reporte_${$('r_tipo').value}_${hoyISO()}.csv`;
+    a.click();
+  }
+
+  document.addEventListener('DOMContentLoaded', cargarCatalogos);
+</script>

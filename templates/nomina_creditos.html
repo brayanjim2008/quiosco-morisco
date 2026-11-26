@@ -118,6 +118,10 @@
   .mini-foto { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--cobre); display: block; }
   .mini-foto.vacia { background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 15px; border-color: #cbd5e1; }
 
+  .ficha-docs { display: flex; flex-direction: column; gap: 4px; font-size: 11px; background: var(--hueso); border: 1px solid var(--borde); border-radius: 8px; padding: 8px; width: 100%; }
+  .aviso-aniv { background: #fff7ed; border: 2px solid var(--cobre); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; font-size: 12.5px; font-weight: 700; color: var(--verde-oscuro); }
+  .aviso-aniv div { padding: 2px 0; }
+
   #zona-impresion-nomina { display: none; }
   @media print {
     @page { margin: 0; size: 80mm auto; }
@@ -148,6 +152,8 @@
     {% if current_user.role == 'admin' %}
     <button type="button" class="tab-btn" onclick="cambiarTab('nomina', this)"><i class="fa-solid fa-money-check-dollar"></i> 2. Pagar Nómina y Recibos</button>
     <button type="button" class="tab-btn" onclick="cambiarTab('personal', this)"><i class="fa-solid fa-users"></i> 3. Personal Activo</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('prestaciones', this)"><i class="fa-solid fa-hand-holding-heart"></i> 4. Descuentos, Aguinaldo, Bonos, Permisos y Vacaciones</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('catalogos', this)"><i class="fa-solid fa-list-check"></i> 5. Catálogos de Nómina</button>
     {% endif %}
     <button type="button" class="tab-btn" onclick="cambiarTab('creditos', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Cr&eacute;ditos Pendientes</button>
     <button type="button" class="tab-btn" onclick="cambiarTab('checador_pin', this)"><i class="fa-solid fa-fingerprint"></i> Checador PIN</button>
@@ -255,13 +261,19 @@
                 <label class="lbl">Otros Descuentos ($)</label>
                 <input type="number" step="0.5" id="nom_otros" class="inp" value="0" oninput="actualizarCalculoNomina()">
               </div>
+              <div><label class="lbl">Turnos extra</label><input type="number" step="1" min="0" id="nom_turnos" class="inp" value="0" oninput="actualizarCalculoNomina()"></div>
+              <div><label class="lbl">Horas extra</label><input type="number" step="0.5" min="0" id="nom_horas" class="inp" value="0" oninput="actualizarCalculoNomina()"></div>
+              <div><label class="lbl">Faltas (descuentan doble)</label><input type="number" step="1" min="0" id="nom_faltas" class="inp" value="0" oninput="actualizarCalculoNomina()"></div>
+              <div><label class="lbl">Retardos</label><input type="number" step="1" min="0" id="nom_retardos" class="inp" value="0"></div>
             </div>
+            <div><label class="lbl">Observaciones</label><input type="text" id="nom_obs" class="inp" maxlength="250"></div>
 
             <div class="resumen-nomina-box">
               <div class="resumen-linea"><span>Sueldo Base:</span><span id="calc_base">$0.00</span></div>
               <div class="resumen-linea"><span>+ Bonos y Propinas:</span><span id="calc_extras" style="color:#16a34a;">+$0.00</span></div>
               <div class="resumen-linea"><span>- Vales / Consumos Pendientes:</span><span id="calc_vales" style="color:#dc2626;">-$0.00</span></div>
               <div class="resumen-linea"><span>- Otros Descuentos:</span><span id="calc_otros" style="color:#dc2626;">-$0.00</span></div>
+              <div id="calc_auto" style="border-top:1px dashed var(--borde);margin-top:4px;padding-top:4px;font-size:12px;"></div>
               <div class="resumen-linea total"><span>NETO A PAGAR:</span><span id="calc_neto">$0.00</span></div>
             </div>
 
@@ -287,14 +299,28 @@
     <section id="sec_personal" class="panel-sec">
       <div class="card">
         <div class="card-head"><h3><i class="fa-solid fa-user-plus" style="color:var(--cobre);"></i> Alta y Baja de Personal</h3></div>
-        <div style="margin-bottom:10px;">
+        <div id="avisoAniversarios" class="aviso-aniv" style="display:none;"></div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <button type="button" class="btn" onclick="abrirFichaEmp(0)"><i class="fa-solid fa-user-plus"></i> Alta de empleado</button>
+          <select id="filtroSucPersonal" class="inp" style="width:auto;" onchange="cargarFinanzas()">
+            <option value="">Todas las sucursales</option>
+            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
         </div>
 
         <div class="table-wrap">
           <table>
             <thead><tr><th></th><th>Nombre</th><th>Sucursal</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
             <tbody id="tbodyPersonal"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-user-slash" style="color:#dc2626;"></i> Empleados dados de baja</h3></div>
+        <div class="table-wrap" style="max-height:320px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Nombre</th><th>Sucursal</th><th>Puesto</th><th>Ingreso</th><th>Baja</th><th>Motivo</th><th></th></tr></thead>
+            <tbody id="tbodyBajas"></tbody>
           </table>
         </div>
       </div>
@@ -311,17 +337,26 @@
             <div class="ficha-foto" id="fichaFoto"><i class="fa-solid fa-user"></i></div>
             <input type="file" id="emp_foto" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewFotoEmp(this)">
             <button type="button" class="btn sm cobre" onclick="$('emp_foto').click()"><i class="fa-solid fa-camera"></i> Foto</button>
-            <label class="ficha-check"><input type="checkbox" id="emp_acta"> Entregó acta de nacimiento</label>
+            <div class="ficha-docs"><b>Documentación entregada</b>
+              {% for clave, texto in documentos_empleado %}<label class="ficha-check"><input type="checkbox" class="emp-doc" value="{{ clave }}"> {{ texto }}</label>{% endfor %}
+            </div>
           </div>
           <div class="ficha-campos">
             <div class="ficha-sec">DATOS GENERALES</div>
             <div class="ficha-grid">
               <div class="ficha-ancho"><label class="lbl">Nombre completo *</label><input type="text" id="emp_nombre" class="inp" maxlength="100"></div>
+              <div><label class="lbl">Área</label><select id="emp_area" class="inp" onchange="filtrarPuestosArea()"></select></div>
               <div><label class="lbl">Puesto</label><input type="text" id="emp_puesto" class="inp" placeholder="MESERO, CAJERO, BARRA..." list="dlPuestos"></div>
+              <div><label class="lbl">Turno</label><select id="emp_turno" class="inp"></select></div>
               <div><label class="lbl">Sucursal</label><select id="emp_sucursal" class="inp">
                 {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
               </select></div>
               <div><label class="lbl">CURP</label><input type="text" id="emp_curp" class="inp" maxlength="18" style="text-transform:uppercase"></div>
+              <div><label class="lbl">RFC</label><input type="text" id="emp_rfc" class="inp" maxlength="13" style="text-transform:uppercase"></div>
+              <div><label class="lbl">No. Seguro Social (NSS)</label><input type="text" id="emp_nss" class="inp" maxlength="11" inputmode="numeric"></div>
+              <div><label class="lbl">Fecha de nacimiento</label><input type="date" id="emp_nacimiento" class="inp"></div>
+              <div><label class="lbl">Sexo</label><select id="emp_sexo" class="inp"><option value=""></option><option>MUJER</option><option>HOMBRE</option></select></div>
+              <div><label class="lbl">Estado civil</label><select id="emp_civil" class="inp"><option value=""></option><option>SOLTERO</option><option>CASADO</option><option>UNION LIBRE</option><option>DIVORCIADO</option><option>VIUDO</option></select></div>
               <div><label class="lbl">Fecha de ingreso</label><input type="date" id="emp_ingreso" class="inp"></div>
               <div class="ficha-ancho"><label class="lbl">Domicilio</label><input type="text" id="emp_domicilio" class="inp" maxlength="250"></div>
             </div>
@@ -334,7 +369,7 @@
             </div>
             <div class="ficha-sec">SUELDO Y CHECADOR</div>
             <div class="ficha-grid ficha-grid-3">
-              <div><label class="lbl">Sueldo diario ($)</label><input type="number" step="10" min="0" id="emp_sdiario" class="inp" value="0" oninput="sueldoDesdeDiario()"></div>
+              <div><label class="lbl">Sueldo diario ($)</label><input type="number" step="10" min="0" id="emp_sdiario" class="inp" value="0" oninput="sueldoDesdeDiario();$('emp_shora').value=(parseFloat(this.value||0)/8).toFixed(2)"></div>
               <div><label class="lbl">Sueldo por hora ($)</label><input type="number" step="1" min="0" id="emp_shora" class="inp" value="0"></div>
               <div><label class="lbl">Días base</label><input type="number" step="1" min="1" max="31" id="emp_dias_base" class="inp" value="6" oninput="sueldoDesdeDiario()"></div>
               <div><label class="lbl">Periodo de pago</label><select id="emp_periodo" class="inp" onchange="sueldoDesdeDiario()">
@@ -342,6 +377,7 @@
               </select></div>
               <div><label class="lbl">Sueldo del periodo ($)</label><input type="number" step="50" min="0" id="emp_sueldo" class="inp" value="1500"></div>
               <div><label class="lbl">Desc. en consumo (%)</label><input type="number" step="1" min="0" max="100" id="emp_desc" class="inp" value="0"></div>
+              <div><label class="lbl">Infonavit por periodo ($)</label><input type="number" step="10" min="0" id="emp_infonavit" class="inp" value="0"></div>
               <div><label class="lbl">PIN checador</label><input type="text" maxlength="12" inputmode="numeric" id="emp_pin" class="inp" placeholder="4 a 12 dígitos"></div>
             </div>
           </div>
@@ -354,6 +390,8 @@
     </div>
     <datalist id="dlPuestos"><option value="MESERO"><option value="CAJERO"><option value="BARRA"><option value="COCINA"><option value="GERENTE"><option value="LIMPIEZA"></datalist>
     {% endif %}
+
+    {% if current_user.role == 'admin' %}{% include '_prestaciones.html' %}{% endif %}
 
     <!-- TAB 4: CREDITOS PENDIENTES / CUENTAS POR COBRAR -->
     <section id="sec_creditos" class="panel-sec">
@@ -429,6 +467,9 @@
     $('sec_' + tab)?.classList.add('activo');
     btn?.classList.add('activo');
     if (tab === 'creditos') cargarCreditos();
+    if (tab === 'prestaciones' && typeof prestRefrescar === 'function') prestRefrescar();
+    if (tab === 'catalogos' && typeof catPintar === 'function') catPintar();
+    if (tab === 'personal' && typeof cargarBajas === 'function') cargarBajas();
   }
 
   async function cargarFinanzas() {
@@ -485,13 +526,16 @@
       }
 
       if ($('tbodyPersonal')) {
-        $('tbodyPersonal').innerHTML = cacheEmpleados.map(e => `<tr>
+        const fSuc = $('filtroSucPersonal')?.value || '';
+        if (typeof pintarAniversarios === 'function') pintarAniversarios(d.aniversarios || []);
+        $('tbodyPersonal').innerHTML = cacheEmpleados.filter(e => !fSuc || e.sucursal === fSuc).map(e => `<tr>
           <td>${e.foto_url ? `<img class="mini-foto" src="${esc(e.foto_url)}" alt="">` : '<span class="mini-foto vacia"><i class="fa-solid fa-user"></i></span>'}</td>
           <td><b>${esc(e.nombre)}</b>${e.telefono ? `<br><small style="color:#64748b;">📞 ${esc(e.telefono)}</small>` : ''}</td>
           <td><select class="inp" style="height:30px;font-size:11px;min-width:150px;" onchange="cambiarSucursalEmp(${e.id}, this.value)">
             ${SUCURSALES_NOM.map(s => `<option value="${esc(s)}" ${s === e.sucursal ? 'selected' : ''}>${esc(s)}</option>`).join('')}
           </select></td>
-          <td>${esc(e.puesto)}</td>
+          <td>${esc(e.puesto)}${e.area ? `<br><small style="color:#64748b;">${esc(e.area)}${e.turno ? ' · ' + esc(e.turno) : ''}</small>` : ''}
+            <br><small style="color:${(e.documentos || []).length >= 7 ? '#16a34a' : '#b45309'};">📄 ${(e.documentos || []).length}/7 docs${e.antiguedad ? ' · ' + e.antiguedad + ' año(s)' : ''}</small></td>
           <td>${esc(e.periodo)}</td>
           <td style="text-align:right;">$${Number(e.sueldo_base || 0).toFixed(2)}</td>
           <td><button type="button" class="btn sm gris" onclick="editarChecadorEmp(${Number(e.id)})">${Number(e.dias_base || 6)}d | PIN: ${esc(e.pin_checador || '-')}</button></td>
@@ -563,7 +607,9 @@
     const prop = parseFloat($('nom_propinas').value || 0);
     const vales = Number(emp.consumo_pendiente || 0);
     const otros = parseFloat($('nom_otros').value || 0);
-    const neto = Math.round((base + bonos + prop - vales - otros) * 100) / 100;
+    let extra = 0;
+    if (typeof nomConceptos === 'function') extra = nomConceptos(emp);
+    const neto = Math.round((base + bonos + prop - vales - otros + extra) * 100) / 100;
 
     $('calc_base').innerText = `$${base.toFixed(2)} (${diasTrab}/${diasBase}d)`;
     $('calc_extras').innerText = `+$${(bonos + prop).toFixed(2)}`;
@@ -589,6 +635,7 @@
         <tr><td>+ PROPINAS:</td><td style="text-align:right;">$${Number(r.propinas).toFixed(2)}</td></tr>
         <tr><td>- VALES/CONSUMOS:</td><td style="text-align:right;">-$${Number(r.descuentos_consumo).toFixed(2)}</td></tr>
         <tr><td>- OTROS DESC.:</td><td style="text-align:right;">-$${Number(r.otros_descuentos).toFixed(2)}</td></tr>
+        ${typeof filasDetalleRecibo === 'function' ? filasDetalleRecibo(r.detalle || {}) : ''}
       </table>
       ================================<br>
       <div style="text-align:right;font-size:17px;"><b>NETO: $${Number(r.total_neto).toFixed(2)}</b></div>
@@ -613,7 +660,12 @@
       propinas: parseFloat($('nom_propinas').value || 0),
       otros_descuentos: parseFloat($('nom_otros').value || 0),
       periodo_texto: $('nom_periodo').value || 'SEMANAL',
-      dias_trabajados: parseFloat($('nom_dias')?.value || 6)
+      dias_trabajados: parseFloat($('nom_dias')?.value || 6),
+      turnos_extra: parseFloat($('nom_turnos')?.value || 0),
+      horas_extra: parseFloat($('nom_horas')?.value || 0),
+      faltas: parseFloat($('nom_faltas')?.value || 0),
+      retardos: parseInt($('nom_retardos')?.value || 0),
+      observaciones: ($('nom_obs')?.value || '').trim()
     };
     let res = await fetch('/api/finanzas/generar_nomina', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -633,6 +685,9 @@
 
     $('nom_bonos').value = '0';
     $('nom_propinas').value = '0';
+    ['nom_turnos', 'nom_horas', 'nom_faltas', 'nom_retardos'].forEach(k => { if ($(k)) $(k).value = '0'; });
+    if ($('nom_obs')) $('nom_obs').value = '';
+    if (typeof pendNomCache !== 'undefined') delete pendNomCache[empleado_id];
     $('nom_otros').value = '0';
     toast('✅ Nómina pagada y vales saldados');
     await cargarFinanzas();
@@ -646,10 +701,12 @@
     ['emp_ingreso', 'fecha_ingreso'], ['emp_domicilio', 'domicilio'], ['emp_tel', 'telefono'], ['emp_email', 'email'],
     ['emp_cont_emerg', 'contacto_emergencia'], ['emp_tel_emerg', 'telefono_emergencia'],
     ['emp_sdiario', 'sueldo_diario'], ['emp_shora', 'sueldo_hora'], ['emp_dias_base', 'dias_base'],
-    ['emp_periodo', 'periodo'], ['emp_sueldo', 'sueldo_base'], ['emp_desc', 'descuento_pct'], ['emp_pin', 'pin_checador']
+    ['emp_periodo', 'periodo'], ['emp_sueldo', 'sueldo_base'], ['emp_desc', 'descuento_pct'], ['emp_pin', 'pin_checador'],
+    ['emp_area', 'area'], ['emp_turno', 'turno'], ['emp_rfc', 'rfc'], ['emp_nss', 'nss'], ['emp_nacimiento', 'fecha_nacimiento'],
+    ['emp_sexo', 'sexo'], ['emp_civil', 'estado_civil'], ['emp_infonavit', 'infonavit']
   ];
   const VACIO_FICHA = { sucursal: SUCURSALES_NOM[0], periodo: 'SEMANAL', sueldo_diario: 0, sueldo_hora: 0,
-                        dias_base: 6, sueldo_base: 1500, descuento_pct: 0 };
+                        dias_base: 6, sueldo_base: 1500, descuento_pct: 0, infonavit: 0 };
 
   function pintarFotoFicha(url) {
     const f = $('fichaFoto');
@@ -661,8 +718,11 @@
     if (!e) return;
     fichaEmpId = id || 0;
     $('fichaTitulo').innerText = id ? `FICHA DE ${e.nombre}` : 'ALTA DE EMPLEADO';
+    if (typeof catLlenarSelectsFicha === 'function') catLlenarSelectsFicha(e.area || '', e.turno || '');
     CAMPOS_FICHA.forEach(([inp, campo]) => { $(inp).value = e[campo] ?? ''; });
-    $('emp_acta').checked = !!e.acta_nacimiento;
+    if (typeof filtrarPuestosArea === 'function') filtrarPuestosArea();
+    const docs = new Set(e.documentos || (e.acta_nacimiento ? ['acta'] : []));
+    document.querySelectorAll('.emp-doc').forEach(c => { c.checked = docs.has(c.value); });
     $('emp_foto').value = '';
     pintarFotoFicha(e.foto_url || '');
     $('modalFichaEmp').style.display = 'flex';
@@ -686,10 +746,10 @@
     const datos = {};
     CAMPOS_FICHA.forEach(([inp, campo]) => { datos[campo] = String($(inp).value ?? '').trim(); });
     if (!datos.nombre) return alert('Escribe el nombre del empleado.');
-    ['sueldo_diario', 'sueldo_hora', 'sueldo_base', 'descuento_pct'].forEach(k => datos[k] = parseFloat(datos[k] || 0));
+    ['sueldo_diario', 'sueldo_hora', 'sueldo_base', 'descuento_pct', 'infonavit'].forEach(k => datos[k] = parseFloat(datos[k] || 0));
     datos.dias_base = parseInt(datos.dias_base || 6);
     datos.puesto = datos.puesto || 'MESERO';
-    datos.acta_nacimiento = $('emp_acta').checked;
+    datos.documentos = [...document.querySelectorAll('.emp-doc:checked')].map(c => c.value);
     if (fichaEmpId) datos.id = fichaEmpId;
     const btn = $('btnGuardarFicha'); btn.disabled = true;
     try {
@@ -749,13 +809,7 @@
     const emp = empleadoPorId(id);
     if (!emp) return;
     const nom = emp.nombre;
-    if (!confirm(`¿Dar de baja a ${nom}? Su historial de recibos se conservará.`)) return;
-    const res = await fetch('/api/finanzas/empleado', {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-    const d = await res.json();
-    if (d.ok) { toast('✓ Empleado dado de baja'); cargarFinanzas(); }
+    if (typeof abrirBaja === 'function') return abrirBaja(id);
   }
 
   async function editarChecadorEmp(id) {
