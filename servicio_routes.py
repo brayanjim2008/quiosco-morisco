@@ -11,7 +11,7 @@ from models import (
     db, ahora_local, inicio_hoy_local, obtener_sucursal_activa, obtener_turno_activo, MSG_TURNO_CERRADO, registrar_bitacora,
     cfg_cargar, cfg_guardar, SUCURSALES_OFICIALES, CuentaPOS, DetallePOS, Reservacion,
 )
-from pos_routes import ROLES_POS, _lock_advisory, _num
+from pos_routes import ROLES_POS, _lock_advisory, _num, _cuenta_es_mia
 
 servicio_bp = Blueprint('servicio', __name__)
 
@@ -183,6 +183,23 @@ def api_kds_estado():
             d.kds_listo_en = None
     db.session.commit()
     return jsonify({'ok': True, 'actualizados': len(detalles)})
+
+
+@servicio_bp.route('/api/kds/listos')
+@login_required
+def api_kds_listos():
+    """Platillos que cocina/barra marcó LISTO y aún no se entregan, de las mesas de este mesero."""
+    if current_user.role not in ROLES_POS:
+        return jsonify({'ok': False}), 403
+    suc = obtener_sucursal_activa(session)
+    filas = db.session.query(DetallePOS, CuentaPOS).join(CuentaPOS, CuentaPOS.id == DetallePOS.cuenta_id).filter(
+        CuentaPOS.sucursal == suc, CuentaPOS.estado == 'ABIERTA', DetallePOS.kds_estado == 'LISTO',
+        DetallePOS.es_modificador.isnot(True)).order_by(DetallePOS.kds_listo_en.asc()).limit(60).all()
+    ahora = ahora_local()
+    return jsonify({'ok': True, 'listos': [{
+        'id': d.id, 'mesa': c.mesa, 'descripcion': d.descripcion, 'cantidad': d.cantidad,
+        'area': d.area_impresion or '', 'minutos': int((ahora - d.kds_listo_en).total_seconds() // 60) if d.kds_listo_en else 0}
+        for d, c in filas if _cuenta_es_mia(c)]})
 
 
 @servicio_bp.route('/api/kds/config', methods=['POST'])

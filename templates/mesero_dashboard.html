@@ -309,6 +309,13 @@
     #no-print-tablet { display: none !important; }
     #zona-impresion-tablet { display: block !important; width: 72mm; margin: 0 auto; font-family: 'Courier New', monospace; font-size: 12px; color: #000; background: #fff; line-height: 1.25; }
   }
+  .aviso-listos { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 9000; width: min(560px, 94vw);
+    background: #16a34a; color: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 10px 12px; animation: listoPulso 1.2s ease-in-out 2; }
+  .aviso-listos .listo-tit { font-weight: 800; font-size: 13px; letter-spacing: .06em; margin-bottom: 6px; }
+  .aviso-listos .listo-mesa { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.14); border-radius: 10px; padding: 7px 9px; margin-top: 5px; font-size: 14px; }
+  .aviso-listos .listo-mesa span { flex: 1; font-size: 13px; }
+  .aviso-listos .listo-mesa button { background: #fff; color: #166534; border: none; border-radius: 8px; padding: 7px 10px; font-weight: 800; font-size: 12.5px; cursor: pointer; }
+  @keyframes listoPulso { 50% { transform: translateX(-50%) scale(1.03); } }
 </style>
 </head>
 <body class="fs-md">
@@ -1599,6 +1606,41 @@
   }
 
   let syncTabletEnCurso = false;
+  // ---- Aviso "platillo listo" (cocina/barra lo marcó LISTO en su pantalla) ----
+  const listosVistos = new Set();
+  function sonidoListo() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.18].forEach(t => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.25, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.16);
+      });
+    } catch (e) {}
+  }
+  async function revisarPlatillosListos() {
+    let d;
+    try { d = await (await fetch('/api/kds/listos')).json(); } catch (e) { return; }
+    if (!d || !d.ok) return;
+    const caja = $('avisoListos');
+    if (!d.listos.length) { caja.style.display = 'none'; return; }
+    const nuevos = d.listos.filter(x => !listosVistos.has(x.id));
+    nuevos.forEach(x => listosVistos.add(x.id));
+    if (nuevos.length) { sonidoListo(); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
+    const porMesa = {};
+    d.listos.forEach(x => (porMesa[x.mesa] = porMesa[x.mesa] || []).push(x));
+    caja.innerHTML = '<div class="listo-tit"><i class="fa-solid fa-bell-concierge"></i> LISTO PARA LLEVAR</div>' +
+      Object.entries(porMesa).map(([mesa, items]) => `<div class="listo-mesa"><b>Mesa ${escHtml(mesa)}</b>
+        <span>${items.map(i => `${i.cantidad % 1 ? i.cantidad : parseInt(i.cantidad)} ${escHtml(i.descripcion)}`).join(', ')}</span>
+        <button type="button" onclick='entregarListos(${JSON.stringify(items.map(i => i.id))})'>Entregado</button></div>`).join('');
+    caja.style.display = 'block';
+  }
+  async function entregarListos(ids) {
+    await apiPost('/api/kds/estado', { ids, estado: 'ENTREGADO' });
+    revisarPlatillosListos();
+  }
+
   async function cicloSyncTablet() {
     if (document.hidden || syncTabletEnCurso) return;
     syncTabletEnCurso = true;
@@ -1606,7 +1648,7 @@
       const enCaptura = $('screenCategoriasCaptura')?.style.display === 'flex' ||
                         $('screenAsistenteModificadores')?.style.display === 'flex' ||
                         $('screenConfirmarComanda')?.style.display === 'flex';
-      const tareas = [sincronizarPreordenesVivo()];
+      const tareas = [sincronizarPreordenesVivo(), revisarPlatillosListos()];
       if (!enCaptura) tareas.push(cargarTarjetasMesas());
       await Promise.all(tareas);
     } finally {
@@ -1629,5 +1671,6 @@
     });
   });
 </script>
+<div id="avisoListos" class="aviso-listos" style="display:none;"></div>
 </body>
 </html>

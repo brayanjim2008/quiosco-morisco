@@ -274,3 +274,18 @@ r = cam1.post('/api/propinas/repartir', json={'efectivo': 50, 'empleados': ['ANA
 check(r.status_code == 403 and r.json.get('requiere_admin'), 'rehacer un reparto ya hecho pide clave de Admin o Gerente')
 r2 = admin.post('/api/propinas/repartir', json={'efectivo': 0, 'empleados': ['ANA']}, headers=H)
 check(r2.status_code == 200, 'Admin puede rehacer el reparto (es supervisor)')
+
+# ---- Permisos por usuario ----
+with app.app_context():
+    from models import User as _U2
+    _bid = _U2.query.filter_by(username='brayan').first().id
+r = admin.get(f'/api/usuarios/{_bid}/permisos')
+check(r.status_code == 200 and any(p['clave'] == 'mermas' and p['efectivo'] is False for p in r.json['permisos']), 'el cajero pide clave para mermas por defecto')
+r = admin.post(f'/api/usuarios/{_bid}/permisos', json={'mermas': True, 'cancelar': False}, headers=H)
+check(r.status_code == 200 and next(p for p in r.json['permisos'] if p['clave'] == 'mermas')['efectivo'] is True, 'Admin le da permiso de mermas a un cajero')
+# cam1 ahora trabaja como BRAYAN (cambio con PIN más arriba)
+r = cam1.post('/api/pos/registrar_merma', json={'insumo_nombre': 'PAN', 'cantidad': 1, 'motivo': 'CAIDO', 'costo_unitario': 5}, headers=HS)
+check(r.status_code == 200, f'con su permiso propio registra la merma sin clave ({r.status_code})')
+check(cam1.get(f'/api/usuarios/{_bid}/permisos').status_code == 403, 'solo Admin ve y cambia permisos')
+admin.post(f'/api/usuarios/{_bid}/permisos', json={'mermas': None, 'cancelar': None}, headers=H)
+check(next(p for p in admin.get(f'/api/usuarios/{_bid}/permisos').json['permisos'] if p['clave'] == 'mermas')['propio'] is None, 'volver al permiso general')

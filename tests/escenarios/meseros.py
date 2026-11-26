@@ -41,3 +41,18 @@ check(daniel.get(f'/api/pos/detalle_cuenta/{cta_paola}').status_code == 200 and
       paola.get(f'/api/pos/detalle_cuenta/{cta_paola}').status_code == 403, 'tras el cambio, la cuenta pasa al nuevo mesero')
 check(admin.get(f'/api/pos/detalle_cuenta/{cta_paola}').status_code == 200, 'caja sigue viendo todas las cuentas')
 admin.post('/api/pos/cancelar_cuenta_abierta', json={'cuenta_id': cta_paola, 'motivo': 'prueba'}, headers=H)
+
+# ---- Aviso "platillo listo" en la tablet del mesero ----
+r = paola.post('/api/pos/abrir_mesa', json={'mesa': 'LST1', 'personas': 1}, headers=Hp)
+_cl = r.json['cuenta_id']
+paola.post('/api/pos/capturar_item', json={'cuenta_id': _cl, 'descripcion': 'MOLLETES', 'precio': 80, 'cantidad': 2,
+           'clave': '01', 'area_impresion': 'COCINA'}, headers=Hp)
+paola.post(f'/api/pos/enviar_comanda/{_cl}', json={}, headers=Hp)
+_idl = [i['id'] for i in paola.get(f'/api/pos/detalle_cuenta/{_cl}').json['items'] if i['descripcion'] == 'MOLLETES']
+check(not [x for x in paola.get('/api/kds/listos').json['listos'] if x['id'] in _idl], 'antes de que cocina lo marque, no hay aviso')
+admin.post('/api/kds/estado', json={'ids': _idl, 'estado': 'LISTO'}, headers=H)
+lp = paola.get('/api/kds/listos').json['listos']
+check(any(x['id'] in _idl and x['mesa'] == 'LST1' for x in lp), 'la mesera ve el aviso de su platillo listo')
+check(not [x for x in daniel.get('/api/kds/listos').json['listos'] if x['id'] in _idl], 'otro mesero no ve los platillos de mesas ajenas')
+paola.post('/api/kds/estado', json={'ids': _idl, 'estado': 'ENTREGADO'}, headers=Hp)
+check(not [x for x in paola.get('/api/kds/listos').json['listos'] if x['id'] in _idl], 'al entregarlo el aviso desaparece')

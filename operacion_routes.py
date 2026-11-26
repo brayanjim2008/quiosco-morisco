@@ -1002,7 +1002,7 @@ def api_mermas_registrar():
     if current_user.role not in ['admin', 'sucursal']:
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
-    if not autorizo_supervisor(data.get('clave_admin')):
+    if not autorizo_supervisor(data.get('clave_admin'), 'mermas'):
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Registrar una merma ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     suc = obtener_sucursal_activa(session) if current_user.role == 'sucursal' else (data.get('sucursal') or obtener_sucursal_activa(session))
     ins = str(data.get('insumo_nombre', '')).strip().upper()
@@ -1379,7 +1379,7 @@ def api_finanzas_consumo_empleado():
     if current_user.role not in ['admin', 'cajero', 'sucursal']:
         return jsonify({'ok': False}), 403
     data = request.json or {}
-    if not autorizo_supervisor(data.get('clave_admin')):
+    if not autorizo_supervisor(data.get('clave_admin'), 'vales_empleado'):
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Los créditos / vales de empleado ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     emp = EmpleadoNominaPOS.query.get_or_404(int(data['empleado_id']))
     suc_actual = obtener_sucursal_activa(session)

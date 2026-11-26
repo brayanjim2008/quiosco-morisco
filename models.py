@@ -227,6 +227,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(50), nullable=False, default='cajero')
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
     pin_rapido = db.Column(db.String(255), nullable=True)  # hash del PIN para cambiar de usuario en la caja
+    permisos_json = db.Column(db.Text, nullable=True)      # permisos propios: {"cancelar": true, ...} (ver PERMISOS_USUARIO)
 
 
 class CategoriaMenu(db.Model):
@@ -1316,12 +1317,54 @@ def detectar_area_impresion(categoria_nombre):
 
 ROLES_SUPERVISOR = ('admin', 'gerente')
 
+# Lo que se le puede permitir a un cajero/sucursal sin pedir clave. (clave, texto, campo del permiso general de caja)
+PERMISOS_USUARIO = [
+    ('cancelar', 'Cancelar productos sin clave', 'cajero_puede_cancelar'),
+    ('descontar', 'Hacer descuentos sin clave', 'cajero_puede_descontar'),
+    ('cambiar_pago', 'Cambiar la forma de pago sin clave', 'cajero_puede_cambiar_pago'),
+    ('reimprimir', 'Reimprimir comandas sin clave', 'cajero_puede_reimprimir'),
+    ('retirar', 'Hacer retiros de caja sin clave', 'cajero_puede_retirar'),
+    ('ver_esperado_z', 'Ver cuánto debe haber antes de contar el corte Z', 'cajero_ver_esperado_z'),
+    ('mermas', 'Registrar mermas sin clave', None),
+    ('vales_empleado', 'Cargar cuentas / vales a empleados sin clave', None),
+]
+_CLAVES_PERMISO = {k for k, _, _ in PERMISOS_USUARIO}
 
-def autorizo_supervisor(clave=''):
-    """Admin y Gerente operan directo; cajero y sucursal necesitan la clave de un Admin o Gerente.
-    Devuelve el nombre de quien autoriza o None."""
+
+def permisos_propios(user):
+    import json as _j
+    try:
+        d = _j.loads(user.permisos_json or '{}')
+        return {k: bool(v) for k, v in d.items() if k in _CLAVES_PERMISO}
+    except Exception:
+        return {}
+
+
+def tiene_permiso(clave, user=None, supervisores=True):
+    """Admin/Gerente: siempre (con supervisores=True). Los demás: su permiso propio si lo tienen; si no, el permiso
+    general de caja. Con supervisores=False, Admin/Gerente también siguen el permiso general: así acciones como
+    descuentos o cambio de pago les siguen pidiendo su clave y queda registrado quién autorizó."""
     from flask_login import current_user as _cu
-    if _cu.is_authenticated and _cu.role in ROLES_SUPERVISOR:
+    u = user or _cu
+    if not getattr(u, 'is_authenticated', False):
+        return False
+    if u.role in ROLES_SUPERVISOR and supervisores:
+        return True
+    propios = permisos_propios(u)
+    if clave in propios:
+        return propios[clave]
+    campo = next((c for k, _, c in PERMISOS_USUARIO if k == clave), None)
+    if not campo:
+        return False
+    general = ConfigPermisosPOS.query.first()
+    return bool(general and getattr(general, campo, False))
+
+
+def autorizo_supervisor(clave='', permiso=None):
+    """Admin y Gerente operan directo; cajero y sucursal necesitan la clave de un Admin o Gerente,
+    salvo que tengan el permiso indicado. Devuelve el nombre de quien autoriza o None."""
+    from flask_login import current_user as _cu
+    if _cu.is_authenticated and (_cu.role in ROLES_SUPERVISOR or (permiso and tiene_permiso(permiso))):
         return _cu.username.upper()
     clave = str(clave or '').strip()
     return validar_clave_admin(clave) if clave else None
@@ -1548,7 +1591,7 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # se corre inicializar_sistema (create_all + ALTER ... IF NOT EXISTS, sin borrar datos).
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
-    'user': {'pin_rapido'},
+    'user': {'pin_rapido', 'permisos_json'},
     'promociones_pos': {'sucursal'},
     'precios_sucursal_pos': {'producto_id', 'sucursal', 'precio', 'disponible'},
     'alertas_dueno_pos': {'tipo', 'texto'},
@@ -1603,6 +1646,7 @@ def inicializar_sistema(app_obj):
         migraciones = [
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT \'Quiosco Morisco (Matriz)\';',
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pin_rapido VARCHAR(255);',
+            'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS permisos_json TEXT;',
             "ALTER TABLE promociones_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT '';",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",

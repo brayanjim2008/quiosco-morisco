@@ -37,6 +37,7 @@ from nomina_routes import nomina_bp
 from alertas import alertas_bp
 from propinas_routes import propinas_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos, productos_para_sucursal
+from models import PERMISOS_USUARIO, permisos_propios, tiene_permiso
 
 app = Flask(__name__)
 # Render pone 1 proxy delante: ProxyFix toma la IP real que ese proxy agrega a X-Forwarded-For
@@ -806,6 +807,33 @@ def pin_usuario(id):
         db.session.commit()
         flash(f'PIN de caja de {u.username} guardado.', 'success')
     return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/api/usuarios/<int:id>/permisos', methods=['GET', 'POST'])
+@login_required
+def api_permisos_usuario(id):
+    """Permisos propios de un usuario. null = usa el permiso general de caja."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False}), 403
+    u = User.query.get_or_404(id)
+    if request.method == 'POST':
+        d = request.get_json(silent=True) or {}
+        propios = permisos_propios(u)
+        for k, _, _ in PERMISOS_USUARIO:
+            if k in d:
+                if d[k] is None:
+                    propios.pop(k, None)
+                else:
+                    propios[k] = bool(d[k])
+        u.permisos_json = json.dumps(propios) if propios else None
+        db.session.commit()
+        registrar_bitacora('PERMISOS_USUARIO', u.username.upper(), 0.0,
+                           ', '.join(f"{k}={'SI' if v else 'NO'}" for k, v in propios.items()) or 'usa los generales')
+    propios = permisos_propios(u)
+    return jsonify({'ok': True, 'usuario': u.username.upper(), 'rol': u.role,
+                    'siempre_todo': u.role in ('admin', 'gerente'),
+                    'permisos': [{'clave': k, 'texto': t, 'propio': propios.get(k), 'efectivo': tiene_permiso(k, u)}
+                                 for k, t, _ in PERMISOS_USUARIO]})
 
 
 @app.route('/api/cambiar_usuario_pin', methods=['POST'])

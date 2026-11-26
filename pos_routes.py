@@ -10,7 +10,7 @@ from sqlalchemy import text as _sql_text, or_, and_
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
     obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
-    generar_pin_unico, detectar_area_impresion, obtener_turno_activo, MSG_TURNO_CERRADO, autorizo_supervisor,
+    generar_pin_unico, detectar_area_impresion, obtener_turno_activo, MSG_TURNO_CERRADO, autorizo_supervisor, tiene_permiso, PERMISOS_USUARIO,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
     numero_a_letras_mxn, quitar_caracteres_html, SUCURSAL_DEFAULT,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
@@ -934,7 +934,7 @@ def api_pos_cancelar_item():
     autorizo = current_user.username.upper()
     if era_impreso:
         permisos = ConfigPermisosPOS.query.first()
-        permitir = bool(permisos and permisos.cajero_puede_cancelar)
+        permitir = tiene_permiso('cancelar', supervisores=False)
         autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
         if not autorizo:
             return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
@@ -984,7 +984,7 @@ def api_pos_cancelar_items_lote():
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto a cancelar.'}), 400
 
     permisos = ConfigPermisosPOS.query.first()
-    permitir = bool(permisos and permisos.cajero_puede_cancelar)
+    permitir = tiene_permiso('cancelar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Contraseña de autorización incorrecta.'}), 403
@@ -1125,7 +1125,7 @@ def api_pos_descuento_autorizado():
     comentario = str(data.get('comentario', '')).strip()
 
     permisos = ConfigPermisosPOS.query.first()
-    permitir = bool(permisos and permisos.cajero_puede_descontar)
+    permitir = tiene_permiso('descontar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Contraseña de autorización incorrecta.'}), 403
@@ -1211,7 +1211,7 @@ def api_pos_descuento_productos():
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
 
     permisos = ConfigPermisosPOS.query.first()
-    permitir = bool(permisos and permisos.cajero_puede_descontar)
+    permitir = tiene_permiso('descontar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Contraseña de autorización incorrecta.'}), 403
@@ -1502,7 +1502,7 @@ def api_pos_pagar_cuenta():
     turno_cobro = obtener_turno_activo(c.sucursal)
     if not turno_cobro:
         return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
-    if _num(data.get('vale_empleado', 0)) > 0 and not autorizo_supervisor(data.get('clave_admin')):
+    if _num(data.get('vale_empleado', 0)) > 0 and not autorizo_supervisor(data.get('clave_admin'), 'vales_empleado'):
         return jsonify({'ok': False, 'requiere_admin': True,
                         'msg': 'Cargar la cuenta a un empleado (vale / crédito de empleado) ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     if not c.impresa:
@@ -1623,7 +1623,7 @@ def api_pos_cambiar_forma_pago():
         return jsonify({'ok': False, 'msg': 'Solo aplica a cuentas ya pagadas.'}), 400
 
     permisos = ConfigPermisosPOS.query.first()
-    permitir = bool(permisos and permisos.cajero_puede_cambiar_pago)
+    permitir = tiene_permiso('cambiar_pago', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
@@ -1725,7 +1725,7 @@ def api_pos_movimiento_caja():
     autorizo = current_user.username.upper()
     if tipo == 'RETIRO':
         perm = ConfigPermisosPOS.query.first()
-        permitir = bool(perm and perm.cajero_puede_retirar)
+        permitir = tiene_permiso('retirar', supervisores=False)
         autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
         if not autorizo:
             return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Retirar efectivo requiere contraseña de Admin o Gerente.'}), 403
@@ -1923,7 +1923,7 @@ def api_pos_corte_caja():
     efectivo_final = round(turno.fondo_inicial + ef_ventas + turno.depositos_efectivo - turno.retiros_efectivo - propinas_tarj, 2)
     saldo_final = round(efectivo_final + total_tarjeta + transferencia + vales_emp, 2)
     perm_cx = ConfigPermisosPOS.query.first()
-    ver_esperado = bool(current_user.role in ROLES_AUTH or (perm_cx and perm_cx.cajero_ver_esperado_z))
+    ver_esperado = tiene_permiso('ver_esperado_z')
 
     # Desglose de ventas y propinas con tarjeta por mesero
     por_mesero = {}
@@ -2280,7 +2280,7 @@ def api_pos_reimprimir_productos():
     if not item_ids:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
     perm = ConfigPermisosPOS.query.first()
-    permitir = bool(perm and perm.cajero_puede_reimprimir)
+    permitir = tiene_permiso('reimprimir', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de autorización.'}), 403
@@ -2700,7 +2700,7 @@ def api_pos_registrar_merma():
     if current_user.role not in ROLES_POS and current_user.role != 'almacen':
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
-    if current_user.role != 'almacen' and not autorizo_supervisor(data.get('clave_admin')):
+    if current_user.role != 'almacen' and not autorizo_supervisor(data.get('clave_admin'), 'mermas'):
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Registrar una merma ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     nombre = str(data.get('insumo_nombre', '')).strip().upper()
     cantidad = _num(data.get('cantidad', 0), maximo=100000.0)
@@ -2814,12 +2814,7 @@ def api_pos_catalogo_completo():
         'flujos': _mapa_flujos_modificadores(),
         'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa, 'sucursal': pr.sucursal or ''} for pr in promos],
         'permisos': {
-            'cancelar': bool(perm.cajero_puede_cancelar) if perm else False,
-            'descontar': bool(perm.cajero_puede_descontar) if perm else False,
-            'cambiar_pago': bool(perm.cajero_puede_cambiar_pago) if perm else False,
-            'reimprimir': bool(perm.cajero_puede_reimprimir) if perm else False,
-            'retirar': bool(perm.cajero_puede_retirar) if perm else False,
-            'ver_esperado_z': bool(perm.cajero_ver_esperado_z) if perm else False
+            **{k: tiene_permiso(k, supervisores=(k == 'ver_esperado_z')) for k, _, _ in PERMISOS_USUARIO}
         }
     })
 

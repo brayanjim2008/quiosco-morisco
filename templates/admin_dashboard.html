@@ -730,6 +730,9 @@
                                         <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 110px;" placeholder="Nueva clave" required>
                                         <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
                                     </form>
+                                    {% if u.role in ['cajero', 'sucursal'] %}
+                                    <button type="button" class="btn btn-sm btn-outline-dark fw-bold" data-uid="{{ u.id }}" onclick="abrirPermisosUsuario(this.dataset.uid)">Permisos</button>
+                                    {% endif %}
                                     {% if u.role in ['admin', 'gerente', 'cajero', 'sucursal'] %}
                                     <form action="{{ url_for('pin_usuario', id=u.id) }}" method="POST" class="d-flex gap-1 m-0" title="PIN para cambiar de usuario en la caja">
                                         <input type="password" name="pin" inputmode="numeric" maxlength="6" class="form-control form-control-sm" style="width: 90px;" placeholder="{{ 'PIN ✓' if u.pin_rapido else 'PIN caja' }}">
@@ -1097,6 +1100,41 @@ function renderizarPreordenesAdmin(ordenes) {
             cambiarTabAdmin(savedTab);
         }
     });
+</script>
+<div class="modal fade" id="modalPermUsr" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Permisos de <span id="permUsrNombre"></span></h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted mb-2">"General" = lo que diga Caja → Catálogos → Permisos generales de caja (igual para todos los cajeros). "Sí"/"No" = solo para esta persona.</p>
+      <table class="table table-sm align-middle mb-0"><tbody id="permUsrLista"></tbody></table>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-success fw-bold" onclick="guardarPermisosUsuario()">Guardar</button></div>
+  </div></div>
+</div>
+<script>
+  let permUsrId = null;
+  async function abrirPermisosUsuario(id) {
+    permUsrId = id;
+    const d = await (await fetch(`/api/usuarios/${id}/permisos`)).json();
+    if (!d.ok) return alert('No se pudieron cargar los permisos.');
+    document.getElementById('permUsrNombre').textContent = d.usuario;
+    const esc = t => String(t).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    document.getElementById('permUsrLista').innerHTML = d.permisos.map(p => `<tr>
+      <td>${esc(p.texto)}<div class="small ${p.efectivo ? 'text-success' : 'text-muted'}">Ahora: ${p.efectivo ? 'puede sin clave' : 'pide clave'}</div></td>
+      <td style="width:150px;"><select class="form-select form-select-sm perm-sel" data-clave="${esc(p.clave)}">
+        <option value="" ${p.propio === null || p.propio === undefined ? 'selected' : ''}>General</option>
+        <option value="1" ${p.propio === true ? 'selected' : ''}>Sí</option>
+        <option value="0" ${p.propio === false ? 'selected' : ''}>No</option></select></td></tr>`).join('');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPermUsr')).show();
+  }
+  async function guardarPermisosUsuario() {
+    const body = {};
+    document.querySelectorAll('.perm-sel').forEach(s => { body[s.dataset.clave] = s.value === '' ? null : s.value === '1'; });
+    const d = await (await fetch(`/api/usuarios/${permUsrId}/permisos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+    if (!d.ok) return alert('No se pudo guardar.');
+    abrirPermisosUsuario(permUsrId);
+  }
 </script>
 </body>
 </html>
