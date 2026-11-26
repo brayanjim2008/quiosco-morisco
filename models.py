@@ -581,6 +581,58 @@ class InsumoBodegaPro(db.Model):
     stock_minimo = db.Column(db.Float, default=2.0)
     costo_unitario = db.Column(db.Float, default=0.0)
     activo = db.Column(db.Boolean, default=True)
+    es_elaborado = db.Column(db.Boolean, default=False)  # sub-receta: salsa, base, jarabe... producido en casa
+
+
+class PresentacionInsumo(db.Model):
+    """Cómo se compra un insumo: CAJA 24 PZA = 24 unidades del insumo; COSTAL 25 KG = 25 KG."""
+    __tablename__ = 'presentaciones_insumo'
+    id = db.Column(db.Integer, primary_key=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey('insumos_bodega_pro.id'), nullable=False, index=True)
+    nombre = db.Column(db.String(60), nullable=False)
+    factor = db.Column(db.Float, nullable=False)  # unidades del insumo por presentación
+    activo = db.Column(db.Boolean, default=True)
+
+
+class RecetaElaborado(db.Model):
+    """Ingredientes para producir 1 unidad (de su propia unidad) de un insumo elaborado."""
+    __tablename__ = 'recetas_elaborados'
+    id = db.Column(db.Integer, primary_key=True)
+    elaborado_id = db.Column(db.Integer, db.ForeignKey('insumos_bodega_pro.id'), nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey('insumos_bodega_pro.id'), nullable=False)
+    cantidad = db.Column(db.Float, nullable=False)
+
+
+class OrdenCompra(db.Model):
+    __tablename__ = 'ordenes_compra'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local)
+    proveedor_id = db.Column(db.Integer, nullable=True)
+    proveedor_nombre = db.Column(db.String(120), default='')
+    estado = db.Column(db.String(15), default='BORRADOR')  # BORRADOR | ENVIADA | RECIBIDA | CANCELADA
+    nota = db.Column(db.String(250), default='')
+    creado_por = db.Column(db.String(80), nullable=False)
+    total_estimado = db.Column(db.Float, default=0.0)
+    total_real = db.Column(db.Float, nullable=True)
+    recibido_en = db.Column(db.DateTime, nullable=True)
+    recibido_por = db.Column(db.String(80), nullable=True)
+
+
+class OrdenCompraDetalle(db.Model):
+    __tablename__ = 'ordenes_compra_detalle'
+    id = db.Column(db.Integer, primary_key=True)
+    orden_id = db.Column(db.Integer, db.ForeignKey('ordenes_compra.id'), nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, nullable=False)
+    insumo_nombre = db.Column(db.String(120), nullable=False)
+    unidad = db.Column(db.String(20), default='')
+    presentacion_id = db.Column(db.Integer, nullable=True)
+    presentacion_nombre = db.Column(db.String(60), default='')
+    factor = db.Column(db.Float, default=1.0)
+    cantidad_presentaciones = db.Column(db.Float, default=0.0)
+    cantidad = db.Column(db.Float, default=0.0)          # en unidades del insumo (= presentaciones × factor)
+    costo_estimado = db.Column(db.Float, default=0.0)    # total de la línea
+    cantidad_recibida = db.Column(db.Float, nullable=True)
+    costo_real = db.Column(db.Float, nullable=True)
 
 
 class StockSucursal(db.Model):
@@ -1277,6 +1329,11 @@ ESQUEMA_REQUERIDO = {
     'traspasos_sucursal': {'origen', 'destino', 'insumo_id', 'cantidad', 'cantidad_recibida', 'estado'},
     'detalles_pos': {'enviado_en', 'kds_estado', 'kds_listo_en'},
     'reservaciones': {'sucursal', 'fecha_hora', 'mesa', 'estado', 'cuenta_id'},
+    'insumos_bodega_pro': {'es_elaborado'},
+    'presentaciones_insumo': {'insumo_id', 'nombre', 'factor', 'activo'},
+    'recetas_elaborados': {'elaborado_id', 'insumo_id', 'cantidad'},
+    'ordenes_compra': {'proveedor_id', 'estado', 'total_estimado', 'total_real'},
+    'ordenes_compra_detalle': {'orden_id', 'insumo_id', 'factor', 'cantidad', 'cantidad_recibida', 'costo_real'},
     'conteos_inventario': {'ubicacion', 'estado', 'aplicado_en', 'autorizo', 'valor_abs_total'},
     'conteos_inventario_detalle': {'conteo_id', 'insumo_id', 'teorico', 'contado', 'diferencia',
                                    'costo_unitario', 'valor_diferencia'},
@@ -1376,7 +1433,10 @@ def inicializar_sistema(app_obj):
             # Fase 4a: monitor de cocina/barra (las comandas ya enviadas antes no aparecen: enviado_en queda NULL)
             "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS enviado_en TIMESTAMP;",
             "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS kds_estado VARCHAR(12) DEFAULT 'PENDIENTE';",
-            "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS kds_listo_en TIMESTAMP;"
+            "ALTER TABLE detalles_pos ADD COLUMN IF NOT EXISTS kds_listo_en TIMESTAMP;",
+            # Fase 4b: sub-recetas (insumos elaborados)
+            "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS es_elaborado BOOLEAN DEFAULT FALSE;",
+            "UPDATE insumos_bodega_pro SET es_elaborado = FALSE WHERE es_elaborado IS NULL;"
         ]
         es_postgres = db.engine.dialect.name == 'postgresql'
         for sql in migraciones:

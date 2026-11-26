@@ -223,6 +223,9 @@ ejecutar_escenario('f3.py')
 # Fase 4a: monitor de cocina/barra (KDS) y reservaciones
 ejecutar_escenario('f4a.py')
 
+# Fase 4b: presentaciones de compra, sub-recetas con producción, órdenes de compra
+ejecutar_escenario('f4b.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

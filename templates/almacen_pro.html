@@ -123,6 +123,8 @@
   <button type="button" class="tab-btn" onclick="cambiarTab('movimientos', this)"><i class="fa-solid fa-arrows-rotate"></i> 3. Entradas y Salidas</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('compras', this)"><i class="fa-solid fa-cart-shopping"></i> 4. Compras Sugeridas y Proveedores</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('conteo', this); cfCargar();"><i class="fa-solid fa-clipboard-check"></i> 5. Conteo Físico</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('produccion', this); prCargar();"><i class="fa-solid fa-blender"></i> 6. Producción y Presentaciones</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('ordenes', this); ocCargar();"><i class="fa-solid fa-file-signature"></i> 7. Órdenes de Compra</button>
 </div>
 
 <div class="container">
@@ -237,18 +239,20 @@
     <div class="card">
       <div class="card-head"><h3><i class="fa-solid fa-boxes-packing" style="color:var(--cobre);"></i> Registrar Entrada de Compra / Merma / Traspaso</h3></div>
       <div class="form-row">
-        <select id="mov_insumo" class="inp"></select>
+        <select id="mov_insumo" class="inp" onchange="pintarPresentacionesMov()"></select>
+        <select id="mov_pres" class="inp" onchange="pintarEquivalenciaMov()" title="Presentación de compra"><option value="">Por unidad</option></select>
         <select id="mov_tipo" class="inp">
           <option value="ENTRADA_COMPRA">➕ ENTRADA POR COMPRA</option>
           <option value="SALIDA_MERMA">➖ SALIDA / MERMA BODEGA</option>
           <option value="TRASPASO">📦 TRASPASO MANUAL</option>
         </select>
-        <input type="number" step="0.1" id="mov_cant" class="inp" placeholder="Cantidad">
+        <input type="number" step="0.1" id="mov_cant" class="inp" placeholder="Cantidad" oninput="pintarEquivalenciaMov()">
         <input type="number" step="0.5" id="mov_costo" class="inp" placeholder="Costo total ($)" value="0">
         <input type="text" id="mov_prov" class="inp" placeholder="Proveedor...">
         <input type="text" id="mov_nota" class="inp" placeholder="Nota o factura...">
         <button type="button" class="btn wa" onclick="registrarMovimiento()">✅ Guardar Movimiento</button>
       </div>
+      <small id="mov_equiv" style="display:block;color:var(--cobre);font-weight:800;margin:-6px 0 10px;"></small>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Insumo</th><th>Cantidad</th><th>Costo</th><th>Proveedor</th><th>Usuario</th><th>Nota</th></tr></thead>
@@ -294,6 +298,8 @@
   </section>
 
   {% with ubicacion_conteo='BODEGA' %}{% include '_conteo_fisico.html' %}{% endwith %}
+  {% with ubicacion_produccion='BODEGA' %}{% include '_produccion.html' %}{% endwith %}
+  {% include '_ordenes_compra.html' %}
 
 </div>
 
@@ -344,6 +350,7 @@
       renderStock();
       renderMovimientos();
       renderComprasYProveedores();
+      if (!cachePresentaciones.length) cargarPresentaciones(); else pintarPresentacionesMov();
     } catch {}
   }
 
@@ -522,17 +529,41 @@
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;padding:16px;color:#64748b;">Sin movimientos recientes.</td></tr>';
   }
 
+  // Presentaciones de compra (CAJA 24 PZA, COSTAL 25 KG...): la cantidad capturada son presentaciones.
+  let cachePresentaciones = [];
+  async function cargarPresentaciones() {
+    try {
+      const d = await (await fetch('/api/presentaciones')).json();
+      if (d.ok) cachePresentaciones = d.presentaciones || [];
+    } catch (e) {}
+    pintarPresentacionesMov();
+  }
+  function pintarPresentacionesMov() {
+    const id = Number($('mov_insumo').value || 0);
+    const prev = $('mov_pres').value;
+    $('mov_pres').innerHTML = '<option value="">Por unidad</option>' + cachePresentaciones.filter(p => p.insumo_id === id)
+      .map(p => `<option value="${Number(p.id)}">${esc(p.nombre)} (= ${Number(p.factor)} ${esc(p.unidad)})</option>`).join('');
+    if ([...$('mov_pres').options].some(o => o.value === prev)) $('mov_pres').value = prev;
+    pintarEquivalenciaMov();
+  }
+  function pintarEquivalenciaMov() {
+    const pres = cachePresentaciones.find(p => String(p.id) === $('mov_pres').value);
+    const n = parseFloat($('mov_cant').value || 0);
+    $('mov_equiv').innerText = (pres && n > 0) ? `= ${Math.round(n * pres.factor * 1000) / 1000} ${pres.unidad} de ${pres.insumo_nombre}` : '';
+  }
+
   async function registrarMovimiento() {
     const insumo_id = Number($('mov_insumo').value || 0);
     const cantidad = parseFloat($('mov_cant').value || 0);
     if (!insumo_id || cantidad <= 0) return alert('Selecciona insumo y cantidad mayor a 0.');
+    const presentacion_id = $('mov_tipo').value === 'ENTRADA_COMPRA' ? Number($('mov_pres').value || 0) : 0;
     const res = await fetch('/api/almacen/movimiento', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         insumo_id, tipo: $('mov_tipo').value, cantidad,
         costo_total: parseFloat($('mov_costo').value || 0),
         proveedor: $('mov_prov').value, nota: $('mov_nota').value
-      })
+      }, presentacion_id ? { presentacion_id, cantidad_presentaciones: cantidad } : {}))
     });
     const d = await res.json();
     if (d.ok) { $('mov_cant').value = ''; $('mov_costo').value = '0'; $('mov_nota').value = ''; toast('✓ Stock actualizado'); cargarDatosAlmacen(); }

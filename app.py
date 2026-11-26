@@ -32,6 +32,7 @@ from models import (
 from pos_routes import pos_bp
 from operacion_routes import operacion_bp
 from servicio_routes import servicio_bp
+from compras_routes import compras_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
 
 app = Flask(__name__)
@@ -85,6 +86,7 @@ login_manager.login_message = None
 app.register_blueprint(pos_bp)
 app.register_blueprint(operacion_bp)
 app.register_blueprint(servicio_bp)
+app.register_blueprint(compras_bp)
 
 
 # ------------------------------------------------------------------------------

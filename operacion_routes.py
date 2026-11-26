@@ -17,7 +17,7 @@ from models import (
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
     SUCURSAL_DEFAULT, validar_clave_admin, ConteoInventario, ConteoInventarioDetalle,
-    CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal
+    CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal, PresentacionInsumo
 )
 from pos_routes import catalogo_gastos, categoria_gasto_valida
 
@@ -675,6 +675,15 @@ def api_almacen_movimiento():
         return jsonify({'ok': False, 'msg': 'Tipo de movimiento inválido.'}), 400
     cant = _num(data.get('cantidad', 0), minimo=-10_000_000.0)
     costo = _num(data.get('costo_total', 0))
+    pres_txt = ''
+    if tipo == 'ENTRADA_COMPRA' and data.get('presentacion_id'):
+        # Compra por presentación: 3 CAJAS de 24 PZA = 72 PZA del insumo.
+        pres = PresentacionInsumo.query.filter_by(id=int(data['presentacion_id']), insumo_id=ins.id, activo=True).first()
+        if not pres:
+            return jsonify({'ok': False, 'msg': 'Presentación inválida para este insumo.'}), 400
+        n_pres = _num(data.get('cantidad_presentaciones', data.get('cantidad', 0)), maximo=1_000_000.0)
+        cant = round(n_pres * float(pres.factor), 3)
+        pres_txt = f' ({n_pres:g} x {pres.nombre})'
     if cant <= 0:
         return jsonify({'ok': False, 'msg': 'Cantidad inválida'}), 400
 
@@ -690,10 +699,23 @@ def api_almacen_movimiento():
     db.session.add(MovimientoAlmacen(
         fecha=ahora_local(), tipo=tipo, insumo_nombre=ins.nombre, cantidad=cant,
         costo_total=costo, proveedor=str(data.get('proveedor', '')).strip().upper(),
-        usuario=current_user.username.upper(), nota=str(data.get('nota', '')).strip()
+        usuario=current_user.username.upper(), nota=(str(data.get('nota', '')).strip() + pres_txt)[:200]
     ))
     db.session.commit()
-    return jsonify({'ok': True, 'stock_actual': ins.stock_actual, 'costo_unitario': round(float(ins.costo_unitario or 0.0), 4)})
+    return jsonify({'ok': True, 'stock_actual': ins.stock_actual, 'cantidad': cant,
+                    'costo_unitario': round(float(ins.costo_unitario or 0.0), 4)})
+
+
+def registrar_compra(ins, cantidad, costo_total, proveedor='', nota='', usuario=''):
+    """Entrada por compra a Bodega Central con costo promedio ponderado (misma regla que el registro manual).
+    `ins` debe venir bloqueado (with_for_update). No hace commit."""
+    if costo_total > 0:
+        ins.costo_unitario = costo_promedio_ponderado(float(ins.costo_unitario or 0.0), existencia_total_insumo(ins),
+                                                      cantidad, costo_total)
+    ins.stock_actual = round(float(ins.stock_actual or 0.0) + cantidad, 3)
+    db.session.add(MovimientoAlmacen(fecha=ahora_local(), tipo='ENTRADA_COMPRA', insumo_nombre=ins.nombre, cantidad=cantidad,
+                                     costo_total=round(costo_total, 2), proveedor=str(proveedor or '').upper()[:100],
+                                     usuario=usuario, nota=str(nota or '')[:200]))
 
 
 def existencia_total_insumo(ins):

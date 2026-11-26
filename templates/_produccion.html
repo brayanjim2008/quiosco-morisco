@@ -1,0 +1,178 @@
+{# Producción de insumos elaborados (sub-recetas) y presentaciones de compra. Se incluye con:
+   {% with ubicacion_produccion='BODEGA' %}{% include '_produccion.html' %}{% endwith %}
+   Usa $, esc(), toast() y cacheInsumos de la página. Editar recetas/presentaciones: solo admin y almacén. #}
+{% set puede_editar = current_user.role in ['admin', 'almacen'] %}
+<section id="sec_produccion" class="panel-sec">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-blender" style="color:var(--cobre);"></i> Producir • {{ ubicacion_produccion }}</h3></div>
+      <p style="font-size:12px;color:#475569;margin-top:0;">Producir descuenta los ingredientes de <b>{{ ubicacion_produccion }}</b>, suma el elaborado ahí mismo y actualiza su costo con el costo real de los ingredientes.</p>
+      <div class="form-row">
+        <select id="pr_elab" class="inp" onchange="prPintarNecesario()"></select>
+        <input type="number" step="0.1" min="0" id="pr_cant" class="inp" placeholder="Cantidad a producir" oninput="prPintarNecesario()">
+        <button type="button" class="btn wa" onclick="prProducir()"><i class="fa-solid fa-play"></i> Producir</button>
+      </div>
+      <div id="pr_necesario" style="font-size:12.5px;font-weight:700;color:#334155;"></div>
+    </div>
+
+    {% if puede_editar %}
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-box" style="color:var(--cobre);"></i> Presentaciones de compra</h3></div>
+      <p style="font-size:12px;color:#475569;margin-top:0;">Ej. <b>CAJA 24</b> = 24 PZA, <b>COSTAL 25</b> = 25 KG. Al registrar una compra o una orden se captura en presentaciones y el sistema convierte.</p>
+      <div class="form-row">
+        <select id="pp_insumo" class="inp"></select>
+        <input type="text" id="pp_nombre" class="inp" placeholder="Nombre (CAJA 24, PAQUETE 6...)">
+        <input type="number" step="0.01" min="0" id="pp_factor" class="inp" placeholder="Unidades por presentación">
+        <button type="button" class="btn" onclick="ppCrear()">+ Agregar</button>
+      </div>
+      <div class="table-wrap" style="max-height:220px;overflow-y:auto;">
+        <table><thead><tr><th>Insumo</th><th>Presentación</th><th style="text-align:right;">Equivale a</th><th></th></tr></thead><tbody id="pp_tbody"></tbody></table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if puede_editar %}
+  <div class="card">
+    <div class="card-head"><h3><i class="fa-solid fa-flask" style="color:var(--cobre);"></i> Recetas de insumos elaborados (salsas, bases, jarabes)</h3></div>
+    <div class="form-row">
+      <select id="re_elab" class="inp" onchange="rePintar()"></select>
+      <select id="re_ing" class="inp"></select>
+      <input type="number" step="0.001" min="0" id="re_cant" class="inp" placeholder="Cantidad por 1 unidad del elaborado">
+      <button type="button" class="btn" onclick="reAgregar()">+ Ingrediente</button>
+      <button type="button" class="btn rojo" onclick="reQuitarElaborado()">Dejar de ser elaborado</button>
+    </div>
+    <div id="re_info" style="font-size:12.5px;font-weight:800;color:var(--verde);margin-bottom:6px;"></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Ingrediente</th><th style="text-align:right;">Cantidad por unidad</th><th style="text-align:right;">Costo unitario</th><th style="text-align:right;">Subtotal</th><th></th></tr></thead>
+        <tbody id="re_tbody"></tbody></table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<script>
+  const PR_UBICACION = JSON.parse('{{ ubicacion_produccion|tojson }}');
+  const PR_EDITA = JSON.parse('{{ puede_editar|tojson }}');
+  let prElaborados = [], prPresentaciones = [];
+  const prFmt = v => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const prInsumos = () => (typeof cacheInsumos !== 'undefined' ? cacheInsumos : []).filter(i => !String(i.nombre).includes('EXTRA / FUERA DE LISTA'));
+
+  async function prCargar() {
+    try {
+      const d = await (await fetch('/api/elaborados')).json();
+      if (!d.ok) return toast(d.msg || 'Sin acceso');
+      prElaborados = d.elaborados || [];
+      const prev = $('pr_elab').value;
+      $('pr_elab').innerHTML = prElaborados.length
+        ? prElaborados.map(e => `<option value="${Number(e.id)}">${esc(e.nombre)} (${esc(e.unidad)}) • ${prFmt(e.costo_receta)}/${esc(e.unidad)}</option>`).join('')
+        : '<option value="">(aún no hay insumos elaborados)</option>';
+      if (prev) $('pr_elab').value = prev;
+      prPintarNecesario();
+      if (PR_EDITA) {
+        const opts = prInsumos().map(i => `<option value="${Number(i.id)}">${esc(i.nombre)} (${esc(i.unidad)})</option>`).join('');
+        ['pp_insumo', 're_ing'].forEach(id => { const v = $(id).value; $(id).innerHTML = opts; if (v) $(id).value = v; });
+        const vE = $('re_elab').value;
+        $('re_elab').innerHTML = '<option value="">-- Elige el insumo elaborado (o uno nuevo) --</option>' +
+          prInsumos().map(i => `<option value="${Number(i.id)}">${prElaborados.some(e => e.id === i.id) ? '★ ' : ''}${esc(i.nombre)} (${esc(i.unidad)})</option>`).join('');
+        if (vE) $('re_elab').value = vE;
+        rePintar();
+        const dp = await (await fetch('/api/presentaciones')).json();
+        prPresentaciones = dp.presentaciones || [];
+        $('pp_tbody').innerHTML = prPresentaciones.map((p, i) => `<tr><td>${esc(p.insumo_nombre)}</td><td><b>${esc(p.nombre)}</b></td>
+          <td style="text-align:right;">${Number(p.factor)} ${esc(p.unidad)}</td>
+          <td><button type="button" class="btn sm rojo" onclick="ppQuitar(${i})">✕</button></td></tr>`).join('')
+          || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:10px;">Sin presentaciones.</td></tr>';
+      }
+    } catch (e) { toast('Error al cargar producción'); }
+  }
+
+  function prPintarNecesario() {
+    const e = prElaborados.find(x => String(x.id) === $('pr_elab').value);
+    const n = parseFloat($('pr_cant').value || 0);
+    if (!e) { $('pr_necesario').innerHTML = ''; return; }
+    if (!e.receta.length) { $('pr_necesario').innerHTML = '<span style="color:#dc2626;">Este elaborado no tiene receta.</span>'; return; }
+    $('pr_necesario').innerHTML = 'Se usará: ' + e.receta.map(l => `${esc(l.insumo_nombre)} <b>${Math.round(l.cantidad * (n || 1) * 1000) / 1000} ${esc(l.unidad)}</b>`).join(' • ')
+      + (n > 0 ? ` &nbsp;|&nbsp; Costo aprox: <b>${prFmt(e.costo_receta * n)}</b>` : ' <small>(por 1 ' + esc(e.unidad) + ')</small>');
+  }
+
+  async function prProducir(forzar) {
+    const elaborado_id = Number($('pr_elab').value || 0);
+    const cantidad = parseFloat($('pr_cant').value || 0);
+    if (!elaborado_id || !(cantidad > 0)) return alert('Elige el elaborado y la cantidad.');
+    const res = await fetch('/api/elaborados/producir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ elaborado_id, cantidad, ubicacion: PR_UBICACION, forzar: Boolean(forzar) }) });
+    const d = await res.json();
+    if (!d.ok && d.faltantes) {
+      if (confirm(d.msg + '\n\n¿Producir de todos modos? (los ingredientes faltantes quedarán en 0)')) return prProducir(true);
+      return;
+    }
+    if (!d.ok) return alert(d.msg || 'No se pudo producir.');
+    $('pr_cant').value = '';
+    toast(`✅ Producido. Costo ${prFmt(d.costo_total)} • nuevo costo por unidad ${prFmt(d.costo_unitario)}`);
+    if (typeof cargarDatosAlmacen === 'function') cargarDatosAlmacen();
+    if (typeof cargarDatosSucursal === 'function') cargarDatosSucursal();
+    prCargar();
+  }
+
+  async function prPost(url, body, metodo) {
+    const r = await fetch(url, { method: metodo || 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return r.json();
+  }
+
+  function rePintar() {
+    if (!PR_EDITA) return;
+    const id = Number($('re_elab').value || 0);
+    const e = prElaborados.find(x => x.id === id);
+    $('re_info').innerText = e ? `${e.nombre}: costo de receta ${prFmt(e.costo_receta)} por ${e.unidad} • costo promedio actual ${prFmt(e.costo_unitario)}` : '';
+    $('re_tbody').innerHTML = (e ? e.receta : []).map((l, i) => `<tr>
+      <td><b>${esc(l.insumo_nombre)}</b>${l.sin_costo ? ' <span class="pill err">sin costo</span>' : ''}</td>
+      <td style="text-align:right;">${Number(l.cantidad)} ${esc(l.unidad)}</td>
+      <td style="text-align:right;">${prFmt(l.costo_unitario)}</td>
+      <td style="text-align:right;">${prFmt(l.cantidad * l.costo_unitario)}</td>
+      <td><button type="button" class="btn sm rojo" onclick="reQuitar(${i})">✕</button></td></tr>`).join('')
+      || `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:10px;">${id ? 'Agrega sus ingredientes.' : 'Elige un insumo para ver o armar su receta.'}</td></tr>`;
+  }
+
+  async function reAgregar() {
+    const elaborado_id = Number($('re_elab').value || 0), insumo_id = Number($('re_ing').value || 0);
+    const cantidad = parseFloat($('re_cant').value || 0);
+    if (!elaborado_id || !insumo_id || !(cantidad > 0)) return alert('Elige elaborado, ingrediente y cantidad.');
+    const d = await prPost('/api/elaborados/receta', { elaborado_id, insumo_id, cantidad });
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    $('re_cant').value = ''; toast('Ingrediente guardado'); prCargar();
+  }
+  async function reQuitar(i) {
+    const e = prElaborados.find(x => String(x.id) === $('re_elab').value);
+    const l = e && e.receta[i];
+    if (!l || !confirm(`¿Quitar ${l.insumo_nombre} de la receta?`)) return;
+    const d = await prPost('/api/elaborados/receta', { id: l.id }, 'DELETE');
+    if (!d.ok) return alert(d.msg || 'No se pudo quitar.');
+    prCargar();
+  }
+  async function reQuitarElaborado() {
+    const elaborado_id = Number($('re_elab').value || 0);
+    if (!elaborado_id || !confirm('¿Dejar de tratar este insumo como elaborado? Se borra su receta de producción.')) return;
+    const d = await prPost('/api/elaborados/receta', { elaborado_id, es_elaborado: false });
+    if (!d.ok) return alert(d.msg || 'No se pudo cambiar.');
+    toast('Ya no es elaborado'); prCargar();
+  }
+
+  async function ppCrear() {
+    const insumo_id = Number($('pp_insumo').value || 0), nombre = $('pp_nombre').value.trim(), factor = parseFloat($('pp_factor').value || 0);
+    if (!insumo_id || !nombre || !(factor > 0)) return alert('Elige insumo, nombre y unidades por presentación.');
+    const d = await prPost('/api/presentaciones', { insumo_id, nombre, factor });
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    $('pp_nombre').value = ''; $('pp_factor').value = ''; toast('Presentación agregada');
+    if (typeof cargarPresentaciones === 'function') cargarPresentaciones();
+    prCargar();
+  }
+  async function ppQuitar(i) {
+    const p = prPresentaciones[i];
+    if (!p || !confirm(`¿Quitar la presentación ${p.nombre} de ${p.insumo_nombre}?`)) return;
+    const d = await prPost('/api/presentaciones', { id: p.id }, 'DELETE');
+    if (!d.ok) return alert(d.msg || 'No se pudo quitar.');
+    if (typeof cargarPresentaciones === 'function') cargarPresentaciones();
+    prCargar();
+  }
+</script>

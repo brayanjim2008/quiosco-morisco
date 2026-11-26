@@ -161,6 +161,7 @@
   <button type="button" class="tab-btn" onclick="cambiarTab('operacion', this)"><i class="fa-solid fa-user-clock"></i> 4. Checador y Mermas</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('conteo', this); cfCargar();"><i class="fa-solid fa-clipboard-check"></i> 5. Conteo Físico</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('traspasos', this); trCargar();"><i class="fa-solid fa-right-left"></i> 6. Traspasos</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('produccion', this); prCargar();"><i class="fa-solid fa-blender"></i> 7. Producción</button>
 </div>
 
 <div class="container">
@@ -269,6 +270,7 @@
 
   {% with ubicacion_conteo=sucursal %}{% include '_conteo_fisico.html' %}{% endwith %}
   {% with suc_traspaso=sucursal %}{% include '_traspasos.html' %}{% endwith %}
+  {% with ubicacion_produccion=sucursal %}{% include '_produccion.html' %}{% endwith %}
 
 </div>
 
