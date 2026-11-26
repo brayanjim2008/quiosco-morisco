@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from models import (
     db, ahora_local, registrar_bitacora, cfg_cargar, cfg_guardar, SUCURSAL_DEFAULT,
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, DescuentoEmpleadoPOS, AguinaldoEmpleadoPOS, BonoEmpleadoPOS,
-    PermisoEmpleadoPOS, VacacionEmpleadoPOS,
+    PermisoEmpleadoPOS, VacacionEmpleadoPOS, RegistroAsistencia,
 )
 
 nomina_bp = Blueprint('nomina', __name__)
@@ -37,6 +37,8 @@ CATALOGOS_DEFAULT = {
     ],
     'prima_vacacional_pct': 40.0,      # el sistema anterior pagaba salario / 2.5 = 40 % (la ley pide mínimo 25 %)
     'max_dias_permiso_con_goce': 6,    # por año, como el sistema anterior
+    'tolerancia_retardo_min': 10,      # minutos después de la hora de entrada del turno
+    'retardos_por_falta': 3,           # cada N retardos se descuenta 1 día (0 = no se descuentan)
 }
 MAX_PCT_BONO = 100.0
 
@@ -119,6 +121,40 @@ def fin_sin_domingos(inicio, dias):
             if contados == dias:
                 return d
         d += timedelta(days=1)
+
+
+def hora_entrada_turno(e, cat=None):
+    """'HH:MM' de entrada del turno del empleado según el catálogo, o None si no tiene turno con horario."""
+    cat = cat or catalogos()
+    t = next((x for x in cat.get('turnos', []) if x.get('nombre') == (e.turno or '')), None)
+    return (t or {}).get('entrada') or None
+
+
+def retardos_periodo(e, desde, hasta, cat=None):
+    """Días en que la primera ENTRADA del checador pasó de la hora del turno + tolerancia.
+    desde/hasta son date (hasta incluido)."""
+    cat = cat or catalogos()
+    entrada = hora_entrada_turno(e, cat)
+    if not entrada:
+        return {'turno_con_horario': False, 'retardos': 0, 'detalle': [], 'dias_descuento': 0}
+    tol = int(cat.get('tolerancia_retardo_min', 10) or 0)
+    h, m = [int(x) for x in entrada.split(':')]
+    regs = RegistroAsistencia.query.filter(
+        RegistroAsistencia.tipo == 'ENTRADA', RegistroAsistencia.empleado_nombre == (e.nombre or '').upper(),
+        RegistroAsistencia.fecha >= datetime.combine(desde, datetime.min.time()),
+        RegistroAsistencia.fecha < datetime.combine(hasta + timedelta(days=1), datetime.min.time())).order_by(RegistroAsistencia.fecha.asc()).all()
+    primera = {}
+    for r in regs:
+        primera.setdefault(r.fecha.date(), r.fecha)
+    detalle = []
+    for dia, f in sorted(primera.items()):
+        limite = datetime.combine(dia, datetime.min.time()).replace(hour=h, minute=m) + timedelta(minutes=tol)
+        if f > limite:
+            detalle.append({'fecha': dia.strftime('%d/%m'), 'hora': f.strftime('%H:%M'),
+                            'minutos': int((f - limite).total_seconds() // 60) + tol})
+    por_falta = int(cat.get('retardos_por_falta', 3) or 0)
+    return {'turno_con_horario': True, 'entrada': entrada, 'tolerancia': tol, 'retardos': len(detalle), 'detalle': detalle,
+            'retardos_por_falta': por_falta, 'dias_descuento': (len(detalle) // por_falta) if por_falta > 0 else 0}
 
 
 def saldo_deuda(emp_id):
@@ -248,12 +284,15 @@ def api_nomina_catalogos():
                     for p in d.get('tipos_permiso', []) if _txt(p.get('nombre'), 60)]
         prima = _num(d.get('prima_vacacional_pct', 25), minimo=25.0, maximo=100.0)
         max_goce = int(_num(d.get('max_dias_permiso_con_goce', 6), minimo=0, maximo=365))
+        tolerancia = int(_num(d.get('tolerancia_retardo_min', 10), minimo=0, maximo=240))
+        ret_falta = int(_num(d.get('retardos_por_falta', 3), minimo=0, maximo=31))
     except ValueError as ex:
         return jsonify({'ok': False, 'msg': f'Dato inválido: {ex}. La prima vacacional no puede ser menor a 25 % (ley).'}), 400
     if not permisos:
         return jsonify({'ok': False, 'msg': 'Debe haber al menos un tipo de permiso.'}), 400
     nuevo = {'areas': areas, 'turnos': turnos, 'tipos_baja': bajas, 'tipos_permiso': permisos,
-             'prima_vacacional_pct': prima, 'max_dias_permiso_con_goce': max_goce}
+             'prima_vacacional_pct': prima, 'max_dias_permiso_con_goce': max_goce,
+             'tolerancia_retardo_min': tolerancia, 'retardos_por_falta': ret_falta}
     cfg_guardar(CLAVE_CATALOGOS, nuevo)
     registrar_bitacora('CATALOGOS_NOMINA', '', 0.0, f'{len(areas)} áreas, {len(turnos)} turnos')
     return jsonify({'ok': True, 'catalogos': nuevo})
@@ -295,6 +334,8 @@ def api_nomina_empleado(emp_id):
         'dias_goce_usados': dias_permiso_con_goce_anio(e.id, hoy.year),
         'max_dias_goce': int(cat['max_dias_permiso_con_goce']),
         'pendientes_nomina': resumen_pendientes(e),
+        'retardos': retardos_periodo(e, hoy - timedelta(days={'SEMANAL': 7, 'QUINCENAL': 15, 'MENSUAL': 30}.get(
+            (e.periodo or 'SEMANAL').upper(), 7) - 1), hoy, cat),
         'historial': hist,
     })
 

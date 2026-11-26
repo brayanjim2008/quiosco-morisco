@@ -524,6 +524,47 @@ class PromocionPOS(db.Model):
     hora_inicio = db.Column(db.String(5), default='00:00')
     hora_fin = db.Column(db.String(5), default='23:59')
     activa = db.Column(db.Boolean, default=True)
+    sucursal = db.Column(db.String(100), default='')  # '' = todas las sucursales
+
+
+class PrecioSucursalPOS(db.Model):
+    """Precio y disponibilidad de un platillo en una sucursal (si no hay fila, aplica el precio general)."""
+    __tablename__ = 'precios_sucursal_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    producto_id = db.Column(db.Integer, nullable=False, index=True)
+    sucursal = db.Column(db.String(100), nullable=False)
+    precio = db.Column(db.Float, nullable=True)        # None = precio general
+    disponible = db.Column(db.Boolean, default=True)   # False = no se vende en esta sucursal
+    __table_args__ = (db.UniqueConstraint('producto_id', 'sucursal', name='uq_precio_prod_suc'),)
+
+
+def precios_de_sucursal(sucursal):
+    """{producto_id: (precio_o_None, disponible)} para la sucursal."""
+    return {r.producto_id: (r.precio, r.disponible is not False)
+            for r in PrecioSucursalPOS.query.filter_by(sucursal=sucursal).all()}
+
+
+class ProductoEnSucursal:
+    """Vista de un Producto con el precio/disponibilidad de una sucursal, sin tocar el registro original."""
+    def __init__(self, prod, precio=None, disponible=True):
+        self._p = prod
+        self.precio = float(precio) if precio is not None else prod.precio
+        self.agotado = bool(prod.agotado) or not disponible
+        self.disponible_en_sucursal = disponible
+
+    def __getattr__(self, nombre):
+        return getattr(self._p, nombre)
+
+
+def productos_para_sucursal(productos, sucursal, incluir_no_disponibles=False):
+    mapa = precios_de_sucursal(sucursal)
+    salida = []
+    for p in productos:
+        precio, disp = mapa.get(p.id, (None, True))
+        if not disp and not incluir_no_disponibles:
+            continue
+        salida.append(ProductoEnSucursal(p, precio, disp))
+    return salida
 
 
 class BitacoraPOS(db.Model):
@@ -861,6 +902,22 @@ class VacacionEmpleadoPOS(db.Model):
     recibo_id = db.Column(db.Integer, nullable=True)
     usuario = db.Column(db.String(60), default='')
     creado = db.Column(db.DateTime, default=ahora_local)
+
+
+class RepartoPropinasPOS(db.Model):
+    """Reparto diario de propinas (tarjeta + bote) en partes iguales; uno por día y sucursal."""
+    __tablename__ = 'reparto_propinas_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, index=True)
+    sucursal = db.Column(db.String(100), nullable=False)
+    total_tarjeta = db.Column(db.Float, default=0.0)
+    total_efectivo = db.Column(db.Float, default=0.0)
+    total = db.Column(db.Float, default=0.0)
+    por_persona = db.Column(db.Float, default=0.0)
+    reparto_json = db.Column(db.Text, default='[]')   # [{"nombre": ..., "monto": ...}]
+    usuario = db.Column(db.String(60), default='')
+    creado = db.Column(db.DateTime, default=ahora_local)
+    __table_args__ = (db.UniqueConstraint('fecha', 'sucursal', name='uq_reparto_dia_suc'),)
 
 
 class AlertaDuenoPOS(db.Model):
@@ -1311,6 +1368,8 @@ def aplicar_promociones_cuenta(c):
     promos = PromocionPOS.query.filter_by(activa=True).all()
     promos_vigentes = []
     for pr in promos:
+        if (pr.sucursal or '') not in ('', c.sucursal or ''):
+            continue
         dias_ok = dia_hoy in [x.strip() for x in (pr.dias or '').split(',')]
         hora_ok = (pr.hora_inicio or '00:00') <= hora_str <= (pr.hora_fin or '23:59')
         if dias_ok and hora_ok:
@@ -1490,7 +1549,10 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
     'user': {'pin_rapido'},
+    'promociones_pos': {'sucursal'},
+    'precios_sucursal_pos': {'producto_id', 'sucursal', 'precio', 'disponible'},
     'alertas_dueno_pos': {'tipo', 'texto'},
+    'reparto_propinas_pos': {'fecha', 'sucursal', 'reparto_json'},
     'clientes_credito': set(),
     'pre_orden': {'sucursal'},
     'pin_caja': {'sucursal'},
@@ -1541,6 +1603,7 @@ def inicializar_sistema(app_obj):
         migraciones = [
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT \'Quiosco Morisco (Matriz)\';',
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pin_rapido VARCHAR(255);',
+            "ALTER TABLE promociones_pos ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT '';",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(500);",

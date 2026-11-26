@@ -358,6 +358,14 @@
   .zx-grid label { font-size: 11px; font-weight: 600; color: #475569; display: flex; flex-direction: column; gap: 2px; }
   .zx-grid input, .zx-grid textarea { border: 1.5px solid #cbd5e1; border-radius: 7px; padding: 5px 7px; font-size: 12.5px; }
   .usuario-btn { background: rgba(255,255,255,.14) !important; border-color: var(--cobre) !important; }
+  .pp-lbl { display: flex; flex-direction: column; gap: 3px; font-weight: 600; font-size: 12px; color: #475569; }
+  .pp-res { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
+  .pp-res > div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .pp-res .tot { border-top: 1px dashed #cbd5e1; margin-top: 4px; padding-top: 5px; font-size: 14px; }
+  .pp-res .tot.cobre b { color: var(--cobre-oscuro, #a8642c); font-size: 16px; }
+  .pp-aviso { background: #f0fdf4; border: 1px solid #86efac; color: #166534; border-radius: 8px; padding: 6px 10px; margin-top: 8px; font-size: 12.5px; }
+  .pp-lista { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; }
+  .pp-per { display: flex; gap: 6px; align-items: center; font-size: 12.5px; cursor: pointer; }
   .imp-opc { display: flex; gap: 8px; align-items: center; padding: 4px 0; cursor: pointer; }
   .imp-opc.principal { font-size: 14px; }
   .imp-cmd { display: flex; gap: 6px; align-items: center; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; margin: 4px 0; }
@@ -446,6 +454,7 @@
       <div class="home-tile" onclick="abrirModalCorteX()"><i class="fa-solid fa-file-invoice-dollar"></i><span>CORTE X / Z</span><small>Ver ventas y cerrar turno</small></div>
       <div class="home-tile" onclick="abrirModalRetiroCaja()"><i class="fa-solid fa-money-bill-transfer"></i><span>RETIROS</span><small>Sacar o meter dinero</small></div>
       <div class="home-tile" onclick="abrirModalCuentasPagadas()"><i class="fa-solid fa-receipt"></i><span>CUENTAS PAGADAS</span><small>Reimprimir o corregir pago</small></div>
+      <div class="home-tile" onclick="abrirPropinas()"><i class="fa-solid fa-hand-holding-heart"></i><span>PROPINAS DEL DÍA</span><small>Repartir entre todos</small></div>
     </div>
 
     <div class="home-seccion">Otros</div>
@@ -692,7 +701,8 @@
       <button type="button" class="act-btn" onclick="abrirModalRetiroCaja()"><i class="fa-solid fa-money-bill-transfer"></i>RETIROS</button>
       <button type="button" class="act-btn" onclick="abrirModalCuentasPagadas()"><i class="fa-solid fa-receipt"></i>PAGADAS</button>
       <button type="button" class="act-btn" onclick="mostrarAvisoTurno()"><i class="fa-solid fa-key"></i>TURNO</button>
-      <button type="button" class="act-btn span2" onclick="mostrarHomeSR()"><i class="fa-solid fa-house"></i>INICIO (más opciones)</button>
+      <button type="button" class="act-btn" onclick="abrirPropinas()"><i class="fa-solid fa-hand-holding-heart"></i>PROPINAS</button>
+      <button type="button" class="act-btn" onclick="mostrarHomeSR()"><i class="fa-solid fa-house"></i>INICIO</button>
     </aside>
   </div>
 </div>
@@ -1174,6 +1184,33 @@
   </div>
 </div>
 
+<div class="modal-bg" id="modalPropinas">
+  <div class="modal-box" style="width:520px;">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-hand-holding-heart"></i> Propinas del día</h3>
+      <button type="button" class="btn-p sm gris" onclick="cerrarModal('modalPropinas')">✕</button>
+    </div>
+    <div class="modal-body" style="font-size:13px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <label class="pp-lbl">Día<input type="date" id="pp_fecha" class="m-inp" onchange="cargarPropinas()"></label>
+        <label class="pp-lbl">Efectivo del bote ($)<input type="number" min="0" step="1" id="pp_efectivo" class="m-inp" value="0" oninput="calcPropinas()"></label>
+      </div>
+      <div class="pp-res" id="pp_resumen"></div>
+      <div id="pp_aviso" class="pp-aviso" style="display:none;"></div>
+      <div style="font-weight:700;margin:8px 0 4px;">¿Quiénes trabajaron? <small style="font-weight:500;color:#64748b;">(marcados: los que checaron entrada)</small></div>
+      <div id="pp_lista" class="pp-lista"></div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <input type="text" id="pp_otro" class="m-inp" placeholder="Agregar a alguien más (nombre)">
+        <button type="button" class="btn-p sm" onclick="agregarPropinaPersona()">+ Agregar</button>
+      </div>
+    </div>
+    <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid #e2e8f0;">
+      <button type="button" class="btn-p gris" id="pp_reimp" style="display:none;" onclick="imprimirReparto(propinasDia.reparto_guardado)"><i class="fa-solid fa-print"></i> Reimprimir</button>
+      <button type="button" class="btn-p" onclick="repartirPropinas()"><i class="fa-solid fa-print"></i> Repartir e imprimir</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalAbrirTurno">
   <div class="modal-box" style="width:380px;">
     <div class="modal-head">
@@ -1334,6 +1371,7 @@
         <button type="button" id="btntab_prods" class="tab-btn-m activo" onclick="cambiarTabRaquel('prods')">🍽️ Productos</button>
         <button type="button" id="btntab_mods" class="tab-btn-m" onclick="cambiarTabRaquel('mods')">➕ Modificadores</button>
         <button type="button" id="btntab_cats" class="tab-btn-m" onclick="cambiarTabRaquel('cats')">📂 Categorías</button>
+        <button type="button" id="btntab_precios" class="tab-btn-m" onclick="cambiarTabRaquel('precios')">💲 Precios por sucursal</button>
         <button type="button" id="btntab_promos" class="tab-btn-m" onclick="cambiarTabRaquel('promos')">🎉 Promociones</button>
         <button type="button" id="btntab_reglas" class="tab-btn-m" onclick="cambiarTabRaquel('reglas')">📋 Motivos y Descuentos</button>
         <button type="button" id="btntab_permisos" class="tab-btn-m" onclick="cambiarTabRaquel('permisos')">🔒 Permisos Caja</button>
@@ -1506,6 +1544,20 @@
       </div>
 
       <!-- TAB PROMOCIONES -->
+      <div id="tabRaquel_precios" style="display:none;">
+        <div style="font-size:12.5px;color:#475569;margin-bottom:8px;">Cada sucursal puede tener su propio precio o no vender un platillo. Si dejas el precio vacío, se cobra el <b>precio general</b>.</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <select id="ps_suc" class="m-inp" style="max-width:260px;" onchange="cargarPreciosSucursal()">{% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select>
+          <input type="text" id="ps_buscar" class="m-inp" style="max-width:260px;" placeholder="Buscar platillo..." oninput="pintarPreciosSucursal()">
+        </div>
+        <div style="max-height:52vh;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:6px;">Platillo</th><th>Categoría</th><th style="text-align:right;">Precio general</th><th style="text-align:right;">Precio aquí</th><th style="text-align:center;">Se vende aquí</th></tr></thead>
+            <tbody id="tbodyPreciosSuc"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="tabRaquel_promos" style="display:none;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
           <input type="text" id="pr_nombre" class="m-inp" placeholder="Nombre promo (ej. 2x1 Frappes)">
@@ -1526,6 +1578,7 @@
           <input type="text" id="pr_objetivo" class="m-inp" placeholder="Nombre categoría o producto...">
           <input type="time" id="pr_h_ini" class="m-inp" value="08:00">
           <input type="time" id="pr_h_fin" class="m-inp" value="22:00">
+          <select id="pr_sucursal" class="m-inp" title="Sucursal donde aplica"><option value="">Todas las sucursales</option>{% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:12px;font-weight:700;">
           <span>Días:</span>
@@ -2136,8 +2189,8 @@
   }
 
   function obtenerProductosFiltrados() {
-    if (superGrupoActual === 'FAVORITOS') return catProductos.filter(p => p.destacado && !p.agotado);
-    return catProductos.filter(p => !p.agotado && (!subcatSeleccionada || subcatSeleccionada === 'TODAS' || p.categoria === subcatSeleccionada));
+    if (superGrupoActual === 'FAVORITOS') return catProductos.filter(p => p.destacado && !p.agotado && p.disponible !== false);
+    return catProductos.filter(p => !p.agotado && p.disponible !== false && (!subcatSeleccionada || subcatSeleccionada === 'TODAS' || p.categoria === subcatSeleccionada));
   }
 
   function cambiarPaginaProductos(delta) {
@@ -3732,13 +3785,14 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
   }
 
   function cambiarTabRaquel(tab) {
-    ['prods', 'mods', 'cats', 'promos', 'reglas', 'permisos'].forEach(t => {
+    ['prods', 'mods', 'cats', 'precios', 'promos', 'reglas', 'permisos'].forEach(t => {
       const el = document.getElementById('tabRaquel_' + t);
       const btn = document.getElementById('btntab_' + t);
       if (el) el.style.display = (t === tab) ? 'block' : 'none';
       if (btn) btn.classList.toggle('activo', t === tab);
     });
     if (tab === 'reglas') cargarReglasCatalogo();
+    if (tab === 'precios') cargarPreciosSucursal();
   }
 
   async function cargarReglasCatalogo() {
@@ -3885,7 +3939,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
       <tr style="border-bottom:1px solid #f1f5f9;">
         <td style="padding:5px;"><b>${escHtml(pr.nombre)}</b></td>
         <td>${pr.tipo === 'VOLUMEN_2X1' ? `${pr.por_cada}x${pr.por_cada - pr.regala}` : (pr.tipo === 'PRECIO_FIJO' ? `$${pr.valor}` : `-${pr.valor}%`)}</td>
-        <td>${escHtml(pr.aplica_a)}: ${pr.objetivo}</td><td>${pr.hora_inicio}-${pr.hora_fin}</td>
+        <td>${escHtml(pr.aplica_a)}: ${escHtml(pr.objetivo)}<br><small style="color:#64748b;">${escHtml(pr.sucursal || 'Todas las sucursales')}</small></td><td>${pr.hora_inicio}-${pr.hora_fin}</td>
         <td><button type="button" class="btn-p sm ${pr.activa ? '' : 'gris'}" onclick="togglePromoRaquel(${pr.id})">${pr.activa ? 'ACTIVA' : 'PAUSADA'}</button></td>
         <td><button type="button" class="btn-p sm rojo" onclick="borrarPromoRaquel(${pr.id})">X</button></td>
       </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:12px;color:#64748b;">Sin promociones automáticas.</td></tr>';
@@ -4189,6 +4243,39 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     cargarCatalogoCompletoRaquel();
   }
 
+  let preciosSucCache = [];
+  async function cargarPreciosSucursal() {
+    const sel = document.getElementById('ps_suc');
+    if (!sel.dataset.listo) { sel.value = SUCURSAL_POS; sel.dataset.listo = '1'; }
+    const d = await (await fetch('/api/pos/precios_sucursal?sucursal=' + encodeURIComponent(sel.value))).json();
+    if (!d.ok) return notificarBarra(d.msg || 'No se pudieron cargar los precios.');
+    preciosSucCache = d.productos;
+    pintarPreciosSucursal();
+  }
+  function pintarPreciosSucursal() {
+    const q = (document.getElementById('ps_buscar').value || '').trim().toUpperCase();
+    document.getElementById('tbodyPreciosSuc').innerHTML = preciosSucCache
+      .filter(p => !q || p.nombre.toUpperCase().includes(q) || (p.categoria || '').toUpperCase().includes(q))
+      .map(p => `<tr style="border-bottom:1px solid #f1f5f9;${p.disponible ? '' : 'opacity:.55;'}">
+        <td style="padding:5px;"><b>${escHtml(p.nombre)}</b></td><td>${escHtml(p.categoria)}</td>
+        <td style="text-align:right;">$${Number(p.precio_general).toFixed(2)}</td>
+        <td style="text-align:right;"><input type="number" min="0" step="0.5" class="m-inp" style="width:100px;text-align:right;" placeholder="${Number(p.precio_general).toFixed(2)}"
+          value="${p.precio_sucursal ?? ''}" onchange="guardarPrecioSucursal(${p.id}, this.value, null)"></td>
+        <td style="text-align:center;"><input type="checkbox" ${p.disponible ? 'checked' : ''} onchange="guardarPrecioSucursal(${p.id}, null, this.checked)"></td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:12px;color:#64748b;">Sin platillos.</td></tr>';
+  }
+  async function guardarPrecioSucursal(id, precio, disponible) {
+    const p = preciosSucCache.find(x => x.id === id);
+    if (precio !== null) p.precio_sucursal = precio === '' ? null : Number(precio);
+    if (disponible !== null) p.disponible = disponible;
+    const res = await fetch('/api/pos/precios_sucursal', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal: document.getElementById('ps_suc').value, producto_id: id, precio: p.precio_sucursal, disponible: p.disponible }) });
+    const d = await res.json();
+    if (!d.ok) return notificarBarra('⚠️ ' + (d.msg || 'No se guardó.'));
+    notificarBarra(`✓ ${p.nombre}: ${p.disponible ? (p.precio_sucursal != null ? '$' + Number(p.precio_sucursal).toFixed(2) : 'precio general') : 'no se vende aquí'}`);
+    pintarPreciosSucursal();
+  }
+
   async function crearPromocionRaquel() {
     const dias = Array.from(document.querySelectorAll('.pr-dia:checked')).map(c => c.value).join(',');
     await fetch('/api/pos/promociones', {
@@ -4201,7 +4288,8 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
         regala: parseInt(document.getElementById('pr_regala').value || 1),
         aplica_a: document.getElementById('pr_aplica_a').value,
         objetivo: document.getElementById('pr_objetivo').value,
-        dias, hora_inicio: document.getElementById('pr_h_ini').value, hora_fin: document.getElementById('pr_h_fin').value
+        dias, hora_inicio: document.getElementById('pr_h_ini').value, hora_fin: document.getElementById('pr_h_fin').value,
+        sucursal: document.getElementById('pr_sucursal').value
       })
     });
     document.getElementById('pr_nombre').value = '';
@@ -4282,6 +4370,80 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
       return setTimeout(() => location.reload(), 400);
     } else if (bufferPinUsuario.length < 6) bufferPinUsuario += k;
     document.getElementById('visorPinUsuario').textContent = '•'.repeat(bufferPinUsuario.length) || ' ';
+  }
+
+  // ---------------- Propinas del día (reparto parejo entre los que trabajaron)
+  let propinasDia = null;
+  function _hoyLocal() { return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  function abrirPropinas() {
+    document.getElementById('pp_fecha').value = _hoyLocal();
+    document.getElementById('pp_efectivo').value = '0';
+    document.getElementById('modalPropinas').style.display = 'flex';
+    cargarPropinas();
+  }
+  async function cargarPropinas() {
+    const f = document.getElementById('pp_fecha').value;
+    const d = await (await fetch('/api/propinas/dia?fecha=' + encodeURIComponent(f))).json();
+    if (!d.ok) return notificarBarra('No se pudieron cargar las propinas.');
+    propinasDia = d;
+    const g = d.reparto_guardado;
+    const marcados = new Set(g ? g.reparto.map(x => x.nombre) : d.trabajaron);
+    const todos = [...new Set([...(g ? g.reparto.map(x => x.nombre) : []), ...d.trabajaron, ...d.personal])];
+    document.getElementById('pp_lista').innerHTML = todos.map(n => `<label class="pp-per"><input type="checkbox" class="pp-chk" value="${escHtml(n)}" ${marcados.has(n) ? 'checked' : ''} onchange="calcPropinas()"> ${escHtml(n)}</label>`).join('')
+      || '<div style="color:#64748b;">Nadie ha checado hoy. Agrégalos abajo.</div>';
+    if (g) document.getElementById('pp_efectivo').value = g.efectivo;
+    const av = document.getElementById('pp_aviso');
+    av.style.display = g ? 'block' : 'none';
+    av.innerHTML = g ? `✓ Ya se repartieron (${escHtml(g.creado)} por ${escHtml(g.usuario)}). Puedes reimprimir; para rehacerlo se pide clave.` : '';
+    document.getElementById('pp_reimp').style.display = g ? 'inline-flex' : 'none';
+    calcPropinas();
+  }
+  function agregarPropinaPersona() {
+    const inp = document.getElementById('pp_otro');
+    const n = inp.value.trim().toUpperCase();
+    if (!n) return;
+    document.getElementById('pp_lista').insertAdjacentHTML('beforeend', `<label class="pp-per"><input type="checkbox" class="pp-chk" value="${escHtml(n)}" checked onchange="calcPropinas()"> ${escHtml(n)}</label>`);
+    inp.value = '';
+    calcPropinas();
+  }
+  function calcPropinas() {
+    if (!propinasDia) return;
+    const ef = Math.max(0, parseFloat(document.getElementById('pp_efectivo').value || 0));
+    const total = propinasDia.tarjeta + ef;
+    const n = document.querySelectorAll('.pp-chk:checked').length;
+    document.getElementById('pp_resumen').innerHTML =
+      `<div><span>Propinas con tarjeta (${propinasDia.cuentas_con_propina} cuentas)</span><b>$${propinasDia.tarjeta.toFixed(2)}</b></div>
+       <div><span>Efectivo del bote</span><b>$${ef.toFixed(2)}</b></div>
+       <div class="tot"><span>Total a repartir</span><b>$${total.toFixed(2)}</b></div>
+       <div class="tot cobre"><span>Le toca a cada uno (${n})</span><b>${n ? '$' + (Math.floor(total * 100 / n) / 100).toFixed(2) : '—'}</b></div>`;
+  }
+  async function repartirPropinas(clave) {
+    const empleados = [...document.querySelectorAll('.pp-chk:checked')].map(c => c.value);
+    if (!empleados.length) return notificarBarra('Marca a las personas que trabajaron.');
+    const res = await fetch('/api/propinas/repartir', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha: document.getElementById('pp_fecha').value, efectivo: document.getElementById('pp_efectivo').value,
+        empleados, clave_admin: clave || '' }) });
+    const d = await res.json();
+    if (!d.ok && d.requiere_admin) {
+      const c = prompt('🔒 ' + d.msg);
+      if (c) return repartirPropinas(c);
+      return;
+    }
+    if (!d.ok) return notificarBarra('⚠️ ' + (d.msg || 'No se pudo repartir.'));
+    imprimirReparto(d.reparto);
+    notificarBarra('✓ Propinas repartidas');
+    cargarPropinas();
+  }
+  function imprimirReparto(r) {
+    if (!r) return;
+    const filas = r.reparto.map(x => `<div class="tk-linea" style="margin-top:10px;"><span><b>${escHtml(x.nombre)}</b></span><span>$${Number(x.monto).toFixed(2)}</span></div>
+      <div class="tk-firma" style="margin-top:18px;">Firma</div>`).join('');
+    mandarImprimirHTMLDirecto(`<div class="ticket-termico"><div class="tk-titulo">REPARTO DE PROPINAS</div>
+      <div class="tk-sub">${escHtml(r.sucursal)} · ${escHtml(r.fecha)}</div><div class="tk-sep"></div>
+      <div class="tk-linea"><span>Tarjeta</span><span>$${Number(r.tarjeta).toFixed(2)}</span></div>
+      <div class="tk-linea"><span>Efectivo del bote</span><span>$${Number(r.efectivo).toFixed(2)}</span></div>
+      <div class="tk-total"><span>TOTAL</span><span>$${Number(r.total).toFixed(2)}</span></div>
+      <div class="tk-meta">${r.reparto.length} personas · Repartió ${escHtml(r.usuario)}</div><div class="tk-sep"></div>${filas}</div>`);
   }
 
   function abrirConfigImpresora() {

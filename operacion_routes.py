@@ -970,7 +970,27 @@ def api_checador_lista():
     if emp:
         q = q.filter(RegistroAsistencia.empleado_nombre.like(f'%{emp}%'))
     registros = q.order_by(RegistroAsistencia.id.desc()).limit(3000).all()
+    cat_nom = _nom.catalogos()
+    tol = int(cat_nom.get('tolerancia_retardo_min', 10) or 0)
+    entrada_de = {}
+    for emp_ in EmpleadoNominaPOS.query.all():
+        he = _nom.hora_entrada_turno(emp_, cat_nom)
+        if he:
+            entrada_de[(emp_.nombre or '').upper()] = he
+    primeras = {}
+    for a in sorted(registros, key=lambda x: x.fecha):
+        if a.tipo == 'ENTRADA':
+            primeras.setdefault((a.empleado_nombre, a.fecha.date()), a.id)
+
+    def _min_tarde(a):
+        he = entrada_de.get((a.empleado_nombre or '').upper())
+        if not he or a.tipo != 'ENTRADA' or primeras.get((a.empleado_nombre, a.fecha.date())) != a.id:
+            return 0
+        hh, mm = [int(x) for x in he.split(':')]
+        lim = a.fecha.replace(hour=hh, minute=mm, second=0, microsecond=0) + timedelta(minutes=tol)
+        return int((a.fecha - lim).total_seconds() // 60) + tol if a.fecha > lim else 0
     return jsonify({'ok': True, 'asistencias': [{
+        'retardo_min': _min_tarde(a),
         'id': a.id, 'hora': a.fecha.strftime('%H:%M:%S'), 'fecha': a.fecha.strftime('%d/%m/%Y'), 'sucursal': a.sucursal,
         'empleado': a.empleado_nombre, 'tipo': a.tipo, 'notas': a.notas
     } for a in registros]})
@@ -1415,8 +1435,11 @@ def api_finanzas_generar_nomina():
         'prima_vacacional': auto['prima_vacacional'], 'infonavit': auto['infonavit'],
         'descuentos_empleado': auto['descuentos_empleado'], 'retardos': retardos, 'observaciones': observaciones,
     }
+    por_falta = int(_nom.catalogos().get('retardos_por_falta', 3) or 0)
+    det['dias_por_retardos'] = (retardos // por_falta) if por_falta > 0 else 0
+    det['monto_retardos'] = round(det['dias_por_retardos'] * diario, 2)
     percepciones = det['monto_turnos_extra'] + det['monto_horas_extra'] + det['prima_vacacional']
-    deducciones = det['monto_faltas'] + det['monto_permisos'] + det['infonavit'] + det['descuentos_empleado']
+    deducciones = det['monto_faltas'] + det['monto_permisos'] + det['infonavit'] + det['descuentos_empleado'] + det['monto_retardos']
     total_neto = round(sueldo_prorrata + bonos + propinas + percepciones - desc_consumo - otros_desc - deducciones, 2)
 
     if total_neto < 0 and not bool(data.get('permitir_negativo', False)):

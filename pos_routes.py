@@ -16,6 +16,7 @@ from models import (
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
     ConfigPermisosPOS, TurnoPOS, MovimientoCajaPOS, CuentaPOS, DetallePOS,
     ColaImpresionPOS, ModificadorPOS, ProductoGrupoMod, PromocionPOS, BitacoraPOS,
+    PrecioSucursalPOS, precios_de_sucursal, productos_para_sucursal,
     AlertaMesaPOS, ArqueoTurnoPOS, EmpleadoNominaPOS, ConsumoEmpleadoPOS,
     InsumoBodegaPro, StockSucursal, RegistroMerma, aplicar_merma,
     ClienteCredito, MovimientoCredito, RegistroAsistencia, cfg_cargar, cfg_guardar, buscar_insumo_activo,
@@ -54,10 +55,12 @@ def _lock_advisory(clave_txt):
         pass
 
 
-def _mapas_precios():
+def _mapas_precios(sucursal=None):
     prods = {}
+    especiales = precios_de_sucursal(sucursal) if sucursal else {}
     for pr in Producto.query.all():
-        prods.setdefault(pr.nombre.strip().upper(), float(pr.precio or 0.0))
+        precio_suc = especiales.get(pr.id, (None, True))[0]
+        prods.setdefault(pr.nombre.strip().upper(), float(precio_suc if precio_suc is not None else (pr.precio or 0.0)))
     mods = {}
     for m in ModificadorPOS.query.filter_by(activo=True).all():
         mods.setdefault(m.nombre.strip().upper(), float(m.precio or 0.0))
@@ -302,7 +305,9 @@ def vista_pos_soft():
     permisos = ConfigPermisosPOS.query.first()
     cuentas = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').order_by(CuentaPOS.id.asc()).all()
     categorias_bd = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
-    productos = Producto.query.filter_by(agotado=False).order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
+    productos = [p for p in productos_para_sucursal(
+        Producto.query.filter_by(agotado=False).order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(), suc)
+        if not p.agotado]
     empleados = EmpleadoNominaPOS.query.filter_by(activo=True, sucursal=suc).order_by(EmpleadoNominaPOS.nombre.asc()).all()
     clientes_credito = ClienteCredito.query.filter_by(sucursal=suc, activo=True).order_by(ClienteCredito.nombre.asc()).all()
     return render_template(
@@ -650,7 +655,7 @@ def api_pos_capturar_item():
     comanda = max(1, min(4, int(data.get('comanda', 1))))
     clave = str(data.get('clave', '02001')).strip()
     desc_limpia = str(data.get('descripcion', '')).strip().upper().lstrip('>')
-    _mapas = _mapas_precios()
+    _mapas = _mapas_precios(c.sucursal)
     precio = _precio_servidor(es_mod, desc_limpia, clave.upper(), precio, _mapas)
     desc = f">{desc_limpia}" if es_mod else desc_limpia
     area_req = str(data.get('area_impresion', '')).strip().upper()
@@ -841,7 +846,7 @@ def api_pos_enviar_ronda_lote():
     items = data.get('items') or []
     if not items:
         return jsonify({'ok': False, 'msg': 'No hay platillos en la ronda.'}), 400
-    _mapas = _mapas_precios()
+    _mapas = _mapas_precios(c.sucursal)
 
     for it in items:
         clave = str(it.get('clave', '02001')).strip().upper()
@@ -2506,7 +2511,7 @@ def api_pos_promociones():
             'id': p.id, 'nombre': p.nombre, 'tipo': p.tipo, 'valor': p.valor,
             'por_cada': p.por_cada, 'regala': p.regala, 'aplica_a': p.aplica_a,
             'objetivo': p.objetivo, 'dias': p.dias,
-            'hora_inicio': p.hora_inicio, 'hora_fin': p.hora_fin, 'activa': p.activa
+            'hora_inicio': p.hora_inicio, 'hora_fin': p.hora_fin, 'activa': p.activa, 'sucursal': p.sucursal or ''
         } for p in promos]})
     if current_user.role != 'admin':
         return jsonify({'ok': False, 'msg': 'Solo Raquel (Admin) puede gestionar promociones.'}), 403
@@ -2522,7 +2527,8 @@ def api_pos_promociones():
             regala=int(data.get('regala', 1)), aplica_a=str(data.get('aplica_a', 'CATEGORIA')).upper(),
             objetivo=obj, dias=str(data.get('dias', '0,1,2,3,4,5,6')),
             hora_inicio=str(data.get('hora_inicio', '00:00'))[:5],
-            hora_fin=str(data.get('hora_fin', '23:59'))[:5], activa=True
+            hora_fin=str(data.get('hora_fin', '23:59'))[:5], activa=True,
+            sucursal=data.get('sucursal') if data.get('sucursal') in SUCURSALES_OFICIALES else ''
         ))
         db.session.commit()
         return jsonify({'ok': True})
@@ -2794,7 +2800,8 @@ def api_pos_respaldo_config():
 @login_required
 def api_pos_catalogo_completo():
     cats = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
-    prods = Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
+    prods = productos_para_sucursal(Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(),
+                                    obtener_sucursal_activa(session), incluir_no_disponibles=True)
     mods = ModificadorPOS.query.filter_by(activo=True).order_by(ModificadorPOS.id.asc()).all()
     promos = PromocionPOS.query.order_by(PromocionPOS.id.desc()).all()
     perm = ConfigPermisosPOS.query.first()
@@ -2802,10 +2809,10 @@ def api_pos_catalogo_completo():
     return jsonify({
         'ok': True,
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or ''} for c in cats],
-        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': p.agotado, 'destacado': p.destacado, 'area_impresion': _areas_cat.get(str(p.id), '')} for p in prods],
+        'productos': [{'id': p.id, 'nombre': p.nombre, 'precio': p.precio, 'categoria': p.categoria, 'agotado': bool(p._p.agotado), 'disponible': p.disponible_en_sucursal, 'destacado': p.destacado, 'area_impresion': _areas_cat.get(str(p.id), '')} for p in prods],
         'modificadores': _enriquecer_modificadores(mods),
         'flujos': _mapa_flujos_modificadores(),
-        'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa} for pr in promos],
+        'promociones': [{'id': pr.id, 'nombre': pr.nombre, 'tipo': pr.tipo, 'valor': pr.valor, 'por_cada': pr.por_cada, 'regala': pr.regala, 'aplica_a': pr.aplica_a, 'objetivo': pr.objetivo, 'dias': pr.dias, 'hora_inicio': pr.hora_inicio, 'hora_fin': pr.hora_fin, 'activa': pr.activa, 'sucursal': pr.sucursal or ''} for pr in promos],
         'permisos': {
             'cancelar': bool(perm.cajero_puede_cancelar) if perm else False,
             'descontar': bool(perm.cajero_puede_descontar) if perm else False,
@@ -2815,6 +2822,46 @@ def api_pos_catalogo_completo():
             'ver_esperado_z': bool(perm.cajero_ver_esperado_z) if perm else False
         }
     })
+
+
+@pos_bp.route('/api/pos/precios_sucursal', methods=['GET', 'POST'])
+@login_required
+def api_pos_precios_sucursal():
+    """Precio y disponibilidad de cada platillo por sucursal (vacío = precio general)."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    if request.method == 'GET':
+        suc = request.args.get('sucursal') or obtener_sucursal_activa(session)
+        if suc not in SUCURSALES_OFICIALES:
+            return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
+        mapa = precios_de_sucursal(suc)
+        prods = Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
+        return jsonify({'ok': True, 'sucursal': suc, 'productos': [{
+            'id': p.id, 'nombre': p.nombre, 'categoria': p.categoria, 'precio_general': p.precio,
+            'precio_sucursal': mapa.get(p.id, (None, True))[0], 'disponible': mapa.get(p.id, (None, True))[1]}
+            for p in prods]})
+    data = request.json or {}
+    suc = data.get('sucursal')
+    if suc not in SUCURSALES_OFICIALES:
+        return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
+    prod = Producto.query.get_or_404(int(data.get('producto_id') or 0))
+    precio = data.get('precio')
+    precio = None if precio in (None, '') else _num(precio, maximo=100000.0)
+    disponible = bool(data.get('disponible', True))
+    fila = PrecioSucursalPOS.query.filter_by(producto_id=prod.id, sucursal=suc).first()
+    if precio is None and disponible:
+        if fila:
+            db.session.delete(fila)   # sin cambios: vuelve al precio general
+    else:
+        if not fila:
+            fila = PrecioSucursalPOS(producto_id=prod.id, sucursal=suc)
+            db.session.add(fila)
+        fila.precio, fila.disponible = precio, disponible
+    db.session.commit()
+    registrar_bitacora('PRECIO_SUCURSAL', prod.nombre, precio or 0.0,
+                       f'{suc}: ' + (f'${precio:.2f}' if precio is not None else 'precio general') + ('' if disponible else ' · NO SE VENDE'),
+                       sucursal=suc)
+    return jsonify({'ok': True})
 
 
 @pos_bp.route('/api/pos/admin_producto', methods=['POST', 'PUT', 'DELETE'])

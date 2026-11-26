@@ -224,3 +224,53 @@ check(cam1.get('/api/alertas').status_code == 403, 'las alertas solo las ve el A
 r = admin.post('/api/alertas/prueba', json={}, headers=H)
 check(r.status_code == 200 and r.json['enviado'] is False, 'sin Telegram configurado la prueba lo explica (no truena)')
 admin.post('/api/alertas/config', json={'cancelacion_min': 200, 'efectivo_max': 5000}, headers=H)
+
+# ---- Precios por sucursal y promociones por sucursal ----
+with app.app_context():
+    from models import Producto as _Prod
+    _pp = _Prod(nombre='CAFE SUCURSAL', precio=40.0, categoria='Bebidas Calientes', descripcion=''); db.session.add(_pp); db.session.commit(); _ppid = _pp.id
+SUC_ADM = 'Quiosco Morisco (Matriz)'
+r = admin.post('/api/pos/precios_sucursal', json={'sucursal': SUC_ADM, 'producto_id': _ppid, 'precio': 55}, headers=H)
+check(r.status_code == 200, 'Admin pone precio especial en una sucursal')
+check(cam1.post('/api/pos/precios_sucursal', json={'sucursal': SUC_ADM, 'producto_id': _ppid, 'precio': 1}, headers=HS).status_code == 403,
+      'solo Admin cambia precios por sucursal')
+_ca = admin.post('/api/pos/abrir_mesa', json={'mesa': 'PS1', 'personas': 1}, headers=H).json['cuenta_id']
+admin.post('/api/pos/capturar_item', json={'cuenta_id': _ca, 'descripcion': 'CAFE SUCURSAL', 'precio': 40, 'cantidad': 1}, headers=H)
+_it = [i for i in admin.get(f'/api/pos/detalle_cuenta/{_ca}').json['items'] if i['descripcion'] == 'CAFE SUCURSAL'][0]
+check(abs(float(str(_it['precio']).replace('$', '')) - 55) < 0.01, f'se cobra el precio de la sucursal aunque el navegador mande otro ({_it["precio"]})')
+cat = admin.get('/api/pos/catalogo_completo').json['productos']
+check(next(p for p in cat if p['id'] == _ppid)['precio'] == 55, 'el catálogo de la caja muestra el precio de la sucursal')
+admin.post('/api/pos/precios_sucursal', json={'sucursal': SUC_ADM, 'producto_id': _ppid, 'precio': None, 'disponible': False}, headers=H)
+cat = admin.get('/api/pos/catalogo_completo').json['productos']
+_cp = next(p for p in cat if p['id'] == _ppid)
+check(_cp['disponible'] is False and _cp['agotado'] is False, 'un platillo que no se vende en la sucursal sale como no disponible (sin marcarlo agotado en todas)')
+check('CAFE SUCURSAL' not in admin.get('/mesero_dashboard').get_data(as_text=True), 'la tablet del mesero no lo muestra en esa sucursal')
+admin.post('/api/pos/precios_sucursal', json={'sucursal': SUC_ADM, 'producto_id': _ppid, 'precio': None, 'disponible': True}, headers=H)
+admin.post('/api/pos/promociones', json={'nombre': 'PROMO OTRA SUC', 'tipo': 'DESCUENTO_PCT', 'valor': 50, 'aplica_a': 'PRODUCTO',
+                                         'objetivo': 'CAFE SUCURSAL', 'hora_inicio': '00:00', 'hora_fin': '23:59', 'sucursal': 'Caminante 2'}, headers=H)
+admin.post('/api/pos/capturar_item', json={'cuenta_id': _ca, 'descripcion': 'CAFE SUCURSAL', 'precio': 40, 'cantidad': 1}, headers=H)
+_items = [i for i in admin.get(f'/api/pos/detalle_cuenta/{_ca}').json['items'] if i['descripcion'] == 'CAFE SUCURSAL']
+check(all(not i.get('promo_aplicada') and float(i.get('descuento_pct') or 0) == 0 for i in _items), f'una promoción de otra sucursal no aplica aquí ({_items})')
+
+# ---- Reparto de propinas del día (parejo entre los que trabajaron) ----
+from models import RegistroAsistencia as _RA, ahora_local as _ahl2
+with app.app_context():
+    for _n in ('ANA', 'BETO', 'CARLA'):
+        db.session.add(_RA(fecha=_ahl2(), sucursal=SUC_ADM, empleado_nombre=_n, tipo='ENTRADA'))
+    db.session.commit()
+_cp2 = admin.post('/api/pos/abrir_mesa', json={'mesa': 'PP1', 'personas': 1}, headers=H).json['cuenta_id']
+admin.post('/api/pos/capturar_item', json={'cuenta_id': _cp2, 'descripcion': 'CAFE SUCURSAL', 'precio': 55, 'cantidad': 1}, headers=H)
+imprimir_cuenta(admin, _cp2, H)
+_tot2 = admin.get(f'/api/pos/detalle_cuenta/{_cp2}').json['total_num']
+_rpp = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': _cp2, 'tarjeta_debito': _tot2, 'propina': 20, 'idem': 'pp-1'}, headers=H)
+check(_rpp.status_code == 200, 'cobro con tarjeta y propina')
+d = admin.get('/api/propinas/dia').json
+check(d['tarjeta'] >= 20 and {'ANA', 'BETO', 'CARLA'} <= set(d['trabajaron']), f'propinas con tarjeta del día y quiénes checaron ({d["tarjeta"]}, {d["trabajaron"]})')
+r = admin.post('/api/propinas/repartir', json={'efectivo': 100, 'empleados': ['ANA', 'BETO', 'CARLA']}, headers=H)
+rp = r.json.get('reparto', {})
+check(r.status_code == 200 and abs(sum(x['monto'] for x in rp['reparto']) - rp['total']) < 0.005 and len(rp['reparto']) == 3,
+      f'reparto parejo que suma exacto ({rp.get("reparto")}, total {rp.get("total")})')
+r = cam1.post('/api/propinas/repartir', json={'efectivo': 50, 'empleados': ['ANA']}, headers=HS)
+check(r.status_code == 403 and r.json.get('requiere_admin'), 'rehacer un reparto ya hecho pide clave de Admin o Gerente')
+r2 = admin.post('/api/propinas/repartir', json={'efectivo': 0, 'empleados': ['ANA']}, headers=H)
+check(r2.status_code == 200, 'Admin puede rehacer el reparto (es supervisor)')

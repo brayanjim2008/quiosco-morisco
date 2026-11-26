@@ -35,7 +35,8 @@ from servicio_routes import servicio_bp
 from compras_routes import compras_bp
 from nomina_routes import nomina_bp
 from alertas import alertas_bp
-from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
+from propinas_routes import propinas_bp
+from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos, productos_para_sucursal
 
 app = Flask(__name__)
 # Render pone 1 proxy delante: ProxyFix toma la IP real que ese proxy agrega a X-Forwarded-For
@@ -96,6 +97,7 @@ app.register_blueprint(servicio_bp)
 app.register_blueprint(compras_bp)
 app.register_blueprint(nomina_bp)
 app.register_blueprint(alertas_bp)
+app.register_blueprint(propinas_bp)
 
 
 # ------------------------------------------------------------------------------
@@ -720,7 +722,7 @@ def mesero_dashboard():
         sucursal=obtener_sucursal_activa(session),
         sucursales=SUCURSALES_OFICIALES,
         preordenes=_preordenes_pendientes(sucursal_filtro(session)),
-        productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()
+        productos=productos_para_sucursal(Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(), obtener_sucursal_activa(session))
     )
 
 

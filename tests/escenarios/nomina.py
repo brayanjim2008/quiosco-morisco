@@ -83,9 +83,9 @@ check(pn['descuentos_empleado'] == 230 and pn['monto_permisos'] == 600 and pn['p
 # Nómina: 6/6 días (1800) + 1 turno extra (300) + 2 h extra (2 x 37.50) + prima 1920
 #         - 1 falta doble (600) - permisos 600 - infonavit 50 - descuentos 230 = 2615
 r = admin.post('/api/finanzas/generar_nomina', json={'empleado_id': pid, 'dias_trabajados': 6, 'turnos_extra': 1,
-               'horas_extra': 2, 'faltas': 1, 'retardos': 3, 'observaciones': 'prueba'}, headers=H)
+               'horas_extra': 2, 'faltas': 1, 'retardos': 2, 'observaciones': 'prueba'}, headers=H)
 j = r.json or {}
-check(r.status_code == 200 and j['recibo']['total_neto'] == 2615.0 and j['recibo']['detalle']['retardos'] == 3,
+check(r.status_code == 200 and j['recibo']['total_neto'] == 2615.0 and j['recibo']['detalle']['retardos'] == 2,
       f'nómina con todos los conceptos del sistema anterior ({j})')
 with app.app_context():
     rid = j['recibo']['id']
@@ -112,3 +112,28 @@ h_nom = admin.get('/nomina_creditos').get_data(as_text=True)
 check('id="sec_prestaciones"' in h_nom and 'id="sec_catalogos"' in h_nom and 'class="emp-doc"' in h_nom
       and 'id="nom_faltas"' in h_nom, 'pantalla: prestaciones, catálogos, documentos y conceptos de nómina')
 check('id="sec_prestaciones"' not in cam1.get('/nomina_creditos').get_data(as_text=True), 'la caja no ve el auxiliar de nómina')
+
+# ---- Retardos automáticos (horario del turno vs. checador) ----
+from datetime import datetime as _dt, timedelta as _td2
+from models import RegistroAsistencia as _RAs
+cat = admin.get('/api/nomina/catalogos').json['catalogos']
+r = admin.post('/api/nomina/catalogos', json=dict(cat, tolerancia_retardo_min=10, retardos_por_falta=2), headers=H)
+check(r.status_code == 200 and r.json['catalogos']['retardos_por_falta'] == 2, 'configurar tolerancia y retardos por falta')
+r = admin.post('/api/finanzas/empleado', json={'nombre': 'rita retardos', 'sucursal': 'Caminante 1', 'turno': 'MATUTINO',
+               'sueldo_diario': 200, 'sueldo_base': 1200, 'dias_base': 6}, headers=H)
+rid = r.json['id']
+_h = _ahora().replace(second=0, microsecond=0)
+with app.app_context():
+    for dias_atras, hh, mm in ((1, 7, 25), (2, 7, 5), (3, 7, 40), (4, 6, 55)):   # turno MATUTINO entra 07:00
+        d0 = (_h - _td2(days=dias_atras)).replace(hour=hh, minute=mm)
+        db.session.add(_RAs(fecha=d0, sucursal='Caminante 1', empleado_nombre='RITA RETARDOS', tipo='ENTRADA'))
+    db.session.commit()
+info = admin.get(f'/api/nomina/empleado/{rid}').json['retardos']
+check(info['turno_con_horario'] and info['retardos'] == 2 and info['dias_descuento'] == 1,
+      f'2 retardos (07:25 y 07:40) con tolerancia de 10 min = 1 día de descuento ({info})')
+r = admin.post('/api/finanzas/generar_nomina', json={'empleado_id': rid, 'dias_trabajados': 6, 'retardos': info['retardos']}, headers=H)
+check(r.status_code == 200 and r.json['recibo']['detalle']['monto_retardos'] == 200 and r.json['recibo']['total_neto'] == 1000,
+      f'la nómina descuenta el día por retardos (1200 - 200) ({r.json["recibo"]["detalle"].get("monto_retardos")})')
+asis = admin.get('/api/checador/lista?desde=2000-01-01&empleado=RITA').json['asistencias']
+check(sorted(a['retardo_min'] for a in asis) == [0, 0, 25, 40], f'el reporte de asistencia marca los minutos tarde ({[a["retardo_min"] for a in asis]})')
+admin.post('/api/nomina/catalogos', json=dict(cat), headers=H)

@@ -174,6 +174,8 @@
         <div class="form-row" style="margin-top:8px;">
           <div><label class="lbl">Prima vacacional (%)</label><input type="number" min="25" max="100" step="1" id="cat_prima" class="inp"></div>
           <div><label class="lbl">Máx. días de permiso con goce al año</label><input type="number" min="0" max="365" step="1" id="cat_goce" class="inp"></div>
+          <div><label class="lbl">Tolerancia de entrada (minutos)</label><input type="number" min="0" max="240" step="1" id="cat_tol" class="inp"></div>
+          <div><label class="lbl">Retardos que hacen 1 día de descuento (0 = no descontar)</label><input type="number" min="0" max="31" step="1" id="cat_retf" class="inp"></div>
         </div>
       </div>
     </div>
@@ -236,6 +238,8 @@
     $('cat_permisos').value = CAT.tipos_permiso.map(t => `${t.nombre} | ${t.con_goce ? 'CON GOCE' : 'SIN GOCE'}`).join('\n');
     $('cat_prima').value = CAT.prima_vacacional_pct;
     $('cat_goce').value = CAT.max_dias_permiso_con_goce;
+    $('cat_tol').value = CAT.tolerancia_retardo_min ?? 10;
+    $('cat_retf').value = CAT.retardos_por_falta ?? 3;
   }
   async function guardarCatalogos() {
     const lineas = id => $(id).value.split('\n').map(x => x.trim()).filter(Boolean);
@@ -248,7 +252,8 @@
     const permisos = lineas('cat_permisos').map(l => { const [n, g = ''] = l.split('|'); return { nombre: n.trim(), con_goce: !/SIN/i.test(g) }; });
     const res = await fetch('/api/nomina/catalogos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ areas, turnos, tipos_baja: lineas('cat_bajas'), tipos_permiso: permisos,
-        prima_vacacional_pct: parseFloat($('cat_prima').value || 25), max_dias_permiso_con_goce: parseInt($('cat_goce').value || 0) }) });
+        prima_vacacional_pct: parseFloat($('cat_prima').value || 25), max_dias_permiso_con_goce: parseInt($('cat_goce').value || 0),
+        tolerancia_retardo_min: parseInt($('cat_tol').value || 0), retardos_por_falta: parseInt($('cat_retf').value || 0) }) });
     const d = await res.json();
     if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
     await cargarCatalogos(); catPintar(); toast('✓ Catálogos guardados');
@@ -304,18 +309,32 @@
     }
     if (!p) return 0;
     const pn = p.pendientes_nomina, diario = p.sueldo_diario, hora = p.sueldo_hora;
+    const rt = p.retardos || {};
+    if (rt.turno_con_horario && $('nom_retardos') && $('nom_retardos').dataset.emp !== String(emp.id)) {
+      $('nom_retardos').value = rt.retardos; $('nom_retardos').dataset.emp = String(emp.id);
+      $('nom_retardos').title = rt.detalle.map(x => `${x.fecha} ${x.hora} (+${x.minutos} min)`).join('
+') || 'Sin retardos';
+    }
+    const nRet = parseInt($('nom_retardos')?.value || 0);
+    const porFalta = Number(rt.retardos_por_falta || 0);
+    const diasRet = porFalta > 0 ? Math.floor(nRet / porFalta) : 0;
+    const mRet = diasRet * diario;
     const te = num('nom_turnos') * diario, he = num('nom_horas') * hora, fa = num('nom_faltas') * diario * 2;
     const filas = [
       ['+ Turnos extra', te, '#16a34a'], ['+ Horas extra', he, '#16a34a'], ['+ Prima vacacional', pn.prima_vacacional, '#16a34a'],
       ['- Faltas (doble)', fa, '#dc2626'], [`- Permisos sin goce (${pn.dias_permiso_sin_goce} d)`, pn.monto_permisos, '#dc2626'],
       ['- Infonavit', pn.infonavit, '#dc2626'], ['- Descuentos (uniformes, deuda...)', pn.descuentos_empleado, '#dc2626'],
+      [`- Retardos (${nRet} = ${diasRet} día${diasRet === 1 ? '' : 's'})`, mRet, '#dc2626'],
     ].filter(f => f[1] > 0);
-    $('calc_auto').innerHTML = filas.map(f => linea(f[0], (f[0][0] === '-' ? '-' : '+') + m2(f[1]), f[2])).join('');
-    return te + he + pn.prima_vacacional - fa - pn.monto_permisos - pn.infonavit - pn.descuentos_empleado;
+    $('calc_auto').innerHTML = filas.map(f => linea(f[0], (f[0][0] === '-' ? '-' : '+') + m2(f[1]), f[2])).join('')
+      + (rt.turno_con_horario ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">Turno entra ${rt.entrada} (tolerancia ${rt.tolerancia} min). ${rt.retardos} retardo(s) en el periodo según el checador.</div>`
+         : '<div style="font-size:11px;color:#b45309;margin-top:2px;">Sin horario de turno en la ficha: los retardos no se calculan solos.</div>');
+    return te + he + pn.prima_vacacional - fa - pn.monto_permisos - pn.infonavit - pn.descuentos_empleado - mRet;
   }
   function filasDetalleRecibo(det) {
     const f = [['+ TURNOS EXTRA', det.monto_turnos_extra], ['+ HORAS EXTRA', det.monto_horas_extra], ['+ PRIMA VACACIONAL', det.prima_vacacional],
-      ['- FALTAS', det.monto_faltas], ['- PERMISOS S/GOCE', det.monto_permisos], ['- INFONAVIT', det.infonavit], ['- DESCUENTOS', det.descuentos_empleado]]
+      ['- FALTAS', det.monto_faltas], ['- PERMISOS S/GOCE', det.monto_permisos], ['- INFONAVIT', det.infonavit], ['- DESCUENTOS', det.descuentos_empleado],
+      ['- RETARDOS', det.monto_retardos]]
       .filter(x => Number(x[1] || 0) > 0);
     let h = f.map(x => `<tr><td>${x[0]}:</td><td style="text-align:right;">${x[0][0] === '-' ? '-' : ''}$${Number(x[1]).toFixed(2)}</td></tr>`).join('');
     if (det.retardos) h += `<tr><td>RETARDOS:</td><td style="text-align:right;">${Number(det.retardos)}</td></tr>`;
