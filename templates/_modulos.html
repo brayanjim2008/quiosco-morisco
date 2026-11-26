@@ -10,7 +10,7 @@
   ('/reservaciones',    'fa-calendar-check',       'Reservas', _rol in ['admin','gerente','cajero','mesero','sucursal']),
   ('/pedidos_sucursal', 'fa-store',                'Sucursal', _rol in ['admin','sucursal']),
   ('/almacen_pro',      'fa-boxes-stacked',        'Bodega',   _rol in ['admin','almacen']),
-  ('/nomina_creditos',  'fa-receipt',              'Nómina',   _rol in ['admin','cajero','sucursal']),
+  ('/nomina_creditos',  'fa-receipt',              'Nómina' if _rol == 'admin' else 'Créditos', _rol in ['admin','cajero','sucursal']),
   ('/industrial',       'fa-chart-line',           'Reportes', _rol == 'admin'),
   ('/admin_dashboard',  'fa-gear',                 'Admin',    _rol == 'admin'),
 ] %}

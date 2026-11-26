@@ -10,7 +10,7 @@ from sqlalchemy import text as _sql_text, or_, and_
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
     obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
-    generar_pin_unico, detectar_area_impresion, obtener_turno_activo, MSG_TURNO_CERRADO,
+    generar_pin_unico, detectar_area_impresion, obtener_turno_activo, MSG_TURNO_CERRADO, autorizo_supervisor,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
     numero_a_letras_mxn, quitar_caracteres_html, SUCURSAL_DEFAULT,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
@@ -1489,6 +1489,9 @@ def api_pos_pagar_cuenta():
     turno_cobro = obtener_turno_activo(c.sucursal)
     if not turno_cobro:
         return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
+    if _num(data.get('vale_empleado', 0)) > 0 and not autorizo_supervisor(data.get('clave_admin')):
+        return jsonify({'ok': False, 'requiere_admin': True,
+                        'msg': 'Cargar la cuenta a un empleado (vale / crédito de empleado) ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     if not c.impresa:
         # Como en Soft: primero se imprime la cuenta (precuenta) y después se cobra.
         return jsonify({'ok': False, 'requiere_imprimir': True,
@@ -2057,13 +2060,14 @@ def api_pos_pin_inteligente(cuenta_id):
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
-    if c.estado != 'ABIERTA':
-        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
-    if not any(not d.es_modificador for d in c.detalles):
-        return jsonify({'ok': False, 'msg': 'La cuenta no tiene productos: no hay nada que imprimir.'}), 400
-    # Lo capturado que no se había mandado a cocina/barra se envía antes de imprimir la cuenta.
-    _generar_comandas_pendientes(c)
-    c.impresa = True
+    if c.estado not in ('ABIERTA', 'PAGADA'):
+        return jsonify({'ok': False, 'msg': f'La cuenta está {c.estado}.'}), 400
+    if c.estado == 'ABIERTA':
+        if not any(not d.es_modificador for d in c.detalles):
+            return jsonify({'ok': False, 'msg': 'La cuenta no tiene productos: no hay nada que imprimir.'}), 400
+        # Lo capturado que no se había mandado a cocina/barra se envía antes de imprimir la cuenta.
+        _generar_comandas_pendientes(c)
+        c.impresa = True
     ref_folio = f"CTA-{c.id}-{c.orden}"
 
     pin_existente = PinCaja.query.filter_by(folio_sr=ref_folio, activo=True).first()
@@ -2650,6 +2654,8 @@ def api_pos_registrar_merma():
     if current_user.role not in ROLES_POS and current_user.role != 'almacen':
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
+    if current_user.role != 'almacen' and not autorizo_supervisor(data.get('clave_admin')):
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Registrar una merma ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     nombre = str(data.get('insumo_nombre', '')).strip().upper()
     cantidad = _num(data.get('cantidad', 0), maximo=100000.0)
     motivo = str(data.get('motivo', '')).strip().upper()

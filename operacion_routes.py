@@ -19,7 +19,7 @@ from models import (
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
-    SUCURSAL_DEFAULT, validar_clave_admin, MSG_TURNO_CERRADO, ConteoInventario, ConteoInventarioDetalle,
+    SUCURSAL_DEFAULT, validar_clave_admin, MSG_TURNO_CERRADO, autorizo_supervisor, ConteoInventario, ConteoInventarioDetalle,
     CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal, PresentacionInsumo
 )
 from pos_routes import catalogo_gastos, categoria_gasto_valida
@@ -972,6 +972,8 @@ def api_mermas_registrar():
     if current_user.role not in ['admin', 'sucursal']:
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
+    if not autorizo_supervisor(data.get('clave_admin')):
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Registrar una merma ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     suc = obtener_sucursal_activa(session) if current_user.role == 'sucursal' else (data.get('sucursal') or obtener_sucursal_activa(session))
     ins = str(data.get('insumo_nombre', '')).strip().upper()
     if not ins:
@@ -1347,6 +1349,8 @@ def api_finanzas_consumo_empleado():
     if current_user.role not in ['admin', 'cajero', 'sucursal']:
         return jsonify({'ok': False}), 403
     data = request.json or {}
+    if not autorizo_supervisor(data.get('clave_admin')):
+        return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Los créditos / vales de empleado ' + 'Requiere clave de Admin o Gerente.'.lower()}), 403
     emp = EmpleadoNominaPOS.query.get_or_404(int(data['empleado_id']))
     suc_actual = obtener_sucursal_activa(session)
     if current_user.role != 'admin' and (emp.sucursal or SUCURSAL_DEFAULT) != suc_actual:

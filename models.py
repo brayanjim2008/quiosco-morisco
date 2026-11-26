@@ -1237,6 +1237,19 @@ def detectar_area_impresion(categoria_nombre):
     return 'COCINA'
 
 
+ROLES_SUPERVISOR = ('admin', 'gerente')
+
+
+def autorizo_supervisor(clave=''):
+    """Admin y Gerente operan directo; cajero y sucursal necesitan la clave de un Admin o Gerente.
+    Devuelve el nombre de quien autoriza o None."""
+    from flask_login import current_user as _cu
+    if _cu.is_authenticated and _cu.role in ROLES_SUPERVISOR:
+        return _cu.username.upper()
+    clave = str(clave or '').strip()
+    return validar_clave_admin(clave) if clave else None
+
+
 MSG_TURNO_CERRADO = 'La caja no ha abierto turno. Primero abre el turno con el fondo inicial (botón TURNO en Caja).'
 
 

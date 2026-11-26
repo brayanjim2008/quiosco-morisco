@@ -617,17 +617,23 @@
   async function registrarMermaSuc() {
     const insumo_nombre = $('mer_ins').value.trim();
     if (!insumo_nombre) return alert('Indica el insumo o platillo.');
-    const res = await fetch('/api/mermas/registrar', {
+    const enviar = clave_admin => fetch('/api/mermas/registrar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sucursal: SUCURSAL_ACTUAL, insumo_nombre,
         cantidad: parseFloat($('mer_cant').value || 1),
         unidad: $('mer_uni').value || 'PZ',
         costo_total: parseFloat($('mer_costo').value || 0),
-        motivo: $('mer_motivo').value || 'Merma'
+        motivo: $('mer_motivo').value || 'Merma', clave_admin
       })
-    });
-    const d = await res.json();
+    }).then(r => r.json());
+    let d = await enviar('');
+    if (!d.ok && d.requiere_admin) {
+      const clave = prompt('🔒 ' + d.msg);
+      if (!clave) return;
+      d = await enviar(clave);
+    }
+    if (!d.ok) return alert(d.msg || 'No se pudo registrar la merma.');
     if (d.ok) { $('mer_ins').value = ''; $('mer_costo').value = ''; $('mer_motivo').value = ''; toast('✓ Merma reportada'); cargarMermasSuc(); }
   }
 

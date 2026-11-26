@@ -126,3 +126,27 @@ check(cam1.post(f'/api/finanzas/empleado_foto/{id_ana}', data={}, headers=HS).st
 h_nom = admin.get('/nomina_creditos').get_data(as_text=True)
 check('id="modalFichaEmp"' in h_nom and 'id="emp_curp"' in h_nom and 'id="emp_foto"' in h_nom, 'Nómina: ficha del empleado con foto')
 admin.delete('/api/finanzas/empleado', json={'id': id_ana, 'motivo_baja': 'PRUEBA'}, headers=H)
+
+# ---- Lo que la caja (cajero / sucursal) ya no hace sin clave de Admin o Gerente ----
+r = cam1.post('/api/mermas/registrar', json={'insumo_nombre': 'PAN', 'cantidad': 1, 'costo_total': 10, 'motivo': 'CAIDO'}, headers=HS)
+check(r.status_code == 403 and r.json.get('requiere_admin'), 'merma de sucursal sin clave se rechaza')
+r = cam1.post('/api/mermas/registrar', json={'insumo_nombre': 'PAN', 'cantidad': 1, 'costo_total': 10, 'motivo': 'CAIDO', 'clave_admin': CLAVE_S}, headers=HS)
+check(r.status_code == 200, 'merma de sucursal con clave')
+r = cam1.post('/api/pos/registrar_merma', json={'insumo_nombre': 'PAN', 'cantidad': 1, 'motivo': 'CAIDO', 'costo_unitario': 5}, headers=HS)
+check(r.status_code == 403 and r.json.get('requiere_admin'), 'merma desde la caja sin clave se rechaza')
+with app.app_context():
+    from models import EmpleadoNominaPOS as _EmpS
+    _e = _EmpS(nombre='VALE PRUEBA', sucursal='Caminante 1', activo=True); db.session.add(_e); db.session.commit(); _eid = _e.id
+c3 = _abrir_s('SFT3', 1)
+_cap_s(c3, 'LATTE PRUEBA', 65, 'BARRA')
+imprimir_cuenta(cam1, c3, HS)
+r = cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c3, 'vale_empleado': 65, 'empleado_id': _eid, 'idem': 'soft-c3'}, headers=HS)
+check(r.status_code == 403 and r.json.get('requiere_admin'), 'cargar la cuenta a un empleado sin clave se rechaza')
+r = cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c3, 'vale_empleado': 65, 'empleado_id': _eid, 'idem': 'soft-c3', 'clave_admin': CLAVE_S}, headers=HS)
+check(r.status_code == 200, 'con clave sí se carga la cuenta al empleado')
+r = imprimir_cuenta(cam1, c3, HS)
+check(r.status_code == 200 and r.json.get('codigo'), 'el PIN del ticket final se obtiene con la cuenta ya pagada')
+h = cam1.get('/nomina_creditos').get_data(as_text=True)
+check('>CRÉDITOS<' in h and 'id="sec_prestaciones"' not in h and "cambiarTab('vales', this)\" style=\"display:none\"" in h,
+      'la caja no ve Nómina ni vales de personal (solo Créditos y Checador)')
+check('<span>Créditos</span>' in h, 'en la barra de módulos de la caja dice Créditos, no Nómina')

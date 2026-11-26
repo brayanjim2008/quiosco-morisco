@@ -106,7 +106,9 @@ check({'LUZ', 'PAOLA'} <= nomb_adm, 'admin ve todo el personal')
 r = clientes['brayan'].post('/api/finanzas/consumo_empleado', json={'empleado_id': luz_id, 'monto': 50}, headers={'X-CSRFToken': tcj})
 check(r.status_code == 403, 'cajero de la Matriz no carga vales a personal de Caminante 1')
 r = cam1.post('/api/finanzas/consumo_empleado', json={'empleado_id': luz_id, 'monto': 50, 'concepto': 'comida'}, headers={'X-CSRFToken': tcam})
-check(r.status_code == 200, 'Caminante 1 carga vale a su personal')
+check(r.status_code == 403 and r.json.get('requiere_admin'), 'crédito / vale de empleado sin clave se rechaza en caja')
+r = cam1.post('/api/finanzas/consumo_empleado', json={'empleado_id': luz_id, 'monto': 50, 'concepto': 'comida', 'clave_admin': 'admin12345'}, headers={'X-CSRFToken': tcam})
+check(r.status_code == 200, 'Caminante 1 carga vale a su personal con clave de Admin/Gerente')
 with app.app_context():
     check(ConsumoEmpleadoPOS.query.filter_by(empleado_id=luz_id).first().sucursal == 'Caminante 1', 'vale guardado con sucursal')
 cam_fin = cam1.get('/api/finanzas/datos').json
