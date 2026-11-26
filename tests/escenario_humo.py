@@ -230,6 +230,9 @@ ejecutar_escenario('f4b.py')
 # Meseros: cada uno solo ve y opera sus cuentas
 ejecutar_escenario('meseros.py')
 
+# Como Soft: cancelación con aviso a cocina, corte X/Z con desglose completo
+ejecutar_escenario('soft.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

@@ -978,8 +978,17 @@ def api_pos_cancelar_items_lote():
         return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Contraseña de autorización incorrecta.'}), 403
 
     motivo_gral = str(data.get('motivo_general', '')).strip()
+    if not motivo_gral and not all(str(r.get('motivo', '')).strip() for r in items_req if _num(r.get('cantidad', 0)) > 0):
+        return jsonify({'ok': False, 'msg': 'Indica el motivo de la cancelación (general o por producto).'}), 400
     total_cancelado = 0.0
     resumen_desc = []
+    # Lo que ya se había mandado a cocina/barra se avisa con un ticket de CANCELACIÓN en esa área (como Soft).
+    aviso_area = {'BARRA': [], 'COCINA': []}
+
+    def _avisar(d, cant, mot, sub=False):
+        if d.impreso_comanda and d.clave not in ('SEP', 'NOTA'):
+            area = d.area_impresion if d.area_impresion in aviso_area else 'COCINA'
+            aviso_area[area].append((cant, d.descripcion, mot, sub))
 
     for req_it in items_req:
         det = DetallePOS.query.filter_by(id=int(req_it['id']), cuenta_id=cuenta.id).first()
@@ -992,9 +1001,11 @@ def api_pos_cancelar_items_lote():
         if cant_c >= det.cantidad:
             total_cancelado += det.importe
             resumen_desc.append(f"{det.cantidad:g}x {det.descripcion}" + (f" [{mot}]" if mot else ""))
+            _avisar(det, det.cantidad, mot)
             if not det.es_modificador:
                 for h in DetallePOS.query.filter_by(cuenta_id=cuenta.id, parent_detalle_id=det.id).all():
                     total_cancelado += h.importe
+                    _avisar(h, h.cantidad, '', sub=True)
                     db.session.delete(h)
             db.session.delete(det)
         else:
@@ -1003,12 +1014,38 @@ def api_pos_cancelar_items_lote():
             det.cantidad = round(det.cantidad - cant_c, 3)
             det.importe = round(det.cantidad * det.precio_unitario, 2)
             resumen_desc.append(f"{cant_c:g}x {det.descripcion}" + (f" [{mot}]" if mot else ""))
+            _avisar(det, cant_c, mot)
+
+    ahora_str = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
+    for area_nom, lista in aviso_area.items():
+        if not lista:
+            continue
+        filas = []
+        for cant, desc, mot, sub in lista:
+            if sub:
+                filas.append(f"<div style='padding-left:18px;font-size:13px;'>{_esc(desc)}</div>")
+                continue
+            cant_txt = int(cant) if float(cant).is_integer() else f"{cant:g}"
+            filas.append(f"<div style='font-size:16px;font-weight:900;'>{cant_txt} {_esc(desc)}</div>")
+            if mot:
+                filas.append(f"<div style='font-size:11px;padding-left:18px;'>MOTIVO: {_esc(mot)}</div>")
+        html_canc = f"""
+        <div class='ticket-termico' style='page-break-after:always;break-after:page;'>
+            <div style='text-align:center;font-size:16px;font-weight:900;'>*** CANCELACION ***</div>
+            <div style='font-size:12px;'>{ahora_str} / ORDEN: {_esc(cuenta.orden)}</div>
+            <div style='font-size:13px;font-weight:bold;'>{area_nom} - MESA: {_esc(cuenta.mesa)} - PERSONAS: {cuenta.personas} MESERO: {_esc(cuenta.mesero)}</div>
+            <div>================================</div>
+            {''.join(filas)}
+            <div>================================</div>
+            <div style='text-align:center;font-size:16px;font-weight:900;'>*** CANCELACION ***</div>
+        </div>"""
+        db.session.add(ColaImpresionPOS(sucursal=cuenta.sucursal, tipo=f"CANCELACION_{area_nom}", contenido_html=html_canc, fecha=ahora_local()))
 
     db.session.flush()
     recalcular_totales_cuenta(cuenta)
     db.session.commit()
     registrar_bitacora('CANCELACION', cuenta.mesa, total_cancelado, ', '.join(resumen_desc), autorizo=autorizo, sucursal=cuenta.sucursal)
-    return jsonify({'ok': True, 'total': cuenta.total})
+    return jsonify({'ok': True, 'total': cuenta.total, 'aviso_cocina': any(aviso_area.values())})
 
 
 @pos_bp.route('/api/pos/cancelar_cuenta_abierta', methods=['POST'])
@@ -1668,6 +1705,130 @@ def api_pos_movimiento_caja():
     return jsonify({'ok': True})
 
 
+_RX_TIPO_BEBIDA = re.compile(r'bebida|caliente|fr[ií]a|frapp|infus|jugo|refresco|agua|cerveza|coctel|caf[eé]', re.I)
+_RX_TIPO_OTRO = re.compile(r'postre|extra|modificador', re.I)
+TIPOS_PRODUCTO = ('ALIMENTOS', 'BEBIDAS', 'OTROS')
+
+
+def _tipo_producto(det, cat_por_nombre):
+    """ALIMENTOS / BEBIDAS / OTROS con la misma regla que los botones de la captura (por nombre de categoría).
+    Si el platillo ya no existe en el catálogo, se usa su área de impresión (BARRA = bebida)."""
+    if det.es_modificador:
+        return 'OTROS'
+    cat = cat_por_nombre.get((det.descripcion or '').strip().upper())
+    if cat:
+        if _RX_TIPO_BEBIDA.search(cat):
+            return 'BEBIDAS'
+        return 'OTROS' if _RX_TIPO_OTRO.search(cat) else 'ALIMENTOS'
+    return 'BEBIDAS' if (det.area_impresion or '').upper() == 'BARRA' else 'ALIMENTOS'
+
+
+def _tipo_servicio(c):
+    txt = f"{c.area or ''} {c.mesa or ''}".upper()
+    if 'DOMIC' in txt:
+        return 'DOMICILIO'
+    if 'RAPID' in txt or (c.mesa or '').upper().startswith('RAP'):
+        return 'RAPIDO'
+    return 'COMEDOR'
+
+
+def _desglose_tipos_cuenta(c, cat_por_nombre):
+    """Por tipo de producto: bruto (precio x cantidad), descuento y cortesía, en pesos CON IVA.
+    El descuento general de la cuenta se reparte en proporción al importe de cada tipo.
+    Una parte de cuenta dividida (renglón DIV) toma la mezcla de productos de su cuenta original."""
+    tipos = {t: {'bruto': 0.0, 'desc': 0.0, 'cortesia': 0.0, 'cant': 0.0} for t in TIPOS_PRODUCTO}
+    lineas = [d for d in c.detalles if d.clave not in ('SEP', 'NOTA') and (not d.es_modificador or (d.importe or 0) > 0 or (d.precio_unitario or 0) > 0)]
+    for d in lineas:
+        bruto = round((d.cantidad or 0) * (d.precio_unitario or 0), 2)
+        if d.clave == 'DIV':
+            padre = CuentaPOS.query.get(c.parent_cuenta_id) if c.parent_cuenta_id else None
+            mezcla = _desglose_tipos_cuenta(padre, cat_por_nombre) if padre else None
+            base = sum(v['bruto'] - v['desc'] - v['cortesia'] for v in mezcla.values()) if mezcla else 0
+            for t in TIPOS_PRODUCTO:
+                parte = ((mezcla[t]['bruto'] - mezcla[t]['desc'] - mezcla[t]['cortesia']) / base) if base > 0 else (1.0 if t == 'ALIMENTOS' else 0.0)
+                tipos[t]['bruto'] += round(bruto * parte, 2)
+            continue
+        t = _tipo_producto(d, cat_por_nombre)
+        tipos[t]['bruto'] += bruto
+        if not d.es_modificador:
+            tipos[t]['cant'] += d.cantidad or 0
+        desc_item = max(0.0, bruto - (d.importe or 0))
+        if (d.descuento_pct or 0) >= 100:
+            tipos[t]['cortesia'] += desc_item
+        else:
+            tipos[t]['desc'] += desc_item
+    neto = sum(v['bruto'] - v['desc'] - v['cortesia'] for v in tipos.values())
+    gral = float(c.descuento_monto or 0)
+    if gral > 0 and neto > 0:
+        es_cortesia = (c.total or 0) <= 0.009  # descuento del 100 %: cortesía de toda la cuenta
+        for t in TIPOS_PRODUCTO:
+            v = tipos[t]
+            parte = round(gral * (v['bruto'] - v['desc'] - v['cortesia']) / neto, 2)
+            v['cortesia' if es_cortesia else 'desc'] += parte
+    return tipos
+
+
+def _detalle_corte_soft(suc, turno, cuentas_pagadas):
+    """Desglose del corte igual al de Soft Restaurant: venta por tipo de producto y de servicio (sin impuestos),
+    descuentos y cortesías, cuentas, promedios, comensales y folios."""
+    cat_por_nombre = {(p.nombre or '').strip().upper(): (p.categoria or '') for p in Producto.query.all()}
+    por_tipo = {t: {'bruto': 0.0, 'desc': 0.0, 'cortesia': 0.0, 'cant': 0.0} for t in TIPOS_PRODUCTO}
+    por_servicio = {'COMEDOR': 0.0, 'DOMICILIO': 0.0, 'RAPIDO': 0.0}
+    n_desc = n_cortesia = 0
+    for c in cuentas_pagadas:
+        tipos = _desglose_tipos_cuenta(c, cat_por_nombre)
+        bruto_c = 0.0
+        for t, v in tipos.items():
+            for k in por_tipo[t]:
+                por_tipo[t][k] += v[k]
+            bruto_c += v['bruto']
+        por_servicio[_tipo_servicio(c)] += bruto_c
+        if any(v['cortesia'] > 0.009 for v in tipos.values()):
+            n_cortesia += 1
+        elif any(v['desc'] > 0.009 for v in tipos.values()):
+            n_desc += 1
+
+    sin_iva = lambda x: round(x / 1.16, 2)
+    # Todas las cifras salen de las mismas sumas por tipo: SUBTOTAL - DESCUENTOS = VENTA NETA y
+    # VENTA NETA + IMPUESTOS = VENTAS CON IMP. cuadran al centavo en el ticket.
+    subtotal = round(sum(sin_iva(v['bruto']) for v in por_tipo.values()), 2)
+    tot_desc = round(sum(sin_iva(v['desc']) for v in por_tipo.values()), 2)
+    tot_cort = round(sum(sin_iva(v['cortesia']) for v in por_tipo.values()), 2)
+    ventas_con_imp = round(sum(c.total or 0 for c in cuentas_pagadas), 2)
+    venta_neta = round(subtotal - tot_desc - tot_cort, 2)
+    impuestos = round(ventas_con_imp - venta_neta, 2)
+    n = len(cuentas_pagadas)
+    comensales = sum(int(c.personas or 0) for c in cuentas_pagadas)
+    folios = [c.folio for c in sorted(cuentas_pagadas, key=lambda x: x.id) if c.folio]
+    canceladas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='CANCELADA').count()
+
+    def _pct(x):
+        return round(100.0 * x / subtotal) if subtotal > 0 else 0
+    return {
+        'por_tipo': [{'tipo': t, 'venta': f"{sin_iva(por_tipo[t]['bruto']):.2f}", 'pct': _pct(sin_iva(por_tipo[t]['bruto'])),
+                      'cantidad': int(round(por_tipo[t]['cant']))} for t in TIPOS_PRODUCTO],
+        'por_servicio': [{'tipo': s, 'venta': f"{sin_iva(v):.2f}", 'pct': _pct(sin_iva(v))} for s, v in por_servicio.items()],
+        'subtotal': f"{subtotal:.2f}",
+        'descuentos': f"{tot_desc + tot_cort:.2f}",
+        'venta_neta': f"{venta_neta:.2f}",
+        'impuestos': f"{impuestos:.2f}",
+        'ventas_con_imp': f"{ventas_con_imp:.2f}",
+        'cuentas_normales': n,
+        'cuentas_canceladas': canceladas,
+        'cuentas_descuento': n_desc,
+        'cuentas_cortesia': n_cortesia,
+        'cuenta_promedio': f"{(ventas_con_imp / n if n else 0):.2f}",
+        'consumo_promedio': f"{(ventas_con_imp / comensales if comensales else 0):.2f}",
+        'comensales': comensales,
+        'folio_inicial': folios[0] if folios else '-',
+        'folio_final': folios[-1] if folios else '-',
+        'cortesias': [{'tipo': t, 'monto': f"{sin_iva(por_tipo[t]['cortesia']):.2f}"} for t in TIPOS_PRODUCTO],
+        'total_cortesias': f"{tot_cort:.2f}",
+        'descuentos_tipo': [{'tipo': t, 'monto': f"{sin_iva(por_tipo[t]['desc']):.2f}"} for t in TIPOS_PRODUCTO],
+        'total_descuentos': f"{tot_desc:.2f}",
+    }
+
+
 @pos_bp.route('/api/pos/corte_caja', methods=['GET'])
 @login_required
 def api_pos_corte_caja():
@@ -1723,7 +1884,10 @@ def api_pos_corte_caja():
         'efectivo_final': f"{efectivo_final:.2f}",
         'total_formas': f"{(ef_ventas + total_tarjeta + transferencia + vales_emp):.2f}",
         'ver_esperado': ver_esperado,
-        'por_mesero': [{'mesero': k, **v} for k, v in sorted(por_mesero.items())]
+        'turno_id': turno.id,
+        'cajero': (turno.cajero or current_user.username or '').upper(),
+        'por_mesero': [{'mesero': k, **v} for k, v in sorted(por_mesero.items())],
+        'detalle': _detalle_corte_soft(suc, turno, cuentas_pagadas),
     })
 
 
@@ -1773,6 +1937,24 @@ def api_pos_cerrar_turno_arqueo():
     val_dec = _num(data.get('VAL', 0))
     declarado_total = round(ef_dec + td_dec + tc_dec + tr_dec + val_dec, 2)
     diferencia = round(declarado_total - esperado_total, 2)
+    # Para el ticket Z (igual que Soft): corte completo del turno + declaración del cajero por forma de pago
+    detalle_z = _detalle_corte_soft(suc, turno, cuentas_pagadas)
+    declaracion = [
+        {'forma': nom, 'declarado': f"{dec:.2f}", 'esperado': f"{esp:.2f}", 'diferencia': f"{round(dec - esp, 2):.2f}"}
+        for nom, dec, esp in (('EFECTIVO', ef_dec, efectivo_esperado), ('TARJ. DEBITO', td_dec, td_esp),
+                              ('TARJ. CREDITO', tc_dec, tc_esp), ('TRANSFERENCIA', tr_dec, tr_esp), ('VALES', val_dec, val_esp))
+    ]
+    resumen_z = {
+        'apertura': turno.apertura.strftime('%d/%m/%Y %I:%M:%S %p'),
+        'ahora': ahora_local().strftime('%d/%m/%Y %I:%M:%S %p'),
+        'turno_id': turno.id, 'cajero': current_user.username.upper(),
+        'fondo_inicial': f"{turno.fondo_inicial:.2f}", 'efectivo': f"{ef_esp:.2f}",
+        'tarj_debito': f"{td_esp:.2f}", 'tarj_credito': f"{tc_esp:.2f}", 'transferencia': f"{tr_esp:.2f}",
+        'vales_empleado': f"{val_esp:.2f}", 'credito_clientes': f"{sum(c.pago_credito or 0.0 for c in cuentas_pagadas):.2f}",
+        'depositos': f"{turno.depositos_efectivo:.2f}", 'retiros': f"{turno.retiros_efectivo:.2f}",
+        'propinas_pagadas': f"{prop_esp:.2f}", 'efectivo_final': f"{efectivo_esperado:.2f}", 'saldo_final': f"{esperado_total:.2f}",
+        'detalle': detalle_z,
+    }
 
     db.session.add(ArqueoTurnoPOS(
         sucursal=suc, turno_id=turno.id, cajero=current_user.username.upper(), fecha=ahora_local(),
@@ -1798,7 +1980,8 @@ def api_pos_cerrar_turno_arqueo():
                        f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}' + (f' | Cierre forzado con {abiertas_act} cuenta(s) abierta(s)' if aut_ab else ''),
                        autorizo=(aut_ab or ''), sucursal=suc)
     return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}",
-                    'denominaciones': _denominaciones_para_ticket(denominaciones)})
+                    'denominaciones': _denominaciones_para_ticket(denominaciones),
+                    'corte': resumen_z, 'declaracion': declaracion})
 
 
 # ==============================================================================
