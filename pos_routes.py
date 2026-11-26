@@ -933,7 +933,6 @@ def api_pos_cancelar_item():
     era_impreso = bool(item.impreso_comanda)
     autorizo = current_user.username.upper()
     if era_impreso:
-        permisos = ConfigPermisosPOS.query.first()
         permitir = tiene_permiso('cancelar', supervisores=False)
         autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
         if not autorizo:
@@ -983,7 +982,6 @@ def api_pos_cancelar_items_lote():
     if not items_req:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto a cancelar.'}), 400
 
-    permisos = ConfigPermisosPOS.query.first()
     permitir = tiene_permiso('cancelar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
@@ -1124,7 +1122,6 @@ def api_pos_descuento_autorizado():
         pct = max(0.0, min(100.0, _num(data.get('porcentaje', 0), minimo=-1_000_000.0, maximo=1_000_000.0)))
     comentario = str(data.get('comentario', '')).strip()
 
-    permisos = ConfigPermisosPOS.query.first()
     permitir = tiene_permiso('descontar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
@@ -1210,7 +1207,6 @@ def api_pos_descuento_productos():
     if not items_desc:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
 
-    permisos = ConfigPermisosPOS.query.first()
     permitir = tiene_permiso('descontar', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
@@ -1622,7 +1618,6 @@ def api_pos_cambiar_forma_pago():
     if c.estado != 'PAGADA':
         return jsonify({'ok': False, 'msg': 'Solo aplica a cuentas ya pagadas.'}), 400
 
-    permisos = ConfigPermisosPOS.query.first()
     permitir = tiene_permiso('cambiar_pago', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
@@ -1724,7 +1719,6 @@ def api_pos_movimiento_caja():
 
     autorizo = current_user.username.upper()
     if tipo == 'RETIRO':
-        perm = ConfigPermisosPOS.query.first()
         permitir = tiene_permiso('retirar', supervisores=False)
         autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
         if not autorizo:
@@ -1922,7 +1916,6 @@ def api_pos_corte_caja():
 
     efectivo_final = round(turno.fondo_inicial + ef_ventas + turno.depositos_efectivo - turno.retiros_efectivo - propinas_tarj, 2)
     saldo_final = round(efectivo_final + total_tarjeta + transferencia + vales_emp, 2)
-    perm_cx = ConfigPermisosPOS.query.first()
     ver_esperado = tiene_permiso('ver_esperado_z')
 
     # Desglose de ventas y propinas con tarjeta por mesero
@@ -2279,7 +2272,6 @@ def api_pos_reimprimir_productos():
     item_ids = [int(x) for x in data.get('item_ids', [])]
     if not item_ids:
         return jsonify({'ok': False, 'msg': 'Selecciona al menos un producto.'}), 400
-    perm = ConfigPermisosPOS.query.first()
     permitir = tiene_permiso('reimprimir', supervisores=False)
     autorizo = _autorizar_operacion(data.get('clave_admin', ''), permitir_si_flag=permitir)
     if not autorizo:
@@ -2804,7 +2796,6 @@ def api_pos_catalogo_completo():
                                     obtener_sucursal_activa(session), incluir_no_disponibles=True)
     mods = ModificadorPOS.query.filter_by(activo=True).order_by(ModificadorPOS.id.asc()).all()
     promos = PromocionPOS.query.order_by(PromocionPOS.id.desc()).all()
-    perm = ConfigPermisosPOS.query.first()
     _areas_cat = _cargar_areas_prods()
     return jsonify({
         'ok': True,

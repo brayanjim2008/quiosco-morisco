@@ -1,7 +1,6 @@
 """Alertas al dueño: cancelaciones y descuentos grandes, faltantes en el corte Z, mucho efectivo en caja,
 cuentas reabiertas y cambios de forma de pago. Se guardan en la base (Reportes → Alertas) y, si está
 configurado, se mandan al celular por Telegram (bot gratuito)."""
-import json
 import os
 import re
 import threading
