@@ -110,6 +110,31 @@ r = admin.post('/admin/categoria/nueva', data={'nombre': 'Postres', 'csrf_token'
 check(r.status_code == 302, 'formulario con token es aceptado')
 H = {'X-CSRFToken': tok}
 
+# ---------- Turno: como en Soft, sin turno abierto no se opera ----------
+r = admin.post('/api/pos/abrir_mesa', json={'mesa': 'M0', 'personas': 2}, headers=H)
+check(r.status_code == 409 and r.json.get('turno_cerrado'), 'sin turno abierto no se puede abrir mesa')
+check(admin.get('/api/pos/corte_caja').status_code == 409, 'sin turno el corte X avisa (no crea un turno solo)')
+r = admin.post('/api/pos/abrir_turno_real', json={'fondo_inicial': 500}, headers=H)
+check(r.status_code == 200 and r.json['fondo'] == '500.00', 'abrir turno con fondo inicial')
+
+
+def abrir_turnos():
+    """Abre turno en todas las sucursales (para los escenarios que operan en varias)."""
+    from models import TurnoPOS as _T, SUCURSALES_OFICIALES as _SO, ahora_local as _ahl
+    with app.app_context():
+        for _s in _SO:
+            if not _T.query.filter_by(sucursal=_s, estado='ABIERTO').first():
+                db.session.add(_T(sucursal=_s, cajero='PRUEBA', fondo_inicial=0.0, estado='ABIERTO', apertura=_ahl()))
+        db.session.commit()
+
+
+def imprimir_cuenta(cliente, cid, headers):
+    """Precuenta: requisito para cobrar (como en Soft)."""
+    return cliente.post(f'/api/pos/pin_inteligente/{cid}', json={}, headers=headers)
+
+
+abrir_turnos()
+
 # ---------- Flujo POS ----------
 r = admin.post('/api/pos/abrir_mesa', json={'mesa': 'M1', 'personas': 2}, headers=H)
 check(r.status_code == 200 and r.json.get('ok'), f'abrir mesa con token ({r.status_code} {r.get_data(as_text=True)[:150]})')
@@ -128,6 +153,17 @@ with app.app_context():
     total = CuentaPOS.query.get(cuenta_id).total
 check(total and total > 0, f'total de la cuenta = {total}')
 
+# Sin imprimir la cuenta no se cobra
+r = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': cuenta_id, 'efectivo': 200}, headers=H)
+check(r.status_code == 409 and r.json.get('requiere_imprimir'), 'no se cobra sin imprimir la cuenta primero')
+r = admin.post('/api/pos/abrir_mesa', json={'mesa': 'MV', 'personas': 1}, headers=H)
+check(imprimir_cuenta(admin, r.json['cuenta_id'], H).status_code == 400, 'una cuenta vacía no se imprime')
+r = imprimir_cuenta(admin, cuenta_id, H)
+with app.app_context():
+    _pend = DetallePOS.query.filter_by(cuenta_id=cuenta_id, impreso_comanda=False).count()
+check(r.status_code == 200 and _pend == 0, 'al imprimir la cuenta se mandan a cocina/barra los productos pendientes')
+r = admin.post('/api/pos/capturar_item', json={'cuenta_id': cuenta_id, 'descripcion': 'X', 'precio': 1, 'cantidad': 1}, headers=H)
+check(r.status_code == 400, 'cuenta impresa ya no acepta productos')
 # Tarjeta que excede el total -> rechazado
 r = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': cuenta_id, 'tarjeta_debito': total + 400}, headers=H)
 check(r.status_code == 400, 'tarjeta mayor al total es rechazada (no hay cambio en efectivo de un pago con tarjeta)')
@@ -142,6 +178,7 @@ r = admin.post('/api/pos/abrir_mesa', json={'mesa': 'M2', 'personas': 1}, header
 with app.app_context():
     c2 = CuentaPOS.query.filter_by(mesa='M2', estado='ABIERTA').first().id
 capturar(c2)
+imprimir_cuenta(admin, c2, H)
 r = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': c2, 'efectivo': 20, 'tarjeta_debito': 50}, headers=H)
 check(r.status_code == 200 and abs(r.json.get('cambio') - 5.0) < 0.01, f'pago mixto 20 EF + 50 TD sobre 65: cambio 5 ({r.get_data(as_text=True)[:120]})')
 
@@ -194,6 +231,7 @@ r = admin.post('/api/pos/abrir_mesa', json={'mesa': 'M7'}, headers=H)
 with app.app_context():
     c7 = CuentaPOS.query.filter_by(mesa='M7', estado='ABIERTA').first().id
 capturar(c7)
+imprimir_cuenta(admin, c7, H)
 r = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': c7, 'tarjeta_debito': 65.005}, headers=H)
 check(r.status_code == 200, f'tarjeta = total + medio centavo se acepta ({r.status_code})')
 

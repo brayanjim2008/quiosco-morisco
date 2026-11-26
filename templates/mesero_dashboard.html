@@ -788,7 +788,9 @@
 
   async function apiPost(url, payload = {}) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    return await res.json();
+    const d = await res.json();
+    if (d && d.turno_cerrado) mostrarToast('🔒 ' + d.msg);
+    return d;
   }
   function escHtml(s) { return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   // Texto como argumento JS dentro de un atributo onclick: JSON lo vuelve string JS válido y escHtml evita romper el atributo.

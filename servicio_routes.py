@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, render_template, request, session, redirec
 from flask_login import current_user, login_required
 
 from models import (
-    db, ahora_local, inicio_hoy_local, obtener_sucursal_activa, obtener_turno_activo, registrar_bitacora,
+    db, ahora_local, inicio_hoy_local, obtener_sucursal_activa, obtener_turno_activo, MSG_TURNO_CERRADO, registrar_bitacora,
     cfg_cargar, cfg_guardar, SUCURSALES_OFICIALES, CuentaPOS, DetallePOS, Reservacion,
 )
 from pos_routes import ROLES_POS, _lock_advisory, _num
@@ -261,6 +261,8 @@ def _abrir_o_ligar_cuenta(suc, mesa, personas, observacion):
     if existente:
         return existente
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return None   # la caja no ha abierto turno
     num_orden = CuentaPOS.query.filter(CuentaPOS.sucursal == suc, CuentaPOS.apertura >= inicio_hoy_local()).count() + 1
     area = '02 TERRAZA' if mesa.startswith('T') else ('RAPIDO' if 'RAP' in mesa else '01 COMEDOR')
     c = CuentaPOS(turno_id=turno.id, sucursal=suc, orden=f"A{num_orden}", area=area, mesa=mesa,
@@ -346,6 +348,9 @@ def api_reservacion_actualizar(reserva_id):
             if not r.mesa:
                 return jsonify({'ok': False, 'msg': 'Asigna una mesa antes de marcar que llegó.'}), 400
             c = _abrir_o_ligar_cuenta(r.sucursal, r.mesa, r.personas, f'RESERVA: {r.nombre} ({r.personas}p) {r.notas or ""}'.strip())
+            if c is None:
+                db.session.rollback()
+                return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
             r.cuenta_id = cuenta_id = c.id
         r.estado = estado
     db.session.commit()

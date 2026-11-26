@@ -39,6 +39,7 @@ with app.app_context():
 
 # ---------- Idempotencia del cobro ----------
 cc = _abrir('F2C'); capturar(cc)                       # $65
+imprimir_cuenta(admin, cc, H)
 r1 = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': cc, 'efectivo': 100, 'idem': 'cobro-F2C-1'}, headers=H)
 r2 = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': cc, 'efectivo': 100, 'idem': 'cobro-F2C-1'}, headers=H)
 check(r1.status_code == 200 and r1.json['cambio'] == 35.0, 'primer cobro OK (cambio $35)')

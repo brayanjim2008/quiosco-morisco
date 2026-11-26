@@ -10,7 +10,7 @@ from sqlalchemy import text as _sql_text, or_, and_
 from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES, PREFIJO_SUCURSAL,
     obtener_sucursal_activa, obtener_datos_ticket, validar_clave_admin, registrar_bitacora,
-    generar_pin_unico, detectar_area_impresion, obtener_turno_activo,
+    generar_pin_unico, detectar_area_impresion, obtener_turno_activo, MSG_TURNO_CERRADO,
     recalcular_totales_cuenta, descontar_recetas_local, invalidar_cache_publico,
     numero_a_letras_mxn, quitar_caracteres_html, SUCURSAL_DEFAULT,
     User, CategoriaMenu, Producto, PinCaja, PreOrden,
@@ -347,6 +347,8 @@ def api_pos_abrir_mesa():
         return jsonify({'ok': True, 'cuenta_id': existente.id, 'ya_existia': True})
 
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     hoy_inicio = inicio_hoy_local()
     num_orden = CuentaPOS.query.filter(CuentaPOS.sucursal == suc, CuentaPOS.apertura >= hoy_inicio).count() + 1
     area = '02 TERRAZA' if mesa_nom.startswith('T') else ('RAPIDO' if 'RAP' in mesa_nom else '01 COMEDOR')
@@ -639,6 +641,8 @@ def api_pos_capturar_item():
         return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
     if c.impresa:
         return jsonify({'ok': False, 'msg': 'Cuenta impresa. Reábrela con clave para agregar productos.'}), 400
+    if not obtener_turno_activo(c.sucursal):
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
 
     cant = _num(data.get('cantidad', 1), minimo=0.001, maximo=999.0)
     precio = _num(data.get('precio', 0), maximo=100000.0)
@@ -809,6 +813,8 @@ def api_pos_enviar_comanda(cuenta_id):
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
+    if not obtener_turno_activo(c.sucursal):
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     if not _generar_comandas_pendientes(c):
         return jsonify({'ok': False, 'msg': 'No hay productos nuevos por enviar a cocina/barra.'})
     db.session.commit()
@@ -829,6 +835,8 @@ def api_pos_enviar_ronda_lote():
         return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
     if c.impresa:
         return jsonify({'ok': False, 'msg': 'Cuenta impresa. Reábrela con clave de Admin/Gerente.'}), 400
+    if not obtener_turno_activo(c.sucursal):
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
 
     items = data.get('items') or []
     if not items:
@@ -1257,6 +1265,8 @@ def api_pos_dividir_partes():
 
     suc = c_orig.sucursal
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     hoy_inicio = inicio_hoy_local()
     imprimir = bool(data.get('imprimir', False))
 
@@ -1318,6 +1328,8 @@ def api_pos_dividir_cuenta_real():
 
     suc = c_orig.sucursal
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     hoy_inicio = inicio_hoy_local()
     imprimir = bool(data.get('imprimir', False))
     creadas = []
@@ -1474,6 +1486,14 @@ def api_pos_pagar_cuenta():
         return jsonify({'ok': True, 'folio': c.folio, 'cambio': c.cambio, 'repetido': True})
     if c.estado != 'ABIERTA':
         return jsonify({'ok': False, 'msg': 'Esta cuenta ya fue cerrada.'}), 400
+    turno_cobro = obtener_turno_activo(c.sucursal)
+    if not turno_cobro:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
+    if not c.impresa:
+        # Como en Soft: primero se imprime la cuenta (precuenta) y después se cobra.
+        return jsonify({'ok': False, 'requiere_imprimir': True,
+                        'msg': 'Primero imprime la cuenta (Precuenta) y después cóbrala.'}), 409
+    c.turno_id = turno_cobro.id   # la venta cuenta en el turno donde se cobra
     ult4 = str(data.get('tarjeta_ultimos4', '')).strip()[:4]
     emp_id = data.get('empleado_id')
 
@@ -1552,7 +1572,7 @@ def api_pos_cuentas_pagadas_turno():
         return jsonify({'ok': False}), 403
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
-    pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='PAGADA').order_by(CuentaPOS.id.desc()).all()
+    pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id if turno else -1, estado='PAGADA').order_by(CuentaPOS.id.desc()).all()
     return jsonify({
         'ok': True,
         'cuentas': [{
@@ -1621,7 +1641,10 @@ def api_pos_abrir_turno_real():
     data = request.json or {}
     suc = obtener_sucursal_activa(session)
     fondo = _num(data.get('fondo_inicial', 0), maximo=1_000_000.0)
-    turno = obtener_turno_activo(suc)
+    turno = obtener_turno_activo(suc, crear=True)
+    for ca in CuentaPOS.query.filter(CuentaPOS.sucursal == suc, CuentaPOS.estado == 'ABIERTA',
+                                     CuentaPOS.turno_id != turno.id).all():
+        ca.turno_id = turno.id
     autorizo = current_user.username.upper()
     # Si ya había un fondo capturado en el turno actual, modificarlo requiere clave de Admin o Gerente
     if turno.fondo_inicial and turno.fondo_inicial > 0 and abs(turno.fondo_inicial - fondo) > 0.01:
@@ -1662,6 +1685,8 @@ def api_pos_movimiento_caja():
     data = request.json or {}
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     monto = _num(data.get('monto', 0), maximo=1_000_000.0)
     tipo = str(data.get('tipo', 'RETIRO')).upper()
     if tipo not in ('RETIRO', 'DEPOSITO'):
@@ -1808,9 +1833,26 @@ def _detalle_corte_soft(suc, turno, cuentas_pagadas):
     folios = [c.folio for c in sorted(cuentas_pagadas, key=lambda x: x.id) if c.folio]
     canceladas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='CANCELADA').count()
 
+    por_mesero = {}
+    for c in sorted(cuentas_pagadas, key=lambda x: x.id):
+        m = por_mesero.setdefault((c.mesero or 'SIN MESERO').upper(), {'folios': [], 'venta': 0.0})
+        if c.folio:
+            m['folios'].append(c.folio)
+        m['venta'] += float(c.total or 0)
+    movs = MovimientoCajaPOS.query.filter_by(turno_id=turno.id).order_by(MovimientoCajaPOS.id.asc()).all()
+    creditos = [mv for mv in movs if mv.tipo == 'DEPOSITO' and (mv.concepto or '').startswith('ABONO CREDITO')]
+    gastos = [mv for mv in movs if mv.tipo == 'RETIRO']
+
     def _pct(x):
         return round(100.0 * x / subtotal) if subtotal > 0 else 0
     return {
+        'folios_mesero': [{'mesero': k, 'folio_min': v['folios'][0] if v['folios'] else '-',
+                           'folio_max': v['folios'][-1] if v['folios'] else '-', 'cuentas': len(v['folios']),
+                           'venta': f"{v['venta']:.2f}"} for k, v in sorted(por_mesero.items())],
+        'creditos_cobrados': f"{sum(mv.monto for mv in creditos):.2f}",
+        'creditos_cobrados_lista': [{'concepto': (mv.concepto or '')[len('ABONO CREDITO '):], 'monto': f"{mv.monto:.2f}"} for mv in creditos],
+        'gastos': [{'concepto': mv.concepto or '', 'categoria': mv.categoria_gasto or '', 'monto': f"{mv.monto:.2f}"} for mv in gastos],
+        'total_gastos': f"{sum(mv.monto for mv in gastos):.2f}",
         'por_tipo': [{'tipo': t, 'venta': f"{sin_iva(por_tipo[t]['bruto']):.2f}", 'pct': _pct(sin_iva(por_tipo[t]['bruto'])),
                       'cantidad': int(round(por_tipo[t]['cant']))} for t in TIPOS_PRODUCTO],
         'por_servicio': [{'tipo': s, 'venta': f"{sin_iva(v):.2f}", 'pct': _pct(sin_iva(v))} for s, v in por_servicio.items()],
@@ -1842,6 +1884,8 @@ def api_pos_corte_caja():
         return jsonify({'ok': False}), 403
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     cuentas_pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='PAGADA').all()
     cuentas_abiertas = CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').count()
 
@@ -1905,7 +1949,9 @@ def api_pos_cerrar_turno_arqueo():
     data = request.json or {}
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
-    # Se bloquea el turno: dos cierres simultáneos (doble clic) no deben crear dos turnos nuevos.
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': 'No hay turno abierto que cerrar.'}), 409
+    # Se bloquea el turno: dos cierres simultáneos (doble clic) no deben cerrarlo dos veces.
     turno = TurnoPOS.query.filter_by(id=turno.id).with_for_update().first()
     if not turno or turno.estado != 'ABIERTO':
         return jsonify({'ok': False, 'msg': 'Este turno ya fue cerrado. Recarga la pantalla.'}), 409
@@ -1962,7 +2008,20 @@ def api_pos_cerrar_turno_arqueo():
         'detalle': detalle_z,
     }
 
+    ex = data.get('extras') or {}
+
+    def _cant(k):
+        return int(_num(ex.get(k, 0), maximo=100_000.0))
+    extras = {
+        'vales_ado': _cant('vales_ado'), 'vales_occ_desayuno': _cant('vales_occ_desayuno'),
+        'vales_occ_comida': _cant('vales_occ_comida'), 'vales_occ_cena': _cant('vales_occ_cena'),
+        'factura_folio_inicial': str(ex.get('factura_folio_inicial') or '').strip().upper()[:30],
+        'factura_folio_final': str(ex.get('factura_folio_final') or '').strip().upper()[:30],
+        'aclaraciones': str(ex.get('aclaraciones') or '').strip()[:500],
+        'responsable': str(ex.get('responsable') or '').strip().upper()[:80],
+    }
     db.session.add(ArqueoTurnoPOS(
+        extras_json=_json_asig.dumps(extras, ensure_ascii=False),
         sucursal=suc, turno_id=turno.id, cajero=current_user.username.upper(), fecha=ahora_local(),
         ef_declarado=ef_dec, td_declarado=td_dec, tc_declarado=tc_dec, trans_declarado=tr_dec,
         val_declarado=val_dec, esperado_total=esperado_total,
@@ -1972,11 +2031,8 @@ def api_pos_cerrar_turno_arqueo():
 
     turno.cierre = ahora_local()
     turno.estado = 'CERRADO'
-    nuevo_turno = TurnoPOS(sucursal=suc, cajero=current_user.username.upper(), fondo_inicial=0.0, estado='ABIERTO', apertura=ahora_local())
-    db.session.add(nuevo_turno)
-    db.session.flush()
-    for ca in CuentaPOS.query.filter_by(sucursal=suc, estado='ABIERTA').all():
-        ca.turno_id = nuevo_turno.id
+    # Como en Soft: después del Z la caja queda sin turno hasta que se abra otro con su fondo.
+    # Las cuentas que hayan quedado abiertas pasan al siguiente turno al abrirlo.
 
     # Limpieza automática de cola de impresión vieja (>7 días) para mantener BD rápida por años
     limite_limpieza = ahora_local() - timedelta(days=7)
@@ -1987,7 +2043,7 @@ def api_pos_cerrar_turno_arqueo():
                        autorizo=(aut_ab or ''), sucursal=suc)
     return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}",
                     'denominaciones': _denominaciones_para_ticket(denominaciones),
-                    'corte': resumen_z, 'declaracion': declaracion})
+                    'corte': resumen_z, 'declaracion': declaracion, 'extras': extras})
 
 
 # ==============================================================================
@@ -2001,6 +2057,12 @@ def api_pos_pin_inteligente(cuenta_id):
     c = CuentaPOS.query.get_or_404(cuenta_id)
     if not _cuenta_permitida(c):
         return jsonify({'ok': False, 'msg': MSG_CUENTA_AJENA}), 403
+    if c.estado != 'ABIERTA':
+        return jsonify({'ok': False, 'msg': 'La cuenta ya está cerrada.'}), 400
+    if not any(not d.es_modificador for d in c.detalles):
+        return jsonify({'ok': False, 'msg': 'La cuenta no tiene productos: no hay nada que imprimir.'}), 400
+    # Lo capturado que no se había mandado a cocina/barra se envía antes de imprimir la cuenta.
+    _generar_comandas_pendientes(c)
     c.impresa = True
     ref_folio = f"CTA-{c.id}-{c.orden}"
 
@@ -2206,7 +2268,7 @@ def api_pos_mi_venta():
         return jsonify({'ok': False}), 403
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
-    todas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id).order_by(CuentaPOS.id.desc()).all()
+    todas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id if turno else -1).order_by(CuentaPOS.id.desc()).all()
     todas = [c for c in todas if _cuenta_es_mia(c)]
     abiertas, por_pagar, pagadas = [], [], []
     for c in todas:
@@ -2264,6 +2326,8 @@ def api_confirmar_preorden_1clic(preorden_id):
     mesa_raw = orden.mesa.strip().upper()
     mesa_pos = f"T{int(mesa_raw):02d}" if mesa_raw.isdigit() else mesa_raw
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     cuenta = CuentaPOS.query.filter_by(sucursal=suc, mesa=mesa_pos, estado='ABIERTA').first()
     if not cuenta:
         num_orden = CuentaPOS.query.filter(CuentaPOS.sucursal == suc, CuentaPOS.apertura >= inicio_hoy_local()).count() + 1
@@ -2629,7 +2693,7 @@ def api_pos_resumen_operativo():
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     suc = obtener_sucursal_activa(session)
     turno = obtener_turno_activo(suc)
-    pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id, estado='PAGADA').all()
+    pagadas = CuentaPOS.query.filter_by(sucursal=suc, turno_id=turno.id if turno else -1, estado='PAGADA').all()
     venta_total = round(sum(float(c.total or 0.0) for c in pagadas), 2)
     prop_tarj = round(sum(float(c.propina_tarjeta or 0.0) for c in pagadas), 2)
     mermas = RegistroMerma.query.filter_by(sucursal=suc).order_by(RegistroMerma.id.desc()).limit(20).all()
@@ -2637,7 +2701,7 @@ def api_pos_resumen_operativo():
     return jsonify({
         'ok': True,
         'sucursal': suc,
-        'turno_id': turno.id,
+        'turno_id': turno.id if turno else None, 'turno_abierto': bool(turno),
         'cuentas_pagadas': len(pagadas),
         'venta_total': venta_total,
         'propina_tarjeta': prop_tarj,

@@ -19,7 +19,7 @@ from models import (
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
-    SUCURSAL_DEFAULT, validar_clave_admin, ConteoInventario, ConteoInventarioDetalle,
+    SUCURSAL_DEFAULT, validar_clave_admin, MSG_TURNO_CERRADO, ConteoInventario, ConteoInventarioDetalle,
     CONTEO_TOPE_SIN_CLAVE, CONTEO_BORRADOR_VIEJO_HORAS, TraspasoSucursal, PresentacionInsumo
 )
 from pos_routes import catalogo_gastos, categoria_gasto_valida
@@ -1575,6 +1575,9 @@ def api_creditos_movimiento():
 
     if tipo == 'ABONO' and bool(data.get('ingresar_a_caja', False)):
         turno = obtener_turno_activo(obtener_sucursal_activa(session))
+        if not turno:
+            db.session.rollback()
+            return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
         db.session.add(MovimientoCajaPOS(
             turno_id=turno.id, tipo='DEPOSITO', monto=monto, concepto=f'ABONO CREDITO {cli.nombre}'[:200],
             usuario=current_user.username.upper(), fecha=ahora_local()
@@ -1818,6 +1821,8 @@ def api_industrial_flujo_dinero():
         if err_cat:
             return jsonify({'ok': False, 'msg': err_cat}), 400
     turno = obtener_turno_activo(suc)
+    if not turno:
+        return jsonify({'ok': False, 'turno_cerrado': True, 'msg': MSG_TURNO_CERRADO}), 409
     db.session.add(MovimientoCajaPOS(turno_id=turno.id, tipo=tipo, monto=monto, concepto=concepto, categoria_gasto=categoria,
                                      usuario=current_user.username.upper(), fecha=ahora_local()))
     if tipo == 'RETIRO':

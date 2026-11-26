@@ -335,7 +335,11 @@
 
   /* ================= IMPRESIÓN TÉRMICA 80MM ================= */
   #zona-impresion-pos { display: none; }
-  .ticket-termico { width: 72mm; color: #000; margin: 0 auto; }  /* letra y tamaños: static/css/ticket.css */
+  .ticket-termico { width: 72mm; color: #000; margin: 0 auto; }
+  .zx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin-top: 6px; }
+  .zx-grid label { font-size: 11px; font-weight: 600; color: #475569; display: flex; flex-direction: column; gap: 2px; }
+  .zx-grid input, .zx-grid textarea { border: 1.5px solid #cbd5e1; border-radius: 7px; padding: 5px 7px; font-size: 12.5px; }
+  .btn-bloq { opacity: .45; filter: grayscale(.6); cursor: not-allowed !important; }  /* letra y tamaños: static/css/ticket.css */
   @media print {
     @page { size: 80mm auto; margin: 2mm; }
     body > *:not(#zona-impresion-pos) { display: none !important; }
@@ -1214,6 +1218,19 @@
               <button type="button" class="btn-p sm" onclick="usarDenominacionesComoEfectivo()">Usar como EFECTIVO</button>
             </div>
           </details>
+          <details id="detExtrasZ" style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;padding:6px 8px;">
+            <summary style="cursor:pointer;font-weight:700;font-size:12px;">Datos del corte: vales ADO/OCC, facturas y aclaraciones</summary>
+            <div class="zx-grid">
+              <label>Vales ADO (cantidad)<input type="number" min="0" step="1" id="zx_ado" value="0"></label>
+              <label>Vales OCC desayuno<input type="number" min="0" step="1" id="zx_occ_d" value="0"></label>
+              <label>Vales OCC comida<input type="number" min="0" step="1" id="zx_occ_c" value="0"></label>
+              <label>Vales OCC cena<input type="number" min="0" step="1" id="zx_occ_n" value="0"></label>
+              <label>Factura folio inicial<input type="text" maxlength="30" id="zx_fac_i"></label>
+              <label>Factura folio final<input type="text" maxlength="30" id="zx_fac_f"></label>
+              <label style="grid-column:1/-1;">Responsable que recibe<input type="text" maxlength="80" id="zx_resp"></label>
+              <label style="grid-column:1/-1;">Aclaraciones<textarea id="zx_acl" maxlength="500" rows="2"></textarea></label>
+            </div>
+          </details>
         </div>
         <div>
           <div style="font-size:11.5px;font-weight:800;color:#64748b;margin-bottom:4px;">Capturando: <b id="lblClaveArqActiva" style="color:var(--verde);">EF</b></div>
@@ -1577,6 +1594,33 @@
   const SUCURSAL_POS = "{{ sucursal }}";
   const ROL_POS = "{{ current_user.role }}";
   const USUARIO_POS = "{{ current_user.username|upper }}";
+  let TURNO_ABIERTO = {{ 'true' if turno else 'false' }};
+  // Cualquier respuesta "turno cerrado" del servidor abre la ventana de apertura de turno.
+  (function () {
+    const f0 = window.fetch;
+    window.fetch = async function (...args) {
+      const res = await f0.apply(this, args);
+      if (res.status === 409) {
+        res.clone().json().then(d => {
+          if (d && d.turno_cerrado) { TURNO_ABIERTO = false; notificarBarra('🔒 ' + d.msg); mostrarAvisoTurno(); }
+        }).catch(() => {});
+      }
+      return res;
+    };
+  })();
+  function exigirTurno() {
+    if (TURNO_ABIERTO) return true;
+    notificarBarra('🔒 Primero abre el turno con el fondo inicial.');
+    mostrarAvisoTurno();
+    return false;
+  }
+  function pintarBotonesPagar(c) {
+    const ok = !!(c && c.impresa);
+    document.querySelectorAll('[onclick="mostrarPagarIntegrado()"]').forEach(b => {
+      b.classList.toggle('btn-bloq', !ok);
+      b.title = ok ? '' : 'Primero imprime la cuenta (Precuenta)';
+    });
+  }
   let DATOS_TICKET_DEF = {};
   try { DATOS_TICKET_DEF = JSON.parse(document.getElementById('datos-ticket-json').textContent || '{}'); } catch (e) {}
 
@@ -1793,6 +1837,7 @@
     document.getElementById('v_orden').innerText = c.orden;
     document.getElementById('v_apertura').innerText = c.apertura;
     document.getElementById('v_impreso').innerText = c.impresa ? 'SÍ (BLOQUEADA)' : 'NO';
+    pintarBotonesPagar(c);
     document.getElementById('inputObservaciones').value = c.observaciones || '';
     document.getElementById('t_subtotal').innerText = `$${c.subtotal}`;
     document.getElementById('t_descuento').innerText = `$${c.descuento_monto}`;
@@ -1873,6 +1918,7 @@
   // 2. APERTURA DE CUENTA, CAPTURA Y MODIFICADORES
   // =========================================================================
   function abrirModalPersonasNuevaMesa(prefijo = '') {
+    if (!exigirTurno()) return;
     modoModalPersonas = 'NUEVA';
     document.getElementById('tituloModalPersonas').innerText = 'Abrir Cuenta y Elegir Personas';
     document.getElementById('selectorMesaRapidaBox').style.display = 'block';
@@ -2929,6 +2975,10 @@
 
   function mostrarPagarIntegrado() {
     if (!datosCuentaActiva) return;
+    if (!exigirTurno()) return;
+    if (!datosCuentaActiva.impresa) {
+      return notificarBarra('🖨️ Primero imprime la cuenta (Precuenta + QR) y después cóbrala.');
+    }
     refrescarClientesCreditoPago();
     desglosePago = { EF: datosCuentaActiva.total_num, TARJD: 0, TARJC: 0, TRANS: 0, VALE: 0, CRED: 0, PROP: 0 };
     bufferNum = '';
@@ -3208,6 +3258,7 @@
     if (!datosCuentaActiva) return;
     const res = await fetch(`/api/pos/pin_inteligente/${cuentaActivaId}`, { method: 'POST' });
     const p = await res.json();
+    if (p.ok === false) return notificarBarra('⚠️ ' + (p.msg || 'No se pudo imprimir la cuenta.'));
     const c = datosCuentaActiva;
     const html = `<div class="ticket-termico">
       ${_encabezadoFiscalHTML(c, '')}
@@ -3354,6 +3405,7 @@
     }
     if (!d.ok) return alert('❌ ' + (d.msg || 'No autorizado.'));
     cerrarModal('modalAbrirTurno');
+    TURNO_ABIERTO = true;
     mostrarComedorSR();
     notificarBarra(`🟢 Turno #${d.turno_id} abierto ($${d.fondo})`);
   }
@@ -3421,8 +3473,29 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
       x.descuentos_tipo.forEach(c => L.push(_lnC('DESCUENTO ' + c.tipo + ':', _$C(c.monto))));
       L.push(_GUION_C, _lnC('TOTAL DESCUENTOS:', _$C(x.total_descuentos)));
     }
+    if (x.folios_mesero) {
+      L.push(_RAYA_C, _centroC('FOLIOS POR MESERO'));
+      x.folios_mesero.forEach(m => L.push(_lnC(m.mesero.slice(0, 16) + ':', `${m.folio_min} a ${m.folio_max}`), _lnC('  ' + m.cuentas + ' CTAS', _$C(m.venta))));
+      if (!x.folios_mesero.length) L.push('SIN VENTAS');
+      L.push(_RAYA_C, _centroC('CREDITOS COBRADOS'));
+      (x.creditos_cobrados_lista || []).forEach(c => L.push(_lnC(c.concepto.slice(0, 22), _$C(c.monto))));
+      L.push(_lnC('TOTAL CREDITOS COBRADOS:', _$C(x.creditos_cobrados)));
+      L.push(_RAYA_C, _centroC('GASTOS DEL TURNO'));
+      (x.gastos || []).forEach(g => L.push(_lnC((g.categoria ? g.categoria + ' ' : '') + g.concepto, _$C(g.monto))));
+      L.push(_lnC('TOTAL GASTOS:', _$C(x.total_gastos)));
+    }
     L.push(_RAYA_C);
     return L.join('\n');
+  }
+
+  function lineasExtrasZ(ex) {
+    if (!ex) return '';
+    const L = ['', _RAYA_C, _centroC('VALES Y FACTURAS'),
+      _lnC('VALES ADO:', ex.vales_ado), _lnC('VALES OCC DESAYUNO:', ex.vales_occ_desayuno),
+      _lnC('VALES OCC COMIDA:', ex.vales_occ_comida), _lnC('VALES OCC CENA:', ex.vales_occ_cena),
+      _lnC('FACTURA FOLIO INICIAL:', ex.factura_folio_inicial || '-'), _lnC('FACTURA FOLIO FINAL:', ex.factura_folio_final || '-')];
+    if (ex.aclaraciones) L.push(_GUION_C, 'ACLARACIONES:', ...String(ex.aclaraciones).match(/.{1,40}/g));
+    return '\n' + L.join('\n');
   }
 
   function textoDeclaracionCajero(decl, d) {
@@ -3544,6 +3617,10 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     }
     let payload = Object.assign({}, valoresArqueo);
     if (conteoDenominaciones) payload.denominaciones = conteoDenominaciones;
+    const zv = id => (document.getElementById(id)?.value || '').trim();
+    payload.extras = { vales_ado: zv('zx_ado'), vales_occ_desayuno: zv('zx_occ_d'), vales_occ_comida: zv('zx_occ_c'),
+      vales_occ_cena: zv('zx_occ_n'), factura_folio_inicial: zv('zx_fac_i'), factura_folio_final: zv('zx_fac_f'),
+      responsable: zv('zx_resp'), aclaraciones: zv('zx_acl') };
     let res = await fetch('/api/pos/cerrar_turno_arqueo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -3565,7 +3642,9 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
       const textoZ = (d.corte ? textoCorteSoft(d.corte, 'CORTE DE CAJA Z (CIERRE)', d.sucursal) + '\n' + textoDeclaracionCajero(d.declaracion, d)
         : `COMENSAL CONECTADO - CORTE Z\n${d.sucursal}\nESPERADO: $${d.esperado}\nDECLARADO: $${d.declarado}\nDIFERENCIA: $${d.diferencia}`)
         + lineasDenominacionesZ(d.denominaciones)
-        + `\n\n\n________________   ________________\n    GERENTE         CAJERO: ${(d.corte && d.corte.cajero) || USUARIO_POS}`;
+        + lineasExtrasZ(d.extras)
+        + `\n\n\n________________   ________________\n RESPONSABLE        CAJERO: ${(d.corte && d.corte.cajero) || USUARIO_POS}`
+        + (d.extras && d.extras.responsable ? `\n ${d.extras.responsable}` : '');
       const div = document.createElement('div');
       div.className = 'ticket-termico';
       div.style.cssText = 'white-space:pre;font-family:Consolas,"Lucida Console","Courier New",monospace;font-size:10.5px;font-weight:400;line-height:1.3;';
@@ -4287,6 +4366,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
   document.addEventListener('DOMContentLoaded', () => {
     actualizarBotonEstacionImpresion();
     cargarCatalogoCompletoRaquel();
+    if (!TURNO_ABIERTO) { mostrarAvisoTurno(); notificarBarra('🔒 La caja no tiene turno abierto: captura el fondo inicial para empezar.'); }
     cicloCuentasCaja();
     setInterval(cicloColaImpresion, 3000);
     setInterval(cicloCuentasCaja, 4000);

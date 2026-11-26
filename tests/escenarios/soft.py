@@ -10,6 +10,10 @@ BASE_Z = {'EF': 0, 'TARJD': 0, 'TARJC': 0, 'TRANS': 0, 'VAL': 0, 'clave_admin': 
 # Turno limpio en Caminante 1 para poder comprobar los números exactos del corte
 r = cam1.post('/api/pos/cerrar_turno_arqueo', json=BASE_Z, headers=HS)
 check(r.status_code == 200, f'cierre previo para empezar turno limpio ({r.status_code})')
+r = cam1.post('/api/pos/abrir_mesa', json={'mesa': 'SFT0', 'personas': 1}, headers=HS)
+check(r.status_code == 409 and r.json.get('turno_cerrado'), 'después del corte Z la caja queda sin turno (no se abre otro solo)')
+r = cam1.post('/api/pos/abrir_turno_real', json={'fondo_inicial': 0}, headers=HS)
+check(r.status_code == 200, 'abrir turno nuevo después del Z')
 
 
 def _abrir_s(mesa, personas):
@@ -47,12 +51,14 @@ id_nuevo = next(i['id'] for i in cam1.get(f'/api/pos/detalle_cuenta/{c1}').json[
 r = cam1.post('/api/pos/cancelar_items_lote', json={'cuenta_id': c1, 'motivo_general': 'ERROR DE CAPTURA', 'clave_admin': CLAVE_S,
               'items': [{'id': id_nuevo, 'cantidad': 1}]}, headers=HS)
 check(r.status_code == 200 and not r.json.get('aviso_cocina'), 'producto aún no enviado se cancela sin imprimir aviso')
+imprimir_cuenta(cam1, c1, HS)
 r = cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c1, 'efectivo': 100, 'idem': 'soft-c1'}, headers=HS)
 check(r.status_code == 200, f'cobro cuenta 1 ($100) ({r.status_code})')
 
 c2 = _abrir_s('SFT2', 1)
 _cap_s(c2, 'LATTE PRUEBA', 65, 'BARRA')
 cam1.post('/api/pos/descuento_autorizado', json={'cuenta_id': c2, 'porcentaje': 50, 'clave_admin': CLAVE_S}, headers=HS)
+imprimir_cuenta(cam1, c2, HS)
 r = cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c2, 'efectivo': 32.5, 'idem': 'soft-c2'}, headers=HS)
 check(r.status_code == 200, f'cobro cuenta 2 con 50% ($32.50) ({r.status_code})')
 
@@ -72,12 +78,21 @@ check(x.get('cuentas_normales') == 2 and x.get('cuentas_descuento') == 1 and x.g
 serv = {s['tipo']: s['venta'] for s in x.get('por_servicio', [])}
 check(serv.get('COMEDOR') == '142.24', f'venta por tipo de servicio ({serv})')
 
-r = cam1.post('/api/pos/cerrar_turno_arqueo', json=dict(BASE_Z, EF=130), headers=HS)
+cam1.post('/api/pos/movimiento_caja', json={'tipo': 'RETIRO', 'monto': 20, 'concepto': 'HIELO', 'categoria': 'HIELO', 'clave_admin': CLAVE_S}, headers=HS)
+fm = cam1.get('/api/pos/corte_caja').json['detalle']
+check(len(fm['folios_mesero']) == 1 and fm['folios_mesero'][0]['cuentas'] == 2 and fm['folios_mesero'][0]['folio_min'] != '-'
+      and fm['total_gastos'] == '20.00' and fm['gastos'][0]['concepto'] == 'HIELO', f'corte con folios por mesero y gastos ({fm.get("folios_mesero")}, {fm.get("gastos")})')
+EXTRAS = {'vales_ado': 3, 'vales_occ_desayuno': 2, 'vales_occ_comida': 1, 'vales_occ_cena': 0,
+          'factura_folio_inicial': 'F-100', 'factura_folio_final': 'F-104', 'aclaraciones': 'Faltan 2.50 de cambio', 'responsable': 'gerente turno'}
+r = cam1.post('/api/pos/cerrar_turno_arqueo', json=dict(BASE_Z, EF=110, extras=EXTRAS), headers=HS)
 j = r.json or {}
+check(j.get('extras', {}).get('vales_ado') == 3 and j['extras']['factura_folio_final'] == 'F-104' and j['extras']['responsable'] == 'GERENTE TURNO',
+      f'Corte Z guarda vales ADO/OCC, facturas, aclaraciones y responsable ({j.get("extras")})')
 decl = {x['forma']: x for x in j.get('declaracion', [])}
 check(r.status_code == 200 and j.get('corte', {}).get('detalle', {}).get('ventas_con_imp') == '132.50'
       and decl.get('EFECTIVO', {}).get('diferencia') == '-2.50' and len(decl) == 5,
       f'Corte Z trae el corte completo y la declaración por forma de pago ({decl.get("EFECTIVO")})')
+abrir_turnos()
 
 h_pos = admin.get('/pos').get_data(as_text=True)
 check('class="tbl-canc"' in h_pos and 'id="descRapidos"' in h_pos and 'function textoCorteSoft' in h_pos,

@@ -105,6 +105,7 @@ check(r.status_code == 400, 'denominación desconocida rechazada')
 r = cam1.post('/api/pos/cerrar_turno_arqueo', json=dict(base, EF=1030, denominaciones={'B500': 2, 'M10': 3}), headers=HC1)
 check(r.status_code == 200 and r.json['declarado'] == '1030.00' and [x['clave'] for x in r.json['denominaciones']] == ['B500', 'M10'],
       f"Corte Z con $1,030 contados en billetes y monedas ({r.status_code} {r.get_data(as_text=True)[:120]})")
+abrir_turnos()
 with app.app_context():
     arq = ArqueoTurnoPOS.query.filter_by(sucursal=C1).order_by(ArqueoTurnoPOS.id.desc()).first()
     check(_json.loads(arq.denominaciones_json) == {'B500': 2, 'M10': 3} and arq.ef_declarado == 1030.0, 'desglose guardado en el arqueo')

@@ -566,6 +566,7 @@ class ArqueoTurnoPOS(db.Model):
     declarado_total = db.Column(db.Float, default=0.0)
     diferencia = db.Column(db.Float, default=0.0)
     denominaciones_json = db.Column(db.Text, nullable=True)  # {"B500": 3, "M10": 7, ...} si se contó por denominación
+    extras_json = db.Column(db.Text, nullable=True)  # vales ADO/OCC, folios de factura, aclaraciones y responsable
 
 
 # ==============================================================================
@@ -1236,8 +1237,15 @@ def detectar_area_impresion(categoria_nombre):
     return 'COCINA'
 
 
-def obtener_turno_activo(sucursal='Quiosco Morisco (Matriz)'):
+MSG_TURNO_CERRADO = 'La caja no ha abierto turno. Primero abre el turno con el fondo inicial (botón TURNO en Caja).'
+
+
+def obtener_turno_activo(sucursal='Quiosco Morisco (Matriz)', crear=False):
+    """Turno ABIERTO de la sucursal o None. Como en Soft Restaurant, el turno solo se abre a propósito desde Caja
+    (apertura con fondo inicial): crear=True solo lo usa esa apertura."""
     t = TurnoPOS.query.filter_by(sucursal=sucursal, estado='ABIERTO').order_by(TurnoPOS.id.desc()).first()
+    if not t and not crear:
+        return None
     if not t:
         # Dos peticiones a la vez no deben abrir dos turnos: se serializa por sucursal y se vuelve a consultar.
         try:
@@ -1456,7 +1464,7 @@ ESQUEMA_REQUERIDO = {
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
     'cuentas_pos': {'descuento_fijo', 'cobro_idem'},
     'movimientos_caja_pos': {'categoria_gasto'},
-    'arqueos_turno_pos': {'denominaciones_json'},
+    'arqueos_turno_pos': {'denominaciones_json', 'extras_json'},
     'traspasos_sucursal': {'origen', 'destino', 'insumo_id', 'cantidad', 'cantidad_recibida', 'estado'},
     'detalles_pos': {'enviado_en', 'kds_estado', 'kds_listo_en'},
     'reservaciones': {'sucursal', 'fecha_hora', 'mesa', 'estado', 'cuenta_id'},
@@ -1564,6 +1572,7 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS fecha_baja DATE;",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS motivo_baja VARCHAR(120);",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS detalle_json TEXT;",
+            "ALTER TABLE arqueos_turno_pos ADD COLUMN IF NOT EXISTS extras_json TEXT;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
             # Aislamiento por sucursal (los registros existentes quedan en la Matriz; no se reescribe la tabla).
