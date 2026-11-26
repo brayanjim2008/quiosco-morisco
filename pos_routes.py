@@ -2023,7 +2023,11 @@ def api_pos_cerrar_turno_arqueo():
         'aclaraciones': str(ex.get('aclaraciones') or '').strip()[:500],
         'responsable': str(ex.get('responsable') or '').strip().upper()[:80],
     }
+    z_completo = {'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}",
+                  'diferencia': f"{diferencia:.2f}", 'denominaciones': _denominaciones_para_ticket(denominaciones),
+                  'corte': resumen_z, 'declaracion': declaracion, 'extras': extras}
     db.session.add(ArqueoTurnoPOS(
+        corte_json=_json_asig.dumps(z_completo, ensure_ascii=False),
         extras_json=_json_asig.dumps(extras, ensure_ascii=False),
         sucursal=suc, turno_id=turno.id, cajero=current_user.username.upper(), fecha=ahora_local(),
         ef_declarado=ef_dec, td_declarado=td_dec, tc_declarado=tc_dec, trans_declarado=tr_dec,

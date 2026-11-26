@@ -223,15 +223,9 @@
     <div class="grid-2">
       <div class="card">
         <div class="card-head"><h3><i class="fa-solid fa-user-check" style="color:var(--cobre);"></i> Checador de Personal</h3></div>
-        <div class="form-row">
-          <input type="text" id="chk_emp" class="inp" placeholder="Nombre del empleado...">
-          <select id="chk_tipo" class="inp">
-            <option value="ENTRADA">🟢 ENTRADA</option>
-            <option value="SALIDA">🔴 SALIDA</option>
-            <option value="DESCANSO">🟡 DESCANSO</option>
-          </select>
-          <input type="text" id="chk_nota" class="inp" placeholder="Nota opcional...">
-          <button type="button" class="btn" onclick="registrarAsistenciaSuc()">Registrar</button>
+        <div style="margin-bottom:10px;">
+          <a class="btn" href="/nomina_creditos#checador"><i class="fa-solid fa-fingerprint"></i> Abrir Checador por PIN</a>
+          <span style="font-size:11.5px;color:#64748b;margin-left:6px;">Cada empleado checa con su PIN. Registros de hoy:</span>
         </div>
         <div class="table-wrap">
           <table>
@@ -592,16 +586,6 @@
     } catch {}
   }
 
-  async function registrarAsistenciaSuc() {
-    const empleado_nombre = $('chk_emp').value.trim();
-    if (!empleado_nombre) return alert('Escribe el nombre del empleado.');
-    const res = await fetch('/api/checador/registrar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sucursal: SUCURSAL_ACTUAL, empleado_nombre, tipo: $('chk_tipo').value, notas: $('chk_nota').value })
-    });
-    const d = await res.json();
-    if (d.ok) { $('chk_emp').value = ''; $('chk_nota').value = ''; toast('✓ Asistencia guardada'); cargarChecadorSuc(); }
-  }
 
   async function cargarMermasSuc() {
     try {

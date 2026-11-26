@@ -95,7 +95,7 @@ check(r.status_code == 200 and j.get('corte', {}).get('detalle', {}).get('ventas
 abrir_turnos()
 
 h_pos = admin.get('/pos').get_data(as_text=True)
-check('class="tbl-canc"' in h_pos and 'id="descRapidos"' in h_pos and 'function textoCorteSoft' in h_pos,
+check('class="tbl-canc"' in h_pos and 'id="descRapidos"' in h_pos and 'js/corte_ticket.js' in h_pos,
       'POS: cancelación en tabla, % rápidos en descuento y corte estilo Soft')
 
 # Ficha del empleado como en Soft: sueldo diario/hora, contacto, emergencia, correo, acta, CURP y foto
@@ -150,3 +150,19 @@ h = cam1.get('/nomina_creditos').get_data(as_text=True)
 check('>CRÉDITOS<' in h and 'id="sec_prestaciones"' not in h and "cambiarTab('vales', this)\" style=\"display:none\"" in h,
       'la caja no ve Nómina ni vales de personal (solo Créditos y Checador)')
 check('<span>Créditos</span>' in h, 'en la barra de módulos de la caja dice Créditos, no Nómina')
+
+# ---- Historial de cortes Z por fechas y reimpresión ----
+r = admin.get('/api/industrial/cortes?desde=2000-01-01&sucursal=Caminante 1')
+cz = r.json.get('cortes', [])
+check(r.status_code == 200 and len(cz) >= 2 and any(c['completo'] for c in cz), f'historial de cortes Z por fechas ({len(cz)})')
+completo = next(c for c in cz if c['completo'])
+z = admin.get(f"/api/industrial/corte/{completo['id']}").json
+check(z['ok'] and z['corte']['detalle']['folios_mesero'] and z['extras']['factura_folio_final'] == 'F-104' and len(z['declaracion']) == 5,
+      'el corte Z guardado trae todo para reimprimirlo igual')
+check(admin.get('/api/industrial/cortes').status_code == 200 and cam1.get('/api/industrial/cortes').status_code == 403, 'historial de cortes solo admin')
+check(cam1.post('/api/checador/registrar', json={'empleado_nombre': 'X'}, headers=HS).status_code == 403,
+      'la captura manual de asistencia ya no la hace la caja (solo PIN)')
+r = admin.get('/api/checador/lista?desde=2000-01-01&sucursal=TODAS')
+check(r.status_code == 200 and 'fecha' in (r.json['asistencias'][0] if r.json['asistencias'] else {'fecha': 1}), 'reporte de asistencia por fechas')
+h_ind = admin.get('/industrial').get_data(as_text=True)
+check('id="cz_desde"' in h_ind and 'id="as_desde"' in h_ind and 'js/corte_ticket.js' in h_ind, 'Reportes: historial de cortes y asistencia por fechas')

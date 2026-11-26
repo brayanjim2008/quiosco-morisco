@@ -94,7 +94,7 @@ body.tema-sistema { background: var(--hueso) !important; color: var(--texto); fo
    ===================================================================== */
 :root { --fuente: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; }
 body,
-body *:not(i):not([class*="fa-"]):not(pre):not(code):not(.ticket-termico):not(.ticket-termico *):not(#zona-impresion-pos *):not(#zona-impresion-nomina *):not(#zona-impresion-termica *):not(#papelCorteX) {
+body *:not(i):not([class*="fa-"]):not(pre):not(code):not(.ticket-termico):not(.ticket-termico *):not(#zona-impresion-pos *):not(#zona-impresion-nomina *):not(#zona-impresion-termica *):not(#zona-impresion-corte):not(#papelCorteX) {
   font-family: var(--fuente);
 }
 body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }

@@ -938,7 +938,8 @@ def api_recetas_costeo():
 @operacion_bp.route('/api/checador/registrar', methods=['POST'])
 @login_required
 def api_checador_registrar():
-    if current_user.role not in ['admin', 'sucursal']:
+    """Corrección manual de asistencia (el registro normal es el Checador por PIN)."""
+    if current_user.role != 'admin':
         return jsonify({'ok': False, 'msg': 'Sin permiso'}), 403
     data = request.json or {}
     suc = obtener_sucursal_activa(session) if current_user.role == 'sucursal' else (data.get('sucursal') or obtener_sucursal_activa(session))
@@ -956,12 +957,21 @@ def api_checador_registrar():
 def api_checador_lista():
     if current_user.role not in ['admin', 'sucursal']:
         return jsonify({'ok': False}), 403
-    q = RegistroAsistencia.query.filter(RegistroAsistencia.fecha >= inicio_hoy_local())
+    if request.args.get('desde') or request.args.get('hasta'):
+        desde, hasta = _rango_fechas_args()
+    else:
+        desde, hasta = inicio_hoy_local(), inicio_hoy_local() + timedelta(days=1)
+    q = RegistroAsistencia.query.filter(RegistroAsistencia.fecha >= desde, RegistroAsistencia.fecha < hasta)
     if current_user.role == 'sucursal':
         q = q.filter_by(sucursal=obtener_sucursal_activa(session))
-    registros = q.order_by(RegistroAsistencia.id.desc()).all()
+    elif request.args.get('sucursal') and request.args.get('sucursal') != 'TODAS':
+        q = q.filter_by(sucursal=request.args.get('sucursal'))
+    emp = str(request.args.get('empleado') or '').strip().upper()
+    if emp:
+        q = q.filter(RegistroAsistencia.empleado_nombre.like(f'%{emp}%'))
+    registros = q.order_by(RegistroAsistencia.id.desc()).limit(3000).all()
     return jsonify({'ok': True, 'asistencias': [{
-        'id': a.id, 'hora': a.fecha.strftime('%H:%M:%S'), 'sucursal': a.sucursal,
+        'id': a.id, 'hora': a.fecha.strftime('%H:%M:%S'), 'fecha': a.fecha.strftime('%d/%m/%Y'), 'sucursal': a.sucursal,
         'empleado': a.empleado_nombre, 'tipo': a.tipo, 'notas': a.notas
     } for a in registros]})
 
@@ -1969,6 +1979,63 @@ def exportar_mermas():
         ('ID', 'Fecha', 'Sucursal', 'Insumo', 'Cantidad', 'Unidad', 'Costo_Total', 'Motivo', 'Registrado_Por'),
         filas, f"Reporte_Mermas_{ahora_local().strftime('%Y%m%d')}.csv"
     )
+
+
+def _rango_fechas_args():
+    """(desde, hasta_exclusivo) de ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD; si faltan, los últimos 30 días."""
+    hoy = inicio_hoy_local()
+    try:
+        desde = datetime.strptime(request.args.get('desde', '')[:10], '%Y-%m-%d')
+    except ValueError:
+        desde = hoy - timedelta(days=29)
+    try:
+        hasta = datetime.strptime(request.args.get('hasta', '')[:10], '%Y-%m-%d') + timedelta(days=1)
+    except ValueError:
+        hasta = hoy + timedelta(days=1)
+    return desde, hasta
+
+
+@operacion_bp.route('/api/industrial/cortes')
+@login_required
+def api_industrial_cortes():
+    """Historial de cortes Z por fechas y sucursal (cualquier fecha, no solo los últimos)."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False}), 403
+    desde, hasta = _rango_fechas_args()
+    q = ArqueoTurnoPOS.query.filter(ArqueoTurnoPOS.fecha >= desde, ArqueoTurnoPOS.fecha < hasta)
+    suc = request.args.get('sucursal', 'TODAS')
+    if suc and suc != 'TODAS':
+        q = q.filter(ArqueoTurnoPOS.sucursal == suc)
+    arqs = q.order_by(ArqueoTurnoPOS.fecha.desc()).limit(1000).all()
+    return jsonify({'ok': True, 'cortes': [{
+        'id': a.id, 'fecha': a.fecha.strftime('%d/%m/%Y %H:%M'), 'sucursal': a.sucursal or SUCURSAL_DEFAULT,
+        'turno': a.turno_id, 'cajero': a.cajero,
+        'esperado': round(a.esperado_total or 0, 2), 'declarado': round(a.declarado_total or 0, 2),
+        'diferencia': round(a.diferencia or 0, 2), 'completo': bool(a.corte_json),
+        'estatus': 'OK' if abs(a.diferencia or 0) < 1 else ('FALTANTE' if (a.diferencia or 0) < 0 else 'SOBRANTE'),
+    } for a in arqs],
+        'totales': {'esperado': round(sum(a.esperado_total or 0 for a in arqs), 2),
+                    'declarado': round(sum(a.declarado_total or 0 for a in arqs), 2),
+                    'diferencia': round(sum(a.diferencia or 0 for a in arqs), 2)}})
+
+
+@operacion_bp.route('/api/industrial/corte/<int:arqueo_id>')
+@login_required
+def api_industrial_corte(arqueo_id):
+    """Un corte Z para verlo o reimprimirlo. Los cortes anteriores a este cambio solo traen el resumen."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False}), 403
+    a = ArqueoTurnoPOS.query.get_or_404(arqueo_id)
+    if a.corte_json:
+        z = json.loads(a.corte_json)
+    else:
+        z = {'sucursal': a.sucursal, 'esperado': f"{a.esperado_total:.2f}", 'declarado': f"{a.declarado_total:.2f}",
+             'diferencia': f"{a.diferencia:.2f}", 'denominaciones': [],
+             'extras': json.loads(a.extras_json) if a.extras_json else None}
+    z['ok'] = True
+    z['fecha'] = a.fecha.strftime('%d/%m/%Y %H:%M')
+    z['cajero_arqueo'] = a.cajero
+    return jsonify(z)
 
 
 @operacion_bp.route('/api/exportar/cortes_caja')

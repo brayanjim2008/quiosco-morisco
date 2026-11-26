@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="{{ url_for('static', filename='js/corte_ticket.js') }}"></script>
 <style>
   :root {
     --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246;
@@ -98,6 +99,13 @@
     padding: 10px 14px; border-radius: 10px; font-weight: 800; margin-bottom: 10px;
   }
 
+  #zona-impresion-corte { display: none; }
+  @media print {
+    @page { size: 80mm auto; margin: 2mm; }
+    body > *:not(#zona-impresion-corte):not(.container) { display: none !important; }
+    .container > *:not(#zona-impresion-corte) { display: none !important; }
+    #zona-impresion-corte { display: block !important; white-space: pre; width: 76mm; font: 400 10.5px/1.3 Consolas, 'Lucida Console', 'Courier New', monospace; color: #000; }
+  }
   .modal-bg { position: fixed; inset: 0; background: rgba(11,41,36,0.78); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 500; padding: 14px; }
   .modal-box { background: #fff; width: 540px; max-width: 96vw; border-radius: 16px; border: 2px solid var(--cobre); padding: 18px; }
   .wa-preview { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12.5px; white-space: pre-wrap; max-height: 360px; overflow-y: auto; margin: 10px 0; font-weight: 700; color: #14532d; }
@@ -122,7 +130,7 @@
   <button type="button" class="tab-btn activo" data-tab="resumen" onclick="cambiarTab('resumen', this)"><i class="fa-solid fa-chart-column"></i> 1. Ventas 4 Sucursales</button>
   <button type="button" class="tab-btn" data-tab="cancelaciones" onclick="cambiarTab('cancelaciones', this)"><i class="fa-solid fa-shield-halved"></i> 2. Cancelaciones</button>
   <button type="button" class="tab-btn" data-tab="cortes" onclick="cambiarTab('cortes', this)"><i class="fa-solid fa-file-invoice-dollar"></i> 3. Cortes Z</button>
-  <button type="button" class="tab-btn" data-tab="checador" onclick="cambiarTab('checador', this)"><i class="fa-solid fa-user-clock"></i> 4. Checador</button>
+  <button type="button" class="tab-btn" data-tab="checador" onclick="cambiarTab('checador', this)"><i class="fa-solid fa-user-clock"></i> 4. Asistencia</button>
   <button type="button" class="tab-btn" data-tab="mermas" onclick="cambiarTab('mermas', this)"><i class="fa-solid fa-trash-can-arrow-up"></i> 5. Mermas</button>
   <button type="button" class="tab-btn" data-tab="lentos" onclick="cambiarTab('lentos', this)"><i class="fa-solid fa-arrow-trend-down"></i> 6. Menos Vendidos</button>
   <button type="button" class="tab-btn" data-tab="recetas" onclick="cambiarTab('recetas', this)"><i class="fa-solid fa-mug-hot"></i> 7. Recetas y Stock Local</button>
@@ -178,45 +186,79 @@
     </div>
   </section>
 
-  <!-- TAB 3: CORTES Z -->
+  <!-- TAB 3: CORTES Z (historial por fechas) -->
   <section id="sec_cortes" class="panel-sec">
     <div class="card">
       <div class="card-head">
-        <h3><i class="fa-solid fa-cash-register" style="color:var(--cobre);"></i> Últimos 20 Cortes de Caja (Z)</h3>
-        <a href="/api/exportar/cortes_caja" class="btn sm"><i class="fa-solid fa-file-excel"></i> Exportar Excel</a>
+        <h3><i class="fa-solid fa-cash-register" style="color:var(--cobre);"></i> Historial de Cortes de Caja (Z)</h3>
+        <a href="/api/exportar/cortes_caja" class="btn sm"><i class="fa-solid fa-file-excel"></i> Exportar Excel (todos)</a>
       </div>
-      <div class="table-wrap">
+      <div class="form-row">
+        <div><label class="lbl">Desde</label><input type="date" id="cz_desde" class="inp"></div>
+        <div><label class="lbl">Hasta</label><input type="date" id="cz_hasta" class="inp"></div>
+        <div><label class="lbl">Sucursal</label><select id="cz_suc" class="inp"><option value="TODAS">Todas</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+        <div style="display:flex;align-items:flex-end;"><button type="button" class="btn" onclick="cargarCortesHist()"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button></div>
+      </div>
+      <div class="table-wrap" style="max-height:520px;overflow:auto;">
         <table>
-          <thead><tr><th>Fecha</th><th>Sucursal</th><th>Turno</th><th>Cajero</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th><th>Estatus</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Sucursal</th><th>Turno</th><th>Cajero</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th><th>Estatus</th><th></th></tr></thead>
           <tbody id="tbodyCortesZ"></tbody>
+          <tfoot id="tfootCortesZ"></tfoot>
         </table>
       </div>
     </div>
   </section>
 
-  <!-- TAB 4: CHECADOR -->
+  <div class="modal-bg" id="modalVerCorte" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-box" style="width:460px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;color:var(--verde);" id="tituloVerCorte">Corte Z</h3>
+        <button type="button" class="btn sm gris" onclick="$('modalVerCorte').style.display='none'">✕</button>
+      </div>
+      <pre id="papelCorteHist" style="background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;padding:12px;font-family:Consolas,'Lucida Console','Courier New',monospace;font-size:11.5px;line-height:1.35;white-space:pre-wrap;max-height:62vh;overflow:auto;margin:0;"></pre>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+        <button type="button" class="btn cobre" onclick="imprimirCorteHist()"><i class="fa-solid fa-print"></i> Reimprimir</button>
+      </div>
+    </div>
+  </div>
+  <div id="zona-impresion-corte"></div>
+
+  <!-- TAB 4: ASISTENCIA (los empleados checan con su PIN en Nómina / Créditos → Checador PIN) -->
   <section id="sec_checador" class="panel-sec">
     <div class="card">
-      <div class="card-head"><h3><i class="fa-solid fa-user-check" style="color:var(--cobre);"></i> Registrar Asistencia</h3></div>
-      <div class="form-row">
-        <select id="chk_sucursal" class="inp">
-          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-        </select>
-        <input type="text" id="chk_empleado" class="inp" placeholder="Nombre del empleado...">
-        <select id="chk_tipo" class="inp">
-          <option value="ENTRADA">🟢 ENTRADA</option>
-          <option value="SALIDA">🔴 SALIDA</option>
-          <option value="DESCANSO">🟡 DESCANSO</option>
-        </select>
-        <input type="text" id="chk_notas" class="inp" placeholder="Nota opcional...">
-        <button type="button" class="btn" onclick="registrarAsistencia()">✅ Registrar</button>
+      <div class="card-head">
+        <h3><i class="fa-solid fa-user-check" style="color:var(--cobre);"></i> Reporte de Asistencia</h3>
+        <button type="button" class="btn sm cobre" onclick="excelAsistencia()"><i class="fa-solid fa-file-excel"></i> Excel</button>
       </div>
-      <div class="table-wrap">
+      <div class="form-row">
+        <div><label class="lbl">Desde</label><input type="date" id="as_desde" class="inp"></div>
+        <div><label class="lbl">Hasta</label><input type="date" id="as_hasta" class="inp"></div>
+        <div><label class="lbl">Sucursal</label><select id="as_suc" class="inp"><option value="TODAS">Todas</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+        <div><label class="lbl">Empleado</label><input type="text" id="as_emp" class="inp" placeholder="Nombre (opcional)"></div>
+        <div style="display:flex;align-items:flex-end;"><button type="button" class="btn" onclick="cargarChecador()"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button></div>
+      </div>
+      <div class="table-wrap" style="max-height:480px;overflow:auto;">
         <table>
-          <thead><tr><th>Hora</th><th>Sucursal</th><th>Empleado</th><th>Tipo</th><th>Notas</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Hora</th><th>Sucursal</th><th>Empleado</th><th>Tipo</th><th>Notas</th></tr></thead>
           <tbody id="tbodyChecador"></tbody>
         </table>
       </div>
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-weight:700;font-size:12.5px;color:var(--verde);">Corrección manual (solo Admin: si alguien olvidó checar)</summary>
+        <div class="form-row" style="margin-top:8px;">
+          <select id="chk_sucursal" class="inp">
+            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
+          <input type="text" id="chk_empleado" class="inp" placeholder="Nombre del empleado...">
+          <select id="chk_tipo" class="inp">
+            <option value="ENTRADA">ENTRADA</option><option value="SALIDA">SALIDA</option><option value="DESCANSO">DESCANSO</option>
+          </select>
+          <input type="text" id="chk_notas" class="inp" placeholder="Motivo de la corrección">
+          <button type="button" class="btn" onclick="registrarAsistencia()">Registrar corrección</button>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -516,6 +558,7 @@
     if (tab === 'resumen' || tab === 'cortes' || tab === 'lentos') cargarDashboard();
     if (tab === 'cancelaciones') cargarCancelaciones();
     if (tab === 'checador') cargarChecador();
+    if (tab === 'cortes') cargarCortesHist();
     if (tab === 'mermas') cargarMermas();
     if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); cargarCosteo(); }
     if (tab === 'flujo') cargarFlujoDinero();
@@ -571,14 +614,6 @@
         }
       });
 
-      $('tbodyCortesZ').innerHTML = (d.cortes || []).map(c => {
-        const cls = c.estatus === 'OK' ? 'ok' : (c.estatus === 'FALTANTE' ? 'err' : 'warn');
-        return `<tr>
-          <td>${esc(c.fecha)}</td><td>${esc(c.sucursal)}</td><td>${esc(c.turno)}</td><td>${esc(c.cajero)}</td>
-          <td>${esc(c.esperado)}</td><td>${esc(c.declarado)}</td><td><b>${esc(c.diferencia)}</b></td>
-          <td><span class="pill ${cls}">${esc(c.estatus)}</span></td>
-        </tr>`;
-      }).join('') || '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:16px;">Sin cortes Z registrados aún.</td></tr>';
 
       $('tbodyMenosVendidos').innerHTML = (d.menos_vendidos || []).map(p => `<tr>
         <td>${esc(p.categoria)}</td><td><b>${esc(p.nombre)}</b></td><td>${esc(p.precio)}</td>
@@ -604,16 +639,68 @@
   }
 
   // 3. CHECADOR
+  const _hoyISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  let ultimaAsistencia = [];
   async function cargarChecador() {
     try {
-      const d = await (await fetch('/api/checador/lista')).json();
+      if (!$('as_desde').value) { $('as_desde').value = _hoyISO(); $('as_hasta').value = _hoyISO(); }
+      const qs = new URLSearchParams({ desde: $('as_desde').value, hasta: $('as_hasta').value, sucursal: $('as_suc').value, empleado: $('as_emp').value.trim() });
+      const d = await (await fetch('/api/checador/lista?' + qs)).json();
       if (!d.ok) return;
+      ultimaAsistencia = d.asistencias || [];
       $('tbodyChecador').innerHTML = (d.asistencias || []).map(a => `<tr>
-        <td>${esc(a.hora)}</td><td>${esc(a.sucursal)}</td><td><b>${esc(a.empleado)}</b></td>
+        <td>${esc(a.fecha)}</td><td>${esc(a.hora)}</td><td>${esc(a.sucursal)}</td><td><b>${esc(a.empleado)}</b></td>
         <td><span class="pill ${a.tipo === 'ENTRADA' ? 'ok' : (a.tipo === 'SALIDA' ? 'err' : 'warn')}">${esc(a.tipo)}</span></td>
         <td>${esc(a.notas || '-')}</td>
-      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:16px;">Sin registros hoy.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">Sin registros en esas fechas.</td></tr>';
     } catch {}
+  }
+  function excelAsistencia() {
+    if (!ultimaAsistencia.length) return alert('Primero consulta el reporte.');
+    const filas = [['Fecha', 'Hora', 'Sucursal', 'Empleado', 'Tipo', 'Notas'],
+      ...ultimaAsistencia.map(a => [a.fecha, a.hora, a.sucursal, a.empleado, a.tipo, a.notas || ''])];
+    const csv = filas.map(f => f.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const el = document.createElement('a');
+    el.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    el.download = `asistencia_${$('as_desde').value}_${$('as_hasta').value}.csv`;
+    el.click();
+  }
+
+  // HISTORIAL DE CORTES Z
+  let corteHistActual = null;
+  async function cargarCortesHist() {
+    if (!$('cz_desde').value) {
+      const d0 = new Date(Date.now() - 29 * 86400000 - new Date().getTimezoneOffset() * 60000);
+      $('cz_desde').value = d0.toISOString().slice(0, 10); $('cz_hasta').value = _hoyISO();
+    }
+    const qs = new URLSearchParams({ desde: $('cz_desde').value, hasta: $('cz_hasta').value, sucursal: $('cz_suc').value });
+    const d = await (await fetch('/api/industrial/cortes?' + qs)).json();
+    if (!d.ok) return;
+    const m = v => '$' + Number(v || 0).toFixed(2);
+    $('tbodyCortesZ').innerHTML = d.cortes.map(c => {
+      const cls = c.estatus === 'OK' ? 'ok' : (c.estatus === 'FALTANTE' ? 'err' : 'warn');
+      return `<tr><td>${esc(c.fecha)}</td><td>${esc(c.sucursal)}</td><td>#${esc(c.turno)}</td><td>${esc(c.cajero)}</td>
+        <td>${m(c.esperado)}</td><td>${m(c.declarado)}</td><td><b>${m(c.diferencia)}</b></td>
+        <td><span class="pill ${cls}">${esc(c.estatus)}</span></td>
+        <td><button type="button" class="btn sm" onclick="verCorteHist(${Number(c.id)})"><i class="fa-solid fa-eye"></i> Ver</button></td></tr>`;
+    }).join('') || '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">Sin cortes Z en esas fechas.</td></tr>';
+    $('tfootCortesZ').innerHTML = d.cortes.length ? `<tr><td colspan="4" style="text-align:right;font-weight:700;">TOTALES (${d.cortes.length} cortes)</td>
+      <td><b>${m(d.totales.esperado)}</b></td><td><b>${m(d.totales.declarado)}</b></td><td><b>${m(d.totales.diferencia)}</b></td><td colspan="2"></td></tr>` : '';
+  }
+  async function verCorteHist(id) {
+    const d = await (await fetch(`/api/industrial/corte/${id}`)).json();
+    if (!d.ok) return alert('No se pudo abrir el corte.');
+    corteHistActual = d;
+    $('tituloVerCorte').innerText = `Corte Z · ${d.sucursal} · ${d.fecha}`;
+    let txt = textoZCompleto(d, d.cajero_arqueo);
+    if (!d.corte) txt += '\n\n(Corte anterior al guardado completo: solo se conserva el resumen.)';
+    $('papelCorteHist').textContent = txt;
+    $('modalVerCorte').style.display = 'flex';
+  }
+  function imprimirCorteHist() {
+    const z = $('zona-impresion-corte');
+    z.textContent = $('papelCorteHist').textContent;
+    window.print();
   }
 
   async function registrarAsistencia() {

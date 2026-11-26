@@ -967,7 +967,10 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => { cargarFinanzas(); cargarCreditos(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarFinanzas(); cargarCreditos();
+    if (location.hash === '#checador') document.querySelector("[onclick^=\"cambiarTab('checador_pin'\"]")?.click();
+  });
 </script>
 </body>
 </html>
