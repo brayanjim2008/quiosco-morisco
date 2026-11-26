@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Monitor Cocina / Barra • {{ sucursal }}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 <style>
   :root { --fondo: #0b1512; --tarjeta: #13221d; --borde: #24413a; --texto: #e7f2ee; --tenue: #8fb0a6;
           --cobre: #c98246; --verde: #16a34a; --amarillo: #f59e0b; --rojo: #dc2626; }
@@ -65,7 +66,7 @@
   </span>
   {% endif %}
   <button type="button" class="btn" onclick="pantallaCompleta()"><i class="fa-solid fa-expand"></i></button>
-  <a href="/pos" class="btn">POS</a>
+  {% include '_modulos.html' %}
 </div>
 <div class="grid" id="grid"></div>
 

@@ -10,7 +10,11 @@
 <title>Comandero • {{ sucursal }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 <style>
+  /* La barra de módulos baja a otra fila si no cabe (admin ve todos los módulos) */
+  .mob-topbar { height: auto !important; min-height: 56px; flex-wrap: wrap; padding-top: 6px !important; padding-bottom: 6px !important; }
+  .mob-actions-right { flex-wrap: wrap; justify-content: flex-end; overflow: visible !important; row-gap: 5px; }
   :root {
     --verde: #13423b;
     --verde-oscuro: #0b2924;
@@ -325,10 +329,7 @@
       <button type="button" class="mob-pill-btn" onclick="abrirMiVenta()"><i class="fa-solid fa-chart-line"></i> Mi Venta</button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalPreordenesNFC()">🔔 Plaquitas <span class="mob-badge-alert" id="badgePreordenesTablet">{{ preordenes|length }}</span></button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalAgotadosTablet()">🚫 Agotados</button>
-      {% if current_user.role in ['admin', 'gerente', 'cajero', 'sucursal'] %}
-      <a href="/pos" class="mob-pill-btn">🖥️ POS</a>
-      {% endif %}
-      <a href="{{ url_for('logout') }}" class="mob-pill-btn" style="background:#ef4444;border-color:#ef4444;"><i class="fa-solid fa-power-off"></i></a>
+      {% include '_modulos.html' %}
     </div>
   </div>
 
