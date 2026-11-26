@@ -274,6 +274,9 @@ ejecutar_escenario('soft.py')
 # Auxiliar de nómina: descuentos, aguinaldo, bonos, permisos, vacaciones, catálogos y bajas
 ejecutar_escenario('nomina.py')
 
+# Fase 5: órdenes por proveedor, cuentas por pagar y caducidades
+ejecutar_escenario('compras_f5.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

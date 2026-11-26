@@ -627,6 +627,7 @@ class InsumoBodegaPro(db.Model):
     costo_unitario = db.Column(db.Float, default=0.0)
     activo = db.Column(db.Boolean, default=True)
     es_elaborado = db.Column(db.Boolean, default=False)  # sub-receta: salsa, base, jarabe... producido en casa
+    proveedor_id = db.Column(db.Integer, nullable=True)  # proveedor habitual (para armar las órdenes por proveedor)
 
 
 class PresentacionInsumo(db.Model):
@@ -736,6 +737,42 @@ class ProveedorAlmacen(db.Model):
     telefono = db.Column(db.String(40), default='')
     categoria = db.Column(db.String(60), default='GENERAL')
     saldo_pendiente = db.Column(db.Float, default=0.0)
+    dias_credito = db.Column(db.Integer, default=0)   # 0 = pago de contado (vence el mismo día)
+
+
+class MovimientoProveedorPOS(db.Model):
+    """Cuentas por pagar: CARGO (compra recibida, con fecha de vencimiento) o ABONO (pago al proveedor)."""
+    __tablename__ = 'movimientos_proveedor_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local, index=True)
+    proveedor_id = db.Column(db.Integer, nullable=False, index=True)
+    proveedor_nombre = db.Column(db.String(120), default='')
+    tipo = db.Column(db.String(10), nullable=False)      # CARGO | ABONO
+    monto = db.Column(db.Float, default=0.0)
+    concepto = db.Column(db.String(200), default='')
+    orden_id = db.Column(db.Integer, nullable=True)
+    vence = db.Column(db.Date, nullable=True)
+    forma_pago = db.Column(db.String(30), default='')
+    referencia = db.Column(db.String(60), default='')
+    usuario = db.Column(db.String(60), default='')
+
+
+class LoteInsumoPOS(db.Model):
+    """Lote recibido con fecha de caducidad, para avisar lo que está por vencer."""
+    __tablename__ = 'lotes_insumo_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    insumo_id = db.Column(db.Integer, nullable=False, index=True)
+    insumo_nombre = db.Column(db.String(120), default='')
+    unidad = db.Column(db.String(20), default='')
+    cantidad = db.Column(db.Float, default=0.0)
+    caducidad = db.Column(db.Date, nullable=False, index=True)
+    recibido = db.Column(db.DateTime, default=ahora_local)
+    orden_id = db.Column(db.Integer, nullable=True)
+    proveedor = db.Column(db.String(120), default='')
+    estado = db.Column(db.String(10), default='ACTIVO')   # ACTIVO | USADO | MERMA
+    cerrado_en = db.Column(db.DateTime, nullable=True)
+    cerrado_por = db.Column(db.String(60), default='')
+    usuario = db.Column(db.String(60), default='')
 
 
 class RegistroAsistencia(db.Model):
@@ -1592,6 +1629,9 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
     'user': {'pin_rapido', 'permisos_json'},
+    'proveedores_almacen': {'dias_credito'},
+    'movimientos_proveedor_pos': {'tipo', 'vence'},
+    'lotes_insumo_pos': {'caducidad', 'estado'},
     'promociones_pos': {'sucursal'},
     'precios_sucursal_pos': {'producto_id', 'sucursal', 'precio', 'disponible'},
     'alertas_dueno_pos': {'tipo', 'texto'},
@@ -1608,7 +1648,7 @@ ESQUEMA_REQUERIDO = {
     'traspasos_sucursal': {'origen', 'destino', 'insumo_id', 'cantidad', 'cantidad_recibida', 'estado'},
     'detalles_pos': {'enviado_en', 'kds_estado', 'kds_listo_en'},
     'reservaciones': {'sucursal', 'fecha_hora', 'mesa', 'estado', 'cuenta_id'},
-    'insumos_bodega_pro': {'es_elaborado'},
+    'insumos_bodega_pro': {'es_elaborado', 'proveedor_id'},
     'presentaciones_insumo': {'insumo_id', 'nombre', 'factor', 'activo'},
     'recetas_elaborados': {'elaborado_id', 'insumo_id', 'cantidad'},
     'ordenes_compra': {'proveedor_id', 'estado', 'total_estimado', 'total_real'},
@@ -1686,6 +1726,8 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_entregada DOUBLE PRECISION;",
             "ALTER TABLE requerimientos_bodega ADD COLUMN IF NOT EXISTS cantidad_recibida DOUBLE PRECISION;",
             "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;",
+            "ALTER TABLE insumos_bodega_pro ADD COLUMN IF NOT EXISTS proveedor_id INTEGER;",
+            "ALTER TABLE proveedores_almacen ADD COLUMN IF NOT EXISTS dias_credito INTEGER DEFAULT 0;",
             "UPDATE insumos_bodega_pro SET activo = TRUE WHERE activo IS NULL;",
             "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS pago_credito DOUBLE PRECISION DEFAULT 0.0;",
             "ALTER TABLE cuentas_pos ADD COLUMN IF NOT EXISTS cliente_credito_id INTEGER;",

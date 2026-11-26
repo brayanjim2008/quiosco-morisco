@@ -120,6 +120,7 @@
   <button type="button" class="tab-btn" onclick="cambiarTab('conteo', this); cfCargar();"><i class="fa-solid fa-clipboard-check"></i> 5. Conteo Físico</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('produccion', this); prCargar();"><i class="fa-solid fa-blender"></i> 6. Producción y Presentaciones</button>
   <button type="button" class="tab-btn" onclick="cambiarTab('ordenes', this); ocCargar();"><i class="fa-solid fa-file-signature"></i> 7. Órdenes de Compra</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('caducidad', this); cargarLotes();"><i class="fa-solid fa-hourglass-half"></i> 8. Caducidades <span class="badge-cnt" id="cntCaducaTab" style="display:none;">0</span></button>
 </div>
 
 <div class="container">
@@ -274,21 +275,45 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h3><i class="fa-solid fa-truck" style="color:var(--cobre);"></i> Proveedores y Saldos</h3></div>
+        <div class="card-head"><h3><i class="fa-solid fa-file-invoice-dollar" style="color:var(--cobre);"></i> Cuentas por pagar</h3>
+          <div id="cxpTotales" style="font-size:12.5px;font-weight:700;"></div></div>
         <div class="form-row">
           <input type="text" id="prov_nombre" class="inp" placeholder="Nombre proveedor...">
           <input type="text" id="prov_tel" class="inp" placeholder="Teléfono...">
           <input type="text" id="prov_cat" class="inp" placeholder="Giro (Lácteos, Fruta...)">
-          <input type="number" step="0.5" id="prov_saldo" class="inp" placeholder="Saldo inicial ($)" value="0">
+          <input type="number" min="0" step="1" id="prov_dias" class="inp" placeholder="Días de crédito" title="0 = pago de contado">
+          <input type="number" step="0.5" id="prov_saldo" class="inp" placeholder="Ya se le debe ($)" value="0">
           <button type="button" class="btn" onclick="crearProveedor()">+ Agregar</button>
         </div>
         <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
           <table>
-            <thead><tr><th>Proveedor</th><th>Teléfono</th><th>Categoría</th><th>Saldo</th><th>Abonar</th></tr></thead>
+            <thead><tr><th>Proveedor</th><th>Crédito</th><th style="text-align:right;">Se le debe</th><th style="text-align:right;">Ya toca pagar</th><th>Próximo pago</th><th></th></tr></thead>
             <tbody id="tbodyProveedores"></tbody>
           </table>
         </div>
       </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec_caducidad" class="panel-sec">
+    <div class="card">
+      <div class="card-head"><h3><i class="fa-solid fa-hourglass-half" style="color:var(--cobre);"></i> Lotes por caducar</h3>
+        <select id="lot_dias" class="inp" style="width:auto;" onchange="cargarLotes()">
+          <option value="7">Vencen en 7 días o ya vencidos</option><option value="30">En 30 días</option><option value="365">Todos</option></select></div>
+      <div class="table-wrap" style="max-height:460px;overflow-y:auto;">
+        <table><thead><tr><th>Insumo</th><th>Cantidad</th><th>Caduca</th><th>Faltan</th><th>Proveedor</th><th></th></tr></thead>
+          <tbody id="tbodyLotes"></tbody></table>
+      </div>
+      <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:700;font-size:12.5px;color:var(--verde);">Registrar caducidad de mercancía que no vino por orden de compra</summary>
+        <div class="form-row" style="margin-top:8px;">
+          <select id="lot_ins" class="inp"></select>
+          <input type="number" min="0" step="0.1" id="lot_cant" class="inp" placeholder="Cantidad">
+          <input type="date" id="lot_cad" class="inp">
+          <button type="button" class="btn" onclick="registrarLote()">+ Registrar</button>
+        </div>
+      </details>
+      <p style="font-size:11.5px;color:#64748b;margin:8px 0 0;">La caducidad se captura al recibir una orden de compra (columna "Caduca"). Cuando se acabe el producto, márcalo como "Ya se usó"; si se tiró, "Merma": se descuenta del stock y queda registrado.</p>
     </div>
   </section>
 
@@ -573,13 +598,7 @@
       <td><span class="pill ${r.urgencia === 'ALTA' ? 'err' : 'warn'}">${esc(r.urgencia)}</span></td>
     </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;padding:16px;color:#16a34a;">Todo el inventario está cubierto.</td></tr>';
 
-    $('tbodyProveedores').innerHTML = cacheProvs.map(p => `<tr>
-      <td><b>${esc(p.nombre)}</b></td>
-      <td>${esc(p.telefono || '-')}</td>
-      <td>${esc(p.categoria)}</td>
-      <td style="color:${p.saldo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(p.saldo_pendiente || 0).toFixed(2)}</td>
-      <td><button type="button" class="btn sm cobre" onclick="abonarProveedor(${Number(p.id)})">Abonar</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;">Sin proveedores registrados.</td></tr>';
+    cargarCxp();
   }
 
   function enviarComprasWhatsApp() {
@@ -591,6 +610,80 @@
     window.open('https://wa.me/?text=' + encodeURIComponent(lineas.join('\n')), '_blank');
   }
 
+
+  // ---------------- Cuentas por pagar
+  let cxpData = { proveedores: [], formas_pago: [] };
+  async function cargarCxp() {
+    const d = await (await fetch('/api/cxp')).json();
+    if (!d.ok) return;
+    cxpData = d;
+    const f = v => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    $('cxpTotales').innerHTML = `Se debe ${f(d.total_saldo)}` + (d.total_vencido > 0 ? ` · <span style="color:#dc2626;">Ya toca pagar ${f(d.total_vencido)}</span>` : '');
+    $('tbodyProveedores').innerHTML = d.proveedores.map(p => `<tr>
+      <td><b>${esc(p.nombre)}</b><br><small style="color:#64748b;">${esc(p.categoria)}${p.telefono ? ' · ' + esc(p.telefono) : ''}</small></td>
+      <td><button type="button" class="btn sm gris" onclick="cambiarDiasCredito(${Number(p.id)})">${p.dias_credito ? p.dias_credito + ' días' : 'Contado'}</button></td>
+      <td style="text-align:right;color:${p.saldo > 0 ? '#1e293b' : '#16a34a'};"><b>${f(p.saldo)}</b></td>
+      <td style="text-align:right;">${p.vencido > 0 ? `<span class="pill err">${f(p.vencido)}</span>` : '-'}</td>
+      <td>${esc(p.proximo_vence || '-')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn sm cobre" onclick="abonarProveedor(${Number(p.id)})" ${p.saldo > 0 ? '' : 'disabled'}>Pagar</button>
+        <button type="button" class="btn sm gris" onclick="verMovsProveedor(${Number(p.id)})">Historial</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b;">Sin proveedores registrados.</td></tr>';
+  }
+  async function cambiarDiasCredito(id) {
+    const p = cxpData.proveedores.find(x => x.id === id);
+    const v = prompt(`Días de crédito de ${p.nombre} (0 = pago de contado):`, p.dias_credito);
+    if (v === null) return;
+    await fetch('/api/cxp/proveedor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, dias_credito: parseInt(v || 0) }) });
+    cargarCxp();
+  }
+  async function verMovsProveedor(id) {
+    const p = cxpData.proveedores.find(x => x.id === id);
+    const d = await (await fetch(`/api/cxp/${id}/movimientos`)).json();
+    if (!d.ok) return;
+    alert(`${p.nombre}\n\n` + (d.movimientos.map(m => `${m.fecha}  ${m.tipo === 'CARGO' ? '+' : '-'}$${Number(m.monto).toFixed(2)}  ${m.concepto}` +
+      (m.vence ? `  (vence ${m.vence})` : '') + (m.forma_pago ? `  ${m.forma_pago} ${m.referencia}` : '')).join('\n') || 'Sin movimientos.'));
+  }
+
+  // ---------------- Caducidades
+  async function cargarLotes() {
+    const d = await (await fetch('/api/lotes?dias=' + ($('lot_dias')?.value || 7))).json();
+    if (!d.ok) return;
+    $('tbodyLotes').innerHTML = d.lotes.map(l => `<tr>
+      <td><b>${esc(l.insumo)}</b>${l.orden_id ? `<br><small style="color:#64748b;">OC #${Number(l.orden_id)}</small>` : ''}</td>
+      <td>${Number(l.cantidad)} ${esc(l.unidad)}</td><td>${esc(l.caducidad)}</td>
+      <td><span class="pill ${l.dias < 0 ? 'err' : (l.dias <= 3 ? 'warn' : 'ok')}">${l.dias < 0 ? 'Caducó hace ' + (-l.dias) + ' d' : (l.dias === 0 ? 'Hoy' : l.dias + ' días')}</span></td>
+      <td>${esc(l.proveedor || '-')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn sm gris" onclick="cerrarLote(${Number(l.id)}, 'USADO')">Ya se usó</button>
+        <button type="button" class="btn sm rojo" onclick="cerrarLote(${Number(l.id)}, 'MERMA', ${Number(l.cantidad)})">Merma</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#16a34a;">Nada por caducar.</td></tr>';
+    const urg = d.lotes.filter(l => l.dias <= d.aviso_dias).length;
+    $('cntCaducaTab').style.display = urg ? 'inline-block' : 'none';
+    $('cntCaducaTab').innerText = urg;
+    if ($('lot_ins') && !$('lot_ins').options.length) {
+      const ins = (cacheInsumos || []).filter(i => i.activo !== false);
+      $('lot_ins').innerHTML = '<option value="">Insumo...</option>' + ins.map(i => `<option value="${Number(i.id)}">${esc(i.nombre)}</option>`).join('');
+    }
+  }
+  async function cerrarLote(id, accion, cant) {
+    let body = { accion };
+    if (accion === 'MERMA') {
+      const v = prompt('¿Cuánto se tiró? (se descuenta del stock de bodega)', cant);
+      if (v === null) return;
+      body.cantidad = parseFloat(v || 0);
+    } else if (!confirm('¿Este lote ya se terminó?')) return;
+    const d = await (await fetch(`/api/lotes/${id}/cerrar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo.');
+    toast(accion === 'MERMA' ? `Merma registrada ($${Number(d.costo).toFixed(2)})` : 'Lote cerrado');
+    cargarLotes(); if (accion === 'MERMA') cargarDatosAlmacen();
+  }
+  async function registrarLote() {
+    const d = await (await fetch('/api/lotes', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insumo_id: Number($('lot_ins').value || 0), cantidad: parseFloat($('lot_cant').value || 0), caducidad: $('lot_cad').value }) })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo registrar.');
+    $('lot_cant').value = ''; $('lot_cad').value = '';
+    toast('Lote registrado'); cargarLotes();
+  }
+
   async function crearProveedor() {
     const nombre = $('prov_nombre').value.trim();
     if (!nombre) return alert('Escribe el nombre del proveedor.');
@@ -598,30 +691,31 @@
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nombre, telefono: $('prov_tel').value, categoria: $('prov_cat').value || 'GENERAL',
-        saldo_pendiente: parseFloat($('prov_saldo').value || 0)
+        saldo_pendiente: parseFloat($('prov_saldo').value || 0), dias_credito: parseInt($('prov_dias').value || 0)
       })
     });
-    $('prov_nombre').value = ''; $('prov_tel').value = ''; $('prov_saldo').value = '0';
+    $('prov_nombre').value = ''; $('prov_tel').value = ''; $('prov_saldo').value = '0'; $('prov_dias').value = '';
     toast('✓ Proveedor guardado'); cargarDatosAlmacen();
   }
 
   async function abonarProveedor(id) {
-    const prov = cacheProvs.find(p => p.id === id);
-    if (!prov) return;
-    const nom = prov.nombre;
-    const s = prompt(`¿Cuánto deseas abonar al saldo de ${nom}?`);
-    if (!s) return;
-    const abono = parseFloat(s);
-    if (!abono || abono <= 0) return;
-    await fetch('/api/almacen/proveedor', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pagar_id: id, abono })
-    });
-    toast('✓ Abono aplicado'); cargarDatosAlmacen();
+    const p = cxpData.proveedores.find(x => x.id === id);
+    if (!p) return;
+    const monto = prompt(`Pago a ${p.nombre}. Se le debe $${p.saldo.toFixed(2)}${p.vencido > 0 ? ' (vencido $' + p.vencido.toFixed(2) + ')' : ''}.\n¿Cuánto se le pagó?`, p.vencido > 0 ? p.vencido.toFixed(2) : p.saldo.toFixed(2));
+    if (!monto) return;
+    const forma = (prompt('Forma de pago: ' + cxpData.formas_pago.join(', '), 'TRANSFERENCIA') || '').trim().toUpperCase();
+    if (!forma) return;
+    const referencia = prompt('Referencia / número de factura (opcional):', '') || '';
+    const d = await (await fetch('/api/cxp/abono', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proveedor_id: id, monto: parseFloat(monto), forma_pago: forma, referencia }) })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo registrar el pago.');
+    toast(`✓ Pago registrado. Saldo: $${Number(d.saldo).toFixed(2)}`); cargarCxp(); cargarDatosAlmacen();
   }
+
 
   document.addEventListener('DOMContentLoaded', () => {
     cargarDatosAlmacen();
+    cargarLotes();
     setInterval(() => {
       const tag = document.activeElement?.tagName;
       if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') cargarDatosAlmacen();

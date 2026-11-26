@@ -16,7 +16,7 @@ from models import (
     Producto, ModificadorPOS, CuentaPOS, DetallePOS, BitacoraPOS, ArqueoTurnoPOS,
     InsumoBodegaPro, StockSucursal, RecetaPOS, RequerimientoBodega,
     MovimientoAlmacen, ProveedorAlmacen, RegistroAsistencia, RegistroMerma,
-    EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS,
+    EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS, MovimientoProveedorPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
     obtener_turno_activo, limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos,
     SUCURSAL_DEFAULT, validar_clave_admin, MSG_TURNO_CERRADO, autorizo_supervisor, ConteoInventario, ConteoInventarioDetalle,
@@ -749,15 +749,27 @@ def api_almacen_proveedor():
     data = request.json or {}
     if data.get('pagar_id'):
         p = ProveedorAlmacen.query.get_or_404(int(data['pagar_id']))
-        p.saldo_pendiente = max(0.0, round(p.saldo_pendiente - _num(data.get('abono', 0)), 2))
+        abono = min(_num(data.get('abono', 0)), float(p.saldo_pendiente or 0.0))
+        p.saldo_pendiente = max(0.0, round(p.saldo_pendiente - abono, 2))
+        if abono > 0:
+            db.session.add(MovimientoProveedorPOS(fecha=ahora_local(), proveedor_id=p.id, proveedor_nombre=p.nombre, tipo='ABONO',
+                                                  monto=round(abono, 2), concepto='PAGO', forma_pago='EFECTIVO',
+                                                  usuario=current_user.username.upper()))
         db.session.commit()
         return jsonify({'ok': True})
-    db.session.add(ProveedorAlmacen(
-        nombre=str(data.get('nombre', '')).strip().upper(),
-        telefono=str(data.get('telefono', '')).strip(),
-        categoria=str(data.get('categoria', 'GENERAL')).strip().upper(),
-        saldo_pendiente=_num(data.get('saldo_pendiente', 0))
-    ))
+    nombre = str(data.get('nombre', '')).strip().upper()
+    if not nombre:
+        return jsonify({'ok': False, 'msg': 'Escribe el nombre del proveedor.'}), 400
+    saldo_ini = _num(data.get('saldo_pendiente', 0))
+    p = ProveedorAlmacen(nombre=nombre, telefono=str(data.get('telefono', '')).strip(),
+                         categoria=str(data.get('categoria', 'GENERAL')).strip().upper(), saldo_pendiente=saldo_ini,
+                         dias_credito=int(_num(data.get('dias_credito', 0), maximo=365)))
+    db.session.add(p)
+    db.session.flush()
+    if saldo_ini > 0:
+        db.session.add(MovimientoProveedorPOS(fecha=ahora_local(), proveedor_id=p.id, proveedor_nombre=p.nombre, tipo='CARGO',
+                                              monto=round(saldo_ini, 2), concepto='SALDO INICIAL', vence=ahora_local().date(),
+                                              usuario=current_user.username.upper()))
     db.session.commit()
     return jsonify({'ok': True})
 

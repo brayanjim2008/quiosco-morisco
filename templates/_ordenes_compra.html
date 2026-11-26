@@ -5,14 +5,14 @@
     <div class="card-head">
       <h3><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--cobre);"></i> Compras sugeridas (stock mínimo + consumo de 14 días, cobertura 7 días)</h3>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-        <select id="oc_prov" class="inp" style="width:220px;"></select>
-        <button type="button" class="btn wa" onclick="ocCrearDesdeSeleccion()"><i class="fa-solid fa-file-circle-plus"></i> Crear orden con lo marcado</button>
+        <button type="button" class="btn wa" onclick="ocCrearPorProveedor()"><i class="fa-solid fa-file-circle-plus"></i> Crear una orden por proveedor</button>
+        <select id="oc_prov" class="inp" style="display:none;"></select>
       </div>
     </div>
     <div class="table-wrap" style="max-height:320px;overflow-y:auto;">
       <table>
         <thead><tr><th><input type="checkbox" id="oc_todos" onchange="document.querySelectorAll('.oc-chk').forEach(c => c.checked = this.checked)"></th>
-          <th>Insumo</th><th>Motivo</th><th style="text-align:right;">Consumo/día</th><th>Pedir</th><th>Presentación</th><th style="text-align:right;">Costo est.</th><th>Urgencia</th></tr></thead>
+          <th>Insumo</th><th>Motivo</th><th style="text-align:right;">Consumo/día</th><th>Pedir</th><th>Presentación</th><th>Proveedor</th><th style="text-align:right;">Costo est.</th><th>Urgencia</th></tr></thead>
         <tbody id="oc_tbody_sug"></tbody>
       </table>
     </div>
@@ -63,9 +63,11 @@
         <td style="text-align:right;">${s.consumo_diario ? Number(s.consumo_diario) + ' ' + esc(s.unidad) : '-'}</td>
         <td><input type="number" step="0.1" min="0" class="inp" style="width:90px;height:30px;" id="oc_sug_cant_${i}" value="${Number(s.sugerido)}"></td>
         <td><select class="inp" style="height:30px;" id="oc_sug_pres_${i}">${ocOptsPres(s.insumo_id)}</select></td>
+        <td><select class="inp" style="height:30px;min-width:140px;" id="oc_sug_prov_${i}" onchange="ocGuardarProvInsumo(${Number(s.insumo_id)}, this.value)">
+          <option value="">Sin proveedor</option>${d.proveedores.map(p => `<option value="${Number(p.id)}" ${Number(s.proveedor_id) === p.id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></td>
         <td style="text-align:right;">${s.costo_unitario > 0 ? ocFmt(s.sugerido * s.costo_unitario) : '-'}</td>
         <td><span class="pill ${s.urgencia === 'ALTA' ? 'err' : 'warn'}">${esc(s.urgencia)}</span></td>
-      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:#16a34a;padding:14px;">Nada que comprar por ahora.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#16a34a;padding:14px;">Nada que comprar por ahora.</td></tr>';
       $('oc_tbody').innerHTML = d.ordenes.map((o, i) => {
         const cls = o.estado === 'RECIBIDA' ? 'ok' : (o.estado === 'CANCELADA' ? 'err' : (o.estado === 'ENVIADA' ? 'info' : 'warn'));
         return `<tr style="cursor:pointer;${ocSel === o.id ? 'background:#fef3c7;' : ''}" onclick="ocVer(${i})">
@@ -81,6 +83,23 @@
   async function ocPost(url, body) {
     const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
     return r.json();
+  }
+
+  async function ocGuardarProvInsumo(insumo_id, proveedor_id) {
+    const d = await ocPost('/api/insumo/proveedor', { insumo_id, proveedor_id: Number(proveedor_id || 0) || null });
+    if (d.ok) toast('Proveedor habitual guardado');
+  }
+  async function ocCrearPorProveedor() {
+    const lineas = [...document.querySelectorAll('.oc-chk')].filter(c => c.checked).map(c => {
+      const i = Number(c.dataset.i), s = ocData.sugeridos[i];
+      return { insumo_id: s.insumo_id, cantidad: parseFloat($('oc_sug_cant_' + i).value || 0),
+        presentacion_id: Number($('oc_sug_pres_' + i).value || 0) || null, proveedor_id: Number($('oc_sug_prov_' + i).value || 0) || null };
+    }).filter(l => l.cantidad > 0);
+    if (!lineas.length) return alert('Marca al menos un insumo con cantidad mayor a 0.');
+    const d = await ocPost('/api/ordenes_compra/por_proveedor', { lineas });
+    if (!d.ok) return alert(d.msg || 'No se pudieron crear las órdenes.');
+    toast(`✓ ${d.ordenes.length} orden(es): ` + d.ordenes.map(o => `#${o.id} ${o.proveedor}`).join(', '));
+    ocSel = d.ordenes[0].id; ocCargar();
   }
 
   async function ocCrearDesdeSeleccion() {
@@ -111,11 +130,12 @@
              <button type="button" class="btn sm wa" onclick="ocEnviar(${i})"><i class="fa-brands fa-whatsapp"></i> Enviar</button>
              <button type="button" class="btn sm rojo" onclick="ocCancelar(${i})">Cancelar</button>` + acc;
     } else if (o.estado === 'ENVIADA') {
-      $('oc_det_head').innerHTML = '<tr><th>Insumo</th><th>Pedido</th><th>Llegó</th><th>Costo real (total)</th></tr>';
+      $('oc_det_head').innerHTML = '<tr><th>Insumo</th><th>Pedido</th><th>Llegó</th><th>Costo real (total)</th><th>Caduca <small>(opcional)</small></th></tr>';
       $('oc_det_tbody').innerHTML = o.lineas.map((l, j) => `<tr><td><b>${esc(l.insumo_nombre)}</b></td>
         <td>${Number(l.cantidad_presentaciones)} ${esc(l.presentacion_nombre || l.unidad)}</td>
         <td><input type="number" step="0.1" min="0" class="inp" style="width:85px;height:30px;" id="oc_r_cant_${j}" value="${Number(l.cantidad_presentaciones)}"></td>
-        <td><input type="number" step="0.5" min="0" class="inp" style="width:100px;height:30px;" id="oc_r_costo_${j}" value="${Number(l.costo_estimado)}"></td></tr>`).join('');
+        <td><input type="number" step="0.5" min="0" class="inp" style="width:100px;height:30px;" id="oc_r_costo_${j}" value="${Number(l.costo_estimado)}"></td>
+        <td><input type="date" class="inp" style="width:140px;height:30px;" id="oc_r_cad_${j}"></td></tr>`).join('');
       acc = `<button type="button" class="btn sm wa" onclick="ocRecibir(${i})"><i class="fa-solid fa-truck-ramp-box"></i> Recibir en bodega</button>
              <button type="button" class="btn sm gris" onclick="ocEnviar(${i})"><i class="fa-brands fa-whatsapp"></i> Reenviar</button>
              <button type="button" class="btn sm rojo" onclick="ocCancelar(${i})">Cancelar</button>` + acc;
@@ -156,7 +176,8 @@
   }
   async function ocRecibir(i) {
     const o = ocData.ordenes[i];
-    const lineas = o.lineas.map((l, j) => ({ id: l.id, recibido: parseFloat($('oc_r_cant_' + j).value || 0), costo_real: parseFloat($('oc_r_costo_' + j).value || 0) }));
+    const lineas = o.lineas.map((l, j) => ({ id: l.id, recibido: parseFloat($('oc_r_cant_' + j).value || 0), costo_real: parseFloat($('oc_r_costo_' + j).value || 0),
+      caducidad: $('oc_r_cad_' + j).value || '' }));
     const total = lineas.reduce((a, l) => a + (l.costo_real || 0), 0);
     if (!confirm(`¿Recibir la orden #${o.id} en Bodega? Se suma al stock y ${ocFmt(total)} a lo que se le debe al proveedor.`)) return;
     const d = await ocPost(`/api/ordenes_compra/${Number(o.id)}/recibir`, { lineas });

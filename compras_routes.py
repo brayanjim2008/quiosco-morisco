@@ -3,7 +3,7 @@ y órdenes de compra a proveedores (sugeridas por stock y consumo, envío por Wh
 """
 import re
 import urllib.parse
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
@@ -12,6 +12,7 @@ from sqlalchemy import func
 from models import (
     db, ahora_local, registrar_bitacora, InsumoBodegaPro, StockSucursal, MovimientoAlmacen, ProveedorAlmacen,
     RequerimientoBodega, PresentacionInsumo, RecetaElaborado, OrdenCompra, OrdenCompraDetalle,
+    MovimientoProveedorPOS, LoteInsumoPOS, aplicar_merma,
 )
 from operacion_routes import (
     _num, _csv_excel, _puede_operar_conteo, _stock_teorico, existencia_total_insumo, costo_promedio_ponderado,
@@ -243,6 +244,10 @@ def sugeridos_compra():
     consumo = dict(db.session.query(RequerimientoBodega.insumo_id, func.sum(RequerimientoBodega.cantidad_entregada)).filter(
         RequerimientoBodega.estado_bodega == 'ENTREGADO', RequerimientoBodega.fecha >= desde,
         RequerimientoBodega.insumo_id.isnot(None)).group_by(RequerimientoBodega.insumo_id).all())
+    ultimo_prov = {}
+    for ins_id, prov_id in db.session.query(OrdenCompraDetalle.insumo_id, OrdenCompra.proveedor_id).join(
+            OrdenCompra, OrdenCompra.id == OrdenCompraDetalle.orden_id).filter(OrdenCompra.proveedor_id.isnot(None)).order_by(OrdenCompra.id.asc()).all():
+        ultimo_prov[ins_id] = prov_id
     salida = []
     for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False)).order_by(InsumoBodegaPro.categoria, InsumoBodegaPro.nombre).all():
         if 'EXTRA / FUERA DE LISTA' in (i.nombre or '') or i.es_elaborado:
@@ -257,7 +262,8 @@ def sugeridos_compra():
         salida.append({'insumo_id': i.id, 'nombre': i.nombre, 'categoria': i.categoria, 'unidad': i.unidad,
                        'stock': round(stock, 3), 'minimo': minimo, 'consumo_diario': round(diario, 2), 'sugerido': sugerido,
                        'costo_unitario': round(float(i.costo_unitario or 0.0), 4), 'motivo': motivo,
-                       'urgencia': 'ALTA' if stock <= 0 else 'MEDIA'})
+                       'urgencia': 'ALTA' if stock <= 0 else 'MEDIA',
+                       'proveedor_id': i.proveedor_id or ultimo_prov.get(i.id)})
     return salida
 
 
@@ -447,6 +453,15 @@ def api_orden_recibir(orden_id):
         ins = _insumo_activo(l.insumo_id, bloquear=True)
         if not ins:
             continue
+        cad_txt = str(cap.get('caducidad') or '')[:10]
+        if cad_txt:
+            try:
+                db.session.add(LoteInsumoPOS(insumo_id=ins.id, insumo_nombre=ins.nombre, unidad=ins.unidad, cantidad=unidades,
+                                             caducidad=datetime.strptime(cad_txt, '%Y-%m-%d').date(), recibido=ahora_local(),
+                                             orden_id=o.id, proveedor=o.proveedor_nombre or '', usuario=current_user.username.upper()))
+            except ValueError:
+                db.session.rollback()
+                return jsonify({'ok': False, 'msg': f'Fecha de caducidad inválida en {ins.nombre}.'}), 400
         registrar_compra(ins, unidades, costo, proveedor=o.proveedor_nombre, usuario=current_user.username.upper(),
                          nota=f'OC #{o.id}' + (f' ({recibido_n:g} x {l.presentacion_nombre})' if l.presentacion_nombre else ''))
         total_real += costo
@@ -456,7 +471,7 @@ def api_orden_recibir(orden_id):
     if o.proveedor_id and total_real > 0:  # cuentas por pagar
         prov = ProveedorAlmacen.query.filter_by(id=o.proveedor_id).with_for_update().first()
         if prov:
-            prov.saldo_pendiente = round(float(prov.saldo_pendiente or 0.0) + total_real, 2)
+            cargo_proveedor(prov, total_real, f'ORDEN DE COMPRA #{o.id}', orden_id=o.id)
     db.session.commit()
     registrar_bitacora('ORDEN_COMPRA_RECIBIDA', f'OC #{o.id}', total_real, f'{o.proveedor_nombre or "SIN PROVEEDOR"}: {recibidas} producto(s)',
                        sucursal='BODEGA')
@@ -476,3 +491,241 @@ def exportar_orden_compra(orden_id):
              for l in OrdenCompraDetalle.query.filter_by(orden_id=o.id).order_by(OrdenCompraDetalle.id).all()]
     return _csv_excel(('Insumo', 'Presentacion', 'Cantidad_Pedida', 'Unidad', 'Unidades', 'Costo_Estimado', 'Unidades_Recibidas', 'Costo_Real'),
                       filas, f'Orden_Compra_{o.id}_{o.estado}.csv')
+
+
+# ==============================================================================
+# CUENTAS POR PAGAR A PROVEEDORES (historial de cargos/abonos y vencimientos)
+# ==============================================================================
+FORMAS_PAGO_PROV = ('EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'TARJETA')
+
+
+def _cxp_resumen(p, hoy):
+    """Saldo, cuánto ya venció y el próximo vencimiento. Los abonos pagan primero lo más antiguo."""
+    saldo = round(float(p.saldo_pendiente or 0.0), 2)
+    cargos = MovimientoProveedorPOS.query.filter_by(proveedor_id=p.id, tipo='CARGO').order_by(MovimientoProveedorPOS.id.desc()).all()
+    por_vencer, proximo, cubierto = 0.0, None, 0.0
+    for c in cargos:   # del más nuevo al más viejo: lo más nuevo es lo que sigue sin pagar
+        if cubierto >= saldo - 0.005:
+            break
+        parte = min(float(c.monto or 0.0), saldo - cubierto)
+        cubierto += parte
+        if c.vence and c.vence > hoy:   # lo que vence hoy (o de contado) ya toca pagarlo
+            por_vencer += parte
+            proximo = c.vence if (proximo is None or c.vence < proximo) else proximo
+    vencido = round(max(0.0, saldo - por_vencer), 2) if cargos else (saldo if saldo > 0 else 0.0)
+    return {'id': p.id, 'nombre': p.nombre, 'telefono': p.telefono or '', 'categoria': p.categoria or '',
+            'dias_credito': int(p.dias_credito or 0), 'saldo': saldo, 'vencido': vencido,
+            'por_vencer': round(saldo - vencido, 2), 'proximo_vence': proximo.strftime('%d/%m/%Y') if proximo else ''}
+
+
+def cargo_proveedor(prov, monto, concepto, orden_id=None):
+    """Suma a lo que se le debe al proveedor y deja el cargo con su fecha de vencimiento (no hace commit)."""
+    prov.saldo_pendiente = round(float(prov.saldo_pendiente or 0.0) + monto, 2)
+    db.session.add(MovimientoProveedorPOS(
+        fecha=ahora_local(), proveedor_id=prov.id, proveedor_nombre=prov.nombre, tipo='CARGO', monto=round(monto, 2),
+        concepto=concepto[:200], orden_id=orden_id, vence=ahora_local().date() + timedelta(days=int(prov.dias_credito or 0)),
+        usuario=current_user.username.upper()))
+
+
+@compras_bp.route('/api/cxp')
+@login_required
+def api_cxp():
+    err = _solo_compras()
+    if err:
+        return err
+    hoy = ahora_local().date()
+    provs = [_cxp_resumen(p, hoy) for p in ProveedorAlmacen.query.order_by(ProveedorAlmacen.nombre).all()]
+    return jsonify({'ok': True, 'proveedores': provs, 'formas_pago': FORMAS_PAGO_PROV,
+                    'total_saldo': round(sum(p['saldo'] for p in provs), 2),
+                    'total_vencido': round(sum(p['vencido'] for p in provs), 2)})
+
+
+@compras_bp.route('/api/cxp/<int:prov_id>/movimientos')
+@login_required
+def api_cxp_movimientos(prov_id):
+    err = _solo_compras()
+    if err:
+        return err
+    movs = MovimientoProveedorPOS.query.filter_by(proveedor_id=prov_id).order_by(MovimientoProveedorPOS.id.desc()).limit(200).all()
+    return jsonify({'ok': True, 'movimientos': [{
+        'fecha': m.fecha.strftime('%d/%m/%Y %H:%M'), 'tipo': m.tipo, 'monto': m.monto, 'concepto': m.concepto,
+        'vence': m.vence.strftime('%d/%m/%Y') if m.vence else '', 'forma_pago': m.forma_pago, 'referencia': m.referencia,
+        'usuario': m.usuario} for m in movs]})
+
+
+@compras_bp.route('/api/cxp/abono', methods=['POST'])
+@login_required
+def api_cxp_abono():
+    err = _solo_compras()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    prov = ProveedorAlmacen.query.filter_by(id=int(d.get('proveedor_id') or 0)).with_for_update().first()
+    if not prov:
+        return jsonify({'ok': False, 'msg': 'Proveedor no encontrado.'}), 404
+    monto = round(_num(d.get('monto', 0), maximo=10_000_000.0), 2)
+    saldo = round(float(prov.saldo_pendiente or 0.0), 2)
+    if monto <= 0:
+        return jsonify({'ok': False, 'msg': 'Escribe cuánto se le pagó.'}), 400
+    if monto > saldo + 0.01:
+        return jsonify({'ok': False, 'msg': f'El pago (${monto:,.2f}) es mayor a lo que se le debe (${saldo:,.2f}).'}), 400
+    forma = str(d.get('forma_pago') or 'EFECTIVO').upper()
+    if forma not in FORMAS_PAGO_PROV:
+        return jsonify({'ok': False, 'msg': 'Forma de pago inválida.'}), 400
+    prov.saldo_pendiente = round(max(0.0, saldo - monto), 2)
+    db.session.add(MovimientoProveedorPOS(
+        fecha=ahora_local(), proveedor_id=prov.id, proveedor_nombre=prov.nombre, tipo='ABONO', monto=monto,
+        concepto=str(d.get('concepto') or 'PAGO').strip().upper()[:200], forma_pago=forma,
+        referencia=str(d.get('referencia') or '').strip().upper()[:60], usuario=current_user.username.upper()))
+    db.session.commit()
+    registrar_bitacora('PAGO_PROVEEDOR', prov.nombre, monto, f'{forma} {d.get("referencia") or ""}'.strip(), sucursal='BODEGA')
+    return jsonify({'ok': True, 'saldo': prov.saldo_pendiente})
+
+
+@compras_bp.route('/api/cxp/proveedor', methods=['POST'])
+@login_required
+def api_cxp_proveedor():
+    """Días de crédito y teléfono del proveedor."""
+    err = _solo_compras()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    prov = ProveedorAlmacen.query.get_or_404(int(d.get('id') or 0))
+    if 'dias_credito' in d:
+        prov.dias_credito = int(_num(d.get('dias_credito', 0), maximo=365))
+    if 'telefono' in d:
+        prov.telefono = str(d.get('telefono') or '').strip()[:40]
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@compras_bp.route('/api/insumo/proveedor', methods=['POST'])
+@login_required
+def api_insumo_proveedor():
+    """Proveedor habitual de un insumo (las compras sugeridas se agrupan por él)."""
+    err = _solo_compras()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    ins = _insumo_activo(d.get('insumo_id'))
+    if not ins:
+        return jsonify({'ok': False, 'msg': 'Insumo no encontrado.'}), 404
+    pid = int(d.get('proveedor_id') or 0) or None
+    if pid and not ProveedorAlmacen.query.get(pid):
+        return jsonify({'ok': False, 'msg': 'Proveedor no encontrado.'}), 404
+    ins.proveedor_id = pid
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@compras_bp.route('/api/ordenes_compra/por_proveedor', methods=['POST'])
+@login_required
+def api_ordenes_por_proveedor():
+    """Crea de un jalón una orden (borrador) por cada proveedor con lo marcado de la compra sugerida."""
+    err = _solo_compras()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    grupos = {}
+    for l in (d.get('lineas') or [])[:300]:
+        grupos.setdefault(int(l.get('proveedor_id') or 0) or None, []).append(l)
+    if not grupos:
+        return jsonify({'ok': False, 'msg': 'Marca al menos un insumo.'}), 400
+    creadas = []
+    for pid, lineas in grupos.items():
+        prov = ProveedorAlmacen.query.get(pid) if pid else None
+        o = OrdenCompra(fecha=ahora_local(), proveedor_id=prov.id if prov else None, proveedor_nombre=prov.nombre if prov else '',
+                        estado='BORRADOR', nota='Compra sugerida', creado_por=current_user.username.upper())
+        db.session.add(o)
+        db.session.flush()
+        try:
+            _armar_lineas(o, lineas)
+        except ValueError as e:
+            db.session.rollback()
+            return jsonify({'ok': False, 'msg': str(e)}), 400
+        if OrdenCompraDetalle.query.filter_by(orden_id=o.id).count():
+            creadas.append(o)
+        else:
+            db.session.delete(o)
+    if not creadas:
+        db.session.rollback()
+        return jsonify({'ok': False, 'msg': 'Todas las cantidades están en 0.'}), 400
+    db.session.commit()
+    return jsonify({'ok': True, 'ordenes': [{'id': o.id, 'proveedor': o.proveedor_nombre or 'SIN PROVEEDOR',
+                                            'total': o.total_estimado} for o in creadas]})
+
+
+# ==============================================================================
+# CADUCIDADES Y LOTES
+# ==============================================================================
+DIAS_AVISO_CADUCIDAD = 7
+
+
+@compras_bp.route('/api/lotes', methods=['GET', 'POST'])
+@login_required
+def api_lotes():
+    err = _solo_compras()
+    if err:
+        return err
+    hoy = ahora_local().date()
+    if request.method == 'POST':   # registrar un lote a mano (mercancía que no vino por orden de compra)
+        d = request.get_json(silent=True) or {}
+        ins = _insumo_activo(d.get('insumo_id'))
+        if not ins:
+            return jsonify({'ok': False, 'msg': 'Elige el insumo.'}), 400
+        try:
+            cad = datetime.strptime(str(d.get('caducidad') or '')[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'ok': False, 'msg': 'Fecha de caducidad inválida.'}), 400
+        cant = round(_num(d.get('cantidad', 0), maximo=1_000_000.0), 3)
+        if cant <= 0:
+            return jsonify({'ok': False, 'msg': 'Escribe la cantidad.'}), 400
+        db.session.add(LoteInsumoPOS(insumo_id=ins.id, insumo_nombre=ins.nombre, unidad=ins.unidad, cantidad=cant,
+                                     caducidad=cad, recibido=ahora_local(), usuario=current_user.username.upper(),
+                                     proveedor=str(d.get('proveedor') or '').strip().upper()[:120]))
+        db.session.commit()
+        return jsonify({'ok': True})
+    dias = int(request.args.get('dias') or 365)
+    lotes = LoteInsumoPOS.query.filter(LoteInsumoPOS.estado == 'ACTIVO',
+                                       LoteInsumoPOS.caducidad <= hoy + timedelta(days=dias)).order_by(LoteInsumoPOS.caducidad.asc()).limit(500).all()
+    vencidos = [l for l in lotes if l.caducidad < hoy]
+    if vencidos:
+        try:
+            from alertas import alertar
+            from models import AlertaDuenoPOS
+            for l in vencidos:
+                marca = f'LOTE #{l.id}'
+                if not AlertaDuenoPOS.query.filter(AlertaDuenoPOS.tipo == 'CADUCADO', AlertaDuenoPOS.texto.like(f'%{marca}%')).first():
+                    alertar('CADUCADO', f'⏰ {l.insumo_nombre} ({l.cantidad:g} {l.unidad}) caducó el {l.caducidad.strftime("%d/%m/%Y")} ({marca})', 'BODEGA')
+        except Exception:
+            pass
+    return jsonify({'ok': True, 'aviso_dias': DIAS_AVISO_CADUCIDAD, 'lotes': [{
+        'id': l.id, 'insumo_id': l.insumo_id, 'insumo': l.insumo_nombre, 'unidad': l.unidad, 'cantidad': l.cantidad,
+        'caducidad': l.caducidad.strftime('%d/%m/%Y'), 'dias': (l.caducidad - hoy).days, 'proveedor': l.proveedor,
+        'orden_id': l.orden_id, 'recibido': l.recibido.strftime('%d/%m/%Y') if l.recibido else ''} for l in lotes]})
+
+
+@compras_bp.route('/api/lotes/<int:lote_id>/cerrar', methods=['POST'])
+@login_required
+def api_lote_cerrar(lote_id):
+    """USADO = ya se consumió; MERMA = se tiró (descuenta del stock de bodega y queda como merma)."""
+    err = _solo_compras()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    l = LoteInsumoPOS.query.filter_by(id=lote_id).with_for_update().first_or_404()
+    if l.estado != 'ACTIVO':
+        return jsonify({'ok': False, 'msg': 'Ese lote ya se cerró.'}), 409
+    accion = str(d.get('accion') or '').upper()
+    if accion not in ('USADO', 'MERMA'):
+        return jsonify({'ok': False, 'msg': 'Acción inválida.'}), 400
+    costo = 0.0
+    if accion == 'MERMA':
+        cant = round(_num(d.get('cantidad', l.cantidad), maximo=1_000_000.0), 3)
+        if cant > 0:
+            costo = aplicar_merma(l.insumo_nombre, cant, f'CADUCADO (lote #{l.id})', UBICACION_BODEGA, current_user.username.upper())
+    l.estado, l.cerrado_en, l.cerrado_por = accion, ahora_local(), current_user.username.upper()
+    db.session.commit()
+    if accion == 'MERMA':
+        registrar_bitacora('MERMA_CADUCIDAD', l.insumo_nombre, costo, f'Lote #{l.id}', sucursal='BODEGA')
+    return jsonify({'ok': True, 'costo': costo})
