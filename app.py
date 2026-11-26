@@ -34,6 +34,7 @@ from operacion_routes import operacion_bp
 from servicio_routes import servicio_bp
 from compras_routes import compras_bp
 from nomina_routes import nomina_bp
+from alertas import alertas_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos
 
 app = Flask(__name__)
@@ -94,6 +95,7 @@ app.register_blueprint(operacion_bp)
 app.register_blueprint(servicio_bp)
 app.register_blueprint(compras_bp)
 app.register_blueprint(nomina_bp)
+app.register_blueprint(alertas_bp)
 
 
 # ------------------------------------------------------------------------------
@@ -766,6 +768,67 @@ def cambiar_pass_usuario(id):
         db.session.commit()
         flash(f'Contraseña de {u.username} actualizada.', 'success')
     return redirect(url_for('admin_dashboard'))
+
+
+ROLES_PIN_RAPIDO = ('admin', 'gerente', 'cajero', 'sucursal')
+
+
+def _usuario_con_pin(pin, excluir_id=None):
+    for u in User.query.filter(User.pin_rapido.isnot(None)).all():
+        if u.id != excluir_id and check_password_hash(u.pin_rapido, pin):
+            return u
+    return None
+
+
+@app.route('/admin/usuario/pin/<int:id>', methods=['POST'])
+@login_required
+def pin_usuario(id):
+    """PIN de 4 a 6 dígitos para cambiar de usuario en la caja sin cerrar sesión (vacío = quitarlo)."""
+    if current_user.role != 'admin':
+        return redirigir_segun_rol(current_user)
+    u = User.query.get_or_404(id)
+    pin = request.form.get('pin', '').strip()
+    if not pin:
+        u.pin_rapido = None
+        db.session.commit()
+        flash(f'PIN de {u.username} eliminado.', 'success')
+        return redirect(url_for('admin_dashboard'))
+    if u.role not in ROLES_PIN_RAPIDO:
+        flash('El PIN de caja es solo para cajeros, sucursales, gerentes y admin.', 'danger')
+    elif not (pin.isdigit() and 4 <= len(pin) <= 6):
+        flash('El PIN debe ser de 4 a 6 números.', 'danger')
+    elif _usuario_con_pin(pin, excluir_id=u.id):
+        flash('Ese PIN ya lo tiene otro usuario. Elige otro.', 'danger')
+    else:
+        u.pin_rapido = generate_password_hash(pin)
+        db.session.commit()
+        flash(f'PIN de caja de {u.username} guardado.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/api/cambiar_usuario_pin', methods=['POST'])
+@login_required
+def api_cambiar_usuario_pin():
+    """Cambio rápido de cajero en la misma computadora: el que llega teclea su PIN y queda trabajando
+    con su usuario (cancelaciones, cobros y cortes salen a su nombre)."""
+    if current_user.role not in ROLES_PIN_RAPIDO:
+        return jsonify({'ok': False, 'msg': 'Sin permiso.'}), 403
+    clave_rl = f"pinrapido:{_ip_cliente()}"
+    if limite_intentos_excedido(clave_rl, 6, 300):
+        return jsonify({'ok': False, 'msg': 'Demasiados intentos. Espera 5 minutos.'}), 429
+    pin = str((request.get_json(silent=True) or {}).get('pin', '')).strip()
+    u = _usuario_con_pin(pin) if (pin.isdigit() and 4 <= len(pin) <= 6) else None
+    if not u or u.role not in ROLES_PIN_RAPIDO:
+        registrar_intento_fallido(clave_rl, ventana_seg=300)
+        return jsonify({'ok': False, 'msg': 'PIN incorrecto.'}), 401
+    limpiar_intentos(clave_rl)
+    anterior = current_user.username.upper()
+    suc_actual = session.get('sucursal_activa')
+    login_user(u, remember=True, duration=timedelta(days=365))
+    if u.role == 'admin' and suc_actual:
+        session['sucursal_activa'] = suc_actual
+    registrar_bitacora('CAMBIO_USUARIO', '', 0.0, f'{anterior} -> {u.username.upper()}', autorizo=u.username.upper())
+    return jsonify({'ok': True, 'usuario': u.username.upper(), 'rol': u.role})
 
 
 @app.route('/admin/usuario/eliminar/<int:id>', methods=['POST'])

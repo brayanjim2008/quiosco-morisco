@@ -100,6 +100,8 @@
   }
 
   #zona-impresion-corte { display: none; }
+  .lbl { display: block; font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .03em; }
+  .al-opc { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 4px 0; cursor: pointer; }
   @media print {
     @page { size: 80mm auto; margin: 2mm; }
     body > *:not(#zona-impresion-corte):not(.container) { display: none !important; }
@@ -137,6 +139,7 @@
   <button type="button" class="tab-btn" data-tab="flujo" onclick="cambiarTab('flujo', this)"><i class="fa-solid fa-money-bill-transfer"></i> 8. Dinero Sucursales</button>
   <button type="button" class="tab-btn" data-tab="rep_fechas" onclick="cambiarTab('rep_fechas', this)"><i class="fa-solid fa-calendar-days"></i> 9. Reportes / Fechas</button>
   <button type="button" class="tab-btn" data-tab="gastos" onclick="cambiarTab('gastos', this)"><i class="fa-solid fa-receipt"></i> 10. Gastos</button>
+  <button type="button" class="tab-btn" data-tab="alertas" onclick="cambiarTab('alertas', this)"><i class="fa-solid fa-bell"></i> 11. Alertas</button>
 </div>
 
 <div class="container">
@@ -259,6 +262,46 @@
           <button type="button" class="btn" onclick="registrarAsistencia()">Registrar corrección</button>
         </div>
       </details>
+    </div>
+  </section>
+
+  <!-- TAB 11: ALERTAS AL DUEÑO -->
+  <section id="sec_alertas" class="panel-sec">
+    <div class="grid-2" style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-bell" style="color:var(--cobre);"></i> Alertas recientes</h3>
+          <button type="button" class="btn sm gris" onclick="cargarAlertas()"><i class="fa-solid fa-rotate"></i> Actualizar</button></div>
+        <div class="table-wrap" style="max-height:520px;overflow:auto;">
+          <table><thead><tr><th>Fecha</th><th>Sucursal</th><th>Alerta</th></tr></thead><tbody id="tbodyAlertas"></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><i class="fa-solid fa-sliders" style="color:var(--cobre);"></i> ¿Cuándo avisar?</h3></div>
+        <label class="al-opc"><input type="checkbox" id="al_activas"> Alertas encendidas</label>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;">
+          <div><label class="lbl">Cancelación desde ($)</label><input type="number" min="0" id="al_canc" class="inp"></div>
+          <div><label class="lbl">Descuento desde ($)</label><input type="number" min="0" id="al_desc" class="inp"></div>
+          <div><label class="lbl">Faltante en corte Z desde ($)</label><input type="number" min="0" id="al_falt" class="inp"></div>
+          <div><label class="lbl">Efectivo en caja mayor a ($)</label><input type="number" min="0" id="al_efec" class="inp"></div>
+        </div>
+        <label class="al-opc"><input type="checkbox" id="al_reabrir"> Avisar cuando se reabre una cuenta impresa</label>
+        <label class="al-opc"><input type="checkbox" id="al_cpago"> Avisar cuando se cambia la forma de pago</label>
+        <button type="button" class="btn" style="margin-top:8px;" onclick="guardarAlertasCfg()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+
+        <h3 style="margin:18px 0 6px;font-size:15px;color:var(--verde);"><i class="fa-brands fa-telegram" style="color:#229ED9;"></i> Recibirlas en tu celular (Telegram, gratis)</h3>
+        <div id="al_estado_tg" style="font-size:12.5px;margin-bottom:6px;"></div>
+        <ol style="font-size:12.5px;line-height:1.55;padding-left:18px;margin:0 0 8px;">
+          <li>Instala Telegram y busca <b>@BotFather</b>. Escríbele <b>/newbot</b> y ponle un nombre: te dará un <b>token</b>.</li>
+          <li>En Render → tu servicio → Environment, agrega la variable <b>TELEGRAM_BOT_TOKEN</b> con ese token (y guarda).</li>
+          <li>Abre tu bot nuevo en Telegram y mándale cualquier mensaje.</li>
+          <li>Busca <b>@userinfobot</b>, escríbele y te dirá tu <b>Id</b> (un número). Ponlo aquí abajo y guarda.</li>
+        </ol>
+        <div class="form-row" style="grid-template-columns:1fr auto auto;">
+          <input type="text" id="al_chat" class="inp" placeholder="Tu Id de Telegram (números)">
+          <button type="button" class="btn" onclick="guardarAlertasCfg()">Guardar</button>
+          <button type="button" class="btn cobre" onclick="probarAlerta()">Enviar prueba</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -559,6 +602,7 @@
     if (tab === 'cancelaciones') cargarCancelaciones();
     if (tab === 'checador') cargarChecador();
     if (tab === 'cortes') cargarCortesHist();
+    if (tab === 'alertas') { cargarAlertas(); cargarAlertasCfg(); }
     if (tab === 'mermas') cargarMermas();
     if (tab === 'recetas') { cargarRecetas(); cargarStockSucursal(); cargarCosteo(); }
     if (tab === 'flujo') cargarFlujoDinero();
@@ -664,6 +708,38 @@
     el.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     el.download = `asistencia_${$('as_desde').value}_${$('as_hasta').value}.csv`;
     el.click();
+  }
+
+  // ALERTAS
+  async function cargarAlertas() {
+    const d = await (await fetch('/api/alertas')).json();
+    if (!d.ok) return;
+    $('tbodyAlertas').innerHTML = d.alertas.map(a => `<tr><td style="white-space:nowrap;">${esc(a.fecha)}</td>
+      <td>${esc(a.sucursal)}</td><td>${esc(a.texto)}</td></tr>`).join('')
+      || '<tr><td colspan="3" style="text-align:center;color:#16a34a;padding:16px;">Sin alertas. Todo en orden.</td></tr>';
+  }
+  async function cargarAlertasCfg() {
+    const d = await (await fetch('/api/alertas/config')).json();
+    if (!d.ok) return;
+    const c = d.config;
+    $('al_activas').checked = !!c.activas; $('al_reabrir').checked = !!c.avisar_reabrir; $('al_cpago').checked = !!c.avisar_cambio_pago;
+    $('al_canc').value = c.cancelacion_min; $('al_desc').value = c.descuento_min; $('al_falt').value = c.faltante_min; $('al_efec').value = c.efectivo_max;
+    $('al_chat').value = c.telegram_chat_id || '';
+    $('al_estado_tg').innerHTML = c.telegram_listo ? '<span class="pill ok">Telegram listo</span>'
+      : (c.telegram_token_puesto ? '<span class="pill warn">Falta tu Id de Telegram</span>' : '<span class="pill warn">Falta el token en Render (paso 2)</span>');
+  }
+  async function guardarAlertasCfg() {
+    const res = await fetch('/api/alertas/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      activas: $('al_activas').checked, avisar_reabrir: $('al_reabrir').checked, avisar_cambio_pago: $('al_cpago').checked,
+      cancelacion_min: $('al_canc').value, descuento_min: $('al_desc').value, faltante_min: $('al_falt').value,
+      efectivo_max: $('al_efec').value, telegram_chat_id: $('al_chat').value.trim() }) });
+    const d = await res.json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    toast('✓ Alertas guardadas'); cargarAlertasCfg();
+  }
+  async function probarAlerta() {
+    const d = await (await fetch('/api/alertas/prueba', { method: 'POST' })).json();
+    alert(d.msg);
   }
 
   // HISTORIAL DE CORTES Z

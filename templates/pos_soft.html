@@ -210,6 +210,7 @@
     font-size: 18px; font-weight: 800; cursor: pointer; color: var(--verde-oscuro);
   }
   .key-btn:hover { background: #f1f5f9; }
+  .key-btn.verde { background: #16a34a; color: #fff; border-color: #15803d; font-size: 14px; }
   .key-btn.accent { background: var(--cobre); color: #fff; border-color: var(--cobre-oscuro); }
   .key-btn.ok { background: #16a34a; color: #fff; border-color: #15803d; }
 
@@ -356,6 +357,11 @@
   .zx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin-top: 6px; }
   .zx-grid label { font-size: 11px; font-weight: 600; color: #475569; display: flex; flex-direction: column; gap: 2px; }
   .zx-grid input, .zx-grid textarea { border: 1.5px solid #cbd5e1; border-radius: 7px; padding: 5px 7px; font-size: 12.5px; }
+  .usuario-btn { background: rgba(255,255,255,.14) !important; border-color: var(--cobre) !important; }
+  .imp-opc { display: flex; gap: 8px; align-items: center; padding: 4px 0; cursor: pointer; }
+  .imp-opc.principal { font-size: 14px; }
+  .imp-cmd { display: flex; gap: 6px; align-items: center; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; margin: 4px 0; }
+  .imp-cmd code { font-size: 11px; word-break: break-all; flex: 1; }
   .btn-bloq { opacity: .45; filter: grayscale(.6); cursor: not-allowed !important; }  /* letra y tamaños: static/css/ticket.css */
   @media print {
     @page { size: 80mm auto; margin: 2mm; }
@@ -404,6 +410,7 @@
   <div class="pos-topbar">
     <div class="pos-brand">
       <span class="pos-badge">POS CAJA</span>
+      <button type="button" class="pos-top-btn usuario-btn" onclick="abrirCambioUsuario()" title="Cambiar de usuario con PIN"><i class="fa-solid fa-user"></i> {{ current_user.username|upper }}</button>
       <span>Comensal Conectado • {{ sucursal }}</span>
     </div>
     <div class="pos-top-actions">
@@ -467,6 +474,7 @@
     <div class="pos-brand">
       <button type="button" class="pos-top-btn" onclick="mostrarHomeSR()"><i class="fa-solid fa-house"></i> Inicio</button>
       <span class="pos-badge">CAJA</span>
+      <button type="button" class="pos-top-btn usuario-btn" onclick="abrirCambioUsuario()" title="Cambiar de usuario con PIN"><i class="fa-solid fa-user"></i> {{ current_user.username|upper }}</button>
       {% if not sucursales %}<span>{{ sucursal }}</span>{% endif %}
     </div>
     <div id="notificacionSilenciosa" class="pos-notif"></div>
@@ -478,7 +486,7 @@
         {% endfor %}
       </select>
       {% endif %}
-      <button type="button" id="btnEstacionImpresion" class="pos-top-btn" onclick="toggleEstacionImpresion()" title="Activa solo en la PC conectada a la impresora térmica"><i class="fa-solid fa-print"></i> Imp: ON</button>
+      <button type="button" id="btnEstacionImpresion" class="pos-top-btn" onclick="abrirConfigImpresora()" title="Configurar qué imprime esta computadora"><i class="fa-solid fa-print"></i> Imp: ON</button>
       <button type="button" class="pos-top-btn" onclick="sincronizarCuentasEnVivoCaja()" title="Actualizar"><i class="fa-solid fa-rotate"></i></button>
       <button type="button" class="pos-top-btn" onclick="activarPantallaCompleta()" title="Pantalla completa"><i class="fa-solid fa-expand"></i></button>
       {% include '_modulos.html' %}
@@ -1115,6 +1123,57 @@
 <!-- =========================================================================
      MODAL: ABRIR TURNO (FONDO INICIAL)
      ========================================================================= -->
+<div class="modal-bg" id="modalImpresora">
+  <div class="modal-box" style="width:560px;">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-print"></i> Impresora de esta computadora</h3>
+      <button type="button" class="btn-p sm gris" onclick="cerrarModal('modalImpresora')">✕</button>
+    </div>
+    <div class="modal-body" style="font-size:13px;">
+      <label class="imp-opc principal"><input type="checkbox" id="impActiva" onchange="guardarConfigImpresora()"> <b>Esta computadora imprime los tickets automáticamente</b></label>
+      <div id="impGrupos" style="margin:8px 0 4px 24px;">
+        <div style="font-weight:600;color:#475569;margin-bottom:4px;">¿Qué imprime? (si no marcas nada, imprime todo)</div>
+        <label class="imp-opc"><input type="checkbox" class="imp-grupo" value="COCINA" onchange="guardarConfigImpresora()"> Comandas de <b>cocina</b> (y cancelaciones de cocina)</label>
+        <label class="imp-opc"><input type="checkbox" class="imp-grupo" value="BARRA" onchange="guardarConfigImpresora()"> Comandas de <b>barra</b> (y cancelaciones de barra)</label>
+        <label class="imp-opc"><input type="checkbox" class="imp-grupo" value="CAJA" onchange="guardarConfigImpresora()"> Tickets de <b>caja</b> (cuentas, vales de retiro)</label>
+      </div>
+      <button type="button" class="btn-p sm cobre" onclick="imprimirPrueba()"><i class="fa-solid fa-print"></i> Imprimir hoja de prueba</button>
+
+      <details style="margin-top:14px;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+        <summary style="cursor:pointer;font-weight:700;">Imprimir sin que salga la ventana de Chrome (se hace una vez por computadora)</summary>
+        <ol style="padding-left:18px;margin:8px 0 0;line-height:1.55;">
+          <li>En Windows, pon la impresora térmica como <b>predeterminada</b> (Configuración → Impresoras → la térmica → "Establecer como predeterminada").</li>
+          <li>Cierra Chrome por completo.</li>
+          <li>Haz clic derecho en el escritorio → Nuevo → Acceso directo, y pega esto:
+            <div class="imp-cmd"><code id="impComando"></code><button type="button" class="btn-p sm" onclick="copiarComandoImpresion()">Copiar</button></div></li>
+          <li>Ponle de nombre <b>CAJA</b> y abre la caja siempre desde ese acceso directo.</li>
+          <li>Toca "Imprimir hoja de prueba": debe salir sola, sin preguntar.</li>
+        </ol>
+        <div style="font-size:11.5px;color:#64748b;margin-top:6px;">Si una computadora tiene dos impresoras (cocina y barra), solo imprime directo en la predeterminada; lo ideal es una computadora o tablet por impresora.</div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalCambioUsuario">
+  <div class="modal-box" style="width:340px;">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-user-group"></i> Cambiar de usuario</h3>
+      <button type="button" class="btn-p sm gris" onclick="cerrarModal('modalCambioUsuario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:#475569;margin-bottom:6px;">Ahora: <b>{{ current_user.username|upper }}</b>. El que entra escribe su PIN:</div>
+      <div class="pay-visor" id="visorPinUsuario" style="letter-spacing:8px;">&nbsp;</div>
+      <div class="keypad-grid">
+        {% for k in ['1','2','3','4','5','6','7','8','9','BACK','0','OK'] %}
+        <button type="button" class="key-btn{{ ' accent' if k == 'BACK' else (' verde' if k == 'OK' else '') }}" onclick="teclaPinUsuario('{{ k }}')">{{ '⌫' if k == 'BACK' else ('Entrar' if k == 'OK' else k) }}</button>
+        {% endfor %}
+      </div>
+      <div style="font-size:11px;color:#64748b;margin-top:6px;">El PIN lo asigna el Admin en Administración → Usuarios.</div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalAbrirTurno">
   <div class="modal-box" style="width:380px;">
     <div class="modal-head">
@@ -4189,12 +4248,73 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     return ROL_POS !== 'admin';
   }
 
+  function gruposImpresion() {
+    try { return JSON.parse(localStorage.getItem('pos_grupos_impresion') || '[]'); } catch (e) { return []; }
+  }
+
   function actualizarBotonEstacionImpresion() {
     const btn = document.getElementById('btnEstacionImpresion');
     if (!btn) return;
     const activa = esEstacionImpresionActiva();
-    btn.innerHTML = activa ? '<i class="fa-solid fa-print"></i> Imp: ON' : '<i class="fa-solid fa-print"></i> Imp: OFF';
+    const g = gruposImpresion();
+    const etiqueta = !activa ? 'OFF' : (g.length && g.length < 3 ? g.map(x => x[0] + x.slice(1).toLowerCase()).join('+') : 'Todo');
+    btn.innerHTML = `<i class="fa-solid fa-print"></i> Imp: ${etiqueta}`;
     btn.style.background = activa ? 'rgba(22,163,74,0.35)' : 'rgba(255,255,255,0.08)';
+  }
+
+  let bufferPinUsuario = '';
+  function abrirCambioUsuario() {
+    bufferPinUsuario = '';
+    document.getElementById('visorPinUsuario').innerHTML = '&nbsp;';
+    document.getElementById('modalCambioUsuario').style.display = 'flex';
+  }
+  async function teclaPinUsuario(k) {
+    if (k === 'BACK') bufferPinUsuario = bufferPinUsuario.slice(0, -1);
+    else if (k === 'OK') {
+      if (bufferPinUsuario.length < 4) return notificarBarra('El PIN es de 4 a 6 números.');
+      const res = await fetch('/api/cambiar_usuario_pin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: bufferPinUsuario }) });
+      const d = await res.json().catch(() => ({}));
+      bufferPinUsuario = '';
+      document.getElementById('visorPinUsuario').innerHTML = '&nbsp;';
+      if (!d.ok) return notificarBarra('🔒 ' + (d.msg || 'PIN incorrecto.'));
+      notificarBarra(`✓ Ahora trabaja ${d.usuario}`);
+      return setTimeout(() => location.reload(), 400);
+    } else if (bufferPinUsuario.length < 6) bufferPinUsuario += k;
+    document.getElementById('visorPinUsuario').textContent = '•'.repeat(bufferPinUsuario.length) || ' ';
+  }
+
+  function abrirConfigImpresora() {
+    document.getElementById('impActiva').checked = esEstacionImpresionActiva();
+    const g = gruposImpresion();
+    document.querySelectorAll('.imp-grupo').forEach(c => { c.checked = g.includes(c.value); });
+    document.getElementById('impComando').textContent =
+      `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --app=${location.origin}/pos`;
+    document.getElementById('modalImpresora').style.display = 'flex';
+  }
+
+  function guardarConfigImpresora() {
+    localStorage.setItem('pos_estacion_impresion', document.getElementById('impActiva').checked ? '1' : '0');
+    const g = [...document.querySelectorAll('.imp-grupo:checked')].map(c => c.value);
+    localStorage.setItem('pos_grupos_impresion', JSON.stringify(g));
+    actualizarBotonEstacionImpresion();
+  }
+
+  function copiarComandoImpresion() {
+    const t = document.getElementById('impComando').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(
+      () => notificarBarra('✓ Copiado. Pégalo en el acceso directo.'),
+      () => prompt('Copia este texto:', t));
+  }
+
+  function imprimirPrueba() {
+    const g = gruposImpresion();
+    mandarImprimirHTMLDirecto(`<div class="ticket-termico"><div class="tk-titulo">PRUEBA DE IMPRESIÓN</div>
+      <div class="tk-sub">${new Date().toLocaleString('es-MX')}</div><div class="tk-sep"></div>
+      <div class="tk-meta">Esta computadora imprime: <b>${g.length ? g.join(', ') : 'TODO'}</b></div>
+      <table class="tk-items"><tr><td class="tk-cant">2</td><td class="tk-desc">CHILAQUILES VERDES</td></tr>
+      <tr class="tk-mod"><td class="tk-cant"></td><td class="tk-desc">› SIN CEBOLLA</td></tr></table>
+      <div class="tk-sep"></div><div class="tk-pie">Si salió sin preguntar, la impresión directa está lista.</div></div>`);
   }
 
   function toggleEstacionImpresion() {
@@ -4224,7 +4344,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     try {
       const r = await fetch('/api/pos/cola_impresion/reclamar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dispositivo: idEstacionImpresion() })
+        body: JSON.stringify({ dispositivo: idEstacionImpresion(), grupos: gruposImpresion() })
       });
       const d = await r.json();
       tickets = d.tickets || [];

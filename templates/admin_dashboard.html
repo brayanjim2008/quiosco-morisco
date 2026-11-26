@@ -730,6 +730,12 @@
                                         <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 110px;" placeholder="Nueva clave" required>
                                         <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
                                     </form>
+                                    {% if u.role in ['admin', 'gerente', 'cajero', 'sucursal'] %}
+                                    <form action="{{ url_for('pin_usuario', id=u.id) }}" method="POST" class="d-flex gap-1 m-0" title="PIN para cambiar de usuario en la caja">
+                                        <input type="password" name="pin" inputmode="numeric" maxlength="6" class="form-control form-control-sm" style="width: 90px;" placeholder="{{ 'PIN ✓' if u.pin_rapido else 'PIN caja' }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success fw-bold">PIN</button>
+                                    </form>
+                                    {% endif %}
                                     {% if u.id != current_user.id %}
                                     <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" class="m-0" data-usr="{{ u.username }}" onsubmit="return confirm('¿Eliminar a ' + this.getAttribute('data-usr') + '?');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">X</button>

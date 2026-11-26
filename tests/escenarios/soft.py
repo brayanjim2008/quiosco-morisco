@@ -166,3 +166,61 @@ r = admin.get('/api/checador/lista?desde=2000-01-01&sucursal=TODAS')
 check(r.status_code == 200 and 'fecha' in (r.json['asistencias'][0] if r.json['asistencias'] else {'fecha': 1}), 'reporte de asistencia por fechas')
 h_ind = admin.get('/industrial').get_data(as_text=True)
 check('id="cz_desde"' in h_ind and 'id="as_desde"' in h_ind and 'js/corte_ticket.js' in h_ind, 'Reportes: historial de cortes y asistencia por fechas')
+
+# ---- Impresión por estación: cada PC pide solo lo que le toca (cocina / barra / caja) ----
+c4 = _abrir_s('SFT4', 1)
+_cap_s(c4, 'LATTE PRUEBA', 65, 'BARRA')
+_cap_s(c4, 'HUEVOS PRUEBA', 100, 'COCINA')
+cam1.post(f'/api/pos/enviar_comanda/{c4}', json={}, headers=HS)
+r = cam1.post('/api/pos/cola_impresion/reclamar', json={'dispositivo': 'PC-BARRA', 'grupos': ['BARRA']}, headers=HS)
+with app.app_context():
+    tipos_b = {_ColaS.query.get(t['id']).tipo for t in r.json['tickets']}
+check(tipos_b and tipos_b <= {'COMANDA_BARRA', 'CANCELACION_BARRA'}, f'la estación de barra solo recibe barra ({tipos_b})')
+r = cam1.post('/api/pos/cola_impresion/reclamar', json={'dispositivo': 'PC-COCINA', 'grupos': ['COCINA']}, headers=HS)
+with app.app_context():
+    tipos_c = {_ColaS.query.get(t['id']).tipo for t in r.json['tickets']}
+check('COMANDA_COCINA' in tipos_c and not (tipos_c & {'COMANDA_BARRA', 'PRECUENTA', 'VALE_CAJA'}), f'la estación de cocina solo recibe cocina ({tipos_c})')
+r = cam1.post('/api/pos/cola_impresion/reclamar', json={'dispositivo': 'PC-CAJA', 'grupos': ['CAJA']}, headers=HS)
+with app.app_context():
+    tipos_j = {_ColaS.query.get(t['id']).tipo for t in r.json['tickets']}
+check(not (tipos_j & {'COMANDA_COCINA', 'COMANDA_BARRA', 'CANCELACION_COCINA', 'CANCELACION_BARRA'}), f'la estación de caja no recibe comandas ({tipos_j})')
+h_pos = cam1.get('/pos').get_data(as_text=True)
+check('id="modalImpresora"' in h_pos and '--kiosk-printing' not in h_pos.split('impComando')[0][-50:], 'POS: pantalla de configuración de impresora')
+
+# ---- Cambio rápido de usuario con PIN en la caja ----
+with app.app_context():
+    from models import User as _US
+    _uid = _US.query.filter_by(username='brayan').first().id
+    _mid = _US.query.filter_by(username='paola').first().id
+_tk_adm = token_de(admin.get('/admin_dashboard').get_data(as_text=True))
+admin.post(f'/admin/usuario/pin/{_uid}', data={'pin': '4821', 'csrf_token': _tk_adm})
+admin.post(f'/admin/usuario/pin/{_mid}', data={'pin': '9999', 'csrf_token': _tk_adm})
+with app.app_context():
+    check(_US.query.get(_uid).pin_rapido and not _US.query.get(_mid).pin_rapido, 'Admin asigna PIN de caja (los meseros no llevan PIN de caja)')
+r = cam1.post('/api/cambiar_usuario_pin', json={'pin': '0000'}, headers=HS)
+check(r.status_code == 401, 'PIN incorrecto se rechaza')
+r = cam1.post('/api/cambiar_usuario_pin', json={'pin': '4821'}, headers=HS)
+check(r.status_code == 200 and r.json['usuario'] == 'BRAYAN', 'con su PIN el cajero entra en la misma caja sin cerrar sesión')
+check('BRAYAN' in cam1.get('/pos').get_data(as_text=True), 'la caja ya trabaja con el nuevo usuario')
+
+# ---- Alertas al dueño ----
+r = admin.post('/api/alertas/config', json={'cancelacion_min': 10, 'efectivo_max': 1, 'telegram_chat_id': 'abc'}, headers=H)
+check(r.status_code == 400, 'chat id de Telegram inválido se rechaza')
+r = admin.post('/api/alertas/config', json={'cancelacion_min': 10, 'efectivo_max': 1, 'activas': True}, headers=H)
+check(r.status_code == 200, 'configurar límites de alertas')
+c5 = _abrir_s('SFT5', 1)
+_cap_s(c5, 'LATTE PRUEBA', 65, 'BARRA')
+_cap_s(c5, 'HUEVOS PRUEBA', 100, 'COCINA')
+cam1.post(f'/api/pos/enviar_comanda/{c5}', json={}, headers=HS)
+_it = next(i['id'] for i in cam1.get(f'/api/pos/detalle_cuenta/{c5}').json['items'] if i['descripcion'] == 'HUEVOS PRUEBA')
+cam1.post('/api/pos/cancelar_items_lote', json={'cuenta_id': c5, 'clave_admin': CLAVE_S, 'items': [{'id': _it, 'cantidad': 1, 'motivo': 'PRUEBA ALERTA'}]}, headers=HS)
+imprimir_cuenta(cam1, c5, HS)
+cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c5, 'efectivo': 65, 'idem': 'soft-c5'}, headers=HS)
+cam1.post('/api/pos/pagar_cuenta', json={'cuenta_id': c5, 'efectivo': 65, 'idem': 'soft-c5'}, headers=HS)
+al = admin.get('/api/alertas').json['alertas']
+check(any(a['tipo'] == 'CANCELACION' and 'PRUEBA ALERTA' in a['texto'] for a in al), 'alerta por cancelación grande')
+check(sum(1 for a in al if a['tipo'] == 'EFECTIVO_ALTO') == 1, 'una sola alerta de efectivo alto por turno')
+check(cam1.get('/api/alertas').status_code == 403, 'las alertas solo las ve el Admin')
+r = admin.post('/api/alertas/prueba', json={}, headers=H)
+check(r.status_code == 200 and r.json['enviado'] is False, 'sin Telegram configurado la prueba lo explica (no truena)')
+admin.post('/api/alertas/config', json={'cancelacion_min': 200, 'efectivo_max': 5000}, headers=H)

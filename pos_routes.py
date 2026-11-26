@@ -1461,6 +1461,14 @@ def api_pos_juntar_cuentas():
 # ==============================================================================
 # PAGOS MIXTOS, VALE EMPLEADO, CAMBIO DE PAGO, REIMPRESIÓN Y CORTE X/Z
 # ==============================================================================
+def _efectivo_en_caja(turno):
+    """Efectivo que debería haber en la caja: fondo + ventas en efectivo + depósitos − retiros − propinas pagadas."""
+    pagadas = CuentaPOS.query.filter_by(turno_id=turno.id, estado='PAGADA').all()
+    ef = sum(max(0.0, (x.pago_efectivo or 0.0) - (x.cambio or 0.0)) for x in pagadas)
+    prop = sum(x.propina_tarjeta or 0.0 for x in pagadas)
+    return round((turno.fondo_inicial or 0) + ef + (turno.depositos_efectivo or 0) - (turno.retiros_efectivo or 0) - prop, 2)
+
+
 @pos_bp.route('/api/pos/pagar_cuenta', methods=['POST'])
 @login_required
 def api_pos_pagar_cuenta():
@@ -1565,6 +1573,12 @@ def api_pos_pagar_cuenta():
     # Descuento automático de recetas en stock local de esta sucursal (Opción A)
     descontar_recetas_local(c)
     db.session.commit()
+    if ef > 0:
+        try:
+            from alertas import revisar_efectivo
+            revisar_efectivo(turno_cobro, _efectivo_en_caja(turno_cobro), c.sucursal)
+        except Exception:
+            pass
     return jsonify({'ok': True, 'folio': c.folio, 'cambio': c.cambio})
 
 
@@ -2097,6 +2111,26 @@ def api_pos_cola_impresion():
     return jsonify({'tickets': [], 'recargar': True})
 
 
+# Qué imprime cada estación (PC/tablet con su impresora). Lo que no esté en COCINA ni BARRA es de CAJA.
+GRUPOS_IMPRESION = {
+    'COCINA': ('COMANDA_COCINA', 'CANCELACION_COCINA', 'AVISO_CAMBIO_MESA', 'REIMPRESION'),
+    'BARRA': ('COMANDA_BARRA', 'CANCELACION_BARRA'),
+}
+
+
+def _filtro_grupos_impresion(grupos):
+    """Filtro SQL por los grupos que pidió la estación; sin grupos (o los tres) = todo, como antes."""
+    from sqlalchemy import true as _true
+    grupos = {str(g).upper() for g in (grupos or []) if str(g).upper() in ('COCINA', 'BARRA', 'CAJA')}
+    if not grupos or grupos == {'COCINA', 'BARRA', 'CAJA'}:
+        return _true()
+    de_area = GRUPOS_IMPRESION['COCINA'] + GRUPOS_IMPRESION['BARRA']
+    conds = [ColaImpresionPOS.tipo.in_(GRUPOS_IMPRESION[g]) for g in ('COCINA', 'BARRA') if g in grupos]
+    if 'CAJA' in grupos:
+        conds.append(or_(ColaImpresionPOS.tipo.is_(None), ColaImpresionPOS.tipo.notin_(de_area)))
+    return or_(*conds)
+
+
 @pos_bp.route('/api/pos/cola_impresion/reclamar', methods=['POST'])
 @login_required
 def api_pos_cola_impresion_reclamar():
@@ -2109,8 +2143,10 @@ def api_pos_cola_impresion_reclamar():
     suc = obtener_sucursal_activa(session)
     ahora = ahora_local()
     vencido = ahora - timedelta(seconds=COLA_REINTENTO_SEG)
+    filtro_tipo = _filtro_grupos_impresion(data.get('grupos'))
     tickets = ColaImpresionPOS.query.filter(
         ColaImpresionPOS.sucursal == suc,
+        filtro_tipo,
         ColaImpresionPOS.impreso.isnot(True),
         or_(
             ColaImpresionPOS.estado.is_(None),

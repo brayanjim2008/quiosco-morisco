@@ -226,6 +226,7 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='cajero')
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
+    pin_rapido = db.Column(db.String(255), nullable=True)  # hash del PIN para cambiar de usuario en la caja
 
 
 class CategoriaMenu(db.Model):
@@ -862,6 +863,17 @@ class VacacionEmpleadoPOS(db.Model):
     creado = db.Column(db.DateTime, default=ahora_local)
 
 
+class AlertaDuenoPOS(db.Model):
+    """Alertas para el dueño (cancelaciones/descuentos grandes, faltantes, efectivo alto...). Ver alertas.py."""
+    __tablename__ = 'alertas_dueno_pos'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_local, index=True)
+    sucursal = db.Column(db.String(100), default='')
+    tipo = db.Column(db.String(30), default='')
+    texto = db.Column(db.String(500), default='')
+    monto = db.Column(db.Float, default=0.0)
+
+
 class ConsumoEmpleadoPOS(db.Model):
     __tablename__ = 'consumos_empleados_pos'
     id = db.Column(db.Integer, primary_key=True)
@@ -1210,6 +1222,13 @@ def registrar_bitacora(accion, mesa='', monto=0.0, detalle='', autorizo='', sucu
         db.session.commit()
     except Exception:
         db.session.rollback()
+        return
+    try:
+        from alertas import evaluar_bitacora
+        evaluar_bitacora(accion, mesa, monto, str(detalle), current_user.username.upper() if current_user.is_authenticated else 'SISTEMA',
+                         (autorizo or '').upper(), sucursal or getattr(current_user, 'sucursal', None) or 'Quiosco Morisco (Matriz)')
+    except Exception:
+        pass
 
 
 def generar_pin_unico():
@@ -1470,6 +1489,8 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # se corre inicializar_sistema (create_all + ALTER ... IF NOT EXISTS, sin borrar datos).
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
+    'user': {'pin_rapido'},
+    'alertas_dueno_pos': {'tipo', 'texto'},
     'clientes_credito': set(),
     'pre_orden': {'sucursal'},
     'pin_caja': {'sucursal'},
@@ -1519,6 +1540,7 @@ def inicializar_sistema(app_obj):
 
         migraciones = [
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sucursal VARCHAR(100) DEFAULT \'Quiosco Morisco (Matriz)\';',
+            'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS pin_rapido VARCHAR(255);',
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(255);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton VARCHAR(50);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS enlace VARCHAR(500);",
