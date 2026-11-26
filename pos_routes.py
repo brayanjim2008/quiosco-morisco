@@ -247,9 +247,9 @@ def _siguiente_folio_sucursal(sucursal):
 def _armar_ticket_precuenta_html(c):
     dt = obtener_datos_ticket(c.sucursal)
     filas = "".join([
-        f"<tr><td style='width:14%;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
-        f"<td style='width:62%;'>{_esc(it.descripcion.lstrip('>'))}</td>"
-        f"<td style='width:24%;text-align:right;'>${it.importe:.2f}</td></tr>"
+        f"<tr{' class=tk-mod' if it.es_modificador else ''}><td class='tk-cant' style='font-size:11.5px;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
+        f"<td class='tk-desc' style='font-size:11.5px;font-weight:400;'>{_esc(it.descripcion.lstrip('>'))}</td>"
+        f"<td class='tk-imp'>${it.importe:.2f}</td></tr>"
         for it in c.detalles if (not it.es_modificador or it.importe > 0)
     ])
     apertura_str = c.apertura.strftime('%d/%m/%Y %I:%M:%S %p') if c.apertura else ''
@@ -258,34 +258,29 @@ def _armar_ticket_precuenta_html(c):
     letras = numero_a_letras_mxn(c.total)
     return f"""
     <div class='ticket-termico'>
-      <div style='text-align:center;line-height:1.25;'>
-        <b>{dt['nombre_comercial']}</b><br>
-        {dt['razon_social']}<br>
-        RFC: {dt['rfc']}<br>
-        {dt['direccion']}<br>
-        {dt['ciudad']}<br>
-        TEL: {dt['telefono']}
+      <div class='tk-titulo'>{dt['nombre_comercial']}</div>
+      <div class='tk-sub'>{dt['razon_social']}<br>RFC: {dt['rfc']}<br>{dt['direccion']}<br>{dt['ciudad']} · Tel. {dt['telefono']}</div>
+      <div class='tk-sep'></div>
+      <div class='tk-tag'>Precuenta</div>
+      <div class='tk-meta'>
+        <div class='tk-fila'><span>Mesa <b>{_esc(c.mesa)}</b></span><span>Orden <b>{c.orden}</b></span></div>
+        <div class='tk-fila'><span>Folio {c.folio or c.orden}</span><span>Personas {c.personas}</span></div>
+        <div class='tk-fila'><span>Mesero {_esc(c.mesero)}</span><span>Cajero {_esc(cajero_nom)}</span></div>
+        <div>Apertura {apertura_str}</div><div>Impresión {ahora_str}</div>
       </div>
-      <div>================================</div>
-      MESA: <b>{_esc(c.mesa)}</b><br>
-      MESERO: {_esc(c.mesero)}<br>
-      PERSONAS: {c.personas} &nbsp;&nbsp; ORDEN: <b>{c.orden}</b><br>
-      FOLIO: <b>{c.folio or c.orden}</b><br>
-      {apertura_str}<br>
-      {ahora_str}<br>
-      CAJERO: {_esc(cajero_nom)}<br>
-      <div>================================</div>
-      <table style='width:100%;font-size:11.5px;'>
-        <tr><td style='width:14%;'><b>CANT.</b></td><td style='width:62%;'><b>DESCRIPCION</b></td><td style='width:24%;text-align:right;'><b>IMPORTE</b></td></tr>
+      <div class='tk-sep'></div>
+      <table class='tk-items'>
+        <tr class='tk-encab'><td>Cant.</td><td>Descripción</td><td class='tk-imp'>Importe</td></tr>
         {filas}
       </table>
-      <div>================================</div>
-      {f"<div style='text-align:right;'>DESCUENTO: -${c.descuento_monto:.2f}</div>" if c.descuento_monto > 0 else ""}
-      <div style='text-align:right;font-size:17px;font-weight:900;margin:4px 0;'>TOTAL: &nbsp;&nbsp; ${c.total:.2f}</div>
-      <div>================================</div>
-      <div style='font-size:10.5px;margin:4px 0;'>{letras}</div>
-      <div style='text-align:center;font-size:11px;margin:4px 0;'>SUBTOTAL: ${c.subtotal:.2f} &nbsp;&nbsp; IVA: ${c.iva:.2f}</div>
-      <div style='text-align:center;font-size:10px;'>ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
+      <div class='tk-sep'></div>
+      <div class='tk-linea'><span>Subtotal</span><span>${c.subtotal:.2f}</span></div>
+      {f"<div class='tk-linea'><span>Descuento</span><span>-${c.descuento_monto:.2f}</span></div>" if c.descuento_monto > 0 else ""}
+      <div class='tk-linea'><span>IVA</span><span>${c.iva:.2f}</span></div>
+      <div class='tk-total'><span>TOTAL</span><span>${c.total:.2f}</span></div>
+      <div class='tk-pie' style='text-align:left;'>{letras}</div>
+      <div class='tk-sep'></div>
+      <div class='tk-pie'>Este no es un comprobante fiscal · Propina no incluida</div>
     </div>"""
 
 
@@ -422,12 +417,12 @@ def api_pos_mover_mesa_rapido():
         hora_txt = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
         html_aviso = f"""
         <div class='ticket-termico'>
-            <div style='text-align:center;font-weight:900;font-size:15px;'>⚠️ CAMBIO DE MESA</div>
-            <div style='text-align:center;font-size:11px;'>{_esc(c.sucursal.upper())} | {hora_txt}</div>
-            <div style='border-top:1px dashed #000;margin:6px 0;'></div>
-            <div style='font-size:14px;font-weight:900;'>MESA ANTERIOR: {_esc(ant)}</div>
-            <div style='font-size:16px;font-weight:900;'>NUEVA MESA:    {_esc(nueva_mesa)}</div>
-            <div>MESERO: {_esc((c.mesero or current_user.username).upper())}</div>
+            <div class='tk-alerta'>CAMBIO DE MESA</div>
+            <div class='tk-sub'>{_esc(c.sucursal.upper())} · {hora_txt}</div>
+            <div class='tk-sep'></div>
+            <div class='tk-linea'><span>Mesa anterior</span><span>{_esc(ant)}</span></div>
+            <div class='tk-mesa'>Nueva mesa: {_esc(nueva_mesa)}</div>
+            <div class='tk-meta'>Mesero: {_esc((c.mesero or current_user.username).upper())}</div>
         </div>"""
         db.session.add(ColaImpresionPOS(sucursal=c.sucursal, tipo='AVISO_CAMBIO_MESA', contenido_html=html_aviso, fecha=ahora_local()))
     db.session.commit()
@@ -770,9 +765,9 @@ def _generar_comandas_pendientes(c):
         for it in lista:
             if not it.es_modificador and (it.num_comanda or 1) > 1 and it.num_comanda != tiempo_actual:
                 tiempo_actual = it.num_comanda
-                filas.append(f"<tr><td colspan='2' style='font-size:12px;padding-top:4px;'>--- TIEMPO {tiempo_actual} ---</td></tr>")
+                filas.append(f"<tr class='tk-tiempo'><td colspan='2'>— TIEMPO {tiempo_actual} —</td></tr>")
             if it.clave == 'SEP':
-                filas.append("<tr><td colspan='2' style='text-align:center;font-size:12px;'>================================</td></tr>")
+                filas.append("<tr><td colspan='2'><div class='tk-sep'></div></td></tr>")
                 continue
             texto_item = _esc(it.descripcion)
             # Si es un modificador de paquete ruteado a otra área (ej. FRUTA/CAFE en BARRA de un PAQUETE de COCINA), agregar referencia
@@ -781,22 +776,26 @@ def _generar_comandas_pendientes(c):
                 if padre.area_impresion != area_nom:
                     texto_item = _esc(f"{it.descripcion.lstrip('>')} ({padre.descripcion})")
             if it.es_modificador and not (it.parent_detalle_id in padres_map and padres_map[it.parent_detalle_id].area_impresion != area_nom):
-                filas.append(f"<tr><td style='width:14%;'></td><td style='width:86%;font-size:13px;padding-left:6px;'>{texto_item}</td></tr>")
+                filas.append(f"<tr class='tk-mod'><td class='tk-cant'></td><td class='tk-desc'>› {re.sub(r'^(?:&gt;|>)+', '', texto_item)}</td></tr>")
             else:
                 cant_txt = int(it.cantidad) if float(it.cantidad).is_integer() else f"{it.cantidad:g}"
-                filas.append(f"<tr><td style='width:14%;font-size:16px;font-weight:900;'>{cant_txt}</td><td style='width:86%;font-size:16px;font-weight:900;'>{texto_item}</td></tr>")
+                filas.append(f"<tr><td class='tk-cant'>{cant_txt}</td><td class='tk-desc'>{texto_item}</td></tr>")
 
         filas_html = "".join(filas)
         html_ticket = f"""
         <div class='ticket-termico' style='page-break-after:always;break-after:page;'>
-            <div style='font-size:13px;font-weight:bold;'>{titulo_estado}</div>
-            <div style='font-size:14px;font-weight:900;'>{area_nom} ({area_mesa_limpia}) ORDEN: {c.orden}</div>
-            <div style='font-size:12px;'>{ahora_str}</div>
-            <div style='font-size:13px;font-weight:bold;'>MESA: {_esc(c.mesa)} - PERSONAS: {c.personas} &nbsp;MESERO: {_esc(c.mesero)}</div>
-            <div>================================</div>
-            <table style='width:100%;border-collapse:collapse;'>{filas_html}</table>
-            {f"<div style='margin-top:6px;font-size:12px;'><b>NOTA CUENTA:</b> {_esc(c.observaciones)}</div>" if c.observaciones else ""}
-            <div>================================</div>
+            <div class='tk-tag'>{titulo_estado.strip('= ').strip()}</div>
+            <div class='tk-titulo'>{area_nom}</div>
+            <div class='tk-mesa'>Mesa {_esc(c.mesa)}</div>
+            <div class='tk-meta'>
+              <div class='tk-fila'><span>Orden <b>{c.orden}</b></span><span>{area_mesa_limpia}</span></div>
+              <div class='tk-fila'><span>Mesero {_esc(c.mesero)}</span><span>Personas {c.personas}</span></div>
+              <div>{ahora_str}</div>
+            </div>
+            <div class='tk-sep'></div>
+            <table class='tk-items'>{filas_html}</table>
+            {f"<div class='tk-nota'><b>Nota:</b> {_esc(c.observaciones)}</div>" if c.observaciones else ""}
+            <div class='tk-sep'></div>
         </div>"""
         db.session.add(ColaImpresionPOS(sucursal=c.sucursal, tipo=f"COMANDA_{area_nom}", contenido_html=html_ticket, fecha=ahora_local()))
     return True
@@ -1023,21 +1022,25 @@ def api_pos_cancelar_items_lote():
         filas = []
         for cant, desc, mot, sub in lista:
             if sub:
-                filas.append(f"<div style='padding-left:18px;font-size:13px;'>{_esc(desc)}</div>")
+                filas.append(f"<tr class='tk-mod'><td class='tk-cant'></td><td class='tk-desc'>› {_esc(desc.lstrip('>'))}</td></tr>")
                 continue
             cant_txt = int(cant) if float(cant).is_integer() else f"{cant:g}"
-            filas.append(f"<div style='font-size:16px;font-weight:900;'>{cant_txt} {_esc(desc)}</div>")
+            filas.append(f"<tr><td class='tk-cant'>{cant_txt}</td><td class='tk-desc'>{_esc(desc)}</td></tr>")
             if mot:
-                filas.append(f"<div style='font-size:11px;padding-left:18px;'>MOTIVO: {_esc(mot)}</div>")
+                filas.append(f"<tr><td colspan='2' class='tk-motivo'>MOTIVO: {_esc(mot)}</td></tr>")
         html_canc = f"""
         <div class='ticket-termico' style='page-break-after:always;break-after:page;'>
-            <div style='text-align:center;font-size:16px;font-weight:900;'>*** CANCELACION ***</div>
-            <div style='font-size:12px;'>{ahora_str} / ORDEN: {_esc(cuenta.orden)}</div>
-            <div style='font-size:13px;font-weight:bold;'>{area_nom} - MESA: {_esc(cuenta.mesa)} - PERSONAS: {cuenta.personas} MESERO: {_esc(cuenta.mesero)}</div>
-            <div>================================</div>
-            {''.join(filas)}
-            <div>================================</div>
-            <div style='text-align:center;font-size:16px;font-weight:900;'>*** CANCELACION ***</div>
+            <div class='tk-alerta'>*** CANCELACION ***</div>
+            <div class='tk-titulo'>{area_nom}</div>
+            <div class='tk-mesa'>Mesa {_esc(cuenta.mesa)}</div>
+            <div class='tk-meta'>
+              <div class='tk-fila'><span>Orden <b>{_esc(cuenta.orden)}</b></span><span>Personas {cuenta.personas}</span></div>
+              <div>Mesero {_esc(cuenta.mesero)}</div><div>{ahora_str}</div>
+            </div>
+            <div class='tk-sep'></div>
+            <table class='tk-items'>{''.join(filas)}</table>
+            <div class='tk-sep'></div>
+            <div class='tk-tag'>No preparar · producto cancelado</div>
         </div>"""
         db.session.add(ColaImpresionPOS(sucursal=cuenta.sucursal, tipo=f"CANCELACION_{area_nom}", contenido_html=html_canc, fecha=ahora_local()))
 
@@ -1688,16 +1691,19 @@ def api_pos_movimiento_caja():
 
     html_vale = f"""
     <div class='ticket-termico'>
-        <div style='text-align:center;font-weight:bold;font-size:15px;'>COMENSAL CONECTADO</div>
-        <div style='text-align:center;font-size:11px;'>{suc.upper()}</div>
-        <div style='text-align:center;font-weight:bold;'>VALE DE {tipo} DE CAJA</div>
-        <div style='border-top:1px dashed #000;margin:6px 0;'></div>
-        <div>FECHA: {ahora_local().strftime('%d/%m/%Y %I:%M %p')}</div>
-        <div>CAJERO: {current_user.username.upper()}</div>
-        <div>CONCEPTO: <b>{_esc(concepto)}</b></div>
-        {f"<div>CATEGORÍA: {_esc(categoria)}</div>" if categoria else ''}
-        <div style='font-size:18px;font-weight:900;margin:8px 0;'>MONTO: ${monto:.2f}</div>
-        <br><br><div style='border-top:1px solid #000;text-align:center;'>FIRMA DE RECIBIDO</div>
+        <div class='tk-titulo'>COMENSAL CONECTADO</div>
+        <div class='tk-sub'>{suc.upper()}</div>
+        <div class='tk-tag' style='margin-top:4px;'>VALE DE {tipo} DE CAJA</div>
+        <div class='tk-sep'></div>
+        <div class='tk-meta'>
+          <div>Fecha {ahora_local().strftime('%d/%m/%Y %I:%M %p')}</div>
+          <div>Cajero {current_user.username.upper()}</div>
+          <div>Concepto <b>{_esc(concepto)}</b></div>
+          {f"<div>Categoría {_esc(categoria)}</div>" if categoria else ''}
+        </div>
+        <div class='tk-sep'></div>
+        <div class='tk-total'><span>MONTO</span><span>${monto:.2f}</span></div>
+        <div class='tk-firma'>Firma de recibido</div>
     </div>"""
     db.session.add(ColaImpresionPOS(sucursal=suc, tipo='VALE_CAJA', contenido_html=html_vale, fecha=ahora_local()))
     db.session.commit()
@@ -2171,18 +2177,21 @@ def api_pos_reimprimir_productos():
     items = [d for d in c.detalles if d.id in item_ids]
     ahora_str = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
     filas_html = "".join([
-        f"<tr><td style='width:20%;font-weight:bold;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
-        f"<td style='width:80%;font-weight:bold;'>{_esc(it.descripcion)}</td></tr>"
+        f"<tr{' class=tk-mod' if it.es_modificador else ''}><td class='tk-cant'>{'' if it.es_modificador else int(it.cantidad)}</td>"
+        f"<td class='tk-desc'>{'› ' + _esc(it.descripcion.lstrip('>')) if it.es_modificador else _esc(it.descripcion)}</td></tr>"
         for it in items
     ])
     html_t = f"""
     <div class='ticket-termico'>
-        <div style='font-size:17px;font-weight:900;text-align:center;'>*** REIMPRESIÓN COMANDA ***</div>
-        <div style='text-align:center;font-size:12px;'>MESA: <b>{_esc(c.mesa)}</b> | ORDEN: <b>{_esc(c.orden)}</b></div>
-        <div style='text-align:center;font-size:11px;'>MESERO: {_esc(c.mesero)} | {ahora_str}</div>
-        <div style='border-top:2px dashed #000;margin:6px 0;'></div>
-        <table style='width:100%;font-size:15px;'>{filas_html}</table>
-        <div style='border-top:2px dashed #000;margin:8px 0;'></div>
+        <div class='tk-alerta'>REIMPRESIÓN</div>
+        <div class='tk-mesa'>Mesa {_esc(c.mesa)}</div>
+        <div class='tk-meta'>
+          <div class='tk-fila'><span>Orden <b>{_esc(c.orden)}</b></span><span>Mesero {_esc(c.mesero)}</span></div>
+          <div>{ahora_str}</div>
+        </div>
+        <div class='tk-sep'></div>
+        <table class='tk-items'>{filas_html}</table>
+        <div class='tk-sep'></div>
     </div>"""
     db.session.add(ColaImpresionPOS(sucursal=c.sucursal, tipo='REIMPRESION', contenido_html=html_t, fecha=ahora_local()))
     db.session.commit()
@@ -2322,17 +2331,21 @@ def api_confirmar_preorden_1clic(preorden_id):
         if not [x for x in lista if not x.es_modificador]:
             continue
         filas_html = "".join([
-            f"<tr><td style='width:20%;font-weight:bold;'>{'' if it.es_modificador else int(it.cantidad)}</td>"
-            f"<td style='width:80%;font-weight:bold;'>{_esc(it.descripcion)}</td></tr>" for it in lista
+            f"<tr{' class=tk-mod' if it.es_modificador else ''}><td class='tk-cant'>{'' if it.es_modificador else int(it.cantidad)}</td>"
+            f"<td class='tk-desc'>{'› ' + _esc(it.descripcion.lstrip('>')) if it.es_modificador else _esc(it.descripcion)}</td></tr>" for it in lista
         ])
         html_t = f"""
         <div class='ticket-termico'>
-            <div style='font-size:17px;font-weight:900;text-align:center;'>*** PRE-ORDEN {area_nom} ***</div>
-            <div style='text-align:center;font-size:12px;'>MESA: <b>{_esc(cuenta.mesa)}</b> | CLIENTE: <b>{_esc(orden.cliente_nombre.upper())}</b></div>
-            <div style='text-align:center;font-size:11px;'>CONFIRMÓ: {_esc(mesero_asignado)} | {ahora_str}</div>
-            <div style='border-top:2px dashed #000;margin:6px 0;'></div>
-            <table style='width:100%;font-size:15px;'>{filas_html}</table>
-            <div style='border-top:2px dashed #000;margin:8px 0;'></div>
+            <div class='tk-tag'>Pre-orden (cliente)</div>
+            <div class='tk-titulo'>{area_nom}</div>
+            <div class='tk-mesa'>Mesa {_esc(cuenta.mesa)}</div>
+            <div class='tk-meta'>
+              <div>Cliente <b>{_esc(orden.cliente_nombre.upper())}</b></div>
+              <div class='tk-fila'><span>Confirmó {_esc(mesero_asignado)}</span><span>{ahora_str}</span></div>
+            </div>
+            <div class='tk-sep'></div>
+            <table class='tk-items'>{filas_html}</table>
+            <div class='tk-sep'></div>
         </div>"""
         db.session.add(ColaImpresionPOS(sucursal=suc, tipo=f"COMANDA_{area_nom}", contenido_html=html_t, fecha=ahora_local()))
 

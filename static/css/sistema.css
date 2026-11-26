@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 /* =====================================================================
    Estilo común de Comensal Conectado (todas las pantallas del personal).
    Se carga DESPUÉS del <style> de cada página, así que aquí se unifican
@@ -84,3 +85,30 @@ body.tema-sistema { background: var(--hueso) !important; color: var(--texto); fo
   .mod-btn span { display: none; }
   .mod-btn { padding: 7px 9px; }
 }
+
+
+/* =====================================================================
+   Tipografía profesional (Inter) en todas las pantallas del personal.
+   - Solo se cargan los pesos 400-700: los 800/900 viejos se ven como 700.
+   - No toca íconos (Font Awesome) ni los tickets impresos.
+   ===================================================================== */
+:root { --fuente: 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; }
+body,
+body *:not(i):not([class*="fa-"]):not(pre):not(code):not(.ticket-termico):not(.ticket-termico *):not(#zona-impresion-pos *):not(#zona-impresion-nomina *):not(#zona-impresion-termica *):not(#papelCorteX) {
+  font-family: var(--fuente);
+}
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+h1, h2, h3, h4, h5, h6, .sis-brand, .brand, .card-head h3 { letter-spacing: -0.01em; font-weight: 700; }
+
+/* Números alineados (tablas, totales, KPIs) */
+table, .kpi-val, .sis-kpi b, .resumen-nomina-box, .resumen-linea, input[type="number"] { font-variant-numeric: tabular-nums; }
+
+/* Pesos más ligeros: negritas solo donde ayudan */
+table td { font-weight: 500; }
+table th { font-weight: 600; letter-spacing: .03em; }
+.inp, input, select, textarea { font-weight: 500; }
+.lbl, label.lbl { font-weight: 600; letter-spacing: .03em; }
+.btn, .tab-btn, .mod-btn, .nav-btn, .sub-tab, .chip, .pill { font-weight: 600; }
+.mod-btn { font-weight: 600; }
+.kpi-title, .sis-kpi small { font-weight: 600; letter-spacing: .04em; }
+.kpi-val, .sis-kpi b { font-weight: 700; letter-spacing: -0.01em; }

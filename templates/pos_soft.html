@@ -335,10 +335,7 @@
 
   /* ================= IMPRESIÓN TÉRMICA 80MM ================= */
   #zona-impresion-pos { display: none; }
-  .ticket-termico {
-    width: 72mm; font-family: 'Courier New', Courier, monospace; font-size: 12px;
-    color: #000; line-height: 1.25; margin: 0 auto;
-  }
+  .ticket-termico { width: 72mm; color: #000; margin: 0 auto; }  /* letra y tamaños: static/css/ticket.css */
   @media print {
     @page { size: 80mm auto; margin: 2mm; }
     body > *:not(#zona-impresion-pos) { display: none !important; }
@@ -347,6 +344,7 @@
   }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ticket.css') }}">
 <style>
   /* Barra de módulos dentro de la barra fija de 46px del POS: una sola fila, compacta */
   .pos-topbar .mod-bar { flex-wrap: nowrap; gap: 3px; }
@@ -1175,7 +1173,7 @@
       <button type="button" class="btn-p sm gris" onclick="cerrarModal('modalCorteX')">✕</button>
     </div>
     <div class="modal-body">
-      <pre id="papelCorteX" style="background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;padding:12px;font-family:'Courier New',monospace;font-size:12px;font-weight:700;white-space:pre-wrap;margin:0;"></pre>
+      <pre id="papelCorteX" style="background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;padding:12px;font-family:Consolas,'Lucida Console','Courier New',monospace;font-size:11.5px;font-weight:400;line-height:1.35;white-space:pre-wrap;margin:0;"></pre>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn-p gris" onclick="imprimirCorteXActual()">🖨️ Imprimir Corte X</button>
@@ -3163,10 +3161,10 @@
 
   function filasTicketItems(items) {
     return (items || []).filter(it => !it.es_modificador || parseFloat(it.importe) > 0).map(it =>
-      `<tr>
-        <td style="width:14%;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
-        <td style="width:62%;">${escHtml(it.descripcion.replace(/^>+/, ''))}</td>
-        <td style="width:24%;text-align:right;">$${it.importe}</td>
+      `<tr${it.es_modificador ? ' class="tk-mod"' : ''}>
+        <td class="tk-cant" style="font-size:11.5px;">${it.es_modificador ? '' : parseInt(it.cantidad)}</td>
+        <td class="tk-desc" style="font-size:11.5px;font-weight:400;">${escHtml(it.descripcion.replace(/^>+/, ''))}</td>
+        <td class="tk-imp">$${it.importe}</td>
       </tr>`
     ).join('');
   }
@@ -3175,34 +3173,34 @@
     const tarjTot = (pago.TARJD || 0) + (pago.TARJC || 0) + (pago.PROP || 0);
     return `<div class="ticket-termico">
       ${_encabezadoFiscalHTML(c, 'NOTA DE CONSUMO')}
-      <div>================================</div>
-      FOLIO: <b>${folio}</b><br>
-      MESERO: ${escHtml(c.mesero)}<br>
-      ${new Date().toLocaleString('es-MX')}<br>
-      PERSONAS: ${c.personas} &nbsp;&nbsp; MESA: <b>${escHtml(c.mesa)}</b><br>
-      ORDEN: <b>${escHtml(c.orden)}</b> &nbsp;&nbsp; CAJERO: ${USUARIO_POS}<br>
-      <div style="text-align:center;font-weight:bold;margin:4px 0;">VENTA PUBLICO EN GENERAL</div>
-      <div>================================</div>
-      <table style="width:100%;font-size:11.5px;">
-        <tr><td style="width:14%;"><b>CANT.</b></td><td style="width:62%;"><b>DESCRIPCION</b></td><td style="width:24%;text-align:right;"><b>IMPORTE</b></td></tr>
+      <div class="tk-sep"></div>
+      <div class="tk-meta">
+        <div class="tk-fila"><span>Folio <b>${folio}</b></span><span>Orden <b>${escHtml(c.orden)}</b></span></div>
+        <div class="tk-fila"><span>Mesa <b>${escHtml(c.mesa)}</b></span><span>Personas ${c.personas}</span></div>
+        <div class="tk-fila"><span>Mesero ${escHtml(c.mesero)}</span><span>Cajero ${USUARIO_POS}</span></div>
+        <div>${new Date().toLocaleString('es-MX')}</div>
+      </div>
+      <div class="tk-tag" style="margin-top:4px;">Venta público en general</div>
+      <div class="tk-sep"></div>
+      <table class="tk-items">
+        <tr class="tk-encab"><td>Cant.</td><td>Descripción</td><td class="tk-imp">Importe</td></tr>
         ${filasTicketItems(c.items)}
       </table>
-      <div>================================</div>
-      <div style="text-align:right;">SUBTOTAL: $${c.subtotal}</div>
-      ${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}
-      <div style="text-align:right;">IVA: $${c.iva}</div>
-      <div style="text-align:right;font-size:17px;font-weight:900;margin:3px 0;">TOTAL: $${c.total}</div>
-      ${c.total_letras ? `<div style="font-size:10.5px;margin:4px 0;">${c.total_letras}</div>` : ''}
-      <div style="text-align:right;font-size:11.5px;margin-top:4px;">
-        ${pago.EF > 0 ? `EF: $${pago.EF.toFixed(2)}<br>` : ''}
-        ${tarjTot > 0 ? `TARJETA${ult4 ? ' (***' + ult4 + ')' : ''}: $${tarjTot.toFixed(2)}<br>` : ''}
-        ${pago.TRANS > 0 ? `TRANSFERENCIA: $${pago.TRANS.toFixed(2)}<br>` : ''}
-        ${pago.VALE > 0 ? `VALE EMPLEADO: $${pago.VALE.toFixed(2)}<br>` : ''}
-        ${(pago.CRED || 0) > 0 ? `CREDITO CLIENTE: $${(pago.CRED || 0).toFixed(2)}<br>` : ''}
-        CAMBIO: $${(cambio || 0).toFixed(2)}
-      </div>
+      <div class="tk-sep"></div>
+      <div class="tk-linea"><span>Subtotal</span><span>$${c.subtotal}</span></div>
+      ${parseFloat(c.descuento_monto) > 0 ? `<div class="tk-linea"><span>Descuento</span><span>-$${c.descuento_monto}</span></div>` : ''}
+      <div class="tk-linea"><span>IVA</span><span>$${c.iva}</span></div>
+      <div class="tk-total"><span>TOTAL</span><span>$${c.total}</span></div>
+      ${c.total_letras ? `<div class="tk-pie" style="text-align:left;">${c.total_letras}</div>` : ''}
+      <div class="tk-sep"></div>
+      ${pago.EF > 0 ? `<div class="tk-linea"><span>Efectivo</span><span>$${pago.EF.toFixed(2)}</span></div>` : ''}
+      ${tarjTot > 0 ? `<div class="tk-linea"><span>Tarjeta${ult4 ? ' (***' + ult4 + ')' : ''}</span><span>$${tarjTot.toFixed(2)}</span></div>` : ''}
+      ${pago.TRANS > 0 ? `<div class="tk-linea"><span>Transferencia</span><span>$${pago.TRANS.toFixed(2)}</span></div>` : ''}
+      ${pago.VALE > 0 ? `<div class="tk-linea"><span>Vale empleado</span><span>$${pago.VALE.toFixed(2)}</span></div>` : ''}
+      ${(pago.CRED || 0) > 0 ? `<div class="tk-linea"><span>Crédito cliente</span><span>$${(pago.CRED || 0).toFixed(2)}</span></div>` : ''}
+      <div class="tk-linea"><b>Cambio</b><b>$${(cambio || 0).toFixed(2)}</b></div>
       ${armarBloquePinHTML(pinData, c)}
-      <div style="text-align:center;margin-top:6px;font-weight:bold;">GRACIAS POR SU PREFERENCIA</div>
+      <div class="tk-pie" style="font-size:11px;font-weight:700;margin-top:8px;">¡Gracias por su preferencia!</div>
     </div>`;
   }
 
@@ -3213,26 +3211,27 @@
     const c = datosCuentaActiva;
     const html = `<div class="ticket-termico">
       ${_encabezadoFiscalHTML(c, '')}
-      <div>================================</div>
-      MESA: <b>${escHtml(c.mesa)}</b><br>
-      MESERO: ${escHtml(c.mesero)}<br>
-      PERSONAS: ${c.personas} &nbsp;&nbsp; ORDEN: <b>${escHtml(c.orden)}</b><br>
-      FOLIO: <b>${c.folio !== '0' ? c.folio : c.orden}</b><br>
-      ${c.apertura}<br>
-      ${new Date().toLocaleString('es-MX')}<br>
-      CAJERO: ${USUARIO_POS}<br>
-      <div>================================</div>
-      <table style="width:100%;font-size:11.5px;">
-        <tr><td style="width:14%;"><b>CANT.</b></td><td style="width:62%;"><b>DESCRIPCION</b></td><td style="width:24%;text-align:right;"><b>IMPORTE</b></td></tr>
+      <div class="tk-sep"></div>
+      <div class="tk-tag">Precuenta</div>
+      <div class="tk-meta">
+        <div class="tk-fila"><span>Mesa <b>${escHtml(c.mesa)}</b></span><span>Orden <b>${escHtml(c.orden)}</b></span></div>
+        <div class="tk-fila"><span>Folio ${c.folio !== '0' ? c.folio : c.orden}</span><span>Personas ${c.personas}</span></div>
+        <div class="tk-fila"><span>Mesero ${escHtml(c.mesero)}</span><span>Cajero ${USUARIO_POS}</span></div>
+        <div>Apertura ${c.apertura}</div><div>Impresión ${new Date().toLocaleString('es-MX')}</div>
+      </div>
+      <div class="tk-sep"></div>
+      <table class="tk-items">
+        <tr class="tk-encab"><td>Cant.</td><td>Descripción</td><td class="tk-imp">Importe</td></tr>
         ${filasTicketItems(c.items)}
       </table>
-      <div>================================</div>
-      ${parseFloat(c.descuento_monto) > 0 ? `<div style="text-align:right;">DESCUENTO: -$${c.descuento_monto}</div>` : ''}
-      <div style="text-align:right;font-size:17px;font-weight:900;margin:4px 0;">TOTAL: &nbsp;&nbsp; $${c.total}</div>
-      <div>================================</div>
-      ${c.total_letras ? `<div style="font-size:10.5px;margin:4px 0;">${c.total_letras}</div>` : ''}
-      <div style="text-align:center;font-size:11px;margin:4px 0;">SUBTOTAL: $${c.subtotal} &nbsp;&nbsp; IVA: $${c.iva}</div>
-      <div style="text-align:center;font-size:10px;">ESTE NO ES UN COMPROBANTE FISCAL<br>PROPINA NO INCLUIDA</div>
+      <div class="tk-sep"></div>
+      <div class="tk-linea"><span>Subtotal</span><span>$${c.subtotal}</span></div>
+      ${parseFloat(c.descuento_monto) > 0 ? `<div class="tk-linea"><span>Descuento</span><span>-$${c.descuento_monto}</span></div>` : ''}
+      <div class="tk-linea"><span>IVA</span><span>$${c.iva}</span></div>
+      <div class="tk-total"><span>TOTAL</span><span>$${c.total}</span></div>
+      ${c.total_letras ? `<div class="tk-pie" style="text-align:left;">${c.total_letras}</div>` : ''}
+      <div class="tk-sep"></div>
+      <div class="tk-pie">Este no es un comprobante fiscal · Propina no incluida</div>
       ${armarBloquePinHTML(p, c)}
     </div>`;
     mandarImprimirConQR(html);
@@ -3448,7 +3447,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     // textContent (no innerHTML): los nombres de mesero o sucursal no pueden inyectar HTML en el ticket.
     const div = document.createElement('div');
     div.className = 'ticket-termico';
-    div.style.cssText = 'white-space:pre;font-family:"Courier New",monospace;font-size:11px;';
+    div.style.cssText = 'white-space:pre;font-family:Consolas,"Lucida Console","Courier New",monospace;font-size:10.5px;font-weight:400;line-height:1.3;';
     div.textContent = document.getElementById('papelCorteX').innerText;
     mandarImprimirHTMLDirecto(div.outerHTML);
   }
@@ -3569,7 +3568,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
         + `\n\n\n________________   ________________\n    GERENTE         CAJERO: ${(d.corte && d.corte.cajero) || USUARIO_POS}`;
       const div = document.createElement('div');
       div.className = 'ticket-termico';
-      div.style.cssText = 'white-space:pre;font-family:"Courier New",monospace;font-size:11px;';
+      div.style.cssText = 'white-space:pre;font-family:Consolas,"Lucida Console","Courier New",monospace;font-size:10.5px;font-weight:400;line-height:1.3;';
       div.textContent = textoZ;
       mandarImprimirHTMLDirecto(div.outerHTML);
       setTimeout(() => location.reload(), 800);
