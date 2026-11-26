@@ -98,6 +98,26 @@
 
   .toast { position: fixed; bottom: 18px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
 
+  /* Ficha de empleado */
+  .ficha-overlay { position: fixed; inset: 0; background: rgba(11,41,36,.65); display: none; align-items: flex-start; justify-content: center; z-index: 800; overflow-y: auto; padding: 24px 10px; }
+  .ficha-box { background: #fff; border-radius: 12px; width: 100%; max-width: 860px; border: 2px solid var(--cobre); overflow: hidden; }
+  .ficha-head { background: var(--verde-oscuro); color: #fff; padding: 10px 16px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--cobre); }
+  .ficha-x { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+  .ficha-body { display: flex; gap: 18px; padding: 16px; flex-wrap: wrap; }
+  .ficha-foto-col { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 150px; }
+  .ficha-foto { width: 140px; height: 160px; border-radius: 10px; border: 2px dashed var(--borde); background: var(--hueso) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 60px; }
+  .ficha-foto.con-foto { border-style: solid; border-color: var(--cobre); font-size: 0; }
+  .ficha-check { font-size: 11.5px; font-weight: 700; display: flex; gap: 6px; align-items: center; }
+  .ficha-campos { flex: 1; min-width: 280px; }
+  .ficha-sec { background: var(--verde); color: #fff; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 6px; margin: 4px 0 8px; letter-spacing: .5px; }
+  .ficha-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 10px; margin-bottom: 10px; }
+  .ficha-grid-3 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .ficha-ancho { grid-column: 1 / -1; }
+  @media (max-width: 600px) { .ficha-grid { grid-template-columns: 1fr; } .ficha-foto-col { width: 100%; } }
+  .ficha-pie { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: var(--hueso); border-top: 1px solid var(--borde); }
+  .mini-foto { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--cobre); display: block; }
+  .mini-foto.vacia { background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 15px; border-color: #cbd5e1; }
+
   #zona-impresion-nomina { display: none; }
   @media print {
     @page { margin: 0; size: 80mm auto; }
@@ -267,31 +287,72 @@
     <section id="sec_personal" class="panel-sec">
       <div class="card">
         <div class="card-head"><h3><i class="fa-solid fa-user-plus" style="color:var(--cobre);"></i> Alta y Baja de Personal</h3></div>
-        <div class="form-row">
-          <input type="text" id="emp_nombre" class="inp" placeholder="Nombre del empleado...">
-          <input type="text" id="emp_puesto" class="inp" placeholder="Puesto (MESERO, CAJERO, BARRA...)">
-          <input type="number" step="50" id="emp_sueldo" class="inp" placeholder="Sueldo base ($)" value="1500">
-          <select id="emp_periodo" class="inp">
-            <option value="SEMANAL">SEMANAL</option>
-            <option value="QUINCENAL">QUINCENAL</option>
-          </select>
-          <input type="number" step="1" min="0" max="100" id="emp_desc" class="inp" placeholder="Desc. auto (%)" value="0">
-          <input type="number" step="1" min="1" max="31" id="emp_dias_base" class="inp" placeholder="D&iacute;as base" value="6">
-          <input type="text" maxlength="10" id="emp_pin" class="inp" placeholder="PIN checador (ej. 1234)">
-          <select id="emp_sucursal" class="inp" title="Sucursal principal">
-            {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          </select>
-          <button type="button" class="btn" onclick="crearEmpleado()">+ Dar de Alta</button>
+        <div style="margin-bottom:10px;">
+          <button type="button" class="btn" onclick="abrirFichaEmp(0)"><i class="fa-solid fa-user-plus"></i> Alta de empleado</button>
         </div>
 
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nombre</th><th>Sucursal</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
+            <thead><tr><th></th><th>Nombre</th><th>Sucursal</th><th>Puesto</th><th>Periodo</th><th style="text-align:right;">Sueldo Base</th><th>D&iacute;as / PIN</th><th style="text-align:right;">Desc. Auto</th><th style="text-align:right;">Vales Pendientes</th><th>Acción</th></tr></thead>
             <tbody id="tbodyPersonal"></tbody>
           </table>
         </div>
       </div>
     </section>
+        <!-- FICHA DEL EMPLEADO (alta / edición, como en Soft Restaurant) -->
+    <div id="modalFichaEmp" class="ficha-overlay" onclick="if(event.target===this)cerrarFichaEmp()">
+      <div class="ficha-box">
+        <div class="ficha-head">
+          <span><i class="fa-solid fa-id-card"></i> <span id="fichaTitulo">ALTA DE EMPLEADO</span></span>
+          <button type="button" class="ficha-x" onclick="cerrarFichaEmp()">&times;</button>
+        </div>
+        <div class="ficha-body">
+          <div class="ficha-foto-col">
+            <div class="ficha-foto" id="fichaFoto"><i class="fa-solid fa-user"></i></div>
+            <input type="file" id="emp_foto" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="previewFotoEmp(this)">
+            <button type="button" class="btn sm cobre" onclick="$('emp_foto').click()"><i class="fa-solid fa-camera"></i> Foto</button>
+            <label class="ficha-check"><input type="checkbox" id="emp_acta"> Entregó acta de nacimiento</label>
+          </div>
+          <div class="ficha-campos">
+            <div class="ficha-sec">DATOS GENERALES</div>
+            <div class="ficha-grid">
+              <div class="ficha-ancho"><label class="lbl">Nombre completo *</label><input type="text" id="emp_nombre" class="inp" maxlength="100"></div>
+              <div><label class="lbl">Puesto</label><input type="text" id="emp_puesto" class="inp" placeholder="MESERO, CAJERO, BARRA..." list="dlPuestos"></div>
+              <div><label class="lbl">Sucursal</label><select id="emp_sucursal" class="inp">
+                {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select></div>
+              <div><label class="lbl">CURP</label><input type="text" id="emp_curp" class="inp" maxlength="18" style="text-transform:uppercase"></div>
+              <div><label class="lbl">Fecha de ingreso</label><input type="date" id="emp_ingreso" class="inp"></div>
+              <div class="ficha-ancho"><label class="lbl">Domicilio</label><input type="text" id="emp_domicilio" class="inp" maxlength="250"></div>
+            </div>
+            <div class="ficha-sec">CONTACTO</div>
+            <div class="ficha-grid">
+              <div><label class="lbl">Teléfono</label><input type="tel" id="emp_tel" class="inp" maxlength="30"></div>
+              <div><label class="lbl">Correo electrónico</label><input type="email" id="emp_email" class="inp" maxlength="120"></div>
+              <div><label class="lbl">Contacto de emergencia</label><input type="text" id="emp_cont_emerg" class="inp" maxlength="120" placeholder="Nombre y parentesco"></div>
+              <div><label class="lbl">Tel. de emergencia</label><input type="tel" id="emp_tel_emerg" class="inp" maxlength="30"></div>
+            </div>
+            <div class="ficha-sec">SUELDO Y CHECADOR</div>
+            <div class="ficha-grid ficha-grid-3">
+              <div><label class="lbl">Sueldo diario ($)</label><input type="number" step="10" min="0" id="emp_sdiario" class="inp" value="0" oninput="sueldoDesdeDiario()"></div>
+              <div><label class="lbl">Sueldo por hora ($)</label><input type="number" step="1" min="0" id="emp_shora" class="inp" value="0"></div>
+              <div><label class="lbl">Días base</label><input type="number" step="1" min="1" max="31" id="emp_dias_base" class="inp" value="6" oninput="sueldoDesdeDiario()"></div>
+              <div><label class="lbl">Periodo de pago</label><select id="emp_periodo" class="inp" onchange="sueldoDesdeDiario()">
+                <option value="SEMANAL">SEMANAL</option><option value="QUINCENAL">QUINCENAL</option>
+              </select></div>
+              <div><label class="lbl">Sueldo del periodo ($)</label><input type="number" step="50" min="0" id="emp_sueldo" class="inp" value="1500"></div>
+              <div><label class="lbl">Desc. en consumo (%)</label><input type="number" step="1" min="0" max="100" id="emp_desc" class="inp" value="0"></div>
+              <div><label class="lbl">PIN checador</label><input type="text" maxlength="12" inputmode="numeric" id="emp_pin" class="inp" placeholder="4 a 12 dígitos"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ficha-pie">
+          <button type="button" class="btn gris" onclick="cerrarFichaEmp()">Cancelar</button>
+          <button type="button" class="btn" id="btnGuardarFicha" onclick="guardarFichaEmp()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+        </div>
+      </div>
+    </div>
+    <datalist id="dlPuestos"><option value="MESERO"><option value="CAJERO"><option value="BARRA"><option value="COCINA"><option value="GERENTE"><option value="LIMPIEZA"></datalist>
     {% endif %}
 
     <!-- TAB 4: CREDITOS PENDIENTES / CUENTAS POR COBRAR -->
@@ -425,7 +486,8 @@
 
       if ($('tbodyPersonal')) {
         $('tbodyPersonal').innerHTML = cacheEmpleados.map(e => `<tr>
-          <td><b>${esc(e.nombre)}</b></td>
+          <td>${e.foto_url ? `<img class="mini-foto" src="${esc(e.foto_url)}" alt="">` : '<span class="mini-foto vacia"><i class="fa-solid fa-user"></i></span>'}</td>
+          <td><b>${esc(e.nombre)}</b>${e.telefono ? `<br><small style="color:#64748b;">📞 ${esc(e.telefono)}</small>` : ''}</td>
           <td><select class="inp" style="height:30px;font-size:11px;min-width:150px;" onchange="cambiarSucursalEmp(${e.id}, this.value)">
             ${SUCURSALES_NOM.map(s => `<option value="${esc(s)}" ${s === e.sucursal ? 'selected' : ''}>${esc(s)}</option>`).join('')}
           </select></td>
@@ -435,8 +497,9 @@
           <td><button type="button" class="btn sm gris" onclick="editarChecadorEmp(${Number(e.id)})">${Number(e.dias_base || 6)}d | PIN: ${esc(e.pin_checador || '-')}</button></td>
           <td style="text-align:right;"><button type="button" class="btn sm cobre" onclick="editarDescEmpleado(${Number(e.id)})">${Number(e.descuento_pct || 0).toFixed(0)}%</button></td>
           <td style="text-align:right;color:${e.consumo_pendiente > 0 ? '#dc2626' : '#16a34a'};">$${Number(e.consumo_pendiente || 0).toFixed(2)}</td>
-          <td><button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${Number(e.id)})">🗑️ Dar de Baja</button></td>
-        </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
+          <td style="white-space:nowrap;"><button type="button" class="btn sm" onclick="abrirFichaEmp(${Number(e.id)})"><i class="fa-solid fa-id-card"></i> Ficha</button>
+            <button type="button" class="btn sm rojo" onclick="darDeBajaEmpleado(${Number(e.id)})">🗑️ Baja</button></td>
+        </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#64748b;padding:16px;">Sin empleados activos.</td></tr>';
       }
     } catch {}
   }
@@ -576,30 +639,80 @@
     imprimirReciboTermico(d.recibo);
   }
 
-  async function crearEmpleado() {
-    const nombre = $('emp_nombre').value.trim();
-    if (!nombre) return alert('Escribe el nombre del empleado.');
-    const res = await fetch('/api/finanzas/empleado', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nombre, puesto: $('emp_puesto').value || 'MESERO',
-        sueldo_base: parseFloat($('emp_sueldo').value || 1500),
-        periodo: $('emp_periodo').value,
-        descuento_pct: parseFloat($('emp_desc')?.value || 0),
-        dias_base: parseInt($('emp_dias_base')?.value || 6),
-        pin_checador: ($('emp_pin')?.value || '').trim(),
-        sucursal: $('emp_sucursal')?.value || SUCURSALES_NOM[0]
-      })
-    });
-    const d = await res.json();
-    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
-    $('emp_nombre').value = '';
-    $('emp_puesto').value = '';
-    if ($('emp_desc')) $('emp_desc').value = '0';
-    if ($('emp_dias_base')) $('emp_dias_base').value = '6';
-    if ($('emp_pin')) $('emp_pin').value = '';
-    toast('✓ Empleado dado de alta');
-    cargarFinanzas();
+  // ===== Ficha del empleado (alta y edición) =====
+  let fichaEmpId = 0;
+  const CAMPOS_FICHA = [ // [id del input, campo de la API]
+    ['emp_nombre', 'nombre'], ['emp_puesto', 'puesto'], ['emp_sucursal', 'sucursal'], ['emp_curp', 'curp'],
+    ['emp_ingreso', 'fecha_ingreso'], ['emp_domicilio', 'domicilio'], ['emp_tel', 'telefono'], ['emp_email', 'email'],
+    ['emp_cont_emerg', 'contacto_emergencia'], ['emp_tel_emerg', 'telefono_emergencia'],
+    ['emp_sdiario', 'sueldo_diario'], ['emp_shora', 'sueldo_hora'], ['emp_dias_base', 'dias_base'],
+    ['emp_periodo', 'periodo'], ['emp_sueldo', 'sueldo_base'], ['emp_desc', 'descuento_pct'], ['emp_pin', 'pin_checador']
+  ];
+  const VACIO_FICHA = { sucursal: SUCURSALES_NOM[0], periodo: 'SEMANAL', sueldo_diario: 0, sueldo_hora: 0,
+                        dias_base: 6, sueldo_base: 1500, descuento_pct: 0 };
+
+  function pintarFotoFicha(url) {
+    const f = $('fichaFoto');
+    f.style.backgroundImage = url ? `url("${String(url).replace(/"/g, '%22')}")` : '';
+    f.classList.toggle('con-foto', !!url);
+  }
+  function abrirFichaEmp(id) {
+    const e = id ? empleadoPorId(id) : VACIO_FICHA;
+    if (!e) return;
+    fichaEmpId = id || 0;
+    $('fichaTitulo').innerText = id ? `FICHA DE ${e.nombre}` : 'ALTA DE EMPLEADO';
+    CAMPOS_FICHA.forEach(([inp, campo]) => { $(inp).value = e[campo] ?? ''; });
+    $('emp_acta').checked = !!e.acta_nacimiento;
+    $('emp_foto').value = '';
+    pintarFotoFicha(e.foto_url || '');
+    $('modalFichaEmp').style.display = 'flex';
+    $('emp_nombre').focus();
+  }
+  function cerrarFichaEmp() { $('modalFichaEmp').style.display = 'none'; }
+  function previewFotoEmp(inp) {
+    const f = inp.files && inp.files[0];
+    if (f) pintarFotoFicha(URL.createObjectURL(f));
+  }
+  // Como en Soft: el sueldo del periodo se calcula del sueldo diario por los días base (quincena = 15/7 de la semana).
+  function sueldoDesdeDiario() {
+    const d = parseFloat($('emp_sdiario').value || 0), dias = parseInt($('emp_dias_base').value || 6);
+    if (d > 0 && dias > 0) {
+      const factor = $('emp_periodo').value === 'QUINCENAL' ? 15 / 7 : 1;
+      $('emp_sueldo').value = Math.round(d * dias * factor * 100) / 100;
+    }
+  }
+
+  async function guardarFichaEmp() {
+    const datos = {};
+    CAMPOS_FICHA.forEach(([inp, campo]) => { datos[campo] = String($(inp).value ?? '').trim(); });
+    if (!datos.nombre) return alert('Escribe el nombre del empleado.');
+    ['sueldo_diario', 'sueldo_hora', 'sueldo_base', 'descuento_pct'].forEach(k => datos[k] = parseFloat(datos[k] || 0));
+    datos.dias_base = parseInt(datos.dias_base || 6);
+    datos.puesto = datos.puesto || 'MESERO';
+    datos.acta_nacimiento = $('emp_acta').checked;
+    if (fichaEmpId) datos.id = fichaEmpId;
+    const btn = $('btnGuardarFicha'); btn.disabled = true;
+    try {
+      const res = await fetch('/api/finanzas/empleado', {
+        method: fichaEmpId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+      });
+      const d = await res.json();
+      if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+      const idEmp = fichaEmpId || d.id;
+      const archivo = $('emp_foto').files && $('emp_foto').files[0];
+      if (archivo && idEmp) {
+        const fd = new FormData(); fd.append('foto', archivo);
+        const rf = await fetch(`/api/finanzas/empleado_foto/${idEmp}`, { method: 'POST', body: fd });
+        const df = await rf.json().catch(() => ({}));
+        if (!df.ok) alert('Los datos se guardaron, pero la foto no: ' + (df.msg || 'error al subir.'));
+      }
+      toast(fichaEmpId ? '✓ Ficha actualizada' : '✓ Empleado dado de alta');
+      cerrarFichaEmp();
+      cargarFinanzas();
+    } catch (err) {
+      alert('Sin conexión con el servidor. Intenta de nuevo.');
+    } finally { btn.disabled = false; }
   }
 
   async function cambiarSucursalEmp(id, sucursal) {

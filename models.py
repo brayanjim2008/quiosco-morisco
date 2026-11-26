@@ -728,6 +728,18 @@ class EmpleadoNominaPOS(db.Model):
     pin_checador = db.Column(db.String(12), nullable=True)
     descuento_pct = db.Column(db.Float, default=0.0)
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')  # sucursal principal
+    # Ficha del empleado (como el alta de empleados de Soft Restaurant)
+    sueldo_diario = db.Column(db.Float, default=0.0)
+    sueldo_hora = db.Column(db.Float, default=0.0)
+    foto_url = db.Column(db.String(500), nullable=True)
+    telefono = db.Column(db.String(30), nullable=True)
+    email = db.Column(db.String(120), nullable=True)
+    contacto_emergencia = db.Column(db.String(120), nullable=True)
+    telefono_emergencia = db.Column(db.String(30), nullable=True)
+    curp = db.Column(db.String(18), nullable=True)
+    acta_nacimiento = db.Column(db.Boolean, default=False)  # ¿entregó acta de nacimiento?
+    domicilio = db.Column(db.String(250), nullable=True)
+    fecha_ingreso = db.Column(db.Date, nullable=True)
 
 
 class ConsumoEmpleadoPOS(db.Model):
@@ -1320,7 +1332,7 @@ ESQUEMA_REQUERIDO = {
     'clientes_credito': set(),
     'pre_orden': {'sucursal'},
     'pin_caja': {'sucursal'},
-    'empleados_nomina_pos': {'sucursal'},
+    'empleados_nomina_pos': {'sucursal', 'sueldo_diario', 'sueldo_hora', 'foto_url', 'telefono', 'email', 'contacto_emergencia', 'telefono_emergencia', 'curp', 'acta_nacimiento', 'domicilio', 'fecha_ingreso'},
     'cola_impresion_pos': {'estado', 'reclamado_en', 'reclamado_por'},
     'limites_intentos': {'clave', 'conteo', 'ventana_inicio'},
     'cuentas_pos': {'descuento_fijo', 'cobro_idem'},
@@ -1404,6 +1416,17 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS pin_checador VARCHAR(12);",
             "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS descuento_pct DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sueldo_diario DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS sueldo_hora DOUBLE PRECISION DEFAULT 0.0;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS foto_url VARCHAR(500);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS telefono VARCHAR(30);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS email VARCHAR(120);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS contacto_emergencia VARCHAR(120);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS telefono_emergencia VARCHAR(30);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS curp VARCHAR(18);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS acta_nacimiento BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS domicilio VARCHAR(250);",
+            "ALTER TABLE empleados_nomina_pos ADD COLUMN IF NOT EXISTS fecha_ingreso DATE;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_base INTEGER DEFAULT 6;",
             "ALTER TABLE recibos_nomina_pos ADD COLUMN IF NOT EXISTS dias_trabajados DOUBLE PRECISION DEFAULT 6.0;",
             # Aislamiento por sucursal (los registros existentes quedan en la Matriz; no se reescribe la tabla).

@@ -82,3 +82,32 @@ check(r.status_code == 200 and j.get('corte', {}).get('detalle', {}).get('ventas
 h_pos = admin.get('/pos').get_data(as_text=True)
 check('class="tbl-canc"' in h_pos and 'id="descRapidos"' in h_pos and 'function textoCorteSoft' in h_pos,
       'POS: cancelación en tabla, % rápidos en descuento y corte estilo Soft')
+
+# Ficha del empleado como en Soft: sueldo diario/hora, contacto, emergencia, correo, acta, CURP y foto
+from io import BytesIO as _BS
+r = admin.post('/api/finanzas/empleado', json={'nombre': 'ana ficha', 'puesto': 'CAJERO', 'sucursal': 'Caminante 1',
+               'sueldo_diario': 300, 'sueldo_hora': 40, 'telefono': '5512345678', 'email': 'Ana@Ejemplo.com',
+               'contacto_emergencia': 'mama ana', 'telefono_emergencia': '5587654321', 'curp': 'gome800101hdfrrn09',
+               'acta_nacimiento': True, 'fecha_ingreso': '2026-11-01', 'domicilio': 'calle 1'}, headers=H)
+check(r.status_code == 200 and r.json.get('id'), f'alta de empleado con ficha completa ({r.status_code} {r.json})')
+id_ana = r.json.get('id')
+r = admin.post('/api/finanzas/empleado', json={'nombre': 'X', 'curp': 'MAL'}, headers=H)
+check(r.status_code == 400 and 'CURP' in r.json.get('msg', ''), 'CURP con formato inválido se rechaza')
+r = admin.put('/api/finanzas/empleado', json={'id': id_ana, 'email': 'no-es-correo'}, headers=H)
+check(r.status_code == 400, 'correo inválido se rechaza')
+r = admin.put('/api/finanzas/empleado', json={'id': id_ana, 'telefono': '5500000000', 'acta_nacimiento': False}, headers=H)
+check(r.status_code == 200, 'editar ficha')
+ana = next((e for e in admin.get('/api/finanzas/datos').json['empleados'] if e['id'] == id_ana), {})
+check(ana.get('curp') == 'GOME800101HDFRRN09' and ana.get('email') == 'ana@ejemplo.com' and ana.get('telefono') == '5500000000'
+      and ana.get('sueldo_diario') == 300 and ana.get('sueldo_hora') == 40 and ana.get('acta_nacimiento') is False
+      and ana.get('contacto_emergencia') == 'MAMA ANA' and ana.get('fecha_ingreso') == '2026-11-01',
+      f'la ficha se guarda y regresa al admin ({ana})')
+emp_caja = next((e for e in cam1.get('/api/finanzas/datos').json.get('empleados', []) if e['id'] == id_ana), None)
+check(emp_caja is not None and 'curp' not in emp_caja and 'telefono' not in emp_caja, 'caja no ve los datos personales del empleado')
+r = admin.post(f'/api/finanzas/empleado_foto/{id_ana}', data={'foto': (_BS(b'texto'), 'a.txt', 'text/plain')},
+               content_type='multipart/form-data', headers=H)
+check(r.status_code == 400, 'foto con formato no permitido se rechaza')
+check(cam1.post(f'/api/finanzas/empleado_foto/{id_ana}', data={}, headers=HS).status_code == 403, 'solo admin sube fotos de empleado')
+h_nom = admin.get('/nomina_creditos').get_data(as_text=True)
+check('id="modalFichaEmp"' in h_nom and 'id="emp_curp"' in h_nom and 'id="emp_foto"' in h_nom, 'Nómina: ficha del empleado con foto')
+admin.delete('/api/finanzas/empleado', json={'id': id_ana}, headers=H)

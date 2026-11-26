@@ -1,9 +1,11 @@
 import math
+import os
+import re
 import csv
 import urllib.parse
 from datetime import timedelta, datetime
 from io import StringIO
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, Response, session
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, Response, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, or_, and_, false
 
@@ -1098,6 +1100,8 @@ def api_finanzas_datos():
             'descuento_pct': float(e.descuento_pct or 0.0),
             'sucursal': e.sucursal or SUCURSAL_DEFAULT,
             'dias_asistidos_recientes': dias_asist.get(e.id, 0),
+            'foto_url': e.foto_url or '',
+            **(_ficha_empleado(e) if es_admin else {}),
             'consumo_pendiente': adeudo_emp.get(e.id, 0.0)
         } for e in empleados],
         'consumos': [{
@@ -1117,6 +1121,58 @@ def api_finanzas_datos():
             'dias_trabajados': float(r.dias_trabajados if r.dias_trabajados is not None else (r.dias_base or 6))
         } for r in recibos]
     })
+
+_CURP_RE = re.compile(r'^[A-Z]{4}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$')
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
+def _ficha_empleado(e):
+    """Datos de la ficha (como el alta de empleados de Soft Restaurant). Solo se mandan al admin."""
+    return {
+        'sueldo_diario': float(e.sueldo_diario or 0.0), 'sueldo_hora': float(e.sueldo_hora or 0.0),
+        'telefono': e.telefono or '', 'email': e.email or '',
+        'contacto_emergencia': e.contacto_emergencia or '', 'telefono_emergencia': e.telefono_emergencia or '',
+        'curp': e.curp or '', 'acta_nacimiento': bool(e.acta_nacimiento), 'domicilio': e.domicilio or '',
+        'fecha_ingreso': e.fecha_ingreso.strftime('%Y-%m-%d') if e.fecha_ingreso else '',
+    }
+
+
+def _aplicar_ficha(e, data):
+    """Copia a `e` los campos de la ficha que vengan en `data`. Devuelve un mensaje de error o None."""
+    def txt(k, n):
+        return (str(data.get(k) or '').strip()[:n]) or None
+    if 'sueldo_diario' in data:
+        e.sueldo_diario = _num(data.get('sueldo_diario'), maximo=100_000.0)
+    if 'sueldo_hora' in data:
+        e.sueldo_hora = _num(data.get('sueldo_hora'), maximo=10_000.0)
+    if 'telefono' in data:
+        e.telefono = txt('telefono', 30)
+    if 'telefono_emergencia' in data:
+        e.telefono_emergencia = txt('telefono_emergencia', 30)
+    if 'contacto_emergencia' in data:
+        e.contacto_emergencia = (txt('contacto_emergencia', 120) or '').upper() or None
+    if 'domicilio' in data:
+        e.domicilio = (txt('domicilio', 250) or '').upper() or None
+    if 'email' in data:
+        em = txt('email', 120)
+        if em and not _EMAIL_RE.match(em):
+            return 'Correo electrónico inválido.'
+        e.email = em.lower() if em else None
+    if 'curp' in data:
+        curp = (txt('curp', 18) or '').upper()
+        if curp and not _CURP_RE.match(curp):
+            return 'La CURP debe tener 18 caracteres con el formato oficial.'
+        e.curp = curp or None
+    if 'acta_nacimiento' in data:
+        e.acta_nacimiento = bool(data.get('acta_nacimiento'))
+    if 'fecha_ingreso' in data:
+        f = txt('fecha_ingreso', 10)
+        try:
+            e.fecha_ingreso = datetime.strptime(f, '%Y-%m-%d').date() if f else None
+        except ValueError:
+            return 'Fecha de ingreso inválida.'
+    return None
+
 
 @operacion_bp.route('/api/finanzas/empleado', methods=['POST', 'PUT', 'DELETE'])
 @login_required
@@ -1151,7 +1207,7 @@ def api_finanzas_empleado():
         suc_emp = str(data.get('sucursal') or SUCURSAL_DEFAULT).strip()
         if suc_emp not in SUCURSALES_OFICIALES:
             return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
-        db.session.add(EmpleadoNominaPOS(
+        nuevo = EmpleadoNominaPOS(
             sucursal=suc_emp,
             nombre=nom, puesto=str(data.get('puesto', 'MESERO')).strip().upper() or 'MESERO',
             sueldo_base=_num(data.get('sueldo_base', 1500), maximo=1_000_000.0),
@@ -1159,9 +1215,13 @@ def api_finanzas_empleado():
             dias_base=int(_num(data.get('dias_base', 6), minimo=1, maximo=31)),
             pin_checador=pin,
             descuento_pct=_num(data.get('descuento_pct', 0), maximo=100.0)
-        ))
+        )
+        err = _aplicar_ficha(nuevo, data)
+        if err:
+            return jsonify({'ok': False, 'msg': err}), 400
+        db.session.add(nuevo)
         db.session.commit()
-        return jsonify({'ok': True})
+        return jsonify({'ok': True, 'id': nuevo.id})
 
     e = EmpleadoNominaPOS.query.get_or_404(int(data['id']))
     if request.method == 'PUT':
@@ -1184,6 +1244,12 @@ def api_finanzas_empleado():
             if data.get('sucursal') not in SUCURSALES_OFICIALES:
                 return jsonify({'ok': False, 'msg': 'Sucursal inválida.'}), 400
             e.sucursal = data.get('sucursal')
+        if 'nombre' in data and str(data.get('nombre')).strip():
+            e.nombre = str(data.get('nombre')).strip().upper()[:100]
+        err = _aplicar_ficha(e, data)
+        if err:
+            db.session.rollback()
+            return jsonify({'ok': False, 'msg': err}), 400
         db.session.commit()
         registrar_bitacora('EDITAR_EMPLEADO', e.nombre, 0.0, f'Desc:{e.descuento_pct:g}% Días base:{e.dias_base}')
         return jsonify({'ok': True, 'descuento_pct': float(e.descuento_pct or 0.0), 'dias_base': int(e.dias_base or 6),
@@ -1193,6 +1259,36 @@ def api_finanzas_empleado():
     e.pin_checador = None
     db.session.commit()
     return jsonify({'ok': True})
+
+
+_TIPOS_FOTO_OK = {'image/jpeg', 'image/png', 'image/webp'}
+
+
+@operacion_bp.route('/api/finanzas/empleado_foto/<int:emp_id>', methods=['POST'])
+@login_required
+def api_finanzas_empleado_foto(emp_id):
+    """Sube la foto del empleado a Cloudinary (misma cuenta que las imágenes del menú)."""
+    if current_user.role != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo Admin.'}), 403
+    e = EmpleadoNominaPOS.query.get_or_404(emp_id)
+    archivo = request.files.get('foto')
+    if not archivo or not archivo.filename:
+        return jsonify({'ok': False, 'msg': 'Selecciona una foto.'}), 400
+    if (archivo.mimetype or '').lower() not in _TIPOS_FOTO_OK:
+        return jsonify({'ok': False, 'msg': 'Usa una foto JPG, PNG o WEBP.'}), 400
+    if not (os.environ.get('CLOUDINARY_CLOUD_NAME') and os.environ.get('CLOUDINARY_API_KEY')
+            and os.environ.get('CLOUDINARY_API_SECRET')):
+        return jsonify({'ok': False, 'msg': 'Cloudinary no está configurado en el servidor: falta poner sus variables en Render.'}), 503
+    try:
+        import cloudinary.uploader
+        url = cloudinary.uploader.upload(archivo, folder='empleados',
+                                         transformation=[{'width': 400, 'height': 400, 'crop': 'fill', 'gravity': 'face'}]).get('secure_url')
+    except Exception:
+        current_app.logger.exception('Error subiendo foto de empleado')
+        return jsonify({'ok': False, 'msg': 'No se pudo subir la foto. Intenta de nuevo.'}), 502
+    e.foto_url = url
+    db.session.commit()
+    return jsonify({'ok': True, 'foto_url': url})
 
 
 @operacion_bp.route('/api/finanzas/consumo_empleado', methods=['POST'])
