@@ -35,6 +35,7 @@
       var a = e.target && e.target.closest ? e.target.closest('a[href="/logout"]') : null;
       if (!a) return;
       e.preventDefault();
+      try { if (window.caches) caches.delete('cc-pos-v1'); } catch (err) {}   // la caja guardada sin internet no se queda en este aparato
       var f = document.createElement('form');
       f.method = 'post'; f.action = '/logout'; f.style.display = 'none';
       document.body.appendChild(f);

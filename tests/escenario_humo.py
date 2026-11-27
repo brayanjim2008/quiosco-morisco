@@ -292,6 +292,9 @@ ejecutar_escenario('respaldo_seguridad.py')
 # Fase 6: platillos en barras y estado de resultados
 ejecutar_escenario('reportes_f6.py')
 
+# Fase 7: ventas sin internet
+ejecutar_escenario('offline_f7.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

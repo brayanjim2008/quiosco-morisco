@@ -16,7 +16,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - name: Lint (pyflakes)
-        run: python -m pyflakes app.py models.py pos_routes.py operacion_routes.py servicio_routes.py compras_routes.py nomina_routes.py alertas.py propinas_routes.py menu_routes.py respaldo.py restaurar_respaldo.py reportes_routes.py
+        run: python -m pyflakes app.py models.py pos_routes.py operacion_routes.py servicio_routes.py compras_routes.py nomina_routes.py alertas.py propinas_routes.py menu_routes.py respaldo.py restaurar_respaldo.py reportes_routes.py offline_routes.py
       - name: Pruebas
         run: python -m pytest
 

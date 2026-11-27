@@ -1706,6 +1706,7 @@
 <script id="datos-ticket-json" type="application/json">{{ datos_ticket|tojson }}</script>
 
 <script src="{{ url_for('static', filename='js/corte_ticket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/venta_offline.js') }}"></script>
 <script>
   // Escapa texto antes de meterlo en innerHTML (evita XSS con datos de la base / pre-órdenes públicas).
   function escHtml(s) { return String(s ?? '').replace(/[&<>"'`]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;' }[m])); }
@@ -3957,6 +3958,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
     catModificadores = d.modificadores || [];
     catFlujos = d.flujos || {};
     catPromos = d.promociones || [];
+    if (window.guardarCatalogoOffline) guardarCatalogoOffline(d);   // para vender si se cae el internet
 
     const selCatR = document.getElementById('r_prod_cat');
     if (selCatR && catCategorias.length) {

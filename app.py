@@ -39,6 +39,7 @@ from propinas_routes import propinas_bp
 from menu_routes import menu_bp
 from respaldo import respaldo_bp
 from reportes_routes import reportes_bp
+from offline_routes import offline_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos, productos_para_sucursal
 from models import PERMISOS_USUARIO, permisos_propios, tiene_permiso
 
@@ -105,6 +106,7 @@ app.register_blueprint(propinas_bp)
 app.register_blueprint(menu_bp)
 app.register_blueprint(respaldo_bp)
 app.register_blueprint(reportes_bp)
+app.register_blueprint(offline_bp)
 
 
 # ------------------------------------------------------------------------------

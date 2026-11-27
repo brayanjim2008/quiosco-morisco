@@ -41,6 +41,10 @@ window.AYUDAS = {
         'Toca "Corte" para ver cuánto se vendió (Corte X).',
         'Para cerrar: "Cerrar Turno (Corte Z)", cuenta el dinero, escribe lo de cada forma de pago y confirma. Se imprime el corte.',
         'Después del Z la caja queda sin turno hasta que el siguiente cajero abra el suyo.'] },
+      { t: 'Si se cae el internet', pasos: [
+        'Abajo sale una barra roja "SIN INTERNET". Toca "Venta sin internet".',
+        'Toca los platillos, elige cómo paga y "COBRAR E IMPRIMIR": salen la comanda y la nota en esta impresora (entrégala a cocina o barra).',
+        'Las ventas se guardan en esta computadora y se suben solas cuando vuelve el internet (no se duplican). No borres el historial del navegador mientras haya ventas "por subir".'] },
     ],
   },
   '/mesero_dashboard': {
