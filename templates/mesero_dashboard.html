@@ -12,9 +12,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 <style>
-  /* La barra de módulos baja a otra fila si no cabe (admin ve todos los módulos) */
-  .mob-topbar { height: auto !important; min-height: 56px; flex-wrap: wrap; padding-top: 6px !important; padding-bottom: 6px !important; }
-  .mob-actions-right { flex-wrap: wrap; justify-content: flex-end; overflow: visible !important; row-gap: 5px; }
+  /* Arriba: quién soy + botones del mesero. Abajo, en su propia línea: los módulos (ordenados, sin desbordarse). */
+  .mob-topbar { height: auto !important; min-height: 56px; flex-wrap: wrap; padding-top: 6px !important; padding-bottom: 6px !important; row-gap: 6px; }
+  .mob-actions-right { flex-wrap: nowrap; justify-content: flex-end; }
+  .mob-modulos { flex-basis: 100%; display: flex; overflow-x: auto; scrollbar-width: none; border-top: 1px solid rgba(255,255,255,.12); padding-top: 6px; }
+  .mob-modulos::-webkit-scrollbar { display: none; }
+  .mob-modulos .mod-bar { justify-content: flex-start; }
   :root {
     --verde: #13423b;
     --verde-oscuro: #0b2924;
@@ -336,8 +339,8 @@
       <button type="button" class="mob-pill-btn" onclick="abrirMiVenta()"><i class="fa-solid fa-chart-line"></i> Mi Venta</button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalPreordenesNFC()">🔔 Plaquitas <span class="mob-badge-alert" id="badgePreordenesTablet">{{ preordenes|length }}</span></button>
       <button type="button" class="mob-pill-btn" onclick="abrirModalAgotadosTablet()">🚫 Agotados</button>
-      {% include '_modulos.html' %}
     </div>
+    <div class="mob-modulos">{% include '_modulos.html' %}</div>
   </div>
 
   <div class="mob-filters-wrap">

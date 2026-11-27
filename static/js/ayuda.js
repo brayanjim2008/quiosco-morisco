@@ -38,7 +38,10 @@
       b.onclick = abrir;
       return b;
     }
-    var barras = document.querySelectorAll('.mod-bar');   // la Caja tiene una barra en Inicio y otra en Mesas
+    // La Caja tiene una barra en Inicio y otra en Mesas; si una barra está DENTRO de otra (Administración), solo la de afuera.
+    var barras = Array.prototype.filter.call(document.querySelectorAll('.mod-bar'), function (b) {
+      return !(b.parentElement && b.parentElement.closest('.mod-bar'));
+    });
     if (barras.length) barras.forEach(function (bar) { bar.insertBefore(boton(), bar.firstChild); });
     else { var b = boton(); b.classList.add('ay-flotante'); document.body.appendChild(b); }
     document.addEventListener('keydown', function (e) { if (e.key === 'F1') { e.preventDefault(); abrir(); } });

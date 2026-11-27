@@ -12,7 +12,7 @@
 }
 
 /* ---------- Barra de módulos (igual en todas las pantallas) ---------- */
-.mod-bar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.mod-bar { display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; justify-content: flex-end; min-width: 0; }
 .mod-btn {
   display: inline-flex; align-items: center; gap: 6px; text-decoration: none; cursor: pointer;
   background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,0.45);
@@ -29,9 +29,12 @@
 .mod-btn.extra i { color: #fff; }
 .mod-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.2); margin: 0 4px; }
 
-/* ---------- Pestañas: en varias filas, nunca cortadas ---------- */
-.tabs-bar { flex-wrap: wrap !important; overflow-x: visible !important; row-gap: 6px; }
-.tab-btn { flex: 0 0 auto; }
+/* ---------- Pestañas: UNA sola línea, ordenada; si no caben, se desliza de lado ---------- */
+.tabs-bar { flex-wrap: nowrap !important; overflow-x: auto !important; gap: 5px !important; scrollbar-width: none; }
+.tabs-bar::-webkit-scrollbar { display: none; }
+.tab-btn { flex: 0 0 auto; padding: 7px 10px !important; font-size: 12.5px !important; border-radius: 9px !important; }
+@media (max-width: 1400px) { .tab-btn { padding: 7px 9px !important; font-size: 12px !important; } }
+.tab-btn i { margin-right: 2px; }
 
 /* ---------- Barra superior estándar ---------- */
 .sis-top {

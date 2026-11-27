@@ -148,15 +148,15 @@
   </div>
 
   <div class="tabs-bar">
-    <button type="button" class="tab-btn{{ ' activo' if current_user.role == 'admin' }}" onclick="cambiarTab('vales', this)"{% if current_user.role != 'admin' %} style="display:none"{% endif %}><i class="fa-solid fa-utensils"></i> 1. Vales y Consumos de Personal</button>
+    <button type="button" class="tab-btn{{ ' activo' if current_user.role == 'admin' }}" onclick="cambiarTab('vales', this)"{% if current_user.role != 'admin' %} style="display:none"{% endif %}><i class="fa-solid fa-utensils"></i> Vales</button>
     {% if current_user.role == 'admin' %}
-    <button type="button" class="tab-btn" onclick="cambiarTab('nomina', this)"><i class="fa-solid fa-money-check-dollar"></i> 2. Pagar Nómina y Recibos</button>
-    <button type="button" class="tab-btn" onclick="cambiarTab('personal', this)"><i class="fa-solid fa-users"></i> 3. Personal Activo</button>
-    <button type="button" class="tab-btn" onclick="cambiarTab('prestaciones', this)"><i class="fa-solid fa-hand-holding-heart"></i> 4. Descuentos, Aguinaldo, Bonos, Permisos y Vacaciones</button>
-    <button type="button" class="tab-btn" onclick="cambiarTab('catalogos', this)"><i class="fa-solid fa-list-check"></i> 5. Catálogos de Nómina</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('nomina', this)"><i class="fa-solid fa-money-check-dollar"></i> Pagar nómina</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('personal', this)"><i class="fa-solid fa-users"></i> Personal</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('prestaciones', this)"><i class="fa-solid fa-hand-holding-heart"></i> Prestaciones</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('catalogos', this)"><i class="fa-solid fa-list-check"></i> Catálogos</button>
     {% endif %}
-    <button type="button" class="tab-btn{{ ' activo' if current_user.role != 'admin' }}" onclick="cambiarTab('creditos', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Cr&eacute;ditos Pendientes</button>
-    <button type="button" class="tab-btn" onclick="cambiarTab('checador_pin', this)"><i class="fa-solid fa-fingerprint"></i> Checador PIN</button>
+    <button type="button" class="tab-btn{{ ' activo' if current_user.role != 'admin' }}" onclick="cambiarTab('creditos', this)"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos</button>
+    <button type="button" class="tab-btn" onclick="cambiarTab('checador_pin', this)"><i class="fa-solid fa-fingerprint"></i> Checador</button>
   </div>
 
   <div class="container">

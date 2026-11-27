@@ -404,7 +404,10 @@
   .pos-topbar .mod-btn { padding: 5px 7px; gap: 5px; }
   .pos-topbar .mod-btn.activo { background: var(--cobre); }
   .pos-top-actions { min-width: 0; }
-  @media (max-width: 1280px) { .pos-topbar .mod-btn span { display: none; } }
+  /* La Caja tiene muchos controles arriba: los módulos van como íconos (con su nombre al pasar el mouse);
+     se ven con texto el módulo actual, Ayuda y Salir. Así nada se sale de la pantalla. */
+  @media (max-width: 1700px) { .pos-topbar .mod-btn:not(.activo):not(.salir):not(.ay-btn) span { display: none; } }
+  @media (max-width: 1100px) { .pos-topbar .mod-btn span { display: none; } }
 
   /* Cancelar productos (estilo Soft: tabla, cantidad a cancelar, botón CANCELAR y motivo por renglón) */
   .canc-scroll { max-height: 46vh; overflow-y: auto; border: 1.5px solid var(--borde); border-radius: 10px; }

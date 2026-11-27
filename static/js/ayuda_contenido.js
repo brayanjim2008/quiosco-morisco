@@ -16,8 +16,8 @@ window.AYUDAS = {
       { t: 'Precio por sucursal', pasos: [
         'Escribe el precio de esa sucursal (vacío = precio general) o quita la palomita si ahí no se vende. Se guarda solo.'] },
       { t: 'Categorías y modificadores', pasos: [
-        '"2. Categorías": nombre, inglés y el ícono (o foto) del círculo que ve el cliente en el menú.',
-        '"3. Modificadores": agrega opciones a un grupo (ej. LECHE DE AVENA +$8 en TIPO DE LECHE) o cambia su precio y toca ✓.'] },
+        '"Categorías": nombre, inglés y el ícono (o foto) del círculo que ve el cliente en el menú.',
+        '"Modificadores": agrega opciones a un grupo (ej. LECHE DE AVENA +$8 en TIPO DE LECHE) o cambia su precio y toca ✓.'] },
     ],
   },
   '/pos': {
@@ -79,28 +79,28 @@ window.AYUDAS = {
     titulo: 'Créditos, checador y nómina',
     secciones: [
       { t: 'Checador (todos los empleados)', pasos: [
-        'En "Checador PIN" cada empleado escribe su PIN y toca "Checar": la primera vez del día es ENTRADA y la siguiente SALIDA.'] },
+        'En "Checador" cada empleado escribe su PIN y toca "Checar": la primera vez del día es ENTRADA y la siguiente SALIDA.'] },
       { t: 'Créditos de clientes', pasos: [
-        'En "Créditos Pendientes" ves lo que debe cada cliente.',
+        'En "Créditos" ves lo que debe cada cliente.',
         'Para cobrar un abono, toca "Abonar", escribe el monto y si entra a la caja.'] },
       { t: 'Nómina (solo Admin)', pasos: [
-        '"Personal Activo": alta de empleados con su ficha, documentos y PIN.',
-        '"Descuentos, Aguinaldo...": elige al empleado y registra lo que corresponda.',
-        '"Pagar Nómina": elige al empleado; el sistema suma y resta solo (vales, permisos, faltas, prima) e imprime el recibo.'] },
+        '"Personal": alta de empleados con su ficha, documentos y PIN.',
+        '"Prestaciones" (descuentos, aguinaldo, bonos, permisos y vacaciones): elige al empleado y registra lo que corresponda.',
+        '"Pagar nómina": elige al empleado; el sistema suma y resta solo (vales, permisos, faltas, prima) e imprime el recibo.'] },
     ],
   },
   '/industrial': {
     titulo: 'Reportes (dueño / administración)',
     secciones: [
       { t: 'Lo más usado', pasos: [
-        '"Ventas 4 Sucursales": cuánto se ha vendido hoy en cada sucursal.',
+        '"Ventas de hoy": cuánto se ha vendido hoy en cada sucursal.',
         '"Cortes Z": elige fechas y sucursal; con "Ver" abres y reimprimes cualquier corte, aunque sea de hace un año.',
         '"Asistencia": quién checó y a qué hora, por fechas; se baja a Excel.',
         '"Cancelaciones": quién canceló qué y quién lo autorizó.',
-        '"Reportes / Fechas": ventas por producto, categoría y mesero en cualquier periodo.'] },
+        '"Por fechas": ventas por producto, categoría y mesero en cualquier periodo.'] },
       { t: '¿Cuánto gana el restaurante?', pasos: [
         '"Utilidad": mes por mes, ventas sin IVA menos costo de lo vendido, mermas, gastos y nómina = lo que queda. Elige sucursal y año.',
-        'Si sale un aviso de recetas, captúralas en "Recetas y Stock Local": sin receta un platillo no suma costo y la utilidad sale más alta de lo real.',
+        'Si sale un aviso de recetas, captúralas en "Recetas y stock": sin receta un platillo no suma costo y la utilidad sale más alta de lo real.',
         '"Platillos": barras de los más vendidos, los que más dinero y más ganancia dejan, y los que menos se venden. Usa Hoy / 7 días / Este mes.'] },
     ],
   },
