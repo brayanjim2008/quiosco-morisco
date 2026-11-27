@@ -98,6 +98,9 @@
         <button type="button" class="admin-tab-btn" id="tabbtn-equipo" onclick="cambiarTabAdmin('equipo')">
             👥 Equipo y Evaluaciones
         </button>
+        <button type="button" class="admin-tab-btn" id="tabbtn-respaldo" onclick="cambiarTabAdmin('respaldo'); cargarRespaldo();">
+            🛟 Respaldo y Seguridad
+        </button>
     </div>
 
     <!-- ==========================================
@@ -666,6 +669,10 @@
                                         <input type="text" name="nueva_password" class="form-control form-control-sm" style="width: 110px;" placeholder="Nueva clave" required>
                                         <button type="submit" class="btn btn-sm btn-outline-primary fw-bold">Cambiar</button>
                                     </form>
+                                    <form action="{{ url_for('cerrar_sesiones_usuario', id=u.id) }}" method="POST" class="m-0" data-nom="{{ u.username }}" onsubmit="return confirm('¿Cerrar la sesión de ' + this.dataset.nom + ' en todos los aparatos?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" title="Cerrar sesión en todos lados (tablet o celular perdido)"><i class="fas fa-right-from-bracket"></i></button>
+                                    </form>
                                     {% if u.role in ['cajero', 'sucursal'] %}
                                     <button type="button" class="btn btn-sm btn-outline-dark fw-bold" data-uid="{{ u.id }}" onclick="abrirPermisosUsuario(this.dataset.uid)">Permisos</button>
                                     {% endif %}
@@ -713,6 +720,45 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         PESTAÑA: RESPALDO Y SEGURIDAD
+         ========================================== -->
+    <div id="tab-respaldo" class="seccion-tab-admin">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4" style="border:2px solid #13423b;">
+                    <div class="card-header text-white fw-bold" style="background:#13423b;">🛟 Respaldo de toda la información</div>
+                    <div class="card-body">
+                        <p class="small text-muted">Ventas, cortes, inventario, nómina, menú, clientes y configuración. Guárdalo en tu computadora o en Drive.
+                            Si algún día se pierde la base de datos, con este archivo se recupera todo.</p>
+                        <div class="p-2 mb-3 rounded bg-light small" id="respaldoEstado">Cargando...</div>
+                        <form method="POST" action="/api/respaldo/descargar" class="mb-2" onsubmit="this.querySelector('button').disabled=true; setTimeout(()=>{this.querySelector('button').disabled=false; cargarRespaldo();}, 8000);">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-lg w-100 fw-bold" style="background:#13423b;color:#fff;">⬇️ Descargar respaldo ahora</button>
+                        </form>
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" id="respaldoTelegram" onchange="guardarRespaldoTelegram(this.checked)">
+                            <label class="form-check-label fw-bold" for="respaldoTelegram">Mandarme el respaldo por Telegram cada día (al cerrar el primer Corte Z)</label>
+                        </div>
+                        <div class="small text-muted mt-1" id="respaldoTelegramAviso"></div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="probarRespaldoTelegram(this)">Enviar uno de prueba a Telegram</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white fw-bold">🔒 Seguridad</div>
+                    <div class="card-body small">
+                        <p class="mb-2"><b>¿Se perdió o robaron una tablet o un celular?</b> En <b>Equipo y Evaluaciones → usuarios</b> toca
+                            <b>"Cerrar sesión en todos lados"</b> de esa persona: su sesión se cierra en todos los aparatos de inmediato.</p>
+                        <p class="mb-2"><b>Cambiar una contraseña</b> también cierra las sesiones abiertas de esa persona.</p>
+                        <p class="mb-0 text-muted">El respaldo contiene información privada (ventas, nómina, teléfonos de clientes): guárdalo en un lugar seguro y no lo compartas.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 </div>
 
@@ -721,6 +767,35 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let ultimoConteoAdmin = parseInt(document.getElementById('badge-total-preordenes').innerText) || 0;
+
+    async function cargarRespaldo() {
+        try {
+            const d = await (await fetch('/api/respaldo/estado')).json();
+            if (!d.ok) return;
+            const e = d.estado, kb = n => n ? (n / 1024 / 1024).toFixed(1) + ' MB' : '';
+            document.getElementById('respaldoEstado').innerHTML =
+                (e.ultimo ? `Último respaldo: <b>${e.ultimo}</b> ${e.ultimo_tam ? '(' + kb(e.ultimo_tam) + ')' : ''}` : '<b>Todavía no hay ningún respaldo.</b>') +
+                (e.ultimo_resumen ? `<br>${e.ultimo_resumen.replace(/[<>&]/g, '')}` : '') +
+                (e.ultimo_enviado ? '<br>✅ Enviado por Telegram' : '') +
+                (e.tamano_bd ? `<br>Tamaño de la base de datos: <b>${kb(e.tamano_bd)}</b>` : '') +
+                (e.error ? `<br><span class="text-danger">⚠️ Falló el respaldo automático (${String(e.error).replace(/[<>&]/g, '')})</span>` : '');
+            document.getElementById('respaldoTelegram').checked = !!e.telegram;
+            document.getElementById('respaldoTelegramAviso').innerText = e.telegram_listo ? '' : 'Primero configura Telegram en Reportes → Alertas.';
+        } catch (_) {}
+    }
+
+    async function guardarRespaldoTelegram(si) {
+        await fetch('/api/respaldo/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telegram: si }) });
+        cargarRespaldo();
+    }
+
+    async function probarRespaldoTelegram(btn) {
+        btn.disabled = true; btn.innerText = 'Enviando...';
+        const d = await (await fetch('/api/respaldo/telegram', { method: 'POST' })).json();
+        btn.disabled = false; btn.innerText = 'Enviar uno de prueba a Telegram';
+        alert(d.ok ? '✅ Enviado. Revisa tu Telegram.' : (d.msg || 'No se pudo enviar.'));
+        cargarRespaldo();
+    }
 
     function cambiarTabAdmin(tabId) {
         sessionStorage.setItem('tab_admin_quiosco', tabId);

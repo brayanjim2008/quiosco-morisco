@@ -2062,6 +2062,12 @@ def api_pos_cerrar_turno_arqueo():
     registrar_bitacora('CIERRE_CAJA', f'TURNO #{turno.id}', declarado_total,
                        f'Esperado: ${esperado_total:.2f} | Dif: ${diferencia:.2f}' + (f' | Cierre forzado con {abiertas_act} cuenta(s) abierta(s)' if aut_ab else ''),
                        autorizo=(aut_ab or ''), sucursal=suc)
+    try:   # respaldo completo del día, en segundo plano (solo el primer Z del día lo hace)
+        from flask import current_app
+        from respaldo import respaldo_diario
+        respaldo_diario(current_app._get_current_object())
+    except Exception:
+        pass
     return jsonify({'ok': True, 'sucursal': suc, 'esperado': f"{esperado_total:.2f}", 'declarado': f"{declarado_total:.2f}", 'diferencia': f"{diferencia:.2f}",
                     'denominaciones': _denominaciones_para_ticket(denominaciones),
                     'corte': resumen_z, 'declaracion': declaracion, 'extras': extras})

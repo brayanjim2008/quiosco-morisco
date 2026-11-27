@@ -228,6 +228,11 @@ class User(UserMixin, db.Model):
     sucursal = db.Column(db.String(100), default='Quiosco Morisco (Matriz)')
     pin_rapido = db.Column(db.String(255), nullable=True)  # hash del PIN para cambiar de usuario en la caja
     permisos_json = db.Column(db.Text, nullable=True)      # permisos propios: {"cancelar": true, ...} (ver PERMISOS_USUARIO)
+    sesion_version = db.Column(db.Integer, nullable=True, default=0)  # al subirla se cierran sus sesiones en todos los aparatos
+
+    def get_id(self):
+        # La cookie de sesión (y la de "recordarme") lleva la versión: si cambia, esa sesión deja de valer.
+        return f'{self.id}:{self.sesion_version or 0}'
 
 
 class CategoriaMenu(db.Model):
@@ -1631,7 +1636,7 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
     'categoria_menu': {'icono', 'imagen_url'},
-    'user': {'pin_rapido', 'permisos_json'},
+    'user': {'pin_rapido', 'permisos_json', 'sesion_version'},
     'proveedores_almacen': {'dias_credito'},
     'movimientos_proveedor_pos': {'tipo', 'vence'},
     'lotes_insumo_pos': {'caducidad', 'estado'},
@@ -1697,6 +1702,7 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS mensaje_en VARCHAR(250);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton_en VARCHAR(50);",
             "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
+            'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sesion_version INTEGER DEFAULT 0;',
             "ALTER TABLE categoria_menu ADD COLUMN IF NOT EXISTS icono VARCHAR(16);",
             "ALTER TABLE categoria_menu ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(300);",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",

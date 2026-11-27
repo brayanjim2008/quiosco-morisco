@@ -37,6 +37,7 @@ from nomina_routes import nomina_bp
 from alertas import alertas_bp
 from propinas_routes import propinas_bp
 from menu_routes import menu_bp
+from respaldo import respaldo_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos, productos_para_sucursal
 from models import PERMISOS_USUARIO, permisos_propios, tiene_permiso
 
@@ -101,6 +102,7 @@ app.register_blueprint(nomina_bp)
 app.register_blueprint(alertas_bp)
 app.register_blueprint(propinas_bp)
 app.register_blueprint(menu_bp)
+app.register_blueprint(respaldo_bp)
 
 
 # ------------------------------------------------------------------------------
@@ -172,6 +174,18 @@ def _verificar_csrf():
     return None
 
 
+@app.after_request
+def _encabezados_seguridad(resp):
+    """Encabezados de seguridad del navegador en todas las respuestas."""
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')          # no adivinar tipos de archivo
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')              # otra página no puede meter el sistema en un marco
+    resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    resp.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+    if request.is_secure:   # en Render (HTTPS): el navegador ya nunca usará http
+        resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')
+    return resp
+
+
 def _numero_seguro(valor, minimo=0.0, maximo=1_000_000.0):
     try:
         x = float(valor or 0)
@@ -230,7 +244,22 @@ def _ip_cliente():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    """user_id = "id:versión". Si la versión ya no coincide (contraseña cambiada o "cerrar sesión en todos lados"),
+    la sesión deja de valer. Las sesiones viejas (solo "id") valen mientras la versión siga en 0."""
+    uid, _, ver = str(user_id).partition(':')
+    try:
+        u = User.query.get(int(uid))
+        ver = int(ver or 0)
+    except (TypeError, ValueError):
+        return None
+    if u is None or ver != (u.sesion_version or 0):
+        return None
+    return u
+
+
+def _cerrar_sesiones(u):
+    """Invalida todas las sesiones abiertas del usuario (en cualquier aparato)."""
+    u.sesion_version = (u.sesion_version or 0) + 1
 
 
 @app.template_filter('opt_img')
@@ -798,8 +827,28 @@ def cambiar_pass_usuario(id):
         return redirect(url_for('admin_dashboard'))
     if nueva_pass:
         u.password = generate_password_hash(nueva_pass)
+        _cerrar_sesiones(u)   # con la contraseña nueva, nadie sigue dentro con la vieja
         db.session.commit()
-        flash(f'Contraseña de {u.username} actualizada.', 'success')
+        if u.id == current_user.id:
+            login_user(u, remember=True, duration=timedelta(days=365))   # quien la cambió sigue trabajando
+        registrar_bitacora('CAMBIO_PASSWORD', u.username.upper(), 0.0, 'Contraseña cambiada; se cerraron sus sesiones')
+        flash(f'Contraseña de {u.username} actualizada. Se cerró su sesión en todos los aparatos.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/usuario/cerrar_sesiones/<int:id>', methods=['POST'])
+@login_required
+def cerrar_sesiones_usuario(id):
+    """Tablet o celular perdido: saca a esa persona de todos los aparatos de inmediato."""
+    if current_user.role != 'admin':
+        return redirigir_segun_rol(current_user)
+    u = User.query.get_or_404(id)
+    _cerrar_sesiones(u)
+    db.session.commit()
+    if u.id == current_user.id:
+        login_user(u, remember=True, duration=timedelta(days=365))
+    registrar_bitacora('CERRAR_SESIONES', u.username.upper(), 0.0, 'Se cerró su sesión en todos los aparatos')
+    flash(f'Listo: {u.username} quedó fuera de todos los aparatos. Tendrá que volver a entrar con su contraseña.', 'success')
     return redirect(url_for('admin_dashboard'))
 
 
