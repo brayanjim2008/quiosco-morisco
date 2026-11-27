@@ -112,6 +112,27 @@
   .modal-box { background: #fff; width: 540px; max-width: 96vw; border-radius: 16px; border: 2px solid var(--cobre); padding: 18px; }
   .wa-preview { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12.5px; white-space: pre-wrap; max-height: 360px; overflow-y: auto; margin: 10px 0; font-weight: 700; color: #14532d; }
   .toast { position: fixed; bottom: 18px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 12.5px; z-index: 900; display: none; }
+  /* Barras horizontales (una sola tinta; la etiqueta y el valor en texto normal) */
+  .barras { display: flex; flex-direction: column; gap: 6px; }
+  .bar-fila { display: grid; grid-template-columns: minmax(110px, 38%) 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; }
+  .bar-fila .bar-nom { font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-pista { height: 16px; background: #f1f5f9; border-radius: 4px; position: relative; }
+  .bar-pista span { position: absolute; left: 0; top: 0; bottom: 0; background: #13423b; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .bar-pista span.neg { background: #b91c1c; }
+  .bar-fila .bar-val { font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-fila:hover .bar-pista span { background: #c98246; }
+  .barras-mes { display: flex; align-items: flex-end; gap: 10px; height: 230px; padding: 24px 4px 0; border-bottom: 1px solid #cbd5e1; position: relative; }
+  .mes-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .mes-col .mes-bar { width: 70%; max-width: 46px; background: #13423b; border-radius: 4px 4px 0 0; min-height: 2px; }
+  .mes-col .mes-bar.neg { background: #b91c1c; }
+  .mes-col:hover .mes-bar { background: #c98246; }
+  .mes-col .mes-val { font-size: 10.5px; font-weight: 800; color: #0f172a; margin-bottom: 3px; white-space: nowrap; }
+  .mes-col .mes-lbl { position: absolute; bottom: -20px; font-size: 11px; font-weight: 700; color: #475569; }
+  #erTabla th, #erTabla td { text-align: right; white-space: nowrap; }
+  #erTabla th:first-child, #erTabla td:first-child { text-align: left; }
+  #erTabla tr.total td { font-weight: 900; border-top: 2px solid #13423b; }
+  #erTabla tr.sub td { font-weight: 800; background: #f8fafc; }
+  #erTabla td.neg { color: #b91c1c; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
 </head>
@@ -130,16 +151,17 @@
 
 <div class="tabs-bar">
   <button type="button" class="tab-btn activo" data-tab="resumen" onclick="cambiarTab('resumen', this)"><i class="fa-solid fa-chart-column"></i> 1. Ventas 4 Sucursales</button>
-  <button type="button" class="tab-btn" data-tab="cancelaciones" onclick="cambiarTab('cancelaciones', this)"><i class="fa-solid fa-shield-halved"></i> 2. Cancelaciones</button>
-  <button type="button" class="tab-btn" data-tab="cortes" onclick="cambiarTab('cortes', this)"><i class="fa-solid fa-file-invoice-dollar"></i> 3. Cortes Z</button>
-  <button type="button" class="tab-btn" data-tab="checador" onclick="cambiarTab('checador', this)"><i class="fa-solid fa-user-clock"></i> 4. Asistencia</button>
-  <button type="button" class="tab-btn" data-tab="mermas" onclick="cambiarTab('mermas', this)"><i class="fa-solid fa-trash-can-arrow-up"></i> 5. Mermas</button>
-  <button type="button" class="tab-btn" data-tab="lentos" onclick="cambiarTab('lentos', this)"><i class="fa-solid fa-arrow-trend-down"></i> 6. Menos Vendidos</button>
-  <button type="button" class="tab-btn" data-tab="recetas" onclick="cambiarTab('recetas', this)"><i class="fa-solid fa-mug-hot"></i> 7. Recetas y Stock Local</button>
-  <button type="button" class="tab-btn" data-tab="flujo" onclick="cambiarTab('flujo', this)"><i class="fa-solid fa-money-bill-transfer"></i> 8. Dinero Sucursales</button>
-  <button type="button" class="tab-btn" data-tab="rep_fechas" onclick="cambiarTab('rep_fechas', this)"><i class="fa-solid fa-calendar-days"></i> 9. Reportes / Fechas</button>
-  <button type="button" class="tab-btn" data-tab="gastos" onclick="cambiarTab('gastos', this)"><i class="fa-solid fa-receipt"></i> 10. Gastos</button>
-  <button type="button" class="tab-btn" data-tab="alertas" onclick="cambiarTab('alertas', this)"><i class="fa-solid fa-bell"></i> 11. Alertas</button>
+  <button type="button" class="tab-btn" data-tab="utilidad" onclick="cambiarTab('utilidad', this)"><i class="fa-solid fa-scale-balanced"></i> 2. Utilidad</button>
+  <button type="button" class="tab-btn" data-tab="lentos" onclick="cambiarTab('lentos', this)"><i class="fa-solid fa-ranking-star"></i> 3. Platillos</button>
+  <button type="button" class="tab-btn" data-tab="rep_fechas" onclick="cambiarTab('rep_fechas', this)"><i class="fa-solid fa-calendar-days"></i> 4. Reportes / Fechas</button>
+  <button type="button" class="tab-btn" data-tab="cortes" onclick="cambiarTab('cortes', this)"><i class="fa-solid fa-file-invoice-dollar"></i> 5. Cortes Z</button>
+  <button type="button" class="tab-btn" data-tab="gastos" onclick="cambiarTab('gastos', this)"><i class="fa-solid fa-receipt"></i> 6. Gastos</button>
+  <button type="button" class="tab-btn" data-tab="cancelaciones" onclick="cambiarTab('cancelaciones', this)"><i class="fa-solid fa-shield-halved"></i> 7. Cancelaciones</button>
+  <button type="button" class="tab-btn" data-tab="alertas" onclick="cambiarTab('alertas', this)"><i class="fa-solid fa-bell"></i> 8. Alertas</button>
+  <button type="button" class="tab-btn" data-tab="checador" onclick="cambiarTab('checador', this)"><i class="fa-solid fa-user-clock"></i> 9. Asistencia</button>
+  <button type="button" class="tab-btn" data-tab="mermas" onclick="cambiarTab('mermas', this)"><i class="fa-solid fa-trash-can-arrow-up"></i> 10. Mermas</button>
+  <button type="button" class="tab-btn" data-tab="recetas" onclick="cambiarTab('recetas', this)"><i class="fa-solid fa-mug-hot"></i> 11. Recetas y Stock Local</button>
+  <button type="button" class="tab-btn" data-tab="flujo" onclick="cambiarTab('flujo', this)"><i class="fa-solid fa-money-bill-transfer"></i> 12. Dinero Sucursales</button>
 </div>
 
 <div class="container">
@@ -335,7 +357,61 @@
   </section>
 
   <!-- TAB 6: MENOS VENDIDOS -->
+  <section id="sec_utilidad" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-scale-balanced" style="color:var(--cobre);"></i> ¿Cuánto gana el restaurante? (Estado de resultados)</h3>
+      </div>
+      <div class="form-row">
+        <select id="er_suc" class="inp" onchange="cargarUtilidad()">
+          <option value="TODAS">Todas las sucursales</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <select id="er_anio" class="inp" onchange="cargarUtilidad()"></select>
+      </div>
+      <div class="kpi-grid" id="erKpis"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Utilidad por mes</h3></div>
+      <div id="erBarras" class="barras-mes"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Detalle mes por mes</h3></div>
+      <div class="table-wrap"><table id="erTabla"></table></div>
+      <p style="font-size:11.5px;color:#64748b;margin:8px 0 0;">Todo sin IVA. <b>Costo de lo vendido</b> = piezas vendidas × costo de su receta (al costo actual de los insumos).
+        <b>Gastos</b> = retiros de caja de gasto. <b>Nómina</b> = recibos pagados sin las propinas. Las compras a proveedores no se restan aparte porque ya entran como costo al venderse.
+        <span id="erCobertura"></span></p>
+    </div>
+  </section>
+
   <section id="sec_lentos" class="panel-sec">
+    <div class="card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-ranking-star" style="color:var(--cobre);"></i> ¿Qué platillos se venden y cuáles dejan más?</h3>
+      </div>
+      <div class="form-row">
+        <select id="pl_suc" class="inp" onchange="cargarPlatillos()">
+          <option value="TODAS">Todas las sucursales</option>
+          {% for s in sucursales %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+        <input type="date" id="pl_desde" class="inp" onchange="cargarPlatillos()">
+        <input type="date" id="pl_hasta" class="inp" onchange="cargarPlatillos()">
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn sm gris" onclick="rangoPlatillos(0)">Hoy</button>
+          <button type="button" class="btn sm gris" onclick="rangoPlatillos(6)">7 días</button>
+          <button type="button" class="btn sm gris" onclick="rangoPlatillos('mes')">Este mes</button>
+          <button type="button" class="btn sm gris" onclick="rangoPlatillos(89)">3 meses</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="plKpis"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><h3>🏆 Los más vendidos <small style="font-weight:600;color:#64748b;font-family:'Open Sans',sans-serif;">(piezas)</small></h3></div><div id="plMasVendidos" class="barras"></div></div>
+      <div class="card"><div class="card-head"><h3>💰 Los que más dinero dejan <small style="font-weight:600;color:#64748b;font-family:'Open Sans',sans-serif;">(venta con IVA)</small></h3></div><div id="plMasVenta" class="barras"></div></div>
+      <div class="card"><div class="card-head"><h3>📈 Los que más ganancia dejan <small style="font-weight:600;color:#64748b;font-family:'Open Sans',sans-serif;">(venta sin IVA − costo de receta)</small></h3></div><div id="plMasUtilidad" class="barras"></div><div id="plAvisoReceta" style="font-size:11.5px;color:#64748b;margin-top:6px;"></div></div>
+      <div class="card"><div class="card-head"><h3>🐢 Los que menos se venden <small style="font-weight:600;color:#64748b;font-family:'Open Sans',sans-serif;">(piezas)</small></h3></div><div id="plMenosVendidos" class="barras"></div>
+        <div id="plSinVenta" style="font-size:12px;margin-top:8px;"></div></div>
+    </div>
     <div class="card">
       <div class="card-head">
         <h3><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--cobre);"></i> Platillos con Baja Rotación en el Mes (&lt; 3 ventas)</h3>
@@ -608,7 +684,84 @@
     if (tab === 'flujo') cargarFlujoDinero();
     if (tab === 'rep_fechas') cargarReporteVentasDetalle();
     if (tab === 'gastos') cargarGastos();
+    if (tab === 'lentos') cargarPlatillos();
+    if (tab === 'utilidad') cargarUtilidad();
     if (tab === 'flujo') cargarCategoriasGasto();
+  }
+
+  // ===== Platillos y utilidad: barras simples (una tinta; tooltip con el detalle al pasar el mouse) =====
+  const pesos = v => '$' + Number(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fechaISO = d => d.toISOString().slice(0, 10);
+
+  function barrasHTML(filas, valor, formato, titulo) {
+    if (!filas.length) return '<p style="color:#64748b;font-size:12.5px;text-align:center;padding:14px;">Sin ventas en estas fechas.</p>';
+    const max = Math.max(...filas.map(f => Math.abs(valor(f)))) || 1;
+    return filas.map(f => {
+      const v = valor(f), ancho = Math.max(1, Math.abs(v) / max * 100);
+      return `<div class="bar-fila" title="${esc(titulo(f))}"><span class="bar-nom">${esc(f.platillo)}</span>
+        <div class="bar-pista"><span class="${v < 0 ? 'neg' : ''}" style="width:${ancho.toFixed(1)}%"></span></div>
+        <span class="bar-val">${formato(v)}</span></div>`;
+    }).join('');
+  }
+
+  function rangoPlatillos(dias) {
+    const hoy = new Date(), ini = new Date();
+    if (dias === 'mes') ini.setDate(1); else ini.setDate(hoy.getDate() - dias);
+    $('pl_desde').value = fechaISO(ini); $('pl_hasta').value = fechaISO(hoy);
+    cargarPlatillos();
+  }
+
+  async function cargarPlatillos() {
+    if (!$('pl_desde').value) { const h = new Date(); $('pl_hasta').value = fechaISO(h); h.setDate(1); $('pl_desde').value = fechaISO(h); }
+    const q = new URLSearchParams({ sucursal: $('pl_suc').value, desde: $('pl_desde').value, hasta: $('pl_hasta').value });
+    const d = await (await fetch('/api/reportes/platillos?' + q)).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo cargar.');
+    const P = d.platillos;
+    const piezas = P.reduce((a, f) => a + f.cantidad, 0);
+    const conCosto = P.filter(f => f.utilidad !== null);
+    const tip = f => `${f.platillo}: ${f.cantidad} vendidos · ${pesos(f.venta)} de venta` + (f.utilidad !== null ? ` · ${pesos(f.utilidad)} de ganancia` : ' · sin receta (no se sabe su costo)');
+    $('plKpis').innerHTML = `
+      <div class="kpi-card cobre"><div class="kpi-title">Venta de platillos</div><div class="kpi-val">${pesos(d.total_venta)}</div><div class="kpi-sub">${piezas.toLocaleString('es-MX')} piezas</div></div>
+      <div class="kpi-card"><div class="kpi-title">Platillos distintos vendidos</div><div class="kpi-val">${P.length}</div><div class="kpi-sub">${d.sin_venta.length} no se vendieron</div></div>
+      <div class="kpi-card"><div class="kpi-title">Ganancia (con receta)</div><div class="kpi-val">${pesos(conCosto.reduce((a, f) => a + f.utilidad, 0))}</div><div class="kpi-sub">${conCosto.length} de ${P.length} tienen receta</div></div>`;
+    const top = (arr, k, n = 10) => [...arr].sort((a, b) => b[k] - a[k]).slice(0, n);
+    $('plMasVendidos').innerHTML = barrasHTML(top(P, 'cantidad'), f => f.cantidad, v => v.toLocaleString('es-MX'), tip);
+    $('plMasVenta').innerHTML = barrasHTML(top(P, 'venta'), f => f.venta, pesos, tip);
+    $('plMasUtilidad').innerHTML = barrasHTML(top(conCosto, 'utilidad'), f => f.utilidad, pesos, tip);
+    $('plAvisoReceta').innerText = conCosto.length < P.length ? `${P.length - conCosto.length} platillos vendidos no tienen receta: captúrala en "Recetas" para saber cuánto ganan.` : '';
+    $('plMenosVendidos').innerHTML = barrasHTML([...P].sort((a, b) => a.cantidad - b.cantidad).slice(0, 10), f => f.cantidad, v => v.toLocaleString('es-MX'), tip);
+    $('plSinVenta').innerHTML = d.sin_venta.length
+      ? `<b style="color:#b91c1c;">No se vendieron (${d.sin_venta.length}):</b> ` + d.sin_venta.slice(0, 40).map(x => esc(x.platillo)).join(', ') + (d.sin_venta.length > 40 ? '…' : '')
+      : '<b style="color:#166534;">Todos los platillos del menú se vendieron al menos una vez.</b>';
+  }
+
+  async function cargarUtilidad() {
+    const selA = $('er_anio');
+    if (!selA.options.length) { const y = new Date().getFullYear(); selA.innerHTML = [y, y - 1, y - 2].map(a => `<option value="${a}">${a}</option>`).join(''); }
+    const q = new URLSearchParams({ sucursal: $('er_suc').value, anio: selA.value });
+    const d = await (await fetch('/api/reportes/estado_resultados?' + q)).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo cargar.');
+    const T = d.total, M = d.meses;
+    const ultimo = M[M.length - 1] || {};
+    $('erKpis').innerHTML = `
+      <div class="kpi-card cobre"><div class="kpi-title">Utilidad ${d.anio}</div><div class="kpi-val" style="${T.utilidad < 0 ? 'color:#fecaca;' : ''}">${pesos(T.utilidad)}</div><div class="kpi-sub">${T.margen_pct !== null ? 'Margen ' + T.margen_pct + '%' : 'Sin ventas'}</div></div>
+      <div class="kpi-card"><div class="kpi-title">Ventas sin IVA ${d.anio}</div><div class="kpi-val">${pesos(T.ventas)}</div><div class="kpi-sub">Con IVA: ${pesos(T.venta_con_iva)}</div></div>
+      <div class="kpi-card"><div class="kpi-title">Utilidad de ${esc(ultimo.mes || '')}</div><div class="kpi-val">${pesos(ultimo.utilidad)}</div><div class="kpi-sub">${ultimo.margen_pct !== null && ultimo.margen_pct !== undefined ? 'Margen ' + ultimo.margen_pct + '%' : 'Sin ventas'}</div></div>`;
+    const maxU = Math.max(...M.map(m => Math.abs(m.utilidad)), 1);
+    $('erBarras').innerHTML = M.map(m => `<div class="mes-col" title="${esc(m.mes)}: ventas ${pesos(m.ventas)} · utilidad ${pesos(m.utilidad)}">
+        <span class="mes-val">${m.utilidad ? pesos(m.utilidad).replace('.00', '') : ''}</span>
+        <div class="mes-bar ${m.utilidad < 0 ? 'neg' : ''}" style="height:${(Math.abs(m.utilidad) / maxU * 85).toFixed(1)}%"></div>
+        <span class="mes-lbl">${esc(m.mes)}</span></div>`).join('');
+    const filas = [
+      ['Ventas (con IVA)', 'venta_con_iva', ''], ['− IVA', 'iva', ''], ['Ventas netas', 'ventas', 'sub'],
+      ['− Costo de lo vendido', 'costo', ''], ['Utilidad bruta', 'utilidad_bruta', 'sub'],
+      ['− Mermas', 'mermas', ''], ['− Gastos', 'gastos', ''], ['− Nómina', 'nomina', ''], ['UTILIDAD', 'utilidad', 'total'],
+    ];
+    $('erTabla').innerHTML = `<thead><tr><th>Concepto</th>${M.map(m => `<th>${esc(m.mes)}</th>`).join('')}<th>Total</th></tr></thead><tbody>` +
+      filas.map(([nom, k, cls]) => `<tr class="${cls}"><td>${nom}</td>${M.map(m => `<td class="${m[k] < 0 ? 'neg' : ''}">${pesos(m[k])}</td>`).join('')}<td class="${T[k] < 0 ? 'neg' : ''}">${pesos(T[k])}</td></tr>`).join('') +
+      `<tr><td>Margen</td>${M.map(m => `<td>${m.margen_pct === null ? '—' : m.margen_pct + '%'}</td>`).join('')}<td>${T.margen_pct === null ? '—' : T.margen_pct + '%'}</td></tr></tbody>`;
+    $('erCobertura').innerHTML = T.cobertura_recetas_pct !== null && T.cobertura_recetas_pct < 95
+      ? `<br><b style="color:#b45309;">⚠️ Solo el ${T.cobertura_recetas_pct}% de lo vendido tiene receta:</b> lo demás no suma costo y la utilidad sale más alta de lo real. Captura las recetas en "Recetas y Stock Local".` : '';
   }
 
   // 1. RESUMEN REAL 4 SUCURSALES + CORTES + MENOS VENDIDOS

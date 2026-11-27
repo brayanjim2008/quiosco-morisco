@@ -94,6 +94,10 @@ window.AYUDAS = {
         '"Asistencia": quién checó y a qué hora, por fechas; se baja a Excel.',
         '"Cancelaciones": quién canceló qué y quién lo autorizó.',
         '"Reportes / Fechas": ventas por producto, categoría y mesero en cualquier periodo.'] },
+      { t: '¿Cuánto gana el restaurante?', pasos: [
+        '"Utilidad": mes por mes, ventas sin IVA menos costo de lo vendido, mermas, gastos y nómina = lo que queda. Elige sucursal y año.',
+        'Si sale un aviso de recetas, captúralas en "Recetas y Stock Local": sin receta un platillo no suma costo y la utilidad sale más alta de lo real.',
+        '"Platillos": barras de los más vendidos, los que más dinero y más ganancia dejan, y los que menos se venden. Usa Hoy / 7 días / Este mes.'] },
     ],
   },
   '/pedidos_sucursal': {

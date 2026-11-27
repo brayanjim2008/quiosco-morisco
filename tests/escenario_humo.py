@@ -289,6 +289,9 @@ ejecutar_escenario('menu_platillos.py')
 # Respaldo completo y seguridad (cerrar sesión a distancia, encabezados)
 ejecutar_escenario('respaldo_seguridad.py')
 
+# Fase 6: platillos en barras y estado de resultados
+ejecutar_escenario('reportes_f6.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)
