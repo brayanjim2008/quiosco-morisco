@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menú y Platillos</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246; --dorado: #ffd700; --hueso: #fdfaf6; --borde: #e2d9ce; }
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; }
+  button { touch-action: manipulation; }
+  .topbar { background: var(--verde-oscuro); color: #fff; padding: 10px 16px; border-bottom: 3px solid var(--cobre); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .brand { font-family: 'Lora', serif; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tabs-bar { background: var(--verde); padding: 8px 16px; display: flex; gap: 6px; overflow-x: auto; border-bottom: 2px solid var(--cobre); }
+  .tab-btn { background: rgba(255,255,255,.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,.4); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 800; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+  .tab-btn.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
+  .container { max-width: 1320px; margin: 0 auto; padding: 14px; }
+  .panel-sec { display: none; } .panel-sec.activo { display: block; }
+  .card { background: #fff; border-radius: 14px; border: 1.5px solid var(--borde); padding: 14px; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 10px; font-family: 'Lora', serif; color: var(--verde); font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .card h3 small { font-family: 'Open Sans', sans-serif; font-size: 11.5px; color: #64748b; font-weight: 600; }
+  .inp, select.inp, textarea.inp { height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 700; font-size: 13px; background: #fff; width: 100%; }
+  textarea.inp { height: 62px; padding: 8px 10px; resize: vertical; font-weight: 600; }
+  label.lbl { font-size: 11px; font-weight: 800; color: #475569; display: block; margin-bottom: 3px; }
+  .btn { height: 38px; padding: 0 14px; border-radius: 8px; border: none; background: var(--verde); color: #fff; font-weight: 800; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn.cobre { background: var(--cobre); } .btn.verde { background: #16a34a; } .btn.rojo { background: #dc2626; } .btn.gris { background: #e2e8f0; color: #334155; }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 11.5px; } .btn.grande { height: 46px; font-size: 15px; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .g3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+  .fila { margin-bottom: 10px; }
+  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  .lista { max-height: calc(100vh - 250px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .item { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; cursor: pointer; background: #fff; }
+  .item:hover { background: #f8fafc; } .item.sel { background: #ecfdf5; border-left: 4px solid var(--cobre); }
+  .item img, .item .ph { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .item .nom { font-weight: 800; font-size: 13px; line-height: 1.2; } .item .sub { font-size: 11px; color: #64748b; font-weight: 600; }
+  .item .precio { margin-left: auto; font-weight: 800; color: var(--verde); font-size: 13px; white-space: nowrap; }
+  .cat-sep { background: #f1f5f9; color: var(--verde); font-size: 11px; font-weight: 800; padding: 5px 10px; text-transform: uppercase; letter-spacing: .5px; position: sticky; top: 0; z-index: 1; }
+  .pill { padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 800; display: inline-block; }
+  .pill.rojo { background: #fee2e2; color: #b91c1c; } .pill.azul { background: #e0f2fe; color: #075985; } .pill.cafe { background: #fef3c7; color: #92400e; }
+  .seg { display: inline-flex; border: 1.5px solid #cbd5e1; border-radius: 9px; overflow: hidden; }
+  .seg button { border: none; background: #fff; padding: 0 14px; height: 36px; font-weight: 800; font-size: 12.5px; cursor: pointer; color: #334155; }
+  .seg button + button { border-left: 1.5px solid #cbd5e1; } .seg button.on { background: var(--verde); color: #fff; }
+  .foto-box { display: flex; gap: 10px; align-items: center; }
+  .foto-box img, .foto-box .ph { width: 86px; height: 86px; border-radius: 12px; object-fit: cover; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 34px; border: 1px solid #e2e8f0; }
+  .switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; cursor: pointer; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 9px; background: #fff; }
+  .paso { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 8px; margin-bottom: 8px; background: #fcfcfb; }
+  .paso-top { display: grid; grid-template-columns: 30px 1.3fr 1fr auto auto auto; gap: 6px; align-items: center; }
+  .paso-num { width: 28px; height: 28px; border-radius: 50%; background: var(--cobre); color: #fff; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; padding-left: 36px; }
+  .chip { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 2px 9px; font-size: 11px; font-weight: 700; color: #334155; }
+  .chip b { color: var(--cobre); }
+  .resumen-pasos { font-size: 12px; color: #475569; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { background: #f1f5f9; color: var(--verde); padding: 6px 8px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .iconos { display: flex; flex-wrap: wrap; gap: 4px; }
+  .iconos button { width: 38px; height: 38px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 20px; cursor: pointer; }
+  .iconos button.on { border-color: var(--cobre); background: #fff7ed; }
+  .cat-card { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; background: #fff; }
+  .cat-card .circ { width: 52px; height: 52px; border-radius: 50%; background: var(--verde); display: flex; align-items: center; justify-content: center; font-size: 26px; overflow: hidden; border: 2px solid var(--cobre); }
+  .cat-card .circ img { width: 100%; height: 100%; object-fit: cover; }
+  .grupo-card { border: 1.5px solid #e2e8f0; border-radius: 12px; margin-bottom: 12px; overflow: hidden; background: #fff; }
+  .grupo-card .gh { background: var(--verde); color: #fff; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 800; }
+  .grupo-card .gh small { color: #e2e8f0; font-weight: 600; font-size: 11px; }
+  .vacio { text-align: center; color: #64748b; padding: 40px 10px; font-weight: 700; }
+  .toast { position: fixed; bottom: 20px; right: 18px; background: var(--verde); color: #fff; border: 2px solid var(--dorado); padding: 10px 16px; border-radius: 24px; font-weight: 800; font-size: 13px; z-index: 900; display: none; }
+  .toast.err { background: #b91c1c; }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><i class="fa-solid fa-utensils" style="color:var(--cobre);"></i> Menú y Platillos</div>
+  <div class="nav-links">{% include '_modulos.html' %}</div>
+</div>
+
+<div class="tabs-bar">
+  <button type="button" class="tab-btn activo" onclick="cambiarTab('platillos', this)"><i class="fa-solid fa-bowl-food"></i> 1. Platillos</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('categorias', this)"><i class="fa-solid fa-layer-group"></i> 2. Categorías</button>
+  <button type="button" class="tab-btn" onclick="cambiarTab('modificadores', this)"><i class="fa-solid fa-sliders"></i> 3. Modificadores</button>
+</div>
+
+<div class="container">
+
+  <!-- ===================== 1. PLATILLOS ===================== -->
+  <section id="sec_platillos" class="panel-sec activo">
+    <div class="layout">
+      <div class="card" style="padding:10px;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input type="text" id="buscar" class="inp" placeholder="🔍 Buscar platillo..." oninput="pintarLista()">
+          <button type="button" class="btn cobre" onclick="nuevoPlatillo()" title="Nuevo platillo"><i class="fa-solid fa-plus"></i> Nuevo</button>
+        </div>
+        <select id="filtroCat" class="inp" style="margin-bottom:8px;" onchange="pintarLista()"><option value="">Todas las categorías</option></select>
+        <div class="lista" id="lista"></div>
+      </div>
+
+      <div id="editor">
+        <div class="card vacio" id="editorVacio">
+          <i class="fa-solid fa-hand-pointer" style="font-size:30px;color:var(--cobre);"></i><br><br>
+          Elige un platillo de la lista o toca <b>+ Nuevo</b>.
+        </div>
+
+        <div id="editorForm" style="display:none;">
+          <!-- A. DATOS -->
+          <div class="card">
+            <h3><i class="fa-solid fa-pen-to-square"></i> <span id="tituloEditor">Platillo</span></h3>
+            <div class="g3 fila">
+              <div><label class="lbl">Nombre</label><input type="text" id="p_nombre" class="inp" maxlength="100" placeholder="Ej. Capuchino"></div>
+              <div><label class="lbl">Categoría</label><select id="p_categoria" class="inp"></select></div>
+              <div><label class="lbl">Precio ($)</label><input type="number" id="p_precio" class="inp" step="0.5" min="0" inputmode="decimal"></div>
+            </div>
+            <div class="fila">
+              <label class="lbl">¿Dónde se prepara? (a qué impresora va)</label>
+              <div class="seg" id="segArea">
+                <button type="button" data-a="" onclick="elegirArea('')">Automático</button>
+                <button type="button" data-a="COCINA" onclick="elegirArea('COCINA')">🍳 Cocina</button>
+                <button type="button" data-a="BARRA" onclick="elegirArea('BARRA')">☕ Barra</button>
+              </div>
+            </div>
+            <div class="g2 fila">
+              <div><label class="lbl">Descripción (la ve el cliente)</label><textarea id="p_desc" class="inp" maxlength="600"></textarea></div>
+              <div>
+                <label class="lbl">En inglés <button type="button" class="btn gris sm" style="height:22px;margin-left:4px;" onclick="traducirTodo()"><i class="fa-solid fa-language"></i> Traducir</button></label>
+                <input type="text" id="p_nombre_en" class="inp" maxlength="100" placeholder="Name" style="margin-bottom:6px;">
+                <textarea id="p_desc_en" class="inp" maxlength="600" placeholder="Description" style="height:50px;"></textarea>
+              </div>
+            </div>
+            <div class="fila foto-box">
+              <div id="p_foto_prev" class="ph">🍽️</div>
+              <div style="flex:1;">
+                <label class="lbl">Foto del platillo</label>
+                <input type="file" id="p_foto" accept="image/*" class="inp" style="padding-top:6px;" onchange="previewFoto(this)">
+                <label style="font-size:12px;font-weight:700;display:none;margin-top:4px;" id="lblQuitarFoto"><input type="checkbox" id="p_quitar_foto"> Quitar la foto</label>
+              </div>
+            </div>
+            <div class="fila" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label class="switch"><input type="checkbox" id="p_destacado"> ⭐ Favorito (sale primero en el menú)</label>
+              <label class="switch" style="color:#b91c1c;"><input type="checkbox" id="p_agotado"> ❌ Agotado / suspendido</label>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn verde grande" style="flex:1;" onclick="guardarPlatillo()"><i class="fa-solid fa-floppy-disk"></i> Guardar platillo</button>
+              <button type="button" class="btn rojo grande" id="btnEliminar" onclick="eliminarPlatillo()"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+
+          <!-- B. MODIFICADORES POR PASOS -->
+          <div class="card" id="cardPasos">
+            <h3><i class="fa-solid fa-list-check"></i> Al pedirlo, preguntar <small>(lo que ve el mesero en la tablet y la caja, en este orden)</small></h3>
+            <div class="resumen-pasos" id="resumenPasos"></div>
+            <div id="pasos"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="nuevoPasoGrupo" class="inp" style="max-width:260px;"></select>
+              <button type="button" class="btn cobre" onclick="agregarPaso()"><i class="fa-solid fa-plus"></i> Agregar pregunta</button>
+              <button type="button" class="btn verde" style="margin-left:auto;" onclick="guardarPasos()"><i class="fa-solid fa-floppy-disk"></i> Guardar preguntas</button>
+            </div>
+          </div>
+
+          <!-- C. PRECIO POR SUCURSAL -->
+          <div class="card" id="cardPrecios">
+            <h3><i class="fa-solid fa-store"></i> Precio por sucursal <small>(vacío = precio general; se guarda solo al cambiarlo)</small></h3>
+            <table><thead><tr><th>Sucursal</th><th style="width:150px;">Precio aquí</th><th style="width:120px;text-align:center;">Se vende aquí</th></tr></thead><tbody id="tbodyPrecios"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 2. CATEGORÍAS ===================== -->
+  <section id="sec_categorias" class="panel-sec">
+    <div class="layout">
+      <div class="card">
+        <h3><i class="fa-solid fa-pen"></i> <span id="tituloCat">Nueva categoría</span></h3>
+        <input type="hidden" id="c_id">
+        <div class="fila"><label class="lbl">Nombre</label><input type="text" id="c_nombre" class="inp" maxlength="50" placeholder="Ej. Bebidas Calientes"></div>
+        <div class="fila"><label class="lbl">En inglés</label><input type="text" id="c_nombre_en" class="inp" maxlength="50" placeholder="Hot Drinks"></div>
+        <div class="fila"><label class="lbl">Ícono del círculo en el menú</label><div class="iconos" id="iconos"></div></div>
+        <div class="fila"><label class="lbl">O una foto propia (tiene prioridad sobre el ícono)</label><input type="file" id="c_foto" accept="image/*" class="inp" style="padding-top:6px;">
+          <label style="font-size:12px;font-weight:700;display:none;margin-top:4px;" id="lblQuitarFotoCat"><input type="checkbox" id="c_quitar_foto"> Quitar la foto y usar el ícono</label></div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn verde" style="flex:1;" onclick="guardarCategoria()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+          <button type="button" class="btn gris" onclick="limpiarCategoria()">Nueva</button>
+        </div>
+      </div>
+      <div class="card"><h3><i class="fa-solid fa-layer-group"></i> Categorías del menú</h3><div id="listaCats"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== 3. MODIFICADORES ===================== -->
+  <section id="sec_modificadores" class="panel-sec">
+    <div class="card">
+      <h3><i class="fa-solid fa-plus"></i> Agregar opción <small>(si escribes un grupo nuevo, se crea)</small></h3>
+      <div style="display:grid;grid-template-columns:1.2fr 1.4fr 0.7fr 0.8fr auto;gap:8px;align-items:end;">
+        <div><label class="lbl">Grupo</label><input type="text" id="m_grupo" class="inp" list="dlGrupos" placeholder="Ej. TIPO DE LECHE"><datalist id="dlGrupos"></datalist></div>
+        <div><label class="lbl">Opción</label><input type="text" id="m_nombre" class="inp" placeholder="Ej. LECHE DE AVENA"></div>
+        <div><label class="lbl">Extra ($)</label><input type="number" id="m_precio" class="inp" step="0.5" min="0" value="0"></div>
+        <div><label class="lbl">Impresora</label><select id="m_area" class="inp"><option value="">La del platillo</option><option value="COCINA">Cocina</option><option value="BARRA">Barra</option></select></div>
+        <button type="button" class="btn cobre" onclick="agregarModificador()"><i class="fa-solid fa-plus"></i> Agregar</button>
+      </div>
+    </div>
+    <div id="listaGrupos"></div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const ICONOS = {{ iconos|tojson }};
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  const dinero = v => '$' + Number(v || 0).toFixed(2);
+  function toast(msg, error) { const t = $('toast'); t.innerText = msg; t.className = 'toast' + (error ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3200); }
+
+  let D = { platillos: [], categorias: [], grupos: {}, sucursales: [] };
+  let selId = null, areaSel = '', pasosEd = [], iconoSel = '';
+
+  function cambiarTab(tab, btn) {
+    document.querySelectorAll('.panel-sec').forEach(s => s.classList.remove('activo'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    $('sec_' + tab).classList.add('activo'); btn.classList.add('activo');
+  }
+
+  async function cargar() {
+    const r = await fetch('/api/menu/datos');
+    const d = await r.json();
+    if (!d.ok) return toast(d.msg || 'No se pudo cargar el menú.', true);
+    D = d;
+    const opts = D.categorias.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('');
+    const filtro = $('filtroCat').value;
+    $('filtroCat').innerHTML = '<option value="">Todas las categorías</option>' + opts; $('filtroCat').value = filtro;
+    $('p_categoria').innerHTML = opts;
+    const grupos = Object.keys(D.grupos).sort();
+    $('nuevoPasoGrupo').innerHTML = grupos.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+    $('dlGrupos').innerHTML = grupos.map(g => `<option value="${esc(g)}">`).join('');
+    pintarLista(); pintarCategorias(); pintarGrupos();
+    if (selId) { const p = D.platillos.find(x => x.id === selId); if (p) abrirPlatillo(p.id, true); }
+  }
+
+  // ---------------- PLATILLOS ----------------
+  function iconoDe(catNombre) { const c = D.categorias.find(x => x.nombre === catNombre); return (c && c.icono) || '🍽️'; }
+
+  function pintarLista() {
+    const q = $('buscar').value.trim().toLowerCase(), cat = $('filtroCat').value;
+    const lista = D.platillos.filter(p => (!cat || p.categoria === cat) && (!q || p.nombre.toLowerCase().includes(q)));
+    let html = '', ultima = null;
+    lista.forEach(p => {
+      if (p.categoria !== ultima) { html += `<div class="cat-sep">${esc(p.categoria)}</div>`; ultima = p.categoria; }
+      const badges = [p.agotado ? '<span class="pill rojo">Agotado</span>' : '',
+        p.area === 'BARRA' ? '<span class="pill azul">☕ Barra</span>' : (p.area === 'COCINA' ? '<span class="pill cafe">🍳 Cocina</span>' : ''),
+        p.pasos.length ? `<span class="pill azul">${p.pasos.length} pregunta${p.pasos.length > 1 ? 's' : ''}</span>` : ''].join(' ');
+      html += `<div class="item${p.id === selId ? ' sel' : ''}" onclick="abrirPlatillo(${p.id})">
+        ${p.imagen_url ? `<img src="${esc(p.imagen_url)}" alt="" loading="lazy">` : `<div class="ph">${iconoDe(p.categoria)}</div>`}
+        <div><div class="nom">${esc(p.nombre)}</div><div class="sub">${badges}</div></div>
+        <div class="precio">${dinero(p.precio)}</div></div>`;
+    });
+    $('lista').innerHTML = html || '<div class="vacio">Sin platillos.</div>';
+  }
+
+  function elegirArea(a) { areaSel = a; document.querySelectorAll('#segArea button').forEach(b => b.classList.toggle('on', b.dataset.a === a)); }
+
+  function previewFoto(inp) {
+    const f = inp.files && inp.files[0];
+    if (f) $('p_foto_prev').outerHTML = `<img id="p_foto_prev" src="${URL.createObjectURL(f)}" alt="">`;
+  }
+
+  function mostrarFoto(url, ph) {
+    $('p_foto_prev').outerHTML = url ? `<img id="p_foto_prev" src="${esc(url)}" alt="">` : `<div id="p_foto_prev" class="ph">${ph}</div>`;
+  }
+
+  function nuevoPlatillo() {
+    selId = null; pintarLista();
+    $('editorVacio').style.display = 'none'; $('editorForm').style.display = 'block';
+    $('tituloEditor').innerText = 'Nuevo platillo';
+    ['p_nombre', 'p_precio', 'p_desc', 'p_nombre_en', 'p_desc_en'].forEach(id => $(id).value = '');
+    if ($('filtroCat').value) $('p_categoria').value = $('filtroCat').value;
+    $('p_destacado').checked = false; $('p_agotado').checked = false; $('p_foto').value = ''; $('p_quitar_foto').checked = false;
+    $('lblQuitarFoto').style.display = 'none'; mostrarFoto('', '🍽️'); elegirArea('');
+    $('btnEliminar').style.display = 'none'; $('cardPasos').style.display = 'none'; $('cardPrecios').style.display = 'none';
+    $('p_nombre').focus();
+  }
+
+  function abrirPlatillo(id, sinScroll) {
+    const p = D.platillos.find(x => x.id === id); if (!p) return;
+    selId = id; pintarLista();
+    $('editorVacio').style.display = 'none'; $('editorForm').style.display = 'block';
+    $('tituloEditor').innerText = p.nombre;
+    $('p_nombre').value = p.nombre; $('p_categoria').value = p.categoria; $('p_precio').value = p.precio;
+    $('p_desc').value = p.descripcion; $('p_nombre_en').value = p.nombre_en; $('p_desc_en').value = p.descripcion_en;
+    $('p_destacado').checked = p.destacado; $('p_agotado').checked = p.agotado; $('p_foto').value = ''; $('p_quitar_foto').checked = false;
+    $('lblQuitarFoto').style.display = p.imagen_url ? 'block' : 'none'; mostrarFoto(p.imagen_url, iconoDe(p.categoria));
+    elegirArea(p.area || '');
+    $('btnEliminar').style.display = ''; $('cardPasos').style.display = ''; $('cardPrecios').style.display = '';
+    pasosEd = p.pasos.map(x => Object.assign({}, x)); pintarPasos(); pintarPrecios(p);
+    if (!sinScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function guardarPlatillo() {
+    const fd = new FormData();
+    if (selId) fd.append('id', selId);
+    fd.append('nombre', $('p_nombre').value.trim()); fd.append('categoria', $('p_categoria').value);
+    fd.append('precio', $('p_precio').value || '0'); fd.append('area', areaSel);
+    fd.append('descripcion', $('p_desc').value); fd.append('nombre_en', $('p_nombre_en').value); fd.append('descripcion_en', $('p_desc_en').value);
+    fd.append('destacado', $('p_destacado').checked ? '1' : '0'); fd.append('agotado', $('p_agotado').checked ? '1' : '0');
+    if ($('p_quitar_foto').checked) fd.append('quitar_foto', '1');
+    if ($('p_foto').files[0]) fd.append('foto', $('p_foto').files[0]);
+    if (!$('p_nombre').value.trim()) return toast('Escribe el nombre del platillo.', true);
+    const r = await fetch('/api/menu/platillo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    selId = d.id; toast('✓ ' + d.msg); await cargar(); abrirPlatillo(d.id, true);
+  }
+
+  async function eliminarPlatillo() {
+    const p = D.platillos.find(x => x.id === selId); if (!p) return;
+    if (!confirm(`¿Eliminar "${p.nombre}" del menú?\n\nSi solo no hay hoy, mejor márcalo como Agotado.`)) return;
+    const d = await (await fetch(`/api/menu/platillo/${p.id}/eliminar`, { method: 'POST' })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo eliminar.', true);
+    selId = null; $('editorForm').style.display = 'none'; $('editorVacio').style.display = 'block';
+    toast('Platillo eliminado'); cargar();
+  }
+
+  async function traducirTodo() {
+    const t = async txt => { if (!txt.trim()) return ''; const d = await (await fetch('/api/traducir?q=' + encodeURIComponent(txt))).json(); return d.ok ? d.traduccion : ''; };
+    const [n, de] = await Promise.all([t($('p_nombre').value), t($('p_desc').value)]);
+    if (n) $('p_nombre_en').value = n; if (de) $('p_desc_en').value = de;
+    toast(n || de ? '✓ Traducido (revísalo)' : 'No se pudo traducir ahora.', !(n || de));
+  }
+
+  // ---------------- PREGUNTAS (MODIFICADORES POR PASOS) ----------------
+  function pintarPasos() {
+    const grupos = Object.keys(D.grupos).sort();
+    $('pasos').innerHTML = pasosEd.map((s, i) => {
+      const ops = D.grupos[s.grupo] || [];
+      return `<div class="paso">
+        <div class="paso-top">
+          <div class="paso-num">${i + 1}</div>
+          <input type="text" class="inp" value="${esc(s.etiqueta)}" maxlength="70" placeholder="Pregunta (ej. Tipo de leche)" oninput="pasosEd[${i}].etiqueta=this.value;resumenPasos()">
+          <select class="inp" onchange="pasosEd[${i}].grupo=this.value;pintarPasos()">${grupos.map(g => `<option value="${esc(g)}"${g === s.grupo ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select>
+          <div class="seg"><button type="button" class="${s.obligatorio ? 'on' : ''}" onclick="pasosEd[${i}].obligatorio=true;pintarPasos()">Obligatorio</button><button type="button" class="${s.obligatorio ? '' : 'on'}" onclick="pasosEd[${i}].obligatorio=false;pintarPasos()">Opcional</button></div>
+          <div class="seg"><button type="button" class="${s.max_seleccion === 1 ? 'on' : ''}" onclick="pasosEd[${i}].max_seleccion=1;pintarPasos()">Una</button><button type="button" class="${s.max_seleccion === 1 ? '' : 'on'}" onclick="pasosEd[${i}].max_seleccion=0;pintarPasos()">Varias</button></div>
+          <div style="display:flex;gap:3px;">
+            <button type="button" class="btn gris sm" onclick="moverPaso(${i},-1)" title="Subir"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" class="btn gris sm" onclick="moverPaso(${i},1)" title="Bajar"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" class="btn rojo sm" onclick="pasosEd.splice(${i},1);pintarPasos()" title="Quitar"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div class="chips">${ops.map(o => `<span class="chip">${esc(o.nombre)}${o.precio > 0 ? ` <b>+${dinero(o.precio)}</b>` : ''}</span>`).join('') || '<span class="chip">Este grupo no tiene opciones</span>'}</div>
+      </div>`;
+    }).join('') || '<div class="vacio" style="padding:14px;">No pregunta nada: se agrega directo. Agrega una pregunta si el cliente debe elegir algo (leche, salsa, término...).</div>';
+    resumenPasos();
+  }
+
+  function resumenPasos() {
+    $('resumenPasos').innerHTML = pasosEd.length
+      ? '<b>En la tablet:</b> ' + pasosEd.map((s, i) => `${i + 1}. ${esc((s.etiqueta || s.grupo).replace(/^\s*\d+\.\s*/, ''))}${s.obligatorio ? '' : ' <i>(opcional)</i>'}`).join(' → ')
+      : '<b>En la tablet:</b> se agrega sin preguntar nada.';
+  }
+
+  function moverPaso(i, d) { const j = i + d; if (j < 0 || j >= pasosEd.length) return; [pasosEd[i], pasosEd[j]] = [pasosEd[j], pasosEd[i]]; pintarPasos(); }
+
+  function agregarPaso() {
+    const g = $('nuevoPasoGrupo').value; if (!g) return;
+    if (pasosEd.some(s => s.grupo === g)) return toast('Ese grupo ya está en las preguntas.', true);
+    const et = g.charAt(0) + g.slice(1).toLowerCase();
+    pasosEd.push({ grupo: g, etiqueta: et, obligatorio: true, max_seleccion: 1 }); pintarPasos();
+  }
+
+  async function guardarPasos() {
+    if (!selId) return;
+    const d = await (await fetch(`/api/menu/platillo/${selId}/pasos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pasos: pasosEd }) })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    toast('✓ Preguntas guardadas'); cargar();
+  }
+
+  // ---------------- PRECIO POR SUCURSAL ----------------
+  function pintarPrecios(p) {
+    $('tbodyPrecios').innerHTML = D.sucursales.map((s, i) => {
+      const r = p.precios[s] || {};
+      return `<tr><td><b>${esc(s)}</b></td>
+        <td><input type="number" class="inp" step="0.5" min="0" placeholder="${dinero(p.precio)}" value="${r.precio ?? ''}" onchange="guardarPrecioSuc(${i}, this.value, null)"></td>
+        <td style="text-align:center;"><input type="checkbox" style="width:20px;height:20px;" ${r.disponible === false ? '' : 'checked'} onchange="guardarPrecioSuc(${i}, null, this.checked)"></td></tr>`;
+    }).join('');
+  }
+
+  async function guardarPrecioSuc(i, precio, disponible) {
+    const p = D.platillos.find(x => x.id === selId); if (!p) return;
+    const suc = D.sucursales[i], actual = p.precios[suc] || {};
+    const body = { producto_id: p.id, sucursal: suc,
+      precio: precio !== null ? precio : (actual.precio ?? ''),
+      disponible: disponible !== null ? disponible : actual.disponible !== false };
+    const d = await (await fetch('/api/pos/precios_sucursal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar el precio.', true);
+    p.precios[suc] = { precio: body.precio === '' ? null : Number(body.precio), disponible: body.disponible };
+    toast(`✓ ${suc}: guardado`);
+  }
+
+  // ---------------- CATEGORÍAS ----------------
+  function pintarIconos() {
+    $('iconos').innerHTML = ['', ...ICONOS].map(ic => `<button type="button" class="${ic === iconoSel ? 'on' : ''}" title="${ic ? '' : 'Automático'}" onclick="iconoSel='${ic}';pintarIconos()">${ic || '<small style=\'font-size:10px;\'>Auto</small>'}</button>`).join('');
+  }
+
+  function pintarCategorias() {
+    pintarIconos();
+    $('listaCats').innerHTML = D.categorias.map(c => `<div class="cat-card">
+      <div class="circ">${c.imagen_url ? `<img src="${esc(c.imagen_url)}" alt="">` : (c.icono || '🍽️')}</div>
+      <div><b>${esc(c.nombre)}</b> <small style="color:#64748b;">${esc(c.nombre_en || 'sin inglés')}</small><br><small style="color:#64748b;">${c.platillos} platillo${c.platillos === 1 ? '' : 's'}</small></div>
+      <div style="display:flex;gap:4px;"><button type="button" class="btn sm" onclick="editarCategoria(${c.id})"><i class="fa-solid fa-pen"></i> Editar</button>
+      <button type="button" class="btn rojo sm" onclick="eliminarCategoria(${c.id})" ${c.platillos ? 'disabled title="Tiene platillos"' : ''}><i class="fa-solid fa-trash"></i></button></div></div>`).join('');
+  }
+
+  function limpiarCategoria() {
+    $('c_id').value = ''; $('c_nombre').value = ''; $('c_nombre_en').value = ''; $('c_foto').value = ''; $('c_quitar_foto').checked = false;
+    $('lblQuitarFotoCat').style.display = 'none'; iconoSel = ''; pintarIconos(); $('tituloCat').innerText = 'Nueva categoría';
+  }
+
+  function editarCategoria(id) {
+    const c = D.categorias.find(x => x.id === id); if (!c) return;
+    $('c_id').value = c.id; $('c_nombre').value = c.nombre; $('c_nombre_en').value = c.nombre_en; $('c_foto').value = '';
+    $('c_quitar_foto').checked = false; $('lblQuitarFotoCat').style.display = c.imagen_url ? 'block' : 'none';
+    iconoSel = c.icono || ''; pintarIconos(); $('tituloCat').innerText = 'Editar: ' + c.nombre; window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function guardarCategoria() {
+    const fd = new FormData();
+    if ($('c_id').value) fd.append('id', $('c_id').value);
+    fd.append('nombre', $('c_nombre').value.trim()); fd.append('nombre_en', $('c_nombre_en').value.trim()); fd.append('icono', iconoSel);
+    if ($('c_quitar_foto').checked) fd.append('quitar_foto', '1');
+    if ($('c_foto').files[0]) fd.append('foto', $('c_foto').files[0]);
+    const d = await (await fetch('/api/menu/categoria', { method: 'POST', body: fd })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    toast('✓ Categoría guardada'); limpiarCategoria(); cargar();
+  }
+
+  async function eliminarCategoria(id) {
+    const c = D.categorias.find(x => x.id === id);
+    if (!c || !confirm(`¿Eliminar la categoría "${c.nombre}"?`)) return;
+    const d = await (await fetch(`/api/menu/categoria/${id}/eliminar`, { method: 'POST' })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo eliminar.', true);
+    toast('Categoría eliminada'); cargar();
+  }
+
+  // ---------------- MODIFICADORES ----------------
+  function usanGrupo(g) { return D.platillos.filter(p => p.pasos.some(s => s.grupo === g)).map(p => p.nombre); }
+
+  function pintarGrupos() {
+    $('listaGrupos').innerHTML = Object.keys(D.grupos).sort().map(g => {
+      const usan = usanGrupo(g);
+      return `<div class="grupo-card">
+        <div class="gh"><span>${esc(g)}</span><small>${usan.length ? 'Lo preguntan: ' + esc(usan.slice(0, 6).join(', ')) + (usan.length > 6 ? ` y ${usan.length - 6} más` : '') : 'Ningún platillo lo pregunta todavía'}</small></div>
+        <table><thead><tr><th style="width:90px;">Clave</th><th>Opción</th><th style="width:120px;">Extra ($)</th><th style="width:160px;">Impresora</th><th style="width:150px;"></th></tr></thead><tbody>
+        ${D.grupos[g].map(m => `<tr>
+          <td><input class="inp" id="mc_${m.id}" value="${esc(m.clave)}" maxlength="20"></td>
+          <td><input class="inp" id="mn_${m.id}" value="${esc(m.nombre)}" maxlength="100"></td>
+          <td><input class="inp" id="mp_${m.id}" type="number" step="0.5" min="0" value="${m.precio}"></td>
+          <td><select class="inp" id="ma_${m.id}"><option value="">La del platillo</option><option value="COCINA"${m.area === 'COCINA' ? ' selected' : ''}>Cocina</option><option value="BARRA"${m.area === 'BARRA' ? ' selected' : ''}>Barra</option></select></td>
+          <td style="white-space:nowrap;"><button type="button" class="btn verde sm" onclick="guardarModificador(${m.id})"><i class="fa-solid fa-check"></i></button>
+            <button type="button" class="btn rojo sm" onclick="apagarModificador(${m.id})" title="Quitar"><i class="fa-solid fa-trash"></i></button></td>
+        </tr>`).join('')}
+        </tbody></table></div>`;
+    }).join('');
+  }
+
+  async function postJSON(url, body) { return (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); }
+
+  async function agregarModificador() {
+    const d = await postJSON('/api/menu/modificador', { grupo: $('m_grupo').value, nombre: $('m_nombre').value, precio: $('m_precio').value || 0, area: $('m_area').value });
+    if (!d.ok) return toast(d.msg || 'No se pudo agregar.', true);
+    $('m_nombre').value = ''; $('m_precio').value = 0; toast('✓ Opción agregada'); cargar();
+  }
+
+  async function guardarModificador(id) {
+    const g = Object.keys(D.grupos).find(k => D.grupos[k].some(m => m.id === id));
+    const d = await postJSON('/api/menu/modificador', { id, grupo: g, clave: $('mc_' + id).value, nombre: $('mn_' + id).value, precio: $('mp_' + id).value || 0, area: $('ma_' + id).value });
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    toast('✓ Guardado'); cargar();
+  }
+
+  async function apagarModificador(id) {
+    if (!confirm('¿Quitar esta opción? (No se borran las ventas que ya la tienen.)')) return;
+    const d = await postJSON(`/api/menu/modificador/${id}/apagar`, {});
+    if (!d.ok) return toast(d.msg || 'No se pudo quitar.', true);
+    toast('Opción quitada'); cargar();
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await cargar();
+    const m = location.hash.match(/^#p(\d+)$/);
+    if (m) abrirPlatillo(Number(m[1]));
+  });
+</script>
+</body>
+</html>

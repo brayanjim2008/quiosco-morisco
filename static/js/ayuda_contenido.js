@@ -1,5 +1,25 @@
 /* Textos de ayuda por pantalla (botón "Ayuda" o tecla F1). Lenguaje sencillo, pasos cortos. */
 window.AYUDAS = {
+  '/platillos': {
+    titulo: 'Menú y Platillos: todo el menú en un solo lugar',
+    secciones: [
+      { t: 'Cambiar o crear un platillo', pasos: [
+        'Busca el platillo en la lista de la izquierda (o toca "+ Nuevo").',
+        'Cambia nombre, precio, categoría, foto o descripción y toca "Guardar platillo".',
+        '"¿Dónde se prepara?": Cocina o Barra decide a qué impresora sale su comanda.',
+        '"Traducir" llena el inglés solo; revísalo antes de guardar.',
+        'Si hoy no hay, marca "Agotado" en lugar de borrarlo.'] },
+      { t: 'Lo que se pregunta al pedirlo (modificadores)', pasos: [
+        'En "Al pedirlo, preguntar" agrega las preguntas en orden: por ejemplo 1. Tipo de leche, 2. Sabor, 3. Temperatura.',
+        'Obligatorio = el mesero no puede seguir sin elegir. Una = solo una opción; Varias = puede marcar varias.',
+        'Debajo de cada pregunta ves sus opciones y lo que cobran extra. Toca "Guardar preguntas".'] },
+      { t: 'Precio por sucursal', pasos: [
+        'Escribe el precio de esa sucursal (vacío = precio general) o quita la palomita si ahí no se vende. Se guarda solo.'] },
+      { t: 'Categorías y modificadores', pasos: [
+        '"2. Categorías": nombre, inglés y el ícono (o foto) del círculo que ve el cliente en el menú.',
+        '"3. Modificadores": agrega opciones a un grupo (ej. LECHE DE AVENA +$8 en TIPO DE LECHE) o cambia su precio y toca ✓.'] },
+    ],
+  },
   '/pos': {
     titulo: 'Caja: cómo se trabaja',
     secciones: [
@@ -10,8 +30,9 @@ window.AYUDAS = {
         'Entra a "Mesas", toca "+ Mesa", elige la mesa y cuántas personas.',
         '① CAPTURAR: agrega los platillos y bebidas.',
         '② ENVIAR A COCINA: imprime la comanda en cocina o barra.',
-        '③ IMPRIMIR CUENTA: cuando el cliente la pida. Si algo no se había enviado, se envía solo.',
-        '④ COBRAR: elige efectivo, tarjeta o transferencia y cobra. Sale el ticket con su PIN de puntos.'] },
+        '③ IMPRIMIR CUENTA: cuando el cliente la pida (sale con su QR/PIN de puntos). Si algo no se había enviado, se envía solo.',
+        '④ COBRAR: toca la forma de pago (botones grandes de la izquierda), escribe con cuánto paga o usa "Exacto" / $100 / $200 / $500, y ACEPTAR (F2). Sale la nota de consumo.',
+        'Pago con tarjeta y propina: toca PROPINA y elige 10%, 15% o 20%; abajo dice cuánto cobrar en la terminal.'] },
       { t: 'Si algo cambia', pasos: [
         'Cancelar un producto o hacer un descuento pide la clave del gerente.',
         'Para agregar algo a una cuenta ya impresa, usa "Más opciones → Reabrir" (pide clave).',
@@ -108,7 +129,8 @@ window.AYUDAS = {
     secciones: [
       { t: 'Cómo se usa', pasos: [
         'Aquí se dan de alta usuarios (cajeros, meseros, gerentes) y sus contraseñas.',
-        'También se editan el menú digital, premios, anuncios y la galería.'] },
+        'También se editan premios, anuncios, galería y datos del ticket.',
+        'Los platillos, categorías y modificadores se cambian en "Menú" (botón de arriba): todo en un solo lugar.'] },
     ],
   },
 };

@@ -1399,17 +1399,15 @@
     </div>
     <div class="modal-body">
       <div class="tab-bar-m">
-        <button type="button" id="btntab_prods" class="tab-btn-m activo" onclick="cambiarTabRaquel('prods')">🍽️ Productos</button>
-        <button type="button" id="btntab_mods" class="tab-btn-m" onclick="cambiarTabRaquel('mods')">➕ Modificadores</button>
-        <button type="button" id="btntab_cats" class="tab-btn-m" onclick="cambiarTabRaquel('cats')">📂 Categorías</button>
-        <button type="button" id="btntab_precios" class="tab-btn-m" onclick="cambiarTabRaquel('precios')">💲 Precios por sucursal</button>
+        <a href="/platillos" class="tab-btn-m" style="background:var(--cobre);color:#fff;text-decoration:none;">🍽️ Platillos, modificadores y categorías ↗</a>
+        <button type="button" id="btntab_precios" class="tab-btn-m activo" onclick="cambiarTabRaquel('precios')">💲 Precios por sucursal</button>
         <button type="button" id="btntab_promos" class="tab-btn-m" onclick="cambiarTabRaquel('promos')">🎉 Promociones</button>
         <button type="button" id="btntab_reglas" class="tab-btn-m" onclick="cambiarTabRaquel('reglas')">📋 Motivos y Descuentos</button>
         <button type="button" id="btntab_permisos" class="tab-btn-m" onclick="cambiarTabRaquel('permisos')">🔒 Permisos generales de caja</button>
       </div>
 
-      <!-- TAB PRODUCTOS (ESTILO MAESTRO-DETALLE) -->
-      <div id="tabRaquel_prods">
+      <!-- TAB PRODUCTOS: ya no se muestra; los platillos se editan en /platillos (Menú y Platillos) -->
+      <div id="tabRaquel_prods" style="display:none;">
         <div style="display:grid;grid-template-columns:1.08fr 1.12fr;gap:10px;align-items:start;">
           <!-- IZQUIERDA: FILTROS Y LISTA CON BARRA AZUL -->
           <div style="border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;padding:8px;">
@@ -3946,6 +3944,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
   function abrirModalCatalogosRaquel() {
     if (ROL_POS !== 'admin') return notificarBarra('🔒 Solo Administración puede editar catálogos.');
     cargarCatalogoCompletoRaquel();
+    cambiarTabRaquel('precios');
     document.getElementById('modalCatalogosRaquel').style.display = 'flex';
   }
 

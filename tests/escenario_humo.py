@@ -283,6 +283,9 @@ ejecutar_escenario('menu_ticket.py')
 # Modificadores con nombres y precios del Soft
 ejecutar_escenario('modificadores_soft.py')
 
+# Menú y Platillos (una sola pantalla)
+ejecutar_escenario('menu_platillos.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

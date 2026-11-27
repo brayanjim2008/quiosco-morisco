@@ -284,105 +284,16 @@
     <div id="tab-menu" class="seccion-tab-admin">
         <div class="row">
             <div class="col-md-5">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white fw-bold">➕ Agregar Nuevo Platillo</div>
-                    <div class="card-body">
-                        <form action="{{ url_for('nuevo_producto') }}" method="POST" enctype="multipart/form-data">
-                            <div class="row">
-                                <div class="col-6">
-                                    <label class="small fw-bold text-muted">Nombre (ES)</label>
-                                    <input type="text" name="nombre" id="prod_nombre_es" onblur="traducirElemento('prod_nombre_es', 'prod_nombre_en')" class="form-control mb-2" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="small fw-bold text-primary">Nombre (EN)</label>
-                                    <input type="text" name="nombre_en" id="prod_nombre_en" class="form-control mb-2 border-primary">
-                                </div>
-                            </div>
-                            <div class="row mt-1">
-                                <div class="col-6">
-                                    <label class="small fw-bold text-muted">Descripción (ES)</label>
-                                    <textarea name="descripcion" id="prod_desc_es" onblur="traducirElemento('prod_desc_es', 'prod_desc_en')" class="form-control mb-2" rows="2"></textarea>
-                                </div>
-                                <div class="col-6">
-                                    <label class="small fw-bold text-primary">Descripción (EN)</label>
-                                    <textarea name="descripcion_en" id="prod_desc_en" class="form-control mb-2 border-primary" rows="2"></textarea>
-                                </div>
-                            </div>
-                            <div class="row mt-1">
-                                <div class="col-6">
-                                    <label class="small fw-bold text-muted">Precio ($)</label>
-                                    <input type="number" step="0.01" name="precio" class="form-control mb-2" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="small fw-bold text-muted">Categoría</label>
-                                    <select name="categoria" class="form-select mb-2" required>
-                                        {% for cat in categorias %}<option value="{{ cat.nombre }}">{{ cat.nombre }}</option>{% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <label class="small fw-bold text-muted">¿Dónde se prepara? (impresora)</label>
-                            <select name="area_impresion" class="form-select mb-2">
-                    <option value="">Automática (según la categoría)</option>
-                    <option value="COCINA">🍳 COCINA</option>
-                    <option value="BARRA">☕ BARRA</option>
-                </select>
-                            <label class="small fw-bold text-muted">Foto del platillo:</label>
-                            <input type="file" name="foto" class="form-control mb-2">
-                            <div class="d-flex gap-3 mb-3 mt-2 p-2 border rounded bg-light">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="destacado" id="destacado">
-                                    <label class="form-check-label text-warning fw-bold" for="destacado">⭐ Lo más pedido</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="agotado" id="agotado">
-                                    <label class="form-check-label text-danger fw-bold" for="agotado">❌ Agotado</label>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Platillo</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-secondary text-white fw-bold" id="categorias">📂 Categorías del Menú ({{ categorias|length }})</div>
-                    <div class="card-body">
-                        <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
-                            <div class="row g-2 mb-2">
-                                <div class="col"><input type="text" name="nombre" id="cat_es" onblur="traducirElemento('cat_es', 'cat_en')" class="form-control form-control-sm" placeholder="Categoría (ES)" required></div>
-                                <div class="col"><input type="text" name="nombre_en" id="cat_en" class="form-control form-control-sm border-primary" placeholder="Category (EN)"></div>
-                            </div>
-                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Agregar Categoría</button>
-                        </form>
-                        <ul class="list-group" style="max-height: 240px; overflow-y: auto;">
-                            {% for cat in categorias %}
-                            <li class="list-group-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="d-flex align-items-center gap-2">
-                                        {% if cat.imagen_url %}<img src="{{ cat.imagen_url|opt_img(80) }}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
-                                        {% else %}<span style="font-size:24px;line-height:1;">{{ cat.icono or '🍽️' }}</span>{% endif %}
-                                        <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-1">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
-                                    </span>
-                                    <span class="d-flex gap-1">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ico_{{ cat.id }}').classList.toggle('d-none')">Cambiar ícono</button>
-                                        <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST" class="m-0"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
-                                    </span>
-                                </div>
-                                <form id="ico_{{ cat.id }}" action="{{ url_for('icono_categoria', id=cat.id) }}" method="POST" enctype="multipart/form-data" class="d-none mt-2 p-2 border rounded bg-light">
-                                    <div class="small fw-bold text-muted mb-1">Elige un ícono:</div>
-                                    <div class="d-flex flex-wrap gap-1 mb-2">
-                                        <label class="btn btn-sm btn-outline-secondary {% if not cat.icono %}active{% endif %}" title="Automático"><input type="radio" name="icono" value="" class="d-none" {% if not cat.icono %}checked{% endif %}>Auto</label>
-                                        {% for ic in iconos_categoria %}
-                                        <label class="btn btn-sm btn-outline-secondary {% if cat.icono == ic %}active{% endif %}" style="font-size:18px;padding:2px 6px;"><input type="radio" name="icono" value="{{ ic }}" class="d-none" {% if cat.icono == ic %}checked{% endif %} onchange="this.closest('div').querySelectorAll('label').forEach(l => l.classList.remove('active')); this.parentElement.classList.add('active');">{{ ic }}</label>
-                                        {% endfor %}
-                                    </div>
-                                    <div class="small fw-bold text-muted mb-1">O sube una foto (se ve en el círculo del menú):</div>
-                                    <input type="file" name="foto" accept="image/*" class="form-control form-control-sm mb-2">
-                                    {% if cat.imagen_url %}<label class="small d-block mb-2"><input type="checkbox" name="quitar_foto" value="1"> Quitar la foto y usar el ícono</label>{% endif %}
-                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Guardar ícono</button>
-                                </form>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                <div class="card shadow-sm mb-4" style="border:2px solid #c98246;">
+                    <div class="card-body text-center p-4">
+                        <div style="font-size:42px;">🍽️</div>
+                        <h5 class="fw-bold mt-2" style="color:#13423b;">Todo el menú en un solo lugar</h5>
+                        <p class="text-muted small mb-3">Platillos (precio, foto, inglés, a qué impresora va), lo que se pregunta al pedirlos
+                            (leche, sabor, término...), precio por sucursal, categorías con su ícono y modificadores.</p>
+                        <a href="/platillos" class="btn btn-lg fw-bold w-100" style="background:#13423b;color:#fff;">Abrir Menú y Platillos</a>
+                        <div class="d-flex gap-2 mt-3 justify-content-center small text-muted">
+                            <span>{{ productos|length }} platillos</span>·<span>{{ categorias|length }} categorías</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -430,10 +341,7 @@
                                     <div class="d-flex gap-1">
                                         <button type="button" data-id="{{ prod.id }}" onclick="toggleDestacadoAdmin(this.getAttribute('data-id'), this)" class="btn btn-sm {{ 'btn-warning' if prod.destacado else 'btn-outline-secondary' }} fw-bold" title="Poner o quitar de Lo más pedido">⭐</button>
                                         <button type="button" data-id="{{ prod.id }}" onclick="toggleAgotadoAdmin(this.getAttribute('data-id'), this)" class="btn btn-sm {{ 'btn-danger' if prod.agotado else 'btn-outline-secondary' }} fw-bold btn-agotado-adm" title="Marcar o desmarcar Agotado">🚫</button>
-                                        <a href="{{ url_for('editar_producto', id=prod.id) }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
-                                        <form action="{{ url_for('eliminar_producto', id=prod.id) }}" method="POST" class="m-0" data-nom="{{ prod.nombre }}" onsubmit="return confirm('¿Borrar ' + this.getAttribute('data-nom') + '?');">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">X</button>
-                                        </form>
+                                        <a href="/platillos#p{{ prod.id }}" class="btn btn-sm btn-outline-primary fw-bold">Editar</a>
                                     </div>
                                 </div>
                             </div>

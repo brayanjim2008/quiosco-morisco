@@ -36,6 +36,7 @@ from compras_routes import compras_bp
 from nomina_routes import nomina_bp
 from alertas import alertas_bp
 from propinas_routes import propinas_bp
+from menu_routes import menu_bp
 from models import limite_intentos_excedido, registrar_intento_fallido, limpiar_intentos, productos_para_sucursal
 from models import PERMISOS_USUARIO, permisos_propios, tiene_permiso
 
@@ -99,6 +100,7 @@ app.register_blueprint(compras_bp)
 app.register_blueprint(nomina_bp)
 app.register_blueprint(alertas_bp)
 app.register_blueprint(propinas_bp)
+app.register_blueprint(menu_bp)
 
 
 # ------------------------------------------------------------------------------
@@ -1152,8 +1154,7 @@ def editar_producto(id):
         invalidar_cache_publico()
         flash('Platillo actualizado correctamente.', 'success')
         return redirect(url_for('admin_dashboard'))
-    return render_template('editar_producto.html', producto=p, categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
-                           area_impresion=_cargar_areas_prods().get(str(p.id), ''))
+    return redirect(f'/platillos#p{p.id}')   # todo el platillo se edita en Menú y Platillos
 
 
 @app.route('/admin/producto/eliminar/<int:id>', methods=['POST'])

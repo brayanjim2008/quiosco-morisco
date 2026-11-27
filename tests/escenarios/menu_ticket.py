@@ -21,7 +21,7 @@ with app.app_context():
 r = admin.post(f'/admin/producto/editar/{P1}', data={'nombre': 'Pay de Queso Prueba', 'descripcion': '', 'precio': '50',
                                                       'categoria': 'Postres Prueba', 'area_impresion': 'COCINA', 'csrf_token': H['X-CSRFToken']})
 check(r.status_code == 302, f'guardar platillo con área de impresión ({r.status_code})')
-check('value="COCINA" selected' in admin.get(f'/admin/producto/editar/{P1}').get_data(as_text=True), 'el platillo recuerda su área de impresión')
+check(next(p for p in admin.get('/api/menu/datos').json['platillos'] if p['id'] == P1)['area'] == 'COCINA', 'el platillo recuerda su área de impresión')
 
 # menú del cliente por sucursal
 html_c1 = app.test_client().get('/?suc=C1').get_data(as_text=True)
@@ -51,7 +51,7 @@ with app.app_context():
     check(_CatM.query.get(CAT).icono == '🍰', 'solo se aceptan íconos de la lista')
 html_c1 = app.test_client().get('/?suc=C1').get_data(as_text=True)
 check('<span class="sbux-cat-emoji">🍰</span>' in html_c1, 'el menú del cliente muestra el ícono elegido')
-check('Cambiar ícono' in admin.get('/admin_dashboard').get_data(as_text=True), 'Administración tiene "Cambiar ícono"')
+check('id="iconos"' in admin.get('/platillos').get_data(as_text=True), 'Menú y Platillos permite elegir el ícono de la categoría')
 
 # nota de consumo como la del Soft: sin lista de productos ni QR; y cada ticket en su hoja (corte)
 _pos = admin.get('/pos').get_data(as_text=True)

@@ -12,6 +12,7 @@
   ('/almacen_pro',      'fa-boxes-stacked',        'Bodega',   _rol in ['admin','almacen']),
   ('/nomina_creditos',  'fa-receipt',              'Nómina' if _rol == 'admin' else 'Créditos', _rol in ['admin','cajero','sucursal']),
   ('/industrial',       'fa-chart-line',           'Reportes', _rol == 'admin'),
+  ('/platillos',        'fa-utensils',             'Menú',     _rol == 'admin'),
   ('/admin_dashboard',  'fa-gear',                 'Admin',    _rol == 'admin'),
 ] %}
 <nav class="mod-bar" aria-label="Módulos">
