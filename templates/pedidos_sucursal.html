@@ -686,6 +686,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     cargarDatosSucursal();
     setInterval(() => {
+      if (document.hidden) return;   // pantalla oculta: no consulta (la base puede dormirse)
       const tag = document.activeElement?.tagName;
       if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') {
         const secRec = $('sec_recepcion');

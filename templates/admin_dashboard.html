@@ -1018,7 +1018,9 @@ function renderizarPreordenesAdmin(ordenes) {
         cont.innerHTML = html;
     }
 
-    setInterval(async () => {
+    // Pre-órdenes: solo mientras la pantalla está a la vista (si se deja abierta de noche no despierta la base).
+    async function revisarPreordenesAdmin() {
+        if (document.hidden) return;
         try {
             let res = await fetch('/api/preordenes_pendientes');
             let data = await res.json();
@@ -1027,9 +1029,9 @@ function renderizarPreordenesAdmin(ordenes) {
                 renderizarPreordenesAdmin(data.ordenes);
             }
         } catch(e) {}
-    }, 3000);
-
-    setInterval(() => { fetch('/ping').catch(() => {}); }, 240000);
+    }
+    setInterval(revisarPreordenesAdmin, 5000);
+    document.addEventListener('visibilitychange', revisarPreordenesAdmin);
 
     function crearHTMLTicketDesdeElemento(el) {
         const codigo = el.getAttribute('data-pin-activo');
