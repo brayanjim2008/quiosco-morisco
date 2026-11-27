@@ -310,7 +310,24 @@
         <label class="al-opc"><input type="checkbox" id="al_cpago"> Avisar cuando se cambia la forma de pago</label>
         <button type="button" class="btn" style="margin-top:8px;" onclick="guardarAlertasCfg()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
 
-        <h3 style="margin:18px 0 6px;font-size:15px;color:var(--verde);"><i class="fa-brands fa-telegram" style="color:#229ED9;"></i> Recibirlas en tu celular (Telegram, gratis)</h3>
+        <h3 style="margin:18px 0 6px;font-size:15px;color:var(--verde);"><i class="fa-brands fa-whatsapp" style="color:#16a34a;"></i> Recibirlas por WhatsApp (WhatsApp Business)</h3>
+        <div id="al_estado_wa" style="font-size:12.5px;margin-bottom:6px;"></div>
+        <details style="font-size:12.5px;margin-bottom:8px;"><summary style="cursor:pointer;font-weight:700;">Cómo se configura (una sola vez)</summary>
+          <ol style="line-height:1.55;padding-left:18px;margin:6px 0;">
+            <li>En <b>business.facebook.com</b> da de alta el negocio y, en WhatsApp Manager, agrega el número que va a <b>mandar</b> las alertas (uno que no se use en la app de WhatsApp).</li>
+            <li>Crea una plantilla: categoría <b>Utilidad</b>, nombre <b>alerta_restaurante</b>, idioma <b>Español (MEX)</b>, texto <b>Aviso de Comensal Conectado: {{ '{{1}}' }}</b>. Espera a que Meta la apruebe.</li>
+            <li>En Render → Environment agrega <b>WHATSAPP_TOKEN</b> (token permanente de un usuario del sistema) y <b>WHATSAPP_PHONE_ID</b> (el Id del número).</li>
+            <li>Escribe abajo los números que <b>reciben</b> (el de Raquel y otro si quieres) y toca Enviar prueba.</li>
+          </ol>
+          <div style="color:#64748b;">Meta cobra cada aviso (en México, centavos por mensaje).</div>
+        </details>
+        <div class="form-row" style="grid-template-columns:1.6fr 1fr auto;">
+          <input type="text" id="al_wa_dest" class="inp" placeholder="Números que reciben: 9671234567, 9677654321">
+          <input type="text" id="al_wa_plant" class="inp" placeholder="alerta_restaurante">
+          <button type="button" class="btn" onclick="guardarAlertasCfg()">Guardar</button>
+        </div>
+
+        <h3 style="margin:18px 0 6px;font-size:15px;color:var(--verde);"><i class="fa-brands fa-telegram" style="color:#229ED9;"></i> O por Telegram (gratis; también recibe el respaldo diario)</h3>
         <div id="al_estado_tg" style="font-size:12.5px;margin-bottom:6px;"></div>
         <ol style="font-size:12.5px;line-height:1.55;padding-left:18px;margin:0 0 8px;">
           <li>Instala Telegram y busca <b>@BotFather</b>. Escríbele <b>/newbot</b> y ponle un nombre: te dará un <b>token</b>.</li>
@@ -318,11 +335,11 @@
           <li>Abre tu bot nuevo en Telegram y mándale cualquier mensaje.</li>
           <li>Busca <b>@userinfobot</b>, escríbele y te dirá tu <b>Id</b> (un número). Ponlo aquí abajo y guarda.</li>
         </ol>
-        <div class="form-row" style="grid-template-columns:1fr auto auto;">
+        <div class="form-row" style="grid-template-columns:1fr auto;">
           <input type="text" id="al_chat" class="inp" placeholder="Tu Id de Telegram (números)">
           <button type="button" class="btn" onclick="guardarAlertasCfg()">Guardar</button>
-          <button type="button" class="btn cobre" onclick="probarAlerta()">Enviar prueba</button>
         </div>
+        <button type="button" class="btn cobre" style="margin-top:6px;" onclick="probarAlerta()"><i class="fa-solid fa-paper-plane"></i> Enviar prueba (WhatsApp y Telegram)</button>
       </div>
     </div>
   </section>
@@ -879,6 +896,10 @@
     $('al_activas').checked = !!c.activas; $('al_reabrir').checked = !!c.avisar_reabrir; $('al_cpago').checked = !!c.avisar_cambio_pago;
     $('al_canc').value = c.cancelacion_min; $('al_desc').value = c.descuento_min; $('al_falt').value = c.faltante_min; $('al_efec').value = c.efectivo_max;
     $('al_chat').value = c.telegram_chat_id || '';
+    $('al_wa_dest').value = (c.whatsapp_destinos || '').split(',').filter(Boolean).join(', ');
+    $('al_wa_plant').value = c.whatsapp_plantilla || 'alerta_restaurante';
+    $('al_estado_wa').innerHTML = c.whatsapp_listo ? '<span class="pill ok">WhatsApp listo</span>'
+      : (c.whatsapp_claves_puestas ? '<span class="pill warn">Faltan los números que reciben</span>' : '<span class="pill warn">Faltan las claves de Meta en Render (paso 3)</span>');
     $('al_estado_tg').innerHTML = c.telegram_listo ? '<span class="pill ok">Telegram listo</span>'
       : (c.telegram_token_puesto ? '<span class="pill warn">Falta tu Id de Telegram</span>' : '<span class="pill warn">Falta el token en Render (paso 2)</span>');
   }
@@ -886,7 +907,8 @@
     const res = await fetch('/api/alertas/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       activas: $('al_activas').checked, avisar_reabrir: $('al_reabrir').checked, avisar_cambio_pago: $('al_cpago').checked,
       cancelacion_min: $('al_canc').value, descuento_min: $('al_desc').value, faltante_min: $('al_falt').value,
-      efectivo_max: $('al_efec').value, telegram_chat_id: $('al_chat').value.trim() }) });
+      efectivo_max: $('al_efec').value, telegram_chat_id: $('al_chat').value.trim(),
+      whatsapp_destinos: $('al_wa_dest').value, whatsapp_plantilla: $('al_wa_plant').value.trim() }) });
     const d = await res.json();
     if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
     toast('✓ Alertas guardadas'); cargarAlertasCfg();

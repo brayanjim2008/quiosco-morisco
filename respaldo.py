@@ -140,10 +140,15 @@ def respaldo_diario(app):
                     enviado = _enviar_documento_telegram(ruta, nombre, f'🛟 Respaldo diario {hoy}: {_texto_resumen(resumen)}')
                 _guardar_estado(ultimo=ahora_local().strftime('%d/%m/%Y %H:%M'), ultimo_tam=tam,
                                 ultimo_enviado=enviado, ultimo_resumen=_texto_resumen(resumen), error='')
+                from alertas import enviar_whatsapp
+                enviar_whatsapp(f'🛟 Respaldo del día {hoy} hecho ({tam / 1024 / 1024:.1f} MB): {_texto_resumen(resumen)}.'
+                                + (' Te llegó por Telegram.' if enviado else ' Descárgalo en Admin → Respaldo.'))
             except Exception as e:   # el respaldo nunca debe afectar la operación
                 db.session.rollback()
                 try:
                     _guardar_estado(error=f'{ahora_local():%d/%m %H:%M}: {type(e).__name__}')
+                    from alertas import enviar_whatsapp
+                    enviar_whatsapp('⚠️ Falló el respaldo automático de hoy. Descarga uno a mano en Admin → Respaldo.')
                 except Exception:
                     db.session.rollback()
             finally:

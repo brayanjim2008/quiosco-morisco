@@ -1,10 +1,16 @@
 """Alertas al dueño: cancelaciones y descuentos grandes, faltantes en el corte Z, mucho efectivo en caja,
 cuentas reabiertas y cambios de forma de pago. Se guardan en la base (Reportes → Alertas) y, si está
-configurado, se mandan al celular por Telegram (bot gratuito)."""
+configurado, se mandan al celular por WhatsApp Business (API oficial de Meta) y/o Telegram (bot gratuito).
+
+WhatsApp Business: variables en Render WHATSAPP_TOKEN y WHATSAPP_PHONE_ID (del número que MANDA, dado de alta en
+Meta) y, opcional, WHATSAPP_API_VERSION. Meta solo deja que un sistema inicie mensajes con una PLANTILLA aprobada:
+categoría "Utilidad", nombre alerta_restaurante, idioma Español (MEX), cuerpo "Aviso de Comensal Conectado: {{1}}"."""
+import json
 import os
 import re
 import threading
 import urllib.parse
+import urllib.error
 import urllib.request
 
 from flask import Blueprint, jsonify, request
@@ -24,6 +30,9 @@ CFG_DEFAULT = {
     'avisar_reabrir': True,       # cuenta impresa que se reabre
     'avisar_cambio_pago': True,   # cambio de forma de pago de una cuenta ya cobrada
     'telegram_chat_id': '',
+    'whatsapp_destinos': '',                    # números que reciben, separados por coma (10 dígitos o con lada)
+    'whatsapp_plantilla': 'alerta_restaurante',
+    'whatsapp_idioma': 'es_MX',
 }
 
 
@@ -50,6 +59,61 @@ def _enviar_telegram(texto):
     return True
 
 
+def _destinos_whatsapp(cfg=None):
+    cfg = cfg or config()
+    return [d for d in str(cfg.get('whatsapp_destinos') or '').split(',') if d.strip()]
+
+
+def whatsapp_listo(cfg=None):
+    return bool(os.environ.get('WHATSAPP_TOKEN', '').strip() and os.environ.get('WHATSAPP_PHONE_ID', '').strip()
+                and _destinos_whatsapp(cfg))
+
+
+def _texto_para_plantilla(texto):
+    """Meta no acepta saltos de línea, tabulaciones ni más de 4 espacios seguidos dentro de una variable."""
+    t = re.sub(r'[\r\n\t]+', ' · ', str(texto or ''))
+    return re.sub(r' {2,}', ' ', t).strip()[:900] or '-'
+
+
+def _mandar_whatsapp(numero, texto, cfg):
+    """Manda la plantilla a un número. Devuelve (ok, mensaje de error de Meta)."""
+    token = os.environ.get('WHATSAPP_TOKEN', '').strip()
+    phone_id = os.environ.get('WHATSAPP_PHONE_ID', '').strip()
+    version = os.environ.get('WHATSAPP_API_VERSION', 'v23.0').strip() or 'v23.0'
+    cuerpo = json.dumps({
+        'messaging_product': 'whatsapp', 'to': numero, 'type': 'template',
+        'template': {'name': cfg.get('whatsapp_plantilla') or 'alerta_restaurante',
+                     'language': {'code': cfg.get('whatsapp_idioma') or 'es_MX'},
+                     'components': [{'type': 'body', 'parameters': [{'type': 'text', 'text': _texto_para_plantilla(texto)}]}]},
+    }).encode('utf-8')
+    req = urllib.request.Request(f'https://graph.facebook.com/{version}/{phone_id}/messages', data=cuerpo,
+                                 headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
+    try:
+        urllib.request.urlopen(req, timeout=8).read()
+        return True, ''
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.loads(e.read().decode('utf-8')).get('error', {})
+            return False, (err.get('error_user_msg') or err.get('message') or f'Error {e.code}')[:200]
+        except Exception:
+            return False, f'Error {e.code}'
+    except Exception as e:
+        return False, type(e).__name__
+
+
+def enviar_whatsapp(texto, esperar=False):
+    """Manda el aviso a todos los números configurados. Sin esperar (alertas): en segundo plano, nunca frena la venta.
+    esperar=True (prueba): devuelve [(número, ok, error)]."""
+    cfg = config()
+    if not whatsapp_listo(cfg):
+        return [] if esperar else False
+    destinos = _destinos_whatsapp(cfg)
+    if esperar:
+        return [(n, *_mandar_whatsapp(n, texto, cfg)) for n in destinos]
+    threading.Thread(target=lambda: [_mandar_whatsapp(n, texto, cfg) for n in destinos], daemon=True).start()
+    return True
+
+
 def alertar(tipo, texto, sucursal='', monto=0.0):
     """Guarda la alerta y la manda al celular. Nunca lanza error (no debe afectar la operación)."""
     try:
@@ -60,6 +124,7 @@ def alertar(tipo, texto, sucursal='', monto=0.0):
                                       texto=texto[:500], monto=float(monto or 0)))
         db.session.commit()
         _enviar_telegram(f'⚠️ {sucursal}\n{texto}')
+        enviar_whatsapp(f'{sucursal}: {texto}' if sucursal else texto)
     except Exception:
         db.session.rollback()
 
@@ -131,6 +196,8 @@ def api_alertas_config():
         c = config()
         c['telegram_listo'] = bool(os.environ.get('TELEGRAM_BOT_TOKEN')) and bool(c.get('telegram_chat_id'))
         c['telegram_token_puesto'] = bool(os.environ.get('TELEGRAM_BOT_TOKEN'))
+        c['whatsapp_listo'] = whatsapp_listo(c)
+        c['whatsapp_claves_puestas'] = bool(os.environ.get('WHATSAPP_TOKEN') and os.environ.get('WHATSAPP_PHONE_ID'))
         return jsonify({'ok': True, 'config': c})
     d = request.get_json(silent=True) or {}
     nuevo = config()
@@ -151,6 +218,25 @@ def api_alertas_config():
         if chat and not re.fullmatch(r'-?\d{5,20}', chat):
             return jsonify({'ok': False, 'msg': 'El "chat id" de Telegram son solo números.'}), 400
         nuevo['telegram_chat_id'] = chat
+    if 'whatsapp_destinos' in d:
+        numeros = []
+        for n in re.split(r'[,;\n]+', str(d['whatsapp_destinos'] or '')):
+            n = re.sub(r'\D', '', n)
+            if not n:
+                continue
+            if len(n) == 10:          # número de México sin lada de país
+                n = '52' + n
+            if not (11 <= len(n) <= 15):
+                return jsonify({'ok': False, 'msg': f'El número {n} no se ve bien: escribe 10 dígitos (o con lada de país).'}), 400
+            numeros.append(n)
+        if len(numeros) > 5:
+            return jsonify({'ok': False, 'msg': 'Máximo 5 números.'}), 400
+        nuevo['whatsapp_destinos'] = ','.join(dict.fromkeys(numeros))
+    if 'whatsapp_plantilla' in d:
+        plantilla = str(d['whatsapp_plantilla'] or '').strip().lower()
+        if plantilla and not re.fullmatch(r'[a-z0-9_]{1,60}', plantilla):
+            return jsonify({'ok': False, 'msg': 'El nombre de la plantilla lleva solo minúsculas, números y guion bajo.'}), 400
+        nuevo['whatsapp_plantilla'] = plantilla or 'alerta_restaurante'
     cfg_guardar(CLAVE_CFG, nuevo)
     return jsonify({'ok': True})
 
@@ -160,7 +246,14 @@ def api_alertas_config():
 def api_alertas_prueba():
     if current_user.role != 'admin':
         return jsonify({'ok': False}), 403
-    enviado = _enviar_telegram('✅ Prueba de alertas de Comensal Conectado: si ves esto, las alertas llegan a tu celular.')
-    return jsonify({'ok': True, 'enviado': enviado,
-                    'msg': 'Mensaje de prueba enviado a Telegram.' if enviado else
-                    'Falta configurar Telegram (el token en Render y el chat id aquí).'})
+    texto = '✅ Prueba de alertas: si ves esto, las alertas llegan a tu celular.'
+    enviado = _enviar_telegram(texto)
+    wa = enviar_whatsapp(texto, esperar=True)
+    partes = []
+    if wa:
+        for numero, ok, err in wa:
+            partes.append(f'WhatsApp {numero[-4:].rjust(10, "•")}: ' + ('enviado ✓' if ok else f'NO se envió ({err})'))
+    elif config().get('whatsapp_destinos') or os.environ.get('WHATSAPP_TOKEN'):
+        partes.append('WhatsApp: faltan datos (las claves en Render o los números aquí).')
+    partes.append('Telegram: enviado ✓' if enviado else 'Telegram: no configurado.')
+    return jsonify({'ok': True, 'enviado': enviado or any(ok for _, ok, _ in wa), 'msg': '\n'.join(partes)})
