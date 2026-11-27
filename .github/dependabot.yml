@@ -1,0 +1,23 @@
+# Dependabot: GitHub revisa cada semana si alguna librería del sistema (Flask, gunicorn, psycopg2...)
+# tiene una versión nueva o una falla de seguridad, y propone la actualización en un Pull Request.
+# Las pruebas automáticas (pruebas.yml) corren en cada propuesta: solo se aceptan si pasan.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    labels: ["dependencias"]
+    commit-message:
+      prefix: "Dependencias"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencias"]
+    commit-message:
+      prefix: "Acciones"
