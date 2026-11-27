@@ -285,13 +285,21 @@ def _orden_json(o, con_lineas=True):
     }
 
 
+class LineaInvalida(ValueError):
+    """Error con mensaje para el usuario (los ValueError de Python no se muestran tal cual)."""
+
+
+def _msg_linea(e):
+    return str(e) if isinstance(e, LineaInvalida) else 'Dato inválido en la orden. Revisa cantidades y costos.'
+
+
 def _armar_lineas(orden, lineas_raw):
     """Crea las líneas de una orden. Cada una: {insumo_id, cantidad (presentaciones o unidades), presentacion_id?, costo_estimado?}."""
     total = 0.0
     for item in lineas_raw[:300]:
         ins = _insumo_activo(item.get('insumo_id'))
         if not ins:
-            raise ValueError('Insumo inválido en la orden.')
+            raise LineaInvalida('Insumo inválido en la orden.')
         n = round(_num(item.get('cantidad', 0), maximo=1_000_000.0), 3)
         if n <= 0:
             continue
@@ -299,7 +307,7 @@ def _armar_lineas(orden, lineas_raw):
         if item.get('presentacion_id'):
             pres = PresentacionInsumo.query.filter_by(id=int(item['presentacion_id']), insumo_id=ins.id, activo=True).first()
             if not pres:
-                raise ValueError(f'Presentación inválida para {ins.nombre}.')
+                raise LineaInvalida(f'Presentación inválida para {ins.nombre}.')
         factor = float(pres.factor) if pres else 1.0
         unidades = round(n * factor, 3)
         costo = item.get('costo_estimado')
@@ -341,7 +349,7 @@ def api_ordenes_compra():
         _armar_lineas(o, lineas)
     except ValueError as e:
         db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 400
+        return jsonify({'ok': False, 'msg': _msg_linea(e)}), 400
     if not OrdenCompraDetalle.query.filter_by(orden_id=o.id).count():
         db.session.rollback()
         return jsonify({'ok': False, 'msg': 'Todas las cantidades están en 0.'}), 400
@@ -377,7 +385,7 @@ def api_orden_lineas(orden_id):
         _armar_lineas(o, data.get('lineas') or [])
     except ValueError as e:
         db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 400
+        return jsonify({'ok': False, 'msg': _msg_linea(e)}), 400
     db.session.commit()
     return jsonify({'ok': True, 'orden': _orden_json(o)})
 
@@ -642,7 +650,7 @@ def api_ordenes_por_proveedor():
             _armar_lineas(o, lineas)
         except ValueError as e:
             db.session.rollback()
-            return jsonify({'ok': False, 'msg': str(e)}), 400
+            return jsonify({'ok': False, 'msg': _msg_linea(e)}), 400
         if OrdenCompraDetalle.query.filter_by(orden_id=o.id).count():
             creadas.append(o)
         else:

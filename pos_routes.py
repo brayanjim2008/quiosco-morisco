@@ -939,6 +939,8 @@ def api_pos_cancelar_item():
             return jsonify({'ok': False, 'requiere_admin': True, 'msg': 'Requiere contraseña de Admin o Gerente.'}), 403
 
     cant_quitar = _num(data.get('cantidad', item.cantidad))
+    if cant_quitar <= 0:
+        return jsonify({'ok': False, 'msg': 'Indica cuántos quieres cancelar.'}), 400
     motivo = str(data.get('motivo', '')).strip()
     monto_canc = round(min(cant_quitar, item.cantidad) * item.precio_unitario, 2)
     desc_item = item.descripcion

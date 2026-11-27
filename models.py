@@ -1830,7 +1830,17 @@ def inicializar_sistema(app_obj):
             "CREATE INDEX IF NOT EXISTS idx_traspasos_origen ON traspasos_sucursal (origen, fecha);",
             "CREATE INDEX IF NOT EXISTS idx_mov_caja_tipo_fecha ON movimientos_caja_pos (tipo, fecha);",
             "CREATE INDEX IF NOT EXISTS idx_detalles_pos_enviado ON detalles_pos (enviado_en, kds_estado);",
-            "CREATE INDEX IF NOT EXISTS idx_reservaciones_suc_fecha ON reservaciones (sucursal, fecha_hora);"
+            "CREATE INDEX IF NOT EXISTS idx_reservaciones_suc_fecha ON reservaciones (sucursal, fecha_hora);",
+            "CREATE INDEX IF NOT EXISTS idx_arqueos_suc_fecha ON arqueos_turno_pos (sucursal, fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_arqueos_turno ON arqueos_turno_pos (turno_id);",
+            "CREATE INDEX IF NOT EXISTS idx_mov_caja_turno ON movimientos_caja_pos (turno_id);",
+            "CREATE INDEX IF NOT EXISTS idx_asistencia_fecha_suc ON registros_asistencia (fecha, sucursal);",
+            "CREATE INDEX IF NOT EXISTS idx_mermas_fecha_suc ON registros_mermas (fecha, sucursal);",
+            "CREATE INDEX IF NOT EXISTS idx_mov_almacen_fecha ON movimientos_almacen (fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_mov_credito_cliente ON movimientos_credito (cliente_id, fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_mov_prov_prov ON movimientos_proveedor_pos (proveedor_id, fecha);",
+            "CREATE INDEX IF NOT EXISTS idx_lotes_estado_cad ON lotes_insumo_pos (estado, caducidad);",
+            "CREATE INDEX IF NOT EXISTS idx_turnos_pos_apertura ON turnos_pos (sucursal, apertura);"
         ]
         for sql in indices:
             try:

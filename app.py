@@ -104,6 +104,25 @@ app.register_blueprint(propinas_bp)
 # ------------------------------------------------------------------------------
 # Manejo global de errores: siempre rollback; las rutas /api/ responden JSON.
 # ------------------------------------------------------------------------------
+@app.errorhandler(ValueError)
+@app.errorhandler(TypeError)
+def _dato_invalido_global(e):
+    """Un número o dato mal escrito en una API responde 400 con un mensaje claro (no 'Error interno')."""
+    if not request.path.startswith('/api/'):
+        return _manejar_error_global(e)
+    db.session.rollback()
+    app.logger.warning('Dato inválido en %s: %r', request.path, e)  # queda en el log por si fuera un error del sistema
+    return jsonify({'ok': False, 'msg': 'Dato inválido o fuera de rango. Revisa lo que escribiste.'}), 400
+
+
+@app.errorhandler(KeyError)
+def _dato_faltante_global(e):
+    if not request.path.startswith('/api/'):
+        return _manejar_error_global(e)
+    db.session.rollback()
+    return jsonify({'ok': False, 'msg': 'Falta un dato requerido.'}), 400
+
+
 @app.errorhandler(Exception)
 def _manejar_error_global(e):
     db.session.rollback()

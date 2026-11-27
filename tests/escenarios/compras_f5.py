@@ -67,3 +67,9 @@ r = alm.post('/api/lotes', json={'insumo_id': PAN, 'cantidad': 10, 'caducidad': 
 check(r.status_code == 200, 'registrar caducidad a mano')
 h = alm.get('/almacen_pro').get_data(as_text=True)
 check('id="sec_caducidad"' in h and 'ocCrearPorProveedor' in h and 'id="cxpTotales"' in h, 'Bodega: caducidades, órdenes por proveedor y cuentas por pagar')
+
+# datos mal escritos: mensaje claro (400), nunca "Error interno" ni el error técnico de Python
+r = alm.post('/api/cxp/abono', json={'proveedor_id': 'abc', 'monto': 'x'}, headers=HA)
+check(r.status_code == 400 and 'inválido' in r.json['msg'], f'dato inválido en Compras responde 400 ({r.status_code})')
+r = alm.post('/api/ordenes_compra/por_proveedor', json={'lineas': [{'insumo_id': 'z', 'cantidad': 'q'}]}, headers=HA)
+check(r.status_code == 400 and 'literal' not in r.json['msg'], f'sin errores técnicos en pantalla ({r.json})')
