@@ -60,3 +60,7 @@ _nota = _pos[_i:_pos.index('\n  }\n', _i)]
 check('NOTA DE CONSUMO' in _nota and 'filasTicketItems' not in _nota and 'armarBloquePinHTML' not in _nota,
       'la nota de consumo no repite los productos ni el QR')
 check('class=\\"tk-hoja\\"' in _pos or 'class="tk-hoja"' in _pos, 'cada ticket de la cola sale en su propia hoja')
+
+# cobro como el Soft: formas de pago en botones grandes, teclado grande, Exacto/billetes, propina y ACEPTAR/CANCELAR
+check(all(x in _pos for x in ('data-m="EF"', 'data-m="PROP"', 'pagoExacto()', 'pagoRapido(500)', 'class="key-enter"', 'ACEPTAR', 'CANCELAR')),
+      'cobro con botones grandes como el Soft (formas de pago, Exacto, billetes, propina, ACEPTAR/CANCELAR)')
