@@ -290,12 +290,20 @@ def redirigir_segun_rol(user):
 
 @app.route('/ping')
 def ping_keep_alive():
+    """Mantiene despierto el servidor (UptimeRobot) SIN tocar la base: así Neon puede dormirse cuando no hay
+    ventas y no se gastan sus horas de cómputo gratis. Para revisar también la base, usa /salud."""
+    return jsonify({"status": "awake", "timestamp": ahora_local().strftime('%Y-%m-%d %H:%M:%S')}), 200
+
+
+@app.route('/salud')
+def salud_completa():
+    """Revisión completa (servidor + base de datos). No la pongas en UptimeRobot: despierta a Neon."""
     try:
         db.session.execute(text("SELECT 1"))
-        return jsonify({"status": "awake", "timestamp": ahora_local().strftime('%Y-%m-%d %H:%M:%S')}), 200
+        return jsonify({"status": "ok", "db": "ok"}), 200
     except Exception as e:
         app.logger.exception(e)
-        return jsonify({"status": "error"}), 500
+        return jsonify({"status": "error", "db": "error"}), 500
 
 
 @app.route('/api/traducir')

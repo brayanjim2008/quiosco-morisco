@@ -54,3 +54,18 @@ finally:
     _osw.environ.pop('WHATSAPP_PHONE_ID', None)
     admin.post('/api/alertas/config', json={'whatsapp_destinos': ''}, headers=_T)
 check("Comensal Conectado: {{1}}" in admin.get('/industrial').get_data(as_text=True), 'la pantalla muestra bien el texto de la plantilla')
+
+# /ping no toca la base (Neon puede dormirse); /salud sí la revisa
+from sqlalchemy import event as _evp
+_consultas = []
+with app.app_context():
+    _eng = db.engine
+    _fn = lambda *a, **k: _consultas.append(1)
+    _evp.listen(_eng, 'before_cursor_execute', _fn)
+    try:
+        _r = app.test_client().get('/ping')
+        check(_r.status_code == 200 and not _consultas, f'/ping responde sin consultar la base ({len(_consultas)} consultas)')
+        _r = app.test_client().get('/salud')
+        check(_r.status_code == 200 and _r.json['db'] == 'ok' and _consultas, '/salud revisa la base')
+    finally:
+        _evp.remove(_eng, 'before_cursor_execute', _fn)
