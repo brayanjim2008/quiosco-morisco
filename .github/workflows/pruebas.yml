@@ -23,11 +23,12 @@ jobs:
   postgres:
     # Igual que producción (Neon): ALTER ... IF NOT EXISTS, FOR UPDATE SKIP LOCKED, ON CONFLICT, advisory locks.
     # Base vacía y desechable creada por GitHub Actions; NUNCA apuntar a la base real.
-    name: Pruebas (PostgreSQL 16)
+    # Mismas versiones que producción: Python de Render (PYTHON_VERSION) y PostgreSQL de Neon.
+    name: Pruebas (como producción - Python 3.11 + PostgreSQL 18)
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: pruebas
           POSTGRES_PASSWORD: pruebas
@@ -41,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: pip
       - run: pip install -r requirements-dev.txt
       - name: Pruebas
