@@ -170,6 +170,22 @@
         .botones-flotantes { position: fixed; bottom: 80px; right: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 1500; align-items: flex-end; }
         .btn-flotante-mesero, .btn-flotante-eval { color: white; padding: 12px 18px; border-radius: 50px; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.25); }
         .btn-flotante-mesero { background: #25D366; } .btn-flotante-eval { background: #ff9800; }
+        /* Celular: encabezado en una línea, sin el "Asistencia en Mesa" repetido (el botón flotante "Mesero" hace lo
+           mismo y se ve siempre), y "Califícanos" como botón redondo para no tapar el contenido. */
+        .lang-btn, .hamburger, #badge-mesa-activa { white-space: nowrap; }
+        @media (max-width: 480px) {
+            #badge-mesa-activa:not(.con-mesa) { display: none !important; }
+            #badge-mesa-activa .txt-asist { display: none; }
+            .hamburger-texto { display: none; }
+            .hamburger { padding-left: 14px !important; padding-right: 14px !important; }
+            .header-wrapper, .navbar-top { max-width: 100vw; overflow-x: hidden; }
+            .navbar-top { padding: 8px 12px; }
+            .botones-flotantes { right: 12px; gap: 8px; }
+            .btn-flotante-eval { width: 46px; height: 46px; padding: 0; justify-content: center; border-radius: 50%; }
+            .btn-flotante-eval span { display: none; }
+            .btn-flotante-eval i { font-size: 18px; margin: 0; }
+            .btn-flotante-mesero { padding: 10px 15px; font-size: 13px; }
+        }
         .btn-subir-arriba { display: none; width: 40px; height: 40px; border-radius: 50%; background: var(--verde-quiosco); color: white; border: 2px solid var(--cobre); align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
 
         #barra-antojos { display: none; position: fixed; bottom: 72px; left: 15px; z-index: 1600; background: var(--verde-quiosco); color: white; padding: 12px 18px; border-radius: 50px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 8px 25px rgba(19, 66, 59, 0.45); border: 2px solid var(--cobre); align-items: center; gap: 10px; }
@@ -682,7 +698,7 @@
                 <div class="sbux-cats-grid">
                     {% for cat_nombre, lista in categorias.items() %}
                     {% set cl = cat_nombre|lower %}
-                    {% set icono = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else '🍽️')))))))))))) %}
+                    {% set icono = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else ('🍺' if 'cerveza' in cl else ('🍷' if 'vino' in cl else ('🍹' if 'cóctel' in cl or 'coctel' in cl else ('🍱' if 'paquete' in cl else ('🍝' if 'bistr' in cl else '🍽️'))))))))))))))))) %}
                     {% set ci = (cat_iconos or {}).get(cat_nombre) or {} %}
                     {% set icono = ci.icono or icono %}
                     {% set prod_con_foto = lista|selectattr('imagen_url')|first %}
@@ -715,7 +731,7 @@
             <div id="contenedor-menu" style="display: none;">
                 {% for cat_nombre, lista in categorias.items() %}
                     {% set cl = cat_nombre|lower %}
-                    {% set icono_cat = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else '🍽️')))))))))))) %}
+                    {% set icono_cat = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else ('🍺' if 'cerveza' in cl else ('🍷' if 'vino' in cl else ('🍹' if 'cóctel' in cl or 'coctel' in cl else ('🍱' if 'paquete' in cl else ('🍝' if 'bistr' in cl else '🍽️'))))))))))))))))) %}
                     {% set icono_cat = ((cat_iconos or {}).get(cat_nombre) or {}).get('icono') or icono_cat %}
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}" data-titulo-natural="{{ cat_nombre }}">
                         <div class="categoria-titulo" data-es="{{ cat_nombre }}" data-en="{{ cat_traducciones[cat_nombre] if cat_traducciones and cat_nombre in cat_traducciones else cat_nombre }}">{{ cat_nombre }}</div>
@@ -971,7 +987,10 @@
         let n = parseInt(numMesa);
         if (n >= 1 && n <= 10) {
             sessionStorage.setItem('mesa_quiosco', String(n));
-            if (badgeMesa) badgeMesa.innerHTML = `<i class="fas fa-bell"></i> Asistencia • Mesa ${n}`;
+            if (badgeMesa) {
+                badgeMesa.innerHTML = `<i class="fas fa-bell"></i> <span class="txt-asist">Asistencia • </span>Mesa ${n}`;
+                badgeMesa.classList.add('con-mesa');
+            }
             if (inMesa1) inMesa1.value = String(n);
             if (inMesa2) inMesa2.value = String(n);
         }

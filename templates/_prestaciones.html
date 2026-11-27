@@ -312,8 +312,7 @@
     const rt = p.retardos || {};
     if (rt.turno_con_horario && $('nom_retardos') && $('nom_retardos').dataset.emp !== String(emp.id)) {
       $('nom_retardos').value = rt.retardos; $('nom_retardos').dataset.emp = String(emp.id);
-      $('nom_retardos').title = rt.detalle.map(x => `${x.fecha} ${x.hora} (+${x.minutos} min)`).join('
-') || 'Sin retardos';
+      $('nom_retardos').title = rt.detalle.map(x => `${x.fecha} ${x.hora} (+${x.minutos} min)`).join('\n') || 'Sin retardos';
     }
     const nRet = parseInt($('nom_retardos')?.value || 0);
     const porFalta = Number(rt.retardos_por_falta || 0);

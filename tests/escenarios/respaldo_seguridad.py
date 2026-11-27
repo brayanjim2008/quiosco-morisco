@@ -82,4 +82,4 @@ check(admin.get('/admin_dashboard').status_code == 200, 'si el admin cierra sus 
 r = admin.get('/admin_dashboard')
 check(r.headers.get('X-Frame-Options') == 'SAMEORIGIN' and r.headers.get('X-Content-Type-Options') == 'nosniff'
       and 'Referrer-Policy' in r.headers, 'encabezados de seguridad en las páginas')
-check('Respaldo y Seguridad' in r.get_data(as_text=True), 'Administración tiene la pestaña de Respaldo y Seguridad')
+check('id="tabbtn-respaldo"' in r.get_data(as_text=True), 'Administración tiene la pestaña de Respaldo')

@@ -84,22 +84,22 @@
     {% set cant_agotados_admin = productos|selectattr('agotado', 'equalto', True)|list|length %}
     <div class="admin-nav-tabs">
         <button type="button" class="admin-tab-btn activo" id="tabbtn-operacion" onclick="cambiarTabAdmin('operacion')">
-            🔔 Operación y PINs <span class="badge bg-warning text-dark ms-1" id="badge-tab-preordenes">{{ preordenes|length if preordenes is defined else 0 }}</span>
+            🔔 Operación <span class="badge bg-warning text-dark ms-1" id="badge-tab-preordenes">{{ preordenes|length if preordenes is defined else 0 }}</span>
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-menu" onclick="cambiarTabAdmin('menu')">
-            🍔 Menú y Platillos ({{ productos|length }}) <span class="badge bg-danger ms-1" id="badge-tab-agotados">{{ cant_agotados_admin }} agotados</span>
+            🍔 Menú ({{ productos|length }}) <span class="badge bg-danger ms-1" id="badge-tab-agotados">{{ cant_agotados_admin }} agotados</span>
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-marketing" onclick="cambiarTabAdmin('marketing')">
-            📢 Banners, Fotos y 10 Plaquitas
+            📢 Banners y fotos
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-fidelidad" onclick="cambiarTabAdmin('fidelidad')">
-            🎁 Fidelidad y Premios
+            🎁 Fidelidad
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-equipo" onclick="cambiarTabAdmin('equipo')">
-            👥 Equipo y Evaluaciones
+            👥 Equipo
         </button>
         <button type="button" class="admin-tab-btn" id="tabbtn-respaldo" onclick="cambiarTabAdmin('respaldo'); cargarRespaldo();">
-            💾 Respaldo y Seguridad
+            💾 Respaldo
         </button>
     </div>
 
@@ -749,7 +749,7 @@
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-dark text-white fw-bold">🔒 Seguridad</div>
                     <div class="card-body small">
-                        <p class="mb-2"><b>¿Se perdió o robaron una tablet o un celular?</b> En <b>Equipo y Evaluaciones → usuarios</b> toca
+                        <p class="mb-2"><b>¿Se perdió o robaron una tablet o un celular?</b> En <b>Equipo → usuarios</b> toca
                             <b>"Cerrar sesión en todos lados"</b> de esa persona: su sesión se cierra en todos los aparatos de inmediato.</p>
                         <p class="mb-2"><b>Cambiar una contraseña</b> también cierra las sesiones abiertas de esa persona.</p>
                         <p class="mb-0 text-muted">El respaldo contiene información privada (ventas, nómina, teléfonos de clientes): guárdalo en un lugar seguro y no lo compartas.</p>

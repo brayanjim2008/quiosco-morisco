@@ -242,7 +242,17 @@
   }
 
   // ---------------- PLATILLOS ----------------
-  function iconoDe(catNombre) { const c = D.categorias.find(x => x.nombre === catNombre); return (c && c.icono) || '🍽️'; }
+  // Mismo ícono automático que ve el cliente en su menú (si la categoría no tiene uno elegido).
+  const ICONO_AUTO = [['desayuno', '🍳'], ['entrada', '🥨'], ['sándwich', '🥪'], ['sandwich', '🥪'], ['hamburguesa', '🍔'],
+    ['antojito', '🌮'], ['postre', '🍰'], ['caliente', '☕'], ['fría', '🧊'], ['fria', '🧊'], ['frapp', '🧋'], ['infus', '🍵'],
+    ['jugo', '🍊'], ['refresco', '🥤'], ['agua', '🍋'], ['cerveza', '🍺'], ['vino', '🍷'], ['cóctel', '🍹'], ['coctel', '🍹'],
+    ['paquete', '🍱'], ['bistr', '🍝']];
+  function iconoDe(catNombre) {
+    const c = D.categorias.find(x => x.nombre === catNombre);
+    if (c && c.icono) return c.icono;
+    const n = String(catNombre || '').toLowerCase();
+    return (ICONO_AUTO.find(([k]) => n.includes(k)) || [null, '🍽️'])[1];
+  }
 
   function pintarLista() {
     const q = $('buscar').value.trim().toLowerCase(), cat = $('filtroCat').value;
@@ -407,7 +417,7 @@
   function pintarCategorias() {
     pintarIconos();
     $('listaCats').innerHTML = D.categorias.map(c => `<div class="cat-card">
-      <div class="circ">${c.imagen_url ? `<img src="${esc(c.imagen_url)}" alt="">` : (c.icono || '🍽️')}</div>
+      <div class="circ">${c.imagen_url ? `<img src="${esc(c.imagen_url)}" alt="">` : iconoDe(c.nombre)}</div>
       <div><b>${esc(c.nombre)}</b> <small style="color:#64748b;">${esc(c.nombre_en || 'sin inglés')}</small><br><small style="color:#64748b;">${c.platillos} platillo${c.platillos === 1 ? '' : 's'}</small></div>
       <div style="display:flex;gap:4px;"><button type="button" class="btn sm" onclick="editarCategoria(${c.id})"><i class="fa-solid fa-pen"></i> Editar</button>
       <button type="button" class="btn rojo sm" onclick="eliminarCategoria(${c.id})" ${c.platillos ? 'disabled title="Tiene platillos"' : ''}><i class="fa-solid fa-trash"></i></button></div></div>`).join('');
