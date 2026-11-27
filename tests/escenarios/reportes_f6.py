@@ -49,3 +49,12 @@ check(isinstance(_pl['sin_venta'], list), 'lista de platillos que no se vendiero
 _hr = admin.get('/industrial').get_data(as_text=True)
 check('data-tab="utilidad"' in _hr and 'id="plMasVendidos"' in _hr and 'estrella' not in _hr.lower() and 'caballo' not in _hr.lower(),
       'Reportes: pestañas Utilidad y Platillos en barras (sin "estrella/caballo")')
+
+# Fase 8: guía por puesto
+for _u, _h in (('raquel', 'dueno'), ('brayan', 'cajero'), ('paola', 'mesero')):
+    _cg = admin if _u == 'raquel' else login(_u, {'brayan': 'cajero12345', 'paola': 'mesero12345'}[_u])
+    _r = _cg.get('/guia')
+    check(_r.status_code == 200 and f'"{_h}"' in _r.get_data(as_text=True), f'guía: {_u} abre primero la hoja de {_h}')
+_g = admin.get('/guia').get_data(as_text=True)
+check(all(f'id="h_{x}"' in _g for x in ('cajero', 'mesero', 'cocina', 'encargado', 'bodega', 'dueno')), 'la guía tiene una hoja por cada puesto')
+check(app.test_client().get('/guia').status_code == 302, 'la guía pide iniciar sesión')

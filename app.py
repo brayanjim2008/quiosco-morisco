@@ -817,6 +817,15 @@ def nuevo_usuario():
     return redirect(url_for('admin_dashboard'))
 
 
+@app.route('/guia')
+@login_required
+def guia_uso():
+    """Guía imprimible: una hoja por puesto. Cada quien ve primero la suya."""
+    puesto = {'cajero': 'cajero', 'mesero': 'mesero', 'sucursal': 'encargado', 'gerente': 'encargado',
+              'almacen': 'bodega', 'admin': 'dueno'}.get(current_user.role, 'cajero')
+    return render_template('guia.html', puesto=puesto)
+
+
 @app.route('/admin/usuario/cambiar_pass/<int:id>', methods=['POST'])
 @login_required
 def cambiar_pass_usuario(id):

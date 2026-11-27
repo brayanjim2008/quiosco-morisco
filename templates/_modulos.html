@@ -14,6 +14,7 @@
   ('/industrial',       'fa-chart-line',           'Reportes', _rol == 'admin'),
   ('/platillos',        'fa-utensils',             'Menú',     _rol == 'admin'),
   ('/admin_dashboard',  'fa-gear',                 'Admin',    _rol == 'admin'),
+  ('/guia',             'fa-book-open',            'Guía',     True),
 ] %}
 <nav class="mod-bar" aria-label="Módulos">
   {% for ruta, icono, nombre, visible in _mods if visible %}

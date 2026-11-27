@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía de uso • Comensal Conectado</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --verde: #13423b; --verde-oscuro: #0b2924; --cobre: #c98246; --dorado: #ffd700; --hueso: #fdfaf6; --borde: #e2d9ce; }
+  * { box-sizing: border-box; font-family: 'Open Sans', sans-serif; }
+  body { margin: 0; background: var(--hueso); color: #1e293b; }
+  .topbar { background: var(--verde-oscuro); color: #fff; padding: 10px 16px; border-bottom: 3px solid var(--cobre); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .brand { font-family: 'Lora', serif; font-size: 17px; font-weight: 700; }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .puestos { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; background: var(--verde); border-bottom: 2px solid var(--cobre); }
+  .puestos button { background: rgba(255,255,255,.08); color: #e2e8f0; border: 1px solid rgba(201,130,70,.45); padding: 9px 14px; border-radius: 9px; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; }
+  .puestos button.activo { background: var(--cobre); color: #fff; border-color: var(--dorado); }
+  .puestos .der { margin-left: auto; display: flex; gap: 8px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 18px 14px 40px; }
+  .hoja { display: none; background: #fff; border: 1.5px solid var(--borde); border-radius: 14px; padding: 24px 28px; }
+  .hoja.activa { display: block; }
+  .hoja h1 { font-family: 'Lora', serif; color: var(--verde); font-size: 24px; margin: 0 0 2px; display: flex; align-items: center; gap: 10px; }
+  .hoja .sub { color: #64748b; font-size: 13.5px; margin: 0 0 16px; }
+  .hoja h2 { font-size: 15px; color: #fff; background: var(--verde); border-radius: 8px; padding: 6px 12px; margin: 16px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .hoja h2 .n { background: var(--cobre); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+  .hoja ol, .hoja ul { margin: 0; padding-left: 22px; }
+  .hoja li { margin: 5px 0; font-size: 14px; line-height: 1.45; }
+  .tecla { display: inline-block; border: 1.5px solid #94a3b8; border-bottom-width: 3px; border-radius: 5px; padding: 0 6px; font-size: 12px; font-weight: 800; background: #f8fafc; }
+  .btn-n { font-weight: 800; color: var(--verde); }
+  .ojo { background: #fff7ed; border: 1.5px solid #fdba74; border-radius: 10px; padding: 10px 14px; margin-top: 14px; font-size: 13.5px; }
+  .ojo b { color: #9a3412; }
+  .clave { background: #f1f5f9; border-radius: 10px; padding: 10px 14px; margin-top: 10px; font-size: 13.5px; }
+  .pie { margin-top: 18px; font-size: 11.5px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; }
+  .btn { height: 36px; padding: 0 14px; border-radius: 8px; border: none; background: #fff; color: var(--verde); font-weight: 800; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  @media print {
+    @page { size: letter; margin: 12mm; }
+    body { background: #fff; }
+    .topbar, .puestos { display: none !important; }
+    .container { max-width: none; padding: 0; }
+    .hoja { border: none; padding: 0; break-after: page; }
+    .hoja h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body.imprimir-una .hoja:not(.activa) { display: none !important; }
+    body.imprimir-todas .hoja { display: block !important; }
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sistema.css') }}">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fa-solid fa-book-open" style="color:var(--cobre);"></i> Guía de uso</div>
+  <div class="nav-links">{% include '_modulos.html' %}</div>
+</div>
+
+<div class="puestos">
+  <button type="button" data-h="cajero" onclick="verHoja('cajero')"><i class="fa-solid fa-cash-register"></i> Cajero</button>
+  <button type="button" data-h="mesero" onclick="verHoja('mesero')"><i class="fa-solid fa-tablet-screen-button"></i> Mesero</button>
+  <button type="button" data-h="cocina" onclick="verHoja('cocina')"><i class="fa-solid fa-fire"></i> Cocina y Barra</button>
+  <button type="button" data-h="encargado" onclick="verHoja('encargado')"><i class="fa-solid fa-store"></i> Encargado de sucursal</button>
+  <button type="button" data-h="bodega" onclick="verHoja('bodega')"><i class="fa-solid fa-boxes-stacked"></i> Bodega</button>
+  <button type="button" data-h="dueno" onclick="verHoja('dueno')"><i class="fa-solid fa-user-tie"></i> Dueño</button>
+  <span class="der">
+    <button type="button" class="btn" onclick="imprimir('una')"><i class="fa-solid fa-print"></i> Imprimir esta hoja</button>
+    <button type="button" class="btn" onclick="imprimir('todas')"><i class="fa-solid fa-copy"></i> Imprimir todas</button>
+  </span>
+</div>
+
+<div class="container">
+
+  <!-- ===================== CAJERO ===================== -->
+  <section class="hoja" id="h_cajero">
+    <h1><i class="fa-solid fa-cash-register" style="color:var(--cobre);"></i> Cajero</h1>
+    <p class="sub">Pantalla: <b>Caja</b>. Todo se hace con botones grandes; la tecla <span class="tecla">F1</span> abre la ayuda en cualquier momento.</p>
+
+    <h2><span class="n">1</span> Al llegar: abrir turno</h2>
+    <ol>
+      <li>Toca <span class="btn-n">Turno</span>, escribe el dinero con el que empieza la caja (fondo) y confirma.</li>
+      <li>Sin turno abierto no se pueden abrir mesas ni cobrar: el sistema te lo recuerda.</li>
+      <li>Al empezar, checa tu entrada con tu PIN en el <span class="btn-n">Checador</span>.</li>
+    </ol>
+
+    <h2><span class="n">2</span> Atender una mesa (los 4 botones de abajo)</h2>
+    <ol>
+      <li><span class="btn-n">+ Mesa</span>: elige la mesa y cuántas personas.</li>
+      <li><span class="btn-n">① Capturar</span> <span class="tecla">F3</span>: toca los platillos. Si el platillo lleva preguntas (leche, sabor, término…), el sistema te las hace en orden.</li>
+      <li><span class="btn-n">② Enviar a cocina</span>: la comanda sale en la impresora de cocina y la de barra, cada una en su papel.</li>
+      <li><span class="btn-n">③ Imprimir cuenta</span>: cuando el cliente la pida. Sale con su QR para juntar visitas.</li>
+      <li><span class="btn-n">④ Cobrar</span> <span class="tecla">F2</span>: toca la forma de pago (EFECTIVO, TARJ. DÉBITO, TARJ. CRÉDITO, TRANSFERENCIA…), escribe con cuánto paga o usa <b>Exacto</b> / <b>$100</b> / <b>$200</b> / <b>$500</b>, y <b>ACEPTAR</b>. Sale la nota de consumo.</li>
+    </ol>
+    <div class="clave"><b>Propina con tarjeta:</b> toca <b>PROPINA</b> y elige 10, 15 o 20%. Abajo te dice <b>cuánto cobrar en la terminal</b>.<br>
+      <b>Pago mixto:</b> elige una forma, escribe el monto y <b>ENTER</b>; luego la otra forma y <b>Exacto</b>.</div>
+
+    <h2><span class="n">3</span> Pedidos del cliente por QR</h2>
+    <ul><li>Cuando un cliente pide desde su celular, aparece un aviso. Confírmalo y la comanda sale sola en cocina y barra.</li></ul>
+
+    <h2><span class="n">4</span> Durante el turno</h2>
+    <ul>
+      <li><span class="btn-n">Pagadas</span>: reimprimir una nota o corregir la forma de pago (pide clave).</li>
+      <li><span class="btn-n">Retiros</span>: cada gasto que sale de la caja, con su categoría (gas, mandado, proveedor…).</li>
+      <li>Mover de mesa, dividir o juntar cuentas, cambiar mesero: columna derecha y <b>Más opciones</b>.</li>
+      <li>Si otro cajero va a usar la caja, cambia de usuario con su <b>PIN</b>, sin cerrar sesión.</li>
+    </ul>
+
+    <h2><span class="n">5</span> Al terminar: corte</h2>
+    <ol>
+      <li><span class="btn-n">Corte X / Z</span> → <b>Corte X</b> muestra cuánto se lleva vendido (no cierra nada).</li>
+      <li><b>Cerrar turno (Corte Z)</b>: cuenta billetes y monedas, escribe lo de tarjeta, transferencia y vales, los vales ADO/OCC, folios de facturas y aclaraciones, y confirma. Se imprime el corte.</li>
+      <li>Después del Z la caja queda sin turno hasta que el siguiente cajero abra el suyo.</li>
+      <li><span class="btn-n">Propinas</span>: al final del día se reparten parejo entre quienes checaron; se imprime el ticket para firmar.</li>
+    </ol>
+    <div class="ojo"><b>Piden clave del gerente:</b> cancelar algo que ya se envió a cocina, hacer descuentos, reabrir una cuenta impresa, cambiar la forma de pago y cargar un vale a un empleado. Todo queda registrado y el dueño recibe aviso.</div>
+    <div class="pie"><span>Comensal Conectado · Guía del cajero</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+
+  <!-- ===================== MESERO ===================== -->
+  <section class="hoja" id="h_mesero">
+    <h1><i class="fa-solid fa-tablet-screen-button" style="color:var(--cobre);"></i> Mesero</h1>
+    <p class="sub">Pantalla: <b>Meseros</b> (tablet). Solo ves tus propias mesas.</p>
+    <h2><span class="n">1</span> Al llegar</h2>
+    <ul><li>Checa tu entrada con tu PIN en el <span class="btn-n">Checador</span>. Las propinas del día se reparten entre quienes checaron.</li></ul>
+    <h2><span class="n">2</span> Tomar una orden</h2>
+    <ol>
+      <li>Toca la mesa (verde = libre). Si es nueva, elige cuántas personas.</li>
+      <li>Elige la categoría y toca el platillo.</li>
+      <li>Si el platillo lleva preguntas, contéstalas en orden: por ejemplo <b>1. Tipo de leche → 2. Sabor → 3. Temperatura</b>. Las obligatorias no te dejan seguir sin elegir. Lo que cuesta extra aparece con su precio.</li>
+      <li>Para algo especial (sin cebolla, para llevar…) agrega una nota.</li>
+      <li>Revisa la ronda y toca <span class="btn-n">Enviar</span>: sale en cocina y en barra, cada una en su papel.</li>
+    </ol>
+    <h2><span class="n">3</span> Avisos</h2>
+    <ul>
+      <li><b>LISTO PARA LLEVAR</b>: la tablet suena y te avisa cuando cocina o barra terminan algo de tus mesas.</li>
+      <li>Si un platillo está <b>agotado</b>, aparece marcado y no se puede pedir.</li>
+    </ul>
+    <h2><span class="n">4</span> La cuenta</h2>
+    <ul>
+      <li>Cuando el cliente la pida, toca <span class="btn-n">Pedir cuenta</span>: la caja la imprime y cobra.</li>
+      <li>Invita al cliente a escanear el QR del ticket para juntar visitas y ganar premios.</li>
+    </ul>
+    <div class="ojo"><b>¿Te equivocaste?</b> Si todavía no lo enviaste, lo quitas tú. Si ya se envió a cocina, pide al cajero o gerente que lo cancele (pide clave).</div>
+    <div class="pie"><span>Comensal Conectado · Guía del mesero</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+
+  <!-- ===================== COCINA ===================== -->
+  <section class="hoja" id="h_cocina">
+    <h1><i class="fa-solid fa-fire" style="color:var(--cobre);"></i> Cocina y Barra</h1>
+    <p class="sub">Cada área recibe solo lo suyo: la comida sale en cocina y las bebidas en barra.</p>
+    <h2><span class="n">1</span> Comandas impresas</h2>
+    <ul>
+      <li>Cada comanda trae la mesa, el mesero, la hora y debajo de cada platillo lo que eligió el cliente (<b>› LECHE DE AVENA</b>, <b>› SIN HIELO</b>…).</li>
+      <li>Si sale una comanda de <b>CANCELACIÓN</b>, ese platillo ya no se prepara.</li>
+      <li>Los pedidos que hace el cliente desde su celular salen marcados como <b>PRE-ORDEN (CLIENTE)</b>.</li>
+    </ul>
+    <h2><span class="n">2</span> Pantalla de Cocina (si la usan)</h2>
+    <ul>
+      <li>Cada tarjeta es una comanda; la más antigua va primero. El color avisa cuánto tiempo lleva esperando.</li>
+      <li>Toca <span class="btn-n">Listo</span> al terminar: al mesero le suena el aviso <b>LISTO PARA LLEVAR</b>.</li>
+    </ul>
+    <h2><span class="n">3</span> Lo que se acaba</h2>
+    <ul>
+      <li>Si se termina un platillo, avisa a la caja para marcarlo como <b>Agotado</b>: deja de aparecer para meseros y clientes.</li>
+      <li>Lo que se tira o se echa a perder se registra como <b>merma</b> (lo hace el encargado).</li>
+    </ul>
+    <div class="ojo"><b>Importante:</b> no prepares nada sin comanda. Si algo no salió impreso, pide que lo reimpriman desde la caja.</div>
+    <div class="pie"><span>Comensal Conectado · Guía de cocina y barra</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+
+  <!-- ===================== ENCARGADO ===================== -->
+  <section class="hoja" id="h_encargado">
+    <h1><i class="fa-solid fa-store" style="color:var(--cobre);"></i> Encargado de sucursal</h1>
+    <p class="sub">Pantalla: <b>Sucursal</b>. Aquí se pide mercancía a bodega y se controla lo que hay en la sucursal.</p>
+    <h2><span class="n">1</span> Pedir a bodega</h2>
+    <ol>
+      <li><b>1. Hacer Pedido a Bodega</b>: elige <b>Barra</b> o <b>Cocina</b>. La lista está en el mismo orden que la hoja de papel.</li>
+      <li>Escribe cuánto necesitas de cada cosa (o toca <b>Cargar Faltantes Sugeridos</b>) y envía.</li>
+      <li><b>Imprimir hoja de requerimiento</b> la saca igual que la de papel, con lo solicitado ya escrito.</li>
+    </ol>
+    <h2><span class="n">2</span> Recibir lo que llega</h2>
+    <ul><li><b>2. Mis Pedidos y Recepción</b>: cuando bodega lo entregue, toca <span class="btn-n">Recibido</span> (se suma a tu stock) o <span class="btn-n">Faltante</span>. Puedes imprimir la hoja con lo recibido para firmar.</li></ul>
+    <h2><span class="n">3</span> Control diario</h2>
+    <ul>
+      <li><b>3. Mi Stock Local</b>: cuánto hay de cada insumo en la sucursal.</li>
+      <li><b>4. Checador y Mermas</b>: el personal checa con su PIN; las mermas se registran con su motivo (piden clave).</li>
+      <li><b>5. Conteo Físico</b>: cuenta lo que hay y el sistema ajusta las diferencias.</li>
+      <li><b>6. Traspasos</b>: mandar o recibir mercancía de otra sucursal.</li>
+      <li><b>7. Producción</b>: lo que se prepara en la sucursal (salsas, aguas…) y lo que gasta.</li>
+    </ul>
+    <div class="ojo"><b>Gerente:</b> también das la clave para cancelaciones, descuentos y reaperturas en la caja. No la compartas: todo queda registrado con tu nombre.</div>
+    <div class="pie"><span>Comensal Conectado · Guía del encargado</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+
+  <!-- ===================== BODEGA ===================== -->
+  <section class="hoja" id="h_bodega">
+    <h1><i class="fa-solid fa-boxes-stacked" style="color:var(--cobre);"></i> Bodega</h1>
+    <p class="sub">Pantalla: <b>Bodega</b>. Surtes a las sucursales, compras a proveedores y cuidas que nada se caduque.</p>
+    <h2><span class="n">1</span> Surtir a las sucursales</h2>
+    <ul><li>Revisa los pedidos que llegan, surte y márcalos como <b>Entregado</b>. La sucursal confirma lo que recibe.</li></ul>
+    <h2><span class="n">2</span> Comprar</h2>
+    <ol>
+      <li><b>Compras sugeridas</b>: el sistema te dice qué está bajo. Cada insumo tiene su <b>proveedor habitual</b>.</li>
+      <li><b>Crear una orden por proveedor</b>: con un clic arma una orden para cada proveedor.</li>
+      <li>Cuando llegue la mercancía, <b>recíbela</b> en la orden: escribe lo que llegó, su costo y, si aplica, la <b>fecha de caducidad</b>.</li>
+    </ol>
+    <h2><span class="n">3</span> Pagar a proveedores</h2>
+    <ul><li><b>Cuentas por pagar</b>: cuánto se le debe a cada proveedor y qué <b>ya toca pagar</b> (en rojo). <span class="btn-n">Pagar</span> pide monto, forma de pago y referencia; <span class="btn-n">Historial</span> muestra todo.</li></ul>
+    <h2><span class="n">4</span> Caducidades</h2>
+    <ul><li>La pestaña <b>Caducidades</b> muestra lo que vence en 7 días (rojo = ya caducó). Toca <b>Ya se usó</b> o <b>Merma</b> si se tira.</li></ul>
+    <div class="ojo"><b>Cada semana:</b> haz un <b>conteo físico</b> para que el inventario del sistema sea igual al real.</div>
+    <div class="pie"><span>Comensal Conectado · Guía de bodega</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+
+  <!-- ===================== DUEÑO ===================== -->
+  <section class="hoja" id="h_dueno">
+    <h1><i class="fa-solid fa-user-tie" style="color:var(--cobre);"></i> Dueño / Administración</h1>
+    <p class="sub">Desde tu celular o computadora ves las 4 sucursales en vivo.</p>
+    <h2><span class="n">1</span> Cada día</h2>
+    <ul>
+      <li><b>Reportes → Ventas 4 Sucursales</b>: lo vendido hoy en cada sucursal.</li>
+      <li><b>Reportes → Alertas</b>: cancelaciones o descuentos grandes, faltantes en el corte, mucho efectivo en caja. Con Telegram te llegan al celular.</li>
+      <li><b>Reportes → Cortes Z</b>: cualquier corte, de cualquier fecha, para ver o reimprimir.</li>
+    </ul>
+    <h2><span class="n">2</span> ¿Cuánto gano?</h2>
+    <ul>
+      <li><b>Reportes → Utilidad</b>: mes por mes, ventas − costo − mermas − gastos − nómina = lo que queda, por sucursal.</li>
+      <li><b>Reportes → Platillos</b>: los que más se venden, los que más ganancia dejan y los que casi no se piden.</li>
+      <li>Para que la utilidad sea exacta, cada platillo necesita su <b>receta</b> (Reportes → Recetas).</li>
+    </ul>
+    <h2><span class="n">3</span> El menú</h2>
+    <ul><li><b>Menú</b>: precio, foto, inglés, a qué impresora va, las preguntas al pedir (leche, sabor, término…), precio por sucursal, categorías con su ícono y modificadores. Todo en un solo lugar.</li></ul>
+    <h2><span class="n">4</span> Personal y seguridad</h2>
+    <ul>
+      <li><b>Admin → Equipo</b>: usuarios, contraseñas, PIN de caja y permisos de cada cajero.</li>
+      <li>¿Se perdió una tablet? El botón <i class="fas fa-right-from-bracket"></i> de esa persona cierra su sesión en todos lados.</li>
+      <li><b>Nómina</b>: fichas, retardos automáticos, vales, aguinaldo y recibos.</li>
+    </ul>
+    <h2><span class="n">5</span> Respaldo</h2>
+    <ul><li><b>Admin → Respaldo y Seguridad</b>: descarga una copia de toda la información (guárdala en Drive). Si activas Telegram, te llega una copia cada día.</li></ul>
+    <div class="ojo"><b>Una vez al mes:</b> descarga el respaldo, revisa la Utilidad y los platillos que no se venden, y cambia las contraseñas si alguien dejó de trabajar.</div>
+    <div class="pie"><span>Comensal Conectado · Guía del dueño</span><span>Ayuda en pantalla: F1</span></div>
+  </section>
+</div>
+
+<script>
+  const PUESTO_INICIAL = {{ puesto|tojson }};
+  function verHoja(h) {
+    document.querySelectorAll('.hoja').forEach(x => x.classList.toggle('activa', x.id === 'h_' + h));
+    document.querySelectorAll('.puestos button[data-h]').forEach(b => b.classList.toggle('activo', b.dataset.h === h));
+    history.replaceState(null, '', '#' + h);
+  }
+  function imprimir(modo) {
+    document.body.classList.remove('imprimir-una', 'imprimir-todas');
+    document.body.classList.add('imprimir-' + modo);
+    window.print();
+  }
+  const pedida = (location.hash || '').slice(1);
+  verHoja(document.getElementById('h_' + pedida) ? pedida : PUESTO_INICIAL);
+</script>
+</body>
+</html>
