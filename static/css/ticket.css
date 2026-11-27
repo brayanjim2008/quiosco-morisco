@@ -39,3 +39,7 @@
 .tk-pie { text-align: center; font-size: 10px; margin-top: 4px; }
 .tk-firma { border-top: 1px solid #000; text-align: center; font-size: 10.5px; margin-top: 28px; padding-top: 2px; }
 .tk-alerta { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 2px; border: 1.5px solid #000; padding: 2px 0; margin: 2px 0; }
+
+/* Varios tickets en una impresión (cocina + barra, etc.): cada uno en su hoja para que la impresora corte entre ellos. */
+.tk-hoja { break-after: page; page-break-after: always; }
+.tk-hoja:last-child { break-after: auto; page-break-after: auto; }

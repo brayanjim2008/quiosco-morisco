@@ -3203,15 +3203,9 @@
       idemCobro = { cuentaId: null, clave: null };
       if (d.repetido) notificarBarra('El cobro ya se había registrado; se reimprime el ticket sin cobrar de nuevo.');
 
-      let pinData = null;
-      try {
-        const resPin = await fetch(`/api/pos/pin_inteligente/${idCobrado}`, { method: 'POST' });
-        if (resPin.ok) pinData = await resPin.json();
-      } catch (_) {}
-
-      const htmlNota = construirHTMLNotaFinal(snapshotCuenta, d.folio, desglosePago, d.cambio, ult4, pinData);
+      const htmlNota = construirHTMLNotaFinal(snapshotCuenta, d.folio, desglosePago, d.cambio, ult4);
       volverAComandaCentro();
-      mandarImprimirConQR(htmlNota);
+      mandarImprimirHTMLDirecto(htmlNota);
       cuentaActivaId = null;
       sincronizarCuentasEnVivoCaja();
     } catch (e) {
@@ -3246,7 +3240,7 @@
       EF: c.pago_efectivo, TARJD: c.pago_tarjeta_debito, TARJC: c.pago_tarjeta_credito,
       TRANS: c.pago_transferencia, VALE: c.pago_otros, CRED: c.pago_credito || 0, PROP: c.propina_tarjeta
     };
-    mandarImprimirHTMLDirecto(construirHTMLNotaFinal(c, c.folio, pago, c.cambio, c.tarjeta_ultimos4, null));
+    mandarImprimirHTMLDirecto(construirHTMLNotaFinal(c, c.folio, pago, c.cambio, c.tarjeta_ultimos4));
   }
 
   function abrirCambiarPago(id, folio, tot, ef, td, tc, tr, prop, u4) {
@@ -3322,37 +3316,35 @@
     ).join('');
   }
 
-  function construirHTMLNotaFinal(c, folio, pago, cambio, ult4, pinData) {
-    const tarjTot = (pago.TARJD || 0) + (pago.TARJC || 0) + (pago.PROP || 0);
+  // Nota de consumo al cobrar, como la del Soft: SIN lista de productos ni QR (eso ya salió en la precuenta).
+  // Solo encabezado, folio, datos de la mesa, totales y cómo pagó.
+  function construirHTMLNotaFinal(c, folio, pago, cambio, ult4) {
+    const tarj = (pago.TARJD || 0) + (pago.TARJC || 0);
+    const linea = (txt, v) => `<div class="tk-linea"><span>${txt}</span><span>$${Number(v).toFixed(2)}</span></div>`;
     return `<div class="ticket-termico">
       ${_encabezadoFiscalHTML(c, 'NOTA DE CONSUMO')}
-      <div class="tk-sep"></div>
-      <div class="tk-meta">
-        <div class="tk-fila"><span>Folio <b>${folio}</b></span><span>Orden <b>${escHtml(c.orden)}</b></span></div>
-        <div class="tk-fila"><span>Mesa <b>${escHtml(c.mesa)}</b></span><span>Personas ${c.personas}</span></div>
-        <div class="tk-fila"><span>Mesero ${escHtml(c.mesero)}</span><span>Cajero ${USUARIO_POS}</span></div>
+      <div class="tk-sep doble"></div>
+      <div class="tk-centro" style="font-size:13px;"><b>FOLIO: ${escHtml(String(folio || ''))}</b></div>
+      <div class="tk-meta" style="margin-top:3px;">
+        <div class="tk-fila"><span>Mesero: ${escHtml(c.mesero)}</span><span>Mesa: <b>${escHtml(c.mesa)}</b></span></div>
+        <div class="tk-fila"><span>Orden: ${escHtml(c.orden)}</span><span>Personas: ${c.personas}</span></div>
         <div>${new Date().toLocaleString('es-MX')}</div>
       </div>
       <div class="tk-tag" style="margin-top:4px;">Venta público en general</div>
-      <div class="tk-sep"></div>
-      <table class="tk-items">
-        <tr class="tk-encab"><td>Cant.</td><td>Descripción</td><td class="tk-imp">Importe</td></tr>
-        ${filasTicketItems(c.items)}
-      </table>
       <div class="tk-sep"></div>
       <div class="tk-linea"><span>Subtotal</span><span>$${c.subtotal}</span></div>
       ${parseFloat(c.descuento_monto) > 0 ? `<div class="tk-linea"><span>Descuento</span><span>-$${c.descuento_monto}</span></div>` : ''}
       <div class="tk-linea"><span>IVA</span><span>$${c.iva}</span></div>
       <div class="tk-total"><span>TOTAL</span><span>$${c.total}</span></div>
-      ${c.total_letras ? `<div class="tk-pie" style="text-align:left;">${c.total_letras}</div>` : ''}
+      ${c.total_letras ? `<div class="tk-pie" style="text-align:left;">SON: ${c.total_letras}</div>` : ''}
       <div class="tk-sep"></div>
-      ${pago.EF > 0 ? `<div class="tk-linea"><span>Efectivo</span><span>$${pago.EF.toFixed(2)}</span></div>` : ''}
-      ${tarjTot > 0 ? `<div class="tk-linea"><span>Tarjeta${ult4 ? ' (***' + ult4 + ')' : ''}</span><span>$${tarjTot.toFixed(2)}</span></div>` : ''}
-      ${pago.TRANS > 0 ? `<div class="tk-linea"><span>Transferencia</span><span>$${pago.TRANS.toFixed(2)}</span></div>` : ''}
-      ${pago.VALE > 0 ? `<div class="tk-linea"><span>Vale empleado</span><span>$${pago.VALE.toFixed(2)}</span></div>` : ''}
-      ${(pago.CRED || 0) > 0 ? `<div class="tk-linea"><span>Crédito cliente</span><span>$${(pago.CRED || 0).toFixed(2)}</span></div>` : ''}
+      ${pago.EF > 0 ? linea('Efectivo', pago.EF) : ''}
+      ${tarj > 0 ? linea('Tarjeta' + (ult4 ? ' (***' + escHtml(ult4) + ')' : ''), tarj) : ''}
+      ${(pago.PROP || 0) > 0 ? linea('Propina', pago.PROP) : ''}
+      ${pago.TRANS > 0 ? linea('Transferencia', pago.TRANS) : ''}
+      ${pago.VALE > 0 ? linea('Vale empleado', pago.VALE) : ''}
+      ${(pago.CRED || 0) > 0 ? linea('Crédito cliente', pago.CRED) : ''}
       <div class="tk-linea"><b>Cambio</b><b>$${(cambio || 0).toFixed(2)}</b></div>
-      ${armarBloquePinHTML(pinData, c)}
       <div class="tk-pie" style="font-size:11px;font-weight:700;margin-top:8px;">¡Gracias por su preferencia!</div>
     </div>`;
   }
@@ -4512,7 +4504,7 @@ CUENTAS ABIERTAS: ${d.cuentas_abiertas}${d.excede_salvaguarda ? `
       tickets = d.tickets || [];
     } catch (e) { return; }
     if (!tickets.length) return;
-    mandarImprimirHTMLDirecto(tickets.map(t => t.html).join(''));
+    mandarImprimirHTMLDirecto(tickets.map(t => `<div class="tk-hoja">${t.html}</div>`).join(''));
     const ids = tickets.map(t => t.id);
     for (let intento = 0; intento < 3; intento++) {
       try {

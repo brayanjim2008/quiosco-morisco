@@ -234,6 +234,8 @@ class CategoriaMenu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50), unique=True, nullable=False)
     nombre_en = db.Column(db.String(50), nullable=True)
+    icono = db.Column(db.String(16), nullable=True)        # emoji que se ve en el menú (vacío = automático)
+    imagen_url = db.Column(db.String(300), nullable=True)  # foto propia de la categoría (tiene prioridad)
 
 
 class Producto(db.Model):
@@ -1628,6 +1630,7 @@ def aplicar_merma(nombre, cantidad, motivo, sucursal, usuario, unidad='PZA', cos
 # se corre inicializar_sistema (create_all + ALTER ... IF NOT EXISTS, sin borrar datos).
 # Cada fase nueva solo agrega aquí lo suyo.
 ESQUEMA_REQUERIDO = {
+    'categoria_menu': {'icono', 'imagen_url'},
     'user': {'pin_rapido', 'permisos_json'},
     'proveedores_almacen': {'dias_credito'},
     'movimientos_proveedor_pos': {'tipo', 'vence'},
@@ -1694,6 +1697,8 @@ def inicializar_sistema(app_obj):
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS mensaje_en VARCHAR(250);",
             "ALTER TABLE anuncio ADD COLUMN IF NOT EXISTS texto_boton_en VARCHAR(50);",
             "ALTER TABLE producto ADD COLUMN IF NOT EXISTS agotado BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE categoria_menu ADD COLUMN IF NOT EXISTS icono VARCHAR(16);",
+            "ALTER TABLE categoria_menu ADD COLUMN IF NOT EXISTS imagen_url VARCHAR(300);",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS titulo VARCHAR(100);",
             "ALTER TABLE galeria ADD COLUMN IF NOT EXISTS descripcion VARCHAR(250);",
             "ALTER TABLE pin_caja ADD COLUMN IF NOT EXISTS creado_por VARCHAR(80) DEFAULT 'caja';",

@@ -2389,6 +2389,9 @@ def api_confirmar_preorden_1clic(preorden_id):
     # El texto de la pre-orden llega sin < > " ' ` (app._texto_publico); el catálogo se compara con la misma
     # limpieza para que un platillo con apóstrofo o comillas siga encontrándose (precio y área reales).
     catalogo_norm = {}
+    # Precio de ESTA sucursal (si tiene uno propio) y el área de impresión elegida en el platillo.
+    precios_suc = precios_de_sucursal(suc)
+    areas_prod = _cargar_areas_prods()
     for p_cat in Producto.query.all():
         catalogo_norm.setdefault(quitar_caracteres_html(p_cat.nombre).strip().lower(), p_cat)
     for linea in orden.detalle_items.split('\n'):
@@ -2407,9 +2410,11 @@ def api_confirmar_preorden_1clic(preorden_id):
             continue
         if prod_bd:
             # El texto de la pre-orden lo escribe el cliente: el precio real sale siempre del catálogo.
-            precio_u = round(float(prod_bd.precio or 0), 2)
+            precio_suc = precios_suc.get(prod_bd.id, (None, True))[0]
+            precio_u = round(float(precio_suc if precio_suc is not None else (prod_bd.precio or 0)), 2)
             importe_tot = round(precio_u * cant, 2)
-        area_imp = detectar_area_impresion(prod_bd.categoria if prod_bd else 'Barra')
+        area_elegida = areas_prod.get(str(prod_bd.id), '') if prod_bd else ''
+        area_imp = area_elegida if area_elegida in ('COCINA', 'BARRA') else detectar_area_impresion(prod_bd.categoria if prod_bd else 'Barra')
         det = DetallePOS(
             cuenta_id=cuenta.id, num_comanda=1, cantidad=cant,
             clave=f"0{prod_bd.id}" if prod_bd else "PRE",
@@ -2846,6 +2851,7 @@ def api_pos_precios_sucursal():
             db.session.add(fila)
         fila.precio, fila.disponible = precio, disponible
     db.session.commit()
+    invalidar_cache_publico()
     registrar_bitacora('PRECIO_SUCURSAL', prod.nombre, precio or 0.0,
                        f'{suc}: ' + (f'${precio:.2f}' if precio is not None else 'precio general') + ('' if disponible else ' · NO SE VENDE'),
                        sucursal=suc)

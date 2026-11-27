@@ -29,7 +29,7 @@ from models import (
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
-from pos_routes import pos_bp
+from pos_routes import pos_bp, _cargar_areas_prods, _guardar_areas_prods
 from operacion_routes import operacion_bp
 from servicio_routes import servicio_bp
 from compras_routes import compras_bp
@@ -284,10 +284,13 @@ def api_traducir():
 # ==============================================================================
 # MENÚ PÚBLICO, FIDELIDAD Y PRE-ÓRDENES
 # ==============================================================================
-def obtener_datos_menu():
-    """Carga categorías y productos en 2 consultas totales (elimina N+1) como diccionarios ligeros."""
+def obtener_datos_menu(sucursal=None):
+    """Carga categorías y productos en pocas consultas (sin N+1) como diccionarios ligeros.
+    Con sucursal: precio de esa sucursal y sin los platillos que ahí no se venden."""
     categorias_bd = CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all()
     productos_bd = Producto.query.order_by(Producto.destacado.desc(), Producto.id.asc()).all()
+    if sucursal:
+        productos_bd = productos_para_sucursal(productos_bd, sucursal)
     prods_por_cat = {}
     for p in productos_bd:
         prods_por_cat.setdefault(p.categoria, []).append({
@@ -298,12 +301,14 @@ def obtener_datos_menu():
         })
     categorias_dict = {}
     cat_traducciones = {}
+    cat_iconos = {}
     for cat in categorias_bd:
         lista = prods_por_cat.get(cat.nombre)
         if lista:
             categorias_dict[cat.nombre] = lista
             cat_traducciones[cat.nombre] = cat.nombre_en if (cat.nombre_en and cat.nombre_en.strip()) else cat.nombre
-    return categorias_dict, cat_traducciones
+            cat_iconos[cat.nombre] = {'icono': (cat.icono or '').strip(), 'imagen_url': cat.imagen_url or ''}
+    return categorias_dict, cat_traducciones, cat_iconos
 
 
 def obtener_meseros_eval():
@@ -311,13 +316,14 @@ def obtener_meseros_eval():
     return meseros if meseros else ['Paola', 'Daniel']
 
 
-def obtener_contexto_publico():
-    """Cachea el menú público completo en memoria por 45s para soportar cientos de comensales simultáneos."""
-    cached = cache_get('menu_publico', 45)
+def obtener_contexto_publico(sucursal=None):
+    """Cachea el menú público (uno por sucursal) en memoria por 45s para soportar cientos de comensales simultáneos."""
+    clave_cache = f'menu_publico:{sucursal or "-"}'
+    cached = cache_get(clave_cache, 45)
     if cached is not None:
         return cached
 
-    categorias_dict, cat_traducciones = obtener_datos_menu()
+    categorias_dict, cat_traducciones, cat_iconos = obtener_datos_menu(sucursal)
     galeria = [{
         'imagen_url': g.imagen_url, 'titulo': g.titulo, 'descripcion': g.descripcion
     } for g in Galeria.query.order_by(Galeria.fecha_subida.desc()).all()]
@@ -333,6 +339,7 @@ def obtener_contexto_publico():
     ctx = {
         'categorias': categorias_dict,
         'cat_traducciones': cat_traducciones,
+        'cat_iconos': cat_iconos,
         'galeria': galeria,
         'premios': premios,
         'max_visitas': premios[-1]['visitas_necesarias'] if premios else 10,
@@ -341,7 +348,7 @@ def obtener_contexto_publico():
         'anuncio': anuncios_activos[0] if anuncios_activos else None,
         'meseros_eval': obtener_meseros_eval()
     }
-    return cache_set('menu_publico', ctx)
+    return cache_set(clave_cache, ctx)
 
 
 def _sucursal_publica():
@@ -374,7 +381,8 @@ def _contexto_sucursal_publica():
 
 @app.route('/')
 def index():
-    return render_template('index.html', **obtener_contexto_publico(), **_contexto_sucursal_publica())
+    ctx_suc = _contexto_sucursal_publica()
+    return render_template('index.html', **obtener_contexto_publico(ctx_suc['sucursal_publica']), **ctx_suc)
 
 
 @app.route('/qr.svg')
@@ -573,7 +581,7 @@ def registrar_consumo():
     limpiar_intentos(clave_rl)  # después del commit: solo se limpia si la visita sí quedó guardada
     return render_template(
         'index.html', cliente=cliente, progreso=cliente.visitas,
-        premio_actual=premio_actual, **obtener_contexto_publico(), **_contexto_sucursal_publica()
+        premio_actual=premio_actual, **obtener_contexto_publico(_sucursal_publica()), **_contexto_sucursal_publica()
     )
 
 
@@ -693,6 +701,7 @@ def admin_dashboard():
         'admin_dashboard.html',
         sucursales=SUCURSALES_OFICIALES,
         categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
+        iconos_categoria=ICONOS_CATEGORIA,
         premios=Premio.query.order_by(Premio.visitas_necesarias.asc()).all(),
         historial_premios=HistorialPremio.query.order_by(HistorialPremio.id.desc()).limit(40).all(),
         productos=Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all(),
@@ -1019,6 +1028,33 @@ def nueva_categoria():
     return redirect(url_for('admin_dashboard'))
 
 
+ICONOS_CATEGORIA = ['🍳', '🥐', '🥞', '🥨', '🥪', '🍔', '🌮', '🌯', '🥗', '🍝', '🍕', '🍗', '🥩', '🍤', '🍟',
+                    '🍰', '🍨', '🍪', '☕', '🍵', '🧋', '🧊', '🍹', '🍊', '🥤', '🍋', '🍺', '🍷', '🍽️']
+
+
+@app.route('/admin/categoria/<int:id>/icono', methods=['POST'])
+@login_required
+def icono_categoria(id):
+    """Cambia el ícono (emoji de la lista) o la foto de una categoría del menú."""
+    if current_user.role != 'admin':
+        return redirigir_segun_rol(current_user)
+    cat = CategoriaMenu.query.get_or_404(id)
+    icono = request.form.get('icono', '').strip()
+    if icono in ICONOS_CATEGORIA or icono == '':
+        cat.icono = icono or None
+    foto = request.files.get('foto')
+    if foto and foto.filename:
+        url = _subir_imagen(foto)
+        if url:
+            cat.imagen_url = url
+    if request.form.get('quitar_foto') == '1':
+        cat.imagen_url = None
+    db.session.commit()
+    invalidar_cache_publico()
+    flash(f'Categoría {cat.nombre}: ícono actualizado.', 'success')
+    return redirect(url_for('admin_dashboard') + '#categorias')
+
+
 @app.route('/admin/categoria/eliminar/<int:id>', methods=['POST'])
 @login_required
 def eliminar_categoria(id):
@@ -1040,16 +1076,29 @@ def nuevo_producto():
     if current_user.role != 'admin':
         return redirigir_segun_rol(current_user)
     img_url = _subir_imagen(request.files['foto']) if ('foto' in request.files and request.files['foto'].filename != '') else None
-    db.session.add(Producto(
+    nuevo = Producto(
         nombre=request.form['nombre'], nombre_en=request.form.get('nombre_en', ''),
         descripcion=request.form['descripcion'], descripcion_en=request.form.get('descripcion_en', ''),
         precio=_precio_form(), categoria=request.form['categoria'],
         imagen_url=img_url, destacado=(request.form.get('destacado') == 'on'),
         agotado=(request.form.get('agotado') == 'on')
-    ))
+    )
+    db.session.add(nuevo)
     db.session.commit()
+    _guardar_area_producto(nuevo.id, request.form.get('area_impresion'))
     invalidar_cache_publico()
     return redirect(url_for('admin_dashboard'))
+
+
+def _guardar_area_producto(producto_id, area):
+    """Dónde se imprime el platillo (la misma configuración que usa la Caja). Vacío = automática por categoría."""
+    area = (area or '').strip().upper()
+    areas = _cargar_areas_prods()
+    if area in ('COCINA', 'BARRA'):
+        areas[str(producto_id)] = area
+    else:
+        areas.pop(str(producto_id), None)
+    _guardar_areas_prods(areas)
 
 
 @app.route('/admin/producto/toggle_destacado/<int:id>', methods=['POST'])
@@ -1099,10 +1148,12 @@ def editar_producto(id):
             if _nueva_img:  # si falla la subida se conserva la foto actual
                 p.imagen_url = _nueva_img
         db.session.commit()
+        _guardar_area_producto(p.id, request.form.get('area_impresion'))
         invalidar_cache_publico()
         flash('Platillo actualizado correctamente.', 'success')
         return redirect(url_for('admin_dashboard'))
-    return render_template('editar_producto.html', producto=p, categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all())
+    return render_template('editar_producto.html', producto=p, categorias=CategoriaMenu.query.order_by(CategoriaMenu.id.asc()).all(),
+                           area_impresion=_cargar_areas_prods().get(str(p.id), ''))
 
 
 @app.route('/admin/producto/eliminar/<int:id>', methods=['POST'])

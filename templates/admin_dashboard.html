@@ -320,6 +320,12 @@
                                     </select>
                                 </div>
                             </div>
+                            <label class="small fw-bold text-muted">¿Dónde se prepara? (impresora)</label>
+                            <select name="area_impresion" class="form-select mb-2">
+                    <option value="">Automática (según la categoría)</option>
+                    <option value="COCINA">🍳 COCINA</option>
+                    <option value="BARRA">☕ BARRA</option>
+                </select>
                             <label class="small fw-bold text-muted">Foto del platillo:</label>
                             <input type="file" name="foto" class="form-control mb-2">
                             <div class="d-flex gap-3 mb-3 mt-2 p-2 border rounded bg-light">
@@ -338,7 +344,7 @@
                 </div>
 
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-secondary text-white fw-bold">📂 Categorías del Menú ({{ categorias|length }})</div>
+                    <div class="card-header bg-secondary text-white fw-bold" id="categorias">📂 Categorías del Menú ({{ categorias|length }})</div>
                     <div class="card-body">
                         <form action="{{ url_for('nueva_categoria') }}" method="POST" class="mb-3">
                             <div class="row g-2 mb-2">
@@ -349,9 +355,31 @@
                         </form>
                         <ul class="list-group" style="max-height: 240px; overflow-y: auto;">
                             {% for cat in categorias %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-2">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
-                                <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST" class="m-0"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="d-flex align-items-center gap-2">
+                                        {% if cat.imagen_url %}<img src="{{ cat.imagen_url|opt_img(80) }}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                                        {% else %}<span style="font-size:24px;line-height:1;">{{ cat.icono or '🍽️' }}</span>{% endif %}
+                                        <span><strong>{{ cat.nombre }}</strong> <small class="text-primary ms-1">({{ cat.nombre_en or 'Sin inglés' }})</small></span>
+                                    </span>
+                                    <span class="d-flex gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ico_{{ cat.id }}').classList.toggle('d-none')">Cambiar ícono</button>
+                                        <form action="{{ url_for('eliminar_categoria', id=cat.id) }}" method="POST" class="m-0"><button type="submit" class="btn btn-sm btn-danger">X</button></form>
+                                    </span>
+                                </div>
+                                <form id="ico_{{ cat.id }}" action="{{ url_for('icono_categoria', id=cat.id) }}" method="POST" enctype="multipart/form-data" class="d-none mt-2 p-2 border rounded bg-light">
+                                    <div class="small fw-bold text-muted mb-1">Elige un ícono:</div>
+                                    <div class="d-flex flex-wrap gap-1 mb-2">
+                                        <label class="btn btn-sm btn-outline-secondary {% if not cat.icono %}active{% endif %}" title="Automático"><input type="radio" name="icono" value="" class="d-none" {% if not cat.icono %}checked{% endif %}>Auto</label>
+                                        {% for ic in iconos_categoria %}
+                                        <label class="btn btn-sm btn-outline-secondary {% if cat.icono == ic %}active{% endif %}" style="font-size:18px;padding:2px 6px;"><input type="radio" name="icono" value="{{ ic }}" class="d-none" {% if cat.icono == ic %}checked{% endif %} onchange="this.closest('div').querySelectorAll('label').forEach(l => l.classList.remove('active')); this.parentElement.classList.add('active');">{{ ic }}</label>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="small fw-bold text-muted mb-1">O sube una foto (se ve en el círculo del menú):</div>
+                                    <input type="file" name="foto" accept="image/*" class="form-control form-control-sm mb-2">
+                                    {% if cat.imagen_url %}<label class="small d-block mb-2"><input type="checkbox" name="quitar_foto" value="1"> Quitar la foto y usar el ícono</label>{% endif %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Guardar ícono</button>
+                                </form>
                             </li>
                             {% endfor %}
                         </ul>

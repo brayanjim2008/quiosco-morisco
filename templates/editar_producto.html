@@ -67,6 +67,14 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-6 mt-2">
+                <label>¿Dónde se prepara? (impresora)</label>
+                <select name="area_impresion" class="form-select">
+                    <option value="">Automática (según la categoría)</option>
+                    <option value="COCINA"{% if area_impresion == 'COCINA' %} selected{% endif %}>🍳 COCINA</option>
+                    <option value="BARRA"{% if area_impresion == 'BARRA' %} selected{% endif %}>☕ BARRA</option>
+                </select>
+            </div>
         </div>
 
         <div class="d-flex gap-4 p-3 mb-3 bg-light rounded border">

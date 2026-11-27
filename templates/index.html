@@ -683,10 +683,16 @@
                     {% for cat_nombre, lista in categorias.items() %}
                     {% set cl = cat_nombre|lower %}
                     {% set icono = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else '🍽️')))))))))))) %}
+                    {% set ci = (cat_iconos or {}).get(cat_nombre) or {} %}
+                    {% set icono = ci.icono or icono %}
                     {% set prod_con_foto = lista|selectattr('imagen_url')|first %}
                     <div class="sbux-cat-item" data-cat-target="{{ cat_nombre|replace(' ', '-') }}" onclick="abrirCategoriaDesdeGrid(this.getAttribute('data-cat-target')); vibrar('soft');">
                         <div class="sbux-cat-circle">
-                            {% if prod_con_foto and prod_con_foto.imagen_url %}
+                            {% if ci.imagen_url %}
+                                <img src="{{ ci.imagen_url|opt_img(260) }}" alt="{{ cat_nombre }}" loading="lazy">
+                            {% elif ci.icono %}
+                                <span class="sbux-cat-emoji">{{ icono }}</span>
+                            {% elif prod_con_foto and prod_con_foto.imagen_url %}
                                 <img src="{{ prod_con_foto.imagen_url|opt_img(260) }}" alt="{{ cat_nombre }}" loading="lazy">
                             {% else %}
                                 <span class="sbux-cat-emoji">{{ icono }}</span>
@@ -710,6 +716,7 @@
                 {% for cat_nombre, lista in categorias.items() %}
                     {% set cl = cat_nombre|lower %}
                     {% set icono_cat = '🍳' if 'desayuno' in cl else ('🥨' if 'entrada' in cl else ('🥪' if 'sándwich' in cl or 'sandwich' in cl else ('🍔' if 'hamburguesa' in cl else ('🌮' if 'antojito' in cl else ('🍰' if 'postre' in cl else ('☕' if 'caliente' in cl else ('🧊' if 'fría' in cl or 'fria' in cl else ('🧋' if 'frapp' in cl else ('🍵' if 'infus' in cl else ('🍊' if 'jugo' in cl else ('🥤' if 'refresco' in cl else ('🍋' if 'agua' in cl else '🍽️')))))))))))) %}
+                    {% set icono_cat = ((cat_iconos or {}).get(cat_nombre) or {}).get('icono') or icono_cat %}
                     <div class="categoria-bloque" data-categoria="{{ cat_nombre|replace(' ', '-') }}" data-titulo-natural="{{ cat_nombre }}">
                         <div class="categoria-titulo" data-es="{{ cat_nombre }}" data-en="{{ cat_traducciones[cat_nombre] if cat_traducciones and cat_nombre in cat_traducciones else cat_nombre }}">{{ cat_nombre }}</div>
 
