@@ -1931,49 +1931,63 @@ def inicializar_sistema(app_obj):
                 db.session.add(EmpleadoNominaPOS(nombre=nom, puesto=pue, sueldo_base=sue, periodo=per, activo=True))
             db.session.commit()
 
-        if ProductoGrupoMod.query.count() == 0:
+        if ProductoGrupoMod.query.count() == 0 or not cfg_cargar('modificadores_soft_v1', False):
             sincronizar_modificadores_guiados_quiosco()
+            cfg_guardar('modificadores_soft_v1', True)
 
 def sincronizar_modificadores_guiados_quiosco():
     """Asegura modificadores y flujos guiados paso a paso para Quiosco Morisco (con ruteo Cocina/Barra)."""
+    # Nombres, claves y precios IGUALES al Soft Restaurant del Quiosco (grupo 03 MODIFICADORES).
+    # (clave, grupo, nombre, precio extra, área de impresión)
     mods_def = [
-        # --- BEBIDAS CALIENTES / FRÍAS ---
-        ('03001', 'TIPO DE LECHE', 'ENTERA', 0.0, 'BARRA'),
-        ('03002', 'TIPO DE LECHE', 'DESLACTOSADA', 0.0, 'BARRA'),
-        ('03003', 'TIPO DE LECHE', 'ALMENDRAS', 15.0, 'BARRA'),
-        ('03010', 'CARGAS DE CAFE', 'CARGA NORMAL', 0.0, 'BARRA'),
-        ('03011', 'CARGAS DE CAFE', 'EXTRA SHOT CAFE', 18.0, 'BARRA'),
-        ('03012', 'CARGAS DE CAFE', 'DESCAFEINADO', 0.0, 'BARRA'),
-        ('03020', 'SABORES LATTE', 'NORMAL', 0.0, 'BARRA'),
-        ('03021', 'SABORES LATTE', 'VAINILLA', 15.0, 'BARRA'),
-        ('03022', 'SABORES LATTE', 'CARAMELO', 15.0, 'BARRA'),
-        ('03023', 'SABORES', 'NORMAL', 0.0, 'BARRA'),
-        ('03024', 'SABORES', 'VAINILLA', 15.0, 'BARRA'),
-        ('03025', 'SABORES', 'CARAMELO', 15.0, 'BARRA'),
-        ('03026', 'SABORES', 'MOKA', 15.0, 'BARRA'),
-        ('03027', 'EXTRA CHAI', 'CHAI NORMAL', 0.0, 'BARRA'),
-        ('03028', 'EXTRA CHAI', 'CHAI SUCIO', 10.0, 'BARRA'),
-        ('03030', 'FRIO O CALIENTE', 'CALIENTE', 0.0, 'BARRA'),
-        ('03031', 'FRIO O CALIENTE', 'VERSION FRIA', 5.0, 'BARRA'),
+        # --- BEBIDAS ---
+        ('03001', 'TIPO DE LECHE', 'LECHE ENTERA', 0.0, 'BARRA'),
+        ('03002', 'TIPO DE LECHE', 'LECHE DESLACTOSADA', 0.0, 'BARRA'),
+        ('03026', 'TIPO DE LECHE', 'LECHE DE AVENA', 8.0, 'BARRA'),
+        ('03031', 'TIPO DE LECHE', 'ALMENDRAS', 15.0, 'BARRA'),
+        ('03024', 'CARGAS DE CAFE', 'MEDIA CARGA', 0.0, 'BARRA'),
+        ('03021', 'CARGAS DE CAFE', 'NORMAL', 0.0, 'BARRA'),
+        ('03023', 'CARGAS DE CAFE', 'DOBLE CARGA', 25.0, 'BARRA'),
+        ('03032', 'CARGAS DE CAFE', 'DESCAFEINADO', 0.0, 'BARRA'),
+        ('03021', 'SABORES LATTE', 'NORMAL', 0.0, 'BARRA'),
+        ('03019', 'SABORES LATTE', 'VAINILLA', 15.0, 'BARRA'),
+        ('03020', 'SABORES LATTE', 'CARAMELO', 15.0, 'BARRA'),
+        ('03021', 'SABORES', 'NORMAL', 0.0, 'BARRA'),
+        ('03019', 'SABORES', 'VAINILLA', 15.0, 'BARRA'),
+        ('03020', 'SABORES', 'CARAMELO', 15.0, 'BARRA'),
+        ('03022', 'SABORES', 'MOKA', 15.0, 'BARRA'),
+        ('03033', 'EXTRA CHAI', 'CHAI NORMAL', 0.0, 'BARRA'),
+        ('03034', 'EXTRA CHAI', 'CHAI SUCIO', 10.0, 'BARRA'),
+        ('03006', 'FRIO O CALIENTE', 'CALIENTE', 0.0, 'BARRA'),
+        ('03005', 'FRIO O CALIENTE', 'FRIO', 5.0, 'BARRA'),
+        ('03003', 'AL GUSTO BEBIDA', 'CON HIELO', 0.0, 'BARRA'),
+        ('03004', 'AL GUSTO BEBIDA', 'SIN HIELO', 0.0, 'BARRA'),
+        ('03025', 'AL GUSTO BEBIDA', 'SIN AZUCAR', 0.0, 'BARRA'),
+        ('03030', 'TIPO DE VINO', 'CABERNET SAUV', 0.0, 'BARRA'),
+        ('03029', 'TIPO DE VINO', 'MALBEC', 0.0, 'BARRA'),
         # --- CERVEZAS ---
         ('03035', 'PREP CERVEZA', 'SOLA', 0.0, 'BARRA'),
         ('03036', 'PREP CERVEZA', 'CHELADA', 25.0, 'BARRA'),
         ('03037', 'PREP CERVEZA', 'MICHELADA', 30.0, 'BARRA'),
         # --- DESAYUNOS Y ALIMENTOS ---
-        ('03050', 'PREP HUEVOS', 'CON CHORIZO', 0.0, 'COCINA'),
-        ('03051', 'PREP HUEVOS', 'CON JAMON', 0.0, 'COCINA'),
-        ('03052', 'PREP HUEVOS', 'CON TOCINO', 0.0, 'COCINA'),
-        ('03053', 'PREP HUEVOS', 'RANCHEROS', 0.0, 'COCINA'),
-        ('03054', 'PREP HUEVOS', 'ESTRELLADOS', 0.0, 'COCINA'),
-        ('03055', 'PREP HUEVOS', 'A LA MEXICANA', 0.0, 'COCINA'),
-        ('03060', 'ING OMELETE', 'CHAMPINONES Y QUESO', 0.0, 'COCINA'),
-        ('03061', 'ING OMELETE', 'JAMON Y QUESO', 0.0, 'COCINA'),
-        ('03062', 'ING OMELETE', 'TOCINO Y QUESO', 0.0, 'COCINA'),
-        ('03063', 'ING OMELETE', 'CHORIZO Y QUESO', 0.0, 'COCINA'),
-        ('03065', 'SALSA CHILAQUILES', 'SALSA VERDE', 0.0, 'COCINA'),
-        ('03066', 'SALSA CHILAQUILES', 'SALSA ROJA', 0.0, 'COCINA'),
-        ('03068', 'PROT CHILAQUILES', 'POLLO DESHEBRADO', 0.0, 'COCINA'),
-        ('03069', 'PROT CHILAQUILES', 'HUEVOS ESTRELLADOS', 0.0, 'COCINA'),
+        ('03007', 'PREP HUEVOS', 'CHORIZO', 0.0, 'COCINA'),
+        ('03008', 'PREP HUEVOS', 'JAMON', 0.0, 'COCINA'),
+        ('03009', 'PREP HUEVOS', 'TOCINO', 0.0, 'COCINA'),
+        ('03010', 'PREP HUEVOS', 'RANCHEROS', 0.0, 'COCINA'),
+        ('03011', 'PREP HUEVOS', 'ESTRELLADOS', 0.0, 'COCINA'),
+        ('03012', 'PREP HUEVOS', 'A LA MEXICANA', 0.0, 'COCINA'),
+        ('03016', 'ING OMELETE', 'CHAMPIÑONES', 0.0, 'COCINA'),
+        ('03008', 'ING OMELETE', 'JAMON', 0.0, 'COCINA'),
+        ('03009', 'ING OMELETE', 'TOCINO', 0.0, 'COCINA'),
+        ('03007', 'ING OMELETE', 'CHORIZO', 0.0, 'COCINA'),
+        ('03017', 'SALSA CHILAQUILES', 'VERDES', 0.0, 'COCINA'),
+        ('03018', 'SALSA CHILAQUILES', 'ROJOS', 0.0, 'COCINA'),
+        ('03027', 'PROT CHILAQUILES', 'POLLO', 0.0, 'COCINA'),
+        ('03011', 'PROT CHILAQUILES', 'ESTRELLADOS', 0.0, 'COCINA'),
+        ('03028', 'PROT CHILAQUILES', 'HUEVO', 0.0, 'COCINA'),
+        ('03013', 'TERMINO', 'MEDIO', 0.0, 'COCINA'),
+        ('03014', 'TERMINO', 'COCIDO', 0.0, 'COCINA'),
+        ('03015', 'TERMINO', 'BIEN COCIDO', 0.0, 'COCINA'),
         # --- PAQUETES (PLATILLOS EN COCINA, BEBIDAS/FRUTA EN BARRA) ---
         ('03070', 'PLAT PAQ BOLERO', 'HUEVOS MOTULENOS', 0.0, 'COCINA'),
         ('03071', 'PLAT PAQ BOLERO', 'OMELETE CHAMPINONES', 0.0, 'COCINA'),
@@ -2002,14 +2016,51 @@ def sincronizar_modificadores_guiados_quiosco():
         ('03094', 'ACOMP PLATANOS', 'CON QUESO Y CREMA', 0.0, 'COCINA'),
         ('03095', 'ACOMP PLATANOS', 'CON LECHERA', 0.0, 'COCINA'),
         ('03096', 'EXTRAS ALIMENTOS', 'SIN CEBOLLA', 0.0, None),
-        ('03097', 'EXTRAS ALIMENTOS', 'SIN HIELO', 0.0, 'BARRA'),
         ('03098', 'EXTRAS ALIMENTOS', 'PARA LLEVAR', 0.0, None),
     ]
+    # Nombres anteriores -> nombre del Soft. Se renombra el MISMO registro (conserva asignaciones a platillos)
+    # y su receta (">NOMBRE") pasa al nombre nuevo, para no perder el descuento de inventario.
+    renombres = {
+        ('TIPO DE LECHE', 'ENTERA'): ('TIPO DE LECHE', 'LECHE ENTERA'),
+        ('TIPO DE LECHE', 'NORMAL (ENTERA)'): ('TIPO DE LECHE', 'LECHE ENTERA'),
+        ('TIPO DE LECHE', 'LECHE ALMENDRAS'): ('TIPO DE LECHE', 'ALMENDRAS'),
+        ('TIPO DE LECHE', 'DESLACTOSADA'): ('TIPO DE LECHE', 'LECHE DESLACTOSADA'),
+        ('CARGAS DE CAFE', 'CARGA NORMAL'): ('CARGAS DE CAFE', 'NORMAL'),
+        ('CARGAS DE CAFE', 'EXTRA SHOT CAFE'): ('CARGAS DE CAFE', 'DOBLE CARGA'),
+        ('FRIO O CALIENTE', 'VERSION FRIA'): ('FRIO O CALIENTE', 'FRIO'),
+        ('EXTRAS ALIMENTOS', 'SIN HIELO'): ('AL GUSTO BEBIDA', 'SIN HIELO'),
+        ('PREP HUEVOS', 'CON CHORIZO'): ('PREP HUEVOS', 'CHORIZO'),
+        ('PREP HUEVOS', 'CON JAMON'): ('PREP HUEVOS', 'JAMON'),
+        ('PREP HUEVOS', 'CON TOCINO'): ('PREP HUEVOS', 'TOCINO'),
+        ('ING OMELETE', 'CHAMPINONES Y QUESO'): ('ING OMELETE', 'CHAMPIÑONES'),
+        ('ING OMELETE', 'JAMON Y QUESO'): ('ING OMELETE', 'JAMON'),
+        ('ING OMELETE', 'TOCINO Y QUESO'): ('ING OMELETE', 'TOCINO'),
+        ('ING OMELETE', 'CHORIZO Y QUESO'): ('ING OMELETE', 'CHORIZO'),
+        ('SALSA CHILAQUILES', 'SALSA VERDE'): ('SALSA CHILAQUILES', 'VERDES'),
+        ('SALSA CHILAQUILES', 'SALSA ROJA'): ('SALSA CHILAQUILES', 'ROJOS'),
+        ('PROT CHILAQUILES', 'POLLO DESHEBRADO'): ('PROT CHILAQUILES', 'POLLO'),
+        ('PROT CHILAQUILES', 'HUEVOS ESTRELLADOS'): ('PROT CHILAQUILES', 'ESTRELLADOS'),
+    }
+    for (g_ant, n_ant), (g_new, n_new) in renombres.items():
+        viejo = ModificadorPOS.query.filter_by(grupo=g_ant, nombre=n_ant).first()
+        if not viejo:
+            continue
+        if ModificadorPOS.query.filter_by(grupo=g_new, nombre=n_new).first():
+            viejo.activo = False  # ya existe el del Soft: el viejo se apaga (no se borra: hay ventas con él)
+        else:
+            viejo.grupo, viejo.nombre = g_new, n_new
+        if not RecetaPOS.query.filter_by(platillo_nombre='>' + n_new).first():
+            RecetaPOS.query.filter_by(platillo_nombre='>' + n_ant).update({'platillo_nombre': '>' + n_new}, synchronize_session=False)
+    # Restos de la primera versión que repiten opciones de los paquetes: se apagan (no se borran).
+    for g_x, n_x in (('EXTRAS ALIMENTOS', 'CAFE REFILL'), ('EXTRAS ALIMENTOS', 'FRUTAS PAQUETE'), ('EXTRAS ALIMENTOS', 'JAMON')):
+        ModificadorPOS.query.filter_by(grupo=g_x, nombre=n_x).update({'activo': False}, synchronize_session=False)
+    db.session.flush()
     for clv, grp, nom, pre, area in mods_def:
         ex = ModificadorPOS.query.filter_by(grupo=grp, nombre=nom).first()
         if not ex:
             db.session.add(ModificadorPOS(clave=clv, grupo=grp, nombre=nom, precio=pre, area_impresion=area, activo=True))
         else:
+            ex.clave = clv
             ex.precio = pre
             ex.area_impresion = area
             ex.activo = True
@@ -2062,6 +2113,22 @@ def sincronizar_modificadores_guiados_quiosco():
         ('LECHE DORADA', 'FRIO O CALIENTE', '2. Temperatura', 2, True, 1),
         ('MARACUYÁ', 'FRIO O CALIENTE', '1. Temperatura', 1, True, 1),
         ('FRUTOS ROJOS', 'FRIO O CALIENTE', '1. Temperatura', 1, True, 1),
+        ('AMERICANO', 'CARGAS DE CAFE', '1. Carga', 1, False, 1),
+        # Hamburguesa: término de la carne
+        ('HAMBURGUESA MORISCO', 'TERMINO', '1. Término de la carne', 1, True, 1),
+        # Vino: cuál
+        ('VINO DE LA CASA (POR COPEO)', 'TIPO DE VINO', '1. Vino', 1, True, 1),
+        ('VINO DE LA CASA (POR BOTELLA)', 'TIPO DE VINO', '1. Vino', 1, True, 1),
+        # Aguas y jugos: al gusto (opcional, varios)
+        ('JAMAICA', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('HORCHATA', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('NARANJADA', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('NARANJADA MINERAL', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('LIMONADA', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('LIMONADA MINERAL', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('AGUA MORISKA', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('VERGEL', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
+        ('ROSAL', 'AL GUSTO BEBIDA', '1. Al gusto', 1, False, 0),
         # Cervezas
         ('XX LAGER', 'PREP CERVEZA', '1. Preparación', 1, True, 1),
         ('XX ÁMBAR', 'PREP CERVEZA', '1. Preparación', 1, True, 1),

@@ -49,7 +49,7 @@ with app.app_context():
     db.session.add(_Prod(nombre='Expreso Test', precio=40.0, categoria='Bebidas Calientes', descripcion=''))
     db.session.commit()
 for plat, ins, cant in (('LATTE', id_leche, 0.25), ('AGUA CARA', id_leche, 1), ('EXPRESO TEST', id_cafe, 0.02),
-                        ('>LECHE ALMENDRAS', id_leche, 0.1)):
+                        ('>ALMENDRAS', id_leche, 0.1)):
     r = admin.post('/api/recetas', json={'platillo_nombre': plat, 'insumo_id': ins, 'cantidad_descontar': cant}, headers=H)
     check(r.status_code == 200, f'receta {plat} guardada')
 
@@ -65,7 +65,7 @@ check(agua and agua['costo'] == 30.0 and agua['costo_supera_precio'] and agua['m
       f"platillo con costo mayor a su precio sin IVA se marca ({agua and (agua['costo'], agua['precio_sin_iva'], agua['margen_pct'])})")
 exp = filas.get('EXPRESO TEST')
 check(exp and exp['insumos_sin_costo'] == ['CAFE SIN COSTO'] and exp['costo'] == 0.0, 'insumo con costo 0 se marca en el platillo')
-mod = filas.get('>LECHE ALMENDRAS')
+mod = filas.get('>ALMENDRAS')
 # modificador $15: sin IVA 12.93; costo 0.1 * 30 = 3.00; margen (12.93-3)/12.93 = 76.8%
 check(mod and mod['es_modificador'] and mod['precio'] == 15.0 and mod['costo'] == 3.0 and mod['margen_pct'] == 76.8,
       f"modificador con su propio precio: margen 76.8% ({mod and (mod['precio'], mod['costo'], mod['margen_pct'])})")

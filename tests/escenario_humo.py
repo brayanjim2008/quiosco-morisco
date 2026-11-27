@@ -280,6 +280,9 @@ ejecutar_escenario('compras_f5.py')
 # Nota de consumo (Soft), área de impresión, pre-orden y menú por sucursal, ícono de categoría
 ejecutar_escenario('menu_ticket.py')
 
+# Modificadores con nombres y precios del Soft
+ejecutar_escenario('modificadores_soft.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

@@ -168,6 +168,7 @@
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn sm cobre" onclick="cargarFaltantesSugeridos()"><i class="fa-solid fa-bolt"></i> Cargar Faltantes Sugeridos</button>
           <button type="button" class="btn sm gris" onclick="limpiarSeleccion()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+          <button type="button" class="btn sm" onclick="imprimirHojaRequerimiento()"><i class="fa-solid fa-print"></i> Imprimir hoja de requerimiento</button>
         </div>
       </div>
 
@@ -188,7 +189,11 @@
     <div class="card">
       <div class="card-head">
         <h3><i class="fa-solid fa-box-open" style="color:var(--cobre);"></i> Pedidos de Hoy • Confirmar Recepción</h3>
-        <button type="button" class="btn sm gris" onclick="cargarDatosSucursal()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="btn sm" onclick="imprimirHojaRequerimiento('BARRA')"><i class="fa-solid fa-print"></i> Hoja Barra</button>
+          <button type="button" class="btn sm" onclick="imprimirHojaRequerimiento('COCINA')"><i class="fa-solid fa-print"></i> Hoja Cocina</button>
+          <button type="button" class="btn sm gris" onclick="cargarDatosSucursal()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        </span>
       </div>
       <p style="font-size:12px;color:#475569;margin-top:0;">Cuando Bodega Central marque un insumo como <b>Entregado</b>, aparecerán los botones <b>✓ Recibido</b> (suma automáticamente a tu Stock Local) o <b>✕ Faltante</b>.</p>
       <div class="table-wrap">
@@ -311,6 +316,62 @@
     renderCatalogoPedido();
   }
 
+  // Hoja de requerimiento interno (como la hoja de papel): toda la lista del área por secciones, con lo pedido HOY
+  // en "Solicitado" y lo que ya se confirmó en "Recibido". Sirve también en blanco para llenarla a mano.
+  function imprimirHojaRequerimiento(area) {
+    area = area || (areaFiltro === 'COCINA' ? 'COCINA' : 'BARRA');
+    const hoy = new Date();
+    const ddmm = String(hoy.getDate()).padStart(2, '0') + '/' + String(hoy.getMonth() + 1).padStart(2, '0');
+    const reqsHoy = cacheReqs.filter(r => (r.area || '').toUpperCase() === area && String(r.fecha || '').startsWith(ddmm));
+    const pedido = {}, recibido = {};
+    reqsHoy.forEach(r => {
+      const k = r.insumo_id || r.insumo_nombre;
+      pedido[k] = (pedido[k] || 0) + Number(r.cantidad || 0);
+      if (r.confirmado_caja) recibido[k] = (recibido[k] || 0) + Number(r.cantidad_recibida || 0);
+    });
+    const num = v => (v === undefined ? '' : (Math.round(v * 100) / 100).toString());
+    const grupos = {};
+    cacheInsumos.filter(i => (i.categoria || '').toUpperCase().startsWith(area) && !(i.nombre || '').includes('EXTRA / FUERA DE LISTA'))
+      .slice().sort((a, b) => (a.orden_hoja ?? 9999) - (b.orden_hoja ?? 9999) || a.nombre.localeCompare(b.nombre))
+      .forEach(i => { const sec = (i.categoria.split('|')[1] || i.categoria).trim(); (grupos[sec] = grupos[sec] || []).push(i); });
+    const bloques = Object.keys(grupos).map(sec =>
+      `<tr class="sec"><td colspan="4">${esc(sec)}</td></tr>` + grupos[sec].map(i => {
+        const k = i.id;
+        return `<tr><td>${esc(i.nombre)}</td><td class="c">${esc(i.unidad || '')}</td><td class="c">${num(pedido[k])}</td><td class="c">${num(recibido[k])}</td></tr>`;
+      }).join(''));
+    // dos columnas como la hoja: se reparte por secciones completas
+    const total = bloques.reduce((a, b) => a + b.split('<tr').length, 0);
+    let izq = [], der = [], cuenta = 0;
+    bloques.forEach(b => { const n = b.split('<tr').length; (cuenta + n / 2 <= total / 2 ? izq : der).push(b); cuenta += n; });
+    const tabla = filas => `<table><thead><tr><th>Producto</th><th>Unidad</th><th>Solicitado</th><th>Recibido</th></tr></thead><tbody>${filas.join('')}</tbody></table>`;
+    const folio = reqsHoy.length ? Math.min(...reqsHoy.map(r => r.id)) : '';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Requerimiento ${area}</title><style>
+      @page { size: letter; margin: 10mm; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; }
+      h2 { text-align: center; font-size: 15px; margin: 0 0 6px; }
+      .cab { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+      table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+      th, td { border: 1px solid #000; padding: 1px 4px; }
+      th { background: #d9d9d9; }
+      td.c { text-align: center; width: 14%; }
+      tr.sec td { background: #bfbfbf; font-weight: 700; }
+      .firmas { display: flex; justify-content: space-around; margin-top: 26px; font-size: 11px; }
+      .firmas div { border-top: 1px solid #000; width: 35%; text-align: center; padding-top: 2px; }
+    </style></head><body>
+      <h2>Lista de requerimiento interno para área de ${area === 'BARRA' ? 'barra' : 'cocina'} ${esc(SUCURSAL_ACTUAL)}</h2>
+      <div class="cab"><span>Fecha: <b>${hoy.toLocaleDateString('es-MX')}</b></span><span>Folio: <b>${folio}</b></span></div>
+      <div class="cols"><div>${tabla(izq)}</div><div>${tabla(der)}</div></div>
+      <div class="firmas"><div>Solicitó</div><div>Entregó (Bodega)</div></div>
+    </body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return toast('Permite las ventanas emergentes para imprimir la hoja.');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  }
+
   async function cargarDatosSucursal() {
     try {
       const d = await (await fetch('/api/almacen/datos')).json();
@@ -390,6 +451,7 @@
     });
 
     const grupos = {};
+    filtrados.sort((a, b) => (a.orden_hoja ?? 9999) - (b.orden_hoja ?? 9999) || a.nombre.localeCompare(b.nombre));
     filtrados.forEach(i => {
       const c = i.categoria || 'GENERAL';
       if (!grupos[c]) grupos[c] = [];
