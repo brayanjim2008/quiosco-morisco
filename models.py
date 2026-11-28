@@ -1939,6 +1939,17 @@ def inicializar_sistema(app_obj):
                 db.session.add(EmpleadoNominaPOS(nombre=nom, puesto=pue, sueldo_base=sue, periodo=per, activo=True))
             db.session.commit()
 
+        # Las cuentas caminante1/2/3 ya existían cuando se agregó la columna sucursal y quedaron en la Matriz
+        # (vendían, descontaban stock y cortaban como Matriz). Se corrige una sola vez.
+        if not cfg_cargar('sucursal_usuarios_v1', False):
+            for usr, suc in MAPA_SUCURSAL_USUARIO.items():
+                u = User.query.filter_by(username=usr).first()
+                if u and u.role == 'sucursal' and u.sucursal != suc:
+                    print(f"[INICIO] Usuario '{usr}' pasa de {u.sucursal} a {suc}.")
+                    u.sucursal = suc
+            db.session.commit()
+            cfg_guardar('sucursal_usuarios_v1', True)
+
         if ProductoGrupoMod.query.count() == 0 or not cfg_cargar('modificadores_soft_v1', False):
             sincronizar_modificadores_guiados_quiosco()
             cfg_guardar('modificadores_soft_v1', True)

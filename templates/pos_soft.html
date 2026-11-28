@@ -457,7 +457,9 @@
 
   <div class="home-body">
     <h1 class="home-title">Caja · {{ sucursal }}</h1>
-    {% if turno %}
+    {% if turno and turno_horas >= 16 %}
+    <div class="home-turno pendiente" onclick="abrirModalCorteX()"><i class="fa-solid fa-triangle-exclamation"></i> Este turno está abierto desde el {{ turno.apertura.strftime('%d/%m a las %I:%M %p') }} ({{ turno_horas // 24 }} día(s) {{ turno_horas % 24 }} h). Haz el Corte Z para que las ventas de cada día no se mezclen.</div>
+    {% elif turno %}
     <div class="home-turno ok"><i class="fa-solid fa-circle-check"></i> Turno abierto desde las {{ turno.apertura.strftime('%I:%M %p') }} · Cajero {{ turno.cajero }} · Fondo ${{ '%.2f'|format(turno.fondo_inicial or 0) }}</div>
     {% else %}
     <div class="home-turno pendiente" onclick="mostrarAvisoTurno()"><i class="fa-solid fa-key"></i> No hay turno abierto. Toca aquí para abrirlo con el fondo de caja y empezar a vender.</div>

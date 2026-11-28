@@ -315,6 +315,7 @@ def vista_pos_soft():
         sucursal=suc, sucursales=SUCURSALES_OFICIALES,
         datos_ticket=obtener_datos_ticket(suc),
         turno=turno, permisos=permisos, cuentas=cuentas,
+        turno_horas=int((ahora_local() - turno.apertura).total_seconds() // 3600) if turno and turno.apertura else 0,
         categorias=categorias_bd, productos=productos, empleados=empleados,
         clientes_credito=clientes_credito
     )
