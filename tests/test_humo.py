@@ -42,3 +42,11 @@ def test_arranque_detecta_esquema_faltante():
     """ESQUEMA_REQUERIDO: con una columna faltante o una base vacía, la app migra sola al arrancar."""
     r = _correr('escenario_arranque.py')
     assert r.returncode == 0, _resumen(r)
+
+
+def test_dia_completo():
+    """Un día real de punta a punta: menú y recetas, compra a bodega, pedidos de sucursal, turnos, comandas de
+    meseros (barra/cocina), modificadores por pieza, cancelación, pre-orden QR, cobros, stock, mermas, propinas,
+    corte Z sin diferencia y reportes de utilidad."""
+    r = _correr('dia_completo.py')
+    assert r.returncode == 0 and 'RESULTADO: TODO OK' in r.stdout, _resumen(r)

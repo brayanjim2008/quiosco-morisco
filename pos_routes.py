@@ -719,7 +719,8 @@ def api_pos_capturar_item():
 
     # Si el frontend mandó modificadores/comentarios anidados, respetar área propia (ej. FRUTA/CAFÉ -> BARRA)
     for m in mods_hijos:
-        m_cant = _num(m.get('cantidad', 1), minimo=0.001, maximo=999.0)
+        # El modificador va por pieza: 2 lattes con avena = 2 avenas (precio y receta), como en Soft.
+        m_cant = round(_num(m.get('cantidad', 1), minimo=0.001, maximo=999.0) * cant, 3)
         m_pre = _num(m.get('precio', 0), maximo=100000.0)
         m_desc_raw = str(m.get('nombre') or m.get('descripcion') or '').strip().upper().lstrip('>')
         if not m_desc_raw:
@@ -883,7 +884,7 @@ def api_pos_enviar_ronda_lote():
             m_desc = str(m.get('nombre') or m.get('descripcion') or '').strip().upper().lstrip('>')
             if not m_desc:
                 continue
-            m_cant = _num(m.get('cantidad', 1), minimo=0.001, maximo=999.0)
+            m_cant = round(_num(m.get('cantidad', 1), minimo=0.001, maximo=999.0) * cant, 3)  # por pieza
             m_pre = _num(m.get('precio', 0), maximo=100000.0)
             m_clave = str(m.get('clave', 'MOD')).strip().upper()
             m_pre = _precio_servidor(True, m_desc, m_clave, m_pre, _mapas)
@@ -1023,10 +1024,20 @@ def api_pos_cancelar_items_lote():
         else:
             monto_p = round(cant_c * det.precio_unitario, 2)
             total_cancelado += monto_p
+            cant_antes = det.cantidad
             det.cantidad = round(det.cantidad - cant_c, 3)
             det.importe = round(det.cantidad * det.precio_unitario, 2)
             resumen_desc.append(f"{cant_c:g}x {det.descripcion}" + (f" [{mot}]" if mot else ""))
             _avisar(det, cant_c, mot)
+            if not det.es_modificador and cant_antes > 0:
+                # Sus modificadores bajan en la misma proporción (cancelar 1 de 2 lattes quita 1 avena).
+                for h in DetallePOS.query.filter_by(cuenta_id=cuenta.id, parent_detalle_id=det.id).all():
+                    if h.clave in ('SEP', 'NOTA'):
+                        continue
+                    nueva = round(h.cantidad * det.cantidad / cant_antes, 3)
+                    total_cancelado += round((h.cantidad - nueva) * h.precio_unitario, 2)
+                    h.cantidad = nueva
+                    h.importe = round(nueva * h.precio_unitario, 2)
 
     ahora_str = ahora_local().strftime('%d/%m/%Y %I:%M:%S %p')
     for area_nom, lista in aviso_area.items():

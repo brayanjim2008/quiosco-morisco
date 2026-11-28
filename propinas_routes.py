@@ -39,7 +39,12 @@ def _quienes_trabajaron(suc, dia):
     ini = datetime.combine(dia, datetime.min.time())
     regs = RegistroAsistencia.query.filter(RegistroAsistencia.sucursal == suc, RegistroAsistencia.tipo == 'ENTRADA',
                                            RegistroAsistencia.fecha >= ini, RegistroAsistencia.fecha < ini + timedelta(days=1)).all()
-    return sorted({(r.empleado_nombre or '').strip().upper() for r in regs if r.empleado_nombre})
+    nombres = {(r.empleado_nombre or '').strip().upper() for r in regs if r.empleado_nombre}
+    # Quien atendió mesas ese día también trabajó aunque no haya checado (sale ya marcado para el reparto).
+    meseros = db.session.query(CuentaPOS.mesero).filter(CuentaPOS.sucursal == suc, CuentaPOS.apertura >= ini,
+                                                        CuentaPOS.apertura < ini + timedelta(days=1)).distinct().all()
+    nombres |= {(m or '').strip().upper() for (m,) in meseros if m and (m or '').strip().upper() not in ('CAJA', 'SIN MESERO', 'PUBLICO')}
+    return sorted(n for n in nombres if n)
 
 
 def _ser(r):

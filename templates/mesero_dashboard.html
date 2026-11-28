@@ -1233,7 +1233,7 @@
     rondaPendiente.forEach(it => {
       if (it.clave === 'SEP') return;
       cnt += it.cantidad;
-      total += (it.precio * it.cantidad) + (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad, 0);
+      total += (it.precio * it.cantidad) + (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad * it.cantidad, 0);
     });
     return { total, cnt };
   }
@@ -1296,7 +1296,7 @@
           <button type="button" class="btn-m sm rojo" onclick="quitarItemRonda(${idx})">✕</button>
         </div>`;
       }
-      const subMods = (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad, 0);
+      const subMods = (it.modificadores || []).reduce((s, m) => s + m.precio * m.cantidad * it.cantidad, 0);
       const impLinea = (it.precio * it.cantidad) + subMods;
       const modsHtml = (it.modificadores || []).map(m =>
         `<div>&gt;&gt; ${escHtml(m.nombre)}${m.precio > 0 ? ' <span style="color:var(--cobre);">+$' + m.precio.toFixed(2) + '</span>' : ''}${m.area_impresion === 'BARRA' ? ' <span class="tag-area-mod">BARRA</span>' : ''}</div>`
