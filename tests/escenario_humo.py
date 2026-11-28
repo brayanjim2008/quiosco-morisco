@@ -298,6 +298,9 @@ ejecutar_escenario('offline_f7.py')
 # Alertas por WhatsApp Business
 ejecutar_escenario('whatsapp.py')
 
+# ---------- Conteo por celular y aviso de stock bajo ----------
+ejecutar_escenario('stock_movil.py')
+
 # ================= A3: /logout por POST + XSS en onclick =================
 for _ruta in ('/nomina_creditos', '/almacen_pro', '/pedidos_sucursal', '/mesero_dashboard', '/pos', '/industrial'):
     _html = admin.get(_ruta).get_data(as_text=True)

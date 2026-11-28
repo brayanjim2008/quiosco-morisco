@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+{% include '_csrf.html' %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#13423b">
+<title>Contar inventario • Comensal Conectado</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --verde: #13423b; --cobre: #c98246; --fondo: #f4f1ea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Open Sans', system-ui, sans-serif; background: var(--fondo); color: #1e293b; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--verde); color: #fff; padding: 10px 12px 12px; }
+  .fila { display: flex; gap: 8px; align-items: center; }
+  .titulo { font-weight: 800; font-size: 17px; flex: 1; }
+  header a { color: #fff; text-decoration: none; font-size: 14px; }
+  select, input { font-size: 16px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 10px 12px; width: 100%; }
+  header select { margin-top: 8px; }
+  .buscar { margin-top: 8px; }
+  .barra { height: 8px; background: rgba(255,255,255,.25); border-radius: 6px; margin-top: 10px; overflow: hidden; }
+  .barra div { height: 100%; background: #86efac; width: 0; transition: width .3s; }
+  .progreso { font-size: 12.5px; margin-top: 4px; opacity: .9; }
+  .filtros { display: flex; gap: 6px; padding: 10px 12px 0; overflow-x: auto; }
+  .filtros button { border: 0; border-radius: 20px; padding: 8px 14px; font-weight: 700; background: #e2e8f0; color: #334155; white-space: nowrap; font-size: 13px; }
+  .filtros button.activo { background: var(--verde); color: #fff; }
+  main { padding: 10px 12px 120px; }
+  .cat { font-size: 12px; font-weight: 800; color: #64748b; margin: 14px 2px 6px; text-transform: uppercase; }
+  .item { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.06); border: 2px solid transparent; }
+  .item.hecho { border-color: #86efac; }
+  .item .nom { flex: 1; font-weight: 700; font-size: 15px; line-height: 1.2; }
+  .item .nom small { display: block; font-weight: 600; color: #64748b; font-size: 12px; margin-top: 2px; }
+  .item input { width: 104px; text-align: center; font-size: 20px; font-weight: 800; padding: 10px 6px; }
+  .item .u { width: 42px; font-size: 12px; font-weight: 800; color: #475569; }
+  .vacio { text-align: center; color: #64748b; padding: 30px 10px; font-weight: 700; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+  .btn { border: 0; border-radius: 12px; padding: 14px; font-weight: 800; font-size: 15px; flex: 1; }
+  .btn.verde { background: var(--verde); color: #fff; }
+  .btn.gris { background: #e2e8f0; color: #334155; flex: 0 0 auto; }
+  .estado { font-size: 12px; text-align: center; color: #64748b; padding: 4px 0 0; }
+  .modal { position: fixed; inset: 0; background: rgba(15,23,42,.6); display: none; align-items: flex-end; z-index: 20; }
+  .modal .caja { background: #fff; width: 100%; border-radius: 18px 18px 0 0; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); max-height: 85vh; overflow-y: auto; }
+  .dif { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  .neg { color: #dc2626; font-weight: 800; } .pos { color: #15803d; font-weight: 800; }
+</style>
+</head>
+<body>
+<header>
+  <div class="fila">
+    <a href="{{ volver }}" aria-label="Volver"><i class="fa-solid fa-arrow-left"></i></a>
+    <div class="titulo"><i class="fa-solid fa-clipboard-check"></i> Contar inventario</div>
+  </div>
+  {% if ubicaciones|length > 1 %}
+  <select id="ubicacion" onchange="cambiarUbicacion()">
+    {% for u in ubicaciones %}<option value="{{ u }}">{{ 'Bodega Central' if u == 'BODEGA' else u }}</option>{% endfor %}
+  </select>
+  {% else %}
+  <input type="hidden" id="ubicacion" value="{{ ubicaciones[0] }}">
+  <div style="font-size:13px;margin-top:4px;opacity:.9;">{{ 'Bodega Central' if ubicaciones[0] == 'BODEGA' else ubicaciones[0] }}</div>
+  {% endif %}
+  <input class="buscar" id="buscar" type="search" placeholder="🔍 Buscar insumo (leche, café...)" oninput="pintar()">
+  <div class="barra"><div id="barra"></div></div>
+  <div class="progreso" id="progreso">Cargando…</div>
+</header>
+<div class="filtros">
+  <button type="button" class="activo" data-f="PENDIENTES" onclick="filtrar(this)">Por contar</button>
+  <button type="button" data-f="TODOS" onclick="filtrar(this)">Todos</button>
+  <button type="button" data-f="HECHOS" onclick="filtrar(this)">Ya contados</button>
+</div>
+<main id="lista"><div class="vacio">Cargando…</div></main>
+<footer>
+  <button type="button" class="btn gris" onclick="cargar()" aria-label="Actualizar"><i class="fa-solid fa-rotate"></i></button>
+  <button type="button" class="btn verde" onclick="revisar()"><i class="fa-solid fa-check-double"></i> Terminar conteo</button>
+</footer>
+<div class="modal" id="modal" onclick="if (event.target === this) this.style.display='none'">
+  <div class="caja">
+    <h3 style="margin:0 0 6px;color:var(--verde);">Revisar antes de aplicar</h3>
+    <div id="resumen" style="font-size:13.5px;color:#475569;margin-bottom:8px;"></div>
+    <div id="difs"></div>
+    <input type="password" id="clave" placeholder="Clave de Admin o Gerente (si la piden)" style="margin-top:10px;">
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" class="btn gris" style="flex:1;" onclick="$('modal').style.display='none'">Seguir contando</button>
+      <button type="button" class="btn verde" onclick="aplicar()">Aplicar</button>
+    </div>
+  </div>
+</div>
+<script>
+  // Conteo "a ciegas": no se muestra el teórico mientras se cuenta (así se anota lo que de verdad hay).
+  // Cada número se guarda solo al escribirlo; se puede cerrar y seguir después en otro celular.
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const dinero = n => '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let conteo = null, filtro = 'PENDIENTES', pendientes = {}, timer = null;
+
+  function cambiarUbicacion() { conteo = null; cargar(); }
+  function filtrar(b) { document.querySelectorAll('.filtros button').forEach(x => x.classList.remove('activo')); b.classList.add('activo'); filtro = b.dataset.f; pintar(); }
+
+  async function cargar() {
+    const r = await fetch('/api/conteos/iniciar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ubicacion: $('ubicacion').value }) });
+    const d = await r.json();
+    if (!d.ok) { $('lista').innerHTML = `<div class="vacio">${esc(d.msg || 'No se pudo abrir el conteo.')}</div>`; return; }
+    conteo = d.conteo; pintar();
+  }
+
+  function pintar() {
+    if (!conteo) return;
+    const q = $('buscar').value.trim().toLowerCase();
+    const hechos = conteo.lineas.filter(l => l.contado !== null).length, total = conteo.lineas.length;
+    $('barra').style.width = (total ? hechos / total * 100 : 0) + '%';
+    $('progreso').textContent = `${hechos} de ${total} insumos contados`;
+    const lista = conteo.lineas.filter(l => {
+      if (q) return l.insumo_nombre.toLowerCase().includes(q);   // al buscar se ve todo
+      if (filtro === 'PENDIENTES') return l.contado === null;
+      if (filtro === 'HECHOS') return l.contado !== null;
+      return true;
+    });
+    let cat = null, html = '';
+    for (const l of lista) {
+      const c = (l.categoria || 'SIN CATEGORÍA');
+      if (c !== cat) { cat = c; html += `<div class="cat">${esc(c)}</div>`; }
+      html += `<div class="item ${l.contado !== null ? 'hecho' : ''}" id="it${l.insumo_id}">
+        <div class="nom">${esc(l.insumo_nombre)}<small>${l.contado !== null ? '✓ contado' : 'cuenta y escribe cuánto hay'}</small></div>
+        <input type="number" inputmode="decimal" step="any" min="0" placeholder="—" value="${l.contado ?? ''}" data-id="${l.insumo_id}" oninput="anotar(this)">
+        <div class="u">${esc(l.unidad)}</div></div>`;
+    }
+    $('lista').innerHTML = html || `<div class="vacio">${q ? 'No hay insumos con ese nombre.' : (filtro === 'PENDIENTES' ? '🎉 Ya contaste todo. Toca «Terminar conteo».' : 'Nada por aquí.')}</div>`;
+  }
+
+  function anotar(inp) {
+    pendientes[inp.dataset.id] = inp.value;
+    const l = conteo.lineas.find(x => x.insumo_id === Number(inp.dataset.id));
+    if (l) l.contado = inp.value === '' ? null : Number(inp.value);
+    inp.closest('.item').classList.toggle('hecho', inp.value !== '');
+    clearTimeout(timer); timer = setTimeout(guardar, 700);
+  }
+
+  async function guardar() {
+    const lineas = Object.entries(pendientes).map(([id, v]) => ({ insumo_id: Number(id), contado: String(v).trim() === '' ? null : v }));
+    if (!lineas.length || !conteo) return true;
+    pendientes = {};
+    const d = await (await fetch(`/api/conteos/${conteo.id}/capturar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lineas }) })).json();
+    if (!d.ok) { alert(d.msg || 'No se pudo guardar.'); return false; }
+    conteo = d.conteo;
+    const hechos = conteo.lineas.filter(l => l.contado !== null).length;
+    $('barra').style.width = (conteo.lineas.length ? hechos / conteo.lineas.length * 100 : 0) + '%';
+    $('progreso').textContent = `${hechos} de ${conteo.lineas.length} insumos contados · guardado ✓`;
+    return true;
+  }
+
+  async function revisar() {
+    clearTimeout(timer);
+    if (!(await guardar())) return;
+    const contadas = conteo.lineas.filter(l => l.contado !== null);
+    if (!contadas.length) return alert('Todavía no has contado ningún insumo.');
+    const conDif = contadas.filter(l => Math.abs(l.diferencia || 0) > 0.0001).sort((a, b) => Math.abs(b.valor_diferencia || 0) - Math.abs(a.valor_diferencia || 0));
+    $('resumen').innerHTML = `Contaste <b>${contadas.length}</b> de ${conteo.lineas.length}. Lo que no contaste <b>no se toca</b>.<br>
+      Diferencias: <b>${conDif.length}</b> insumo(s), ${dinero(conDif.reduce((a, l) => a + Math.abs(l.valor_diferencia || 0), 0))}.`;
+    $('difs').innerHTML = conDif.slice(0, 40).map(l => `<div class="dif"><span>${esc(l.insumo_nombre)}<br><small style="color:#64748b;">sistema ${l.teorico} → contado ${l.contado} ${esc(l.unidad)}</small></span>
+      <span class="${l.diferencia < 0 ? 'neg' : 'pos'}">${l.diferencia > 0 ? '+' : ''}${l.diferencia} ${esc(l.unidad)}</span></div>`).join('') || '<div class="dif">✓ Todo coincide con el sistema.</div>';
+    $('modal').style.display = 'flex';
+  }
+
+  async function aplicar() {
+    const d = await (await fetch(`/api/conteos/${conteo.id}/aplicar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clave_admin: $('clave').value || '' }) })).json();
+    $('clave').value = '';
+    if (!d.ok) { if (d.requiere_admin) $('clave').focus(); return alert(d.msg || 'No se pudo aplicar.'); }
+    $('modal').style.display = 'none';
+    alert(`✅ Inventario actualizado: ${d.ajustes} ajuste(s).`);
+    conteo = null; cargar();
+  }
+
+  cargar();
+</script>
+</body>
+</html>

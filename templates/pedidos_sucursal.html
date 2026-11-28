@@ -160,6 +160,16 @@
 
 <div class="container">
 
+  <!-- Aviso de stock bajo: lo que se está acabando en esta sucursal y no se ha pedido -->
+  <div id="avisoStockBajo" style="display:none;background:#fff7ed;border:2px solid #fb923c;border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <i class="fa-solid fa-triangle-exclamation" style="color:#ea580c;font-size:20px;"></i>
+      <div style="flex:1;min-width:220px;font-size:13.5px;color:#7c2d12;" id="avisoStockTxt"></div>
+      <button type="button" class="btn sm cobre" onclick="pedirFaltantesUnToque()"><i class="fa-solid fa-truck-fast"></i> Pedir a bodega</button>
+      <a class="btn sm gris" href="/conteo_movil" title="Si el sistema no coincide con lo que hay, cuenta con el celular"><i class="fa-solid fa-mobile-screen"></i> Contar</a>
+    </div>
+  </div>
+
   <!-- TAB 1: HACER PEDIDO A BODEGA -->
   <section id="sec_nuevo" class="panel-sec activo">
     <div class="card">
@@ -424,6 +434,32 @@
     actualizarResumenLote();
     toast('Selección limpiada');
   }
+
+  let faltantesAviso = [];
+  async function revisarStockBajo() {
+    if (document.hidden) return;
+    try {
+      const d = await (await fetch('/api/sucursal/faltantes_sugeridos')).json();
+      faltantesAviso = (d.ok && d.faltantes) || [];
+      if (!faltantesAviso.length) { $('avisoStockBajo').style.display = 'none'; return; }
+      const txt = faltantesAviso.slice(0, 4).map(f => `<b>${esc(f.nombre)}</b>: ${f.agotado ? '<b style="color:#dc2626;">AGOTADO</b>' : `quedan ${f.stock} ${esc(f.unidad)}`}`).join(' · ');
+      $('avisoStockTxt').innerHTML = `Se está acabando (${faltantesAviso.length}): ${txt}${faltantesAviso.length > 4 ? ` y ${faltantesAviso.length - 4} más` : ''}.`;
+      $('avisoStockBajo').style.display = 'block';
+    } catch (e) { /* sin internet: se intenta en la siguiente vuelta */ }
+  }
+
+  async function pedirFaltantesUnToque() {
+    if (!faltantesAviso.length) return;
+    const lista = faltantesAviso.map(f => `• ${f.nombre}: ${f.sugerido} ${f.unidad}`).join('\n');
+    if (!confirm(`¿Pedir a Bodega Central?\n\n${lista}\n\n(Para cambiar cantidades usa «Cargar Faltantes Sugeridos».)`)) return;
+    const items = faltantesAviso.map(f => ({ insumo_id: f.insumo_id, cantidad: f.sugerido, nota: 'Stock bajo' }));
+    const d = await (await fetch('/api/almacen/solicitar_lote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, sucursal: {{ sucursal|tojson }} }) })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo enviar el pedido.');
+    toast(`✅ Pedido enviado a bodega (${items.length} insumos)`);
+    revisarStockBajo();
+  }
+  revisarStockBajo();
+  setInterval(revisarStockBajo, 5 * 60 * 1000);
 
   async function cargarFaltantesSugeridos() {
     try {

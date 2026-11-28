@@ -82,6 +82,22 @@ def vista_almacen_pro():
     return render_template('almacen_pro.html')
 
 
+@operacion_bp.route('/conteo_movil')
+@login_required
+def vista_conteo_movil():
+    """Conteo de inventario desde el celular: grande, a ciegas y guardando cada número al escribirlo."""
+    if current_user.role == 'admin':
+        ubicaciones = ['BODEGA'] + list(SUCURSALES_OFICIALES)
+        volver = '/almacen_pro'
+    elif current_user.role == 'almacen':
+        ubicaciones, volver = ['BODEGA'], '/almacen_pro'
+    elif current_user.role == 'sucursal':
+        ubicaciones, volver = [obtener_sucursal_activa(session)], '/pedidos_sucursal'
+    else:
+        return redirect(url_for('admin_login'))
+    return render_template('conteo_movil.html', ubicaciones=ubicaciones, volver=volver)
+
+
 @operacion_bp.route('/pedidos_sucursal')
 @login_required
 def vista_pedidos_sucursal():
@@ -869,14 +885,28 @@ def api_sucursal_faltantes_sugeridos():
         return jsonify({'ok': False, 'faltantes': []}), 403
     suc = obtener_sucursal_activa(session)
     registros = StockSucursal.query.filter_by(sucursal=suc).all()
-    faltantes = []
+    # Lo que ya se pidió a bodega y no ha llegado cuenta como "en camino": no se vuelve a sugerir.
+    en_camino = {}
+    for rq in RequerimientoBodega.query.filter(RequerimientoBodega.sucursal == suc, RequerimientoBodega.confirmado_caja.is_(False),
+                                               RequerimientoBodega.estado_bodega.in_(('PENDIENTE', 'ENTREGADO'))).all():
+        if rq.insumo_id:
+            en_camino[rq.insumo_id] = en_camino.get(rq.insumo_id, 0.0) + float(rq.cantidad_entregada if rq.cantidad_entregada is not None else rq.cantidad or 0)
+    insumos = {i.id: i for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.id.in_([r.insumo_id for r in registros])).all()} if registros else {}
+    faltantes, ya_pedidos = [], 0
     for st in registros:
         if st.stock_actual <= st.stock_minimo:
-            ins = InsumoBodegaPro.query.get(st.insumo_id)
+            ins = insumos.get(st.insumo_id)
             if ins and ins.activo is not False and 'EXTRA / FUERA DE LISTA' not in ins.nombre:
-                sug = max(1.0, round((st.stock_minimo * 2) - st.stock_actual, 1))
-                faltantes.append({'insumo_id': ins.id, 'nombre': ins.nombre, 'sugerido': sug, 'unidad': ins.unidad})
-    return jsonify({'ok': True, 'sucursal': suc, 'faltantes': faltantes})
+                pedido = round(en_camino.get(ins.id, 0.0), 3)
+                if st.stock_actual + pedido > st.stock_minimo:
+                    ya_pedidos += 1
+                    continue
+                sug = max(1.0, round((st.stock_minimo * 2) - st.stock_actual - pedido, 1))
+                faltantes.append({'insumo_id': ins.id, 'nombre': ins.nombre, 'sugerido': sug, 'unidad': ins.unidad,
+                                  'stock': round(st.stock_actual, 3), 'minimo': round(st.stock_minimo, 3), 'en_camino': pedido,
+                                  'agotado': st.stock_actual <= 0})
+    faltantes.sort(key=lambda f: (not f['agotado'], f['stock'] / f['minimo'] if f['minimo'] else 0))
+    return jsonify({'ok': True, 'sucursal': suc, 'faltantes': faltantes, 'ya_pedidos': ya_pedidos})
 
 
 @operacion_bp.route('/api/stock_sucursal', methods=['GET', 'POST'])
