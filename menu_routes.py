@@ -260,7 +260,7 @@ def api_menu_receta():
     lineas, vistos = [], set()
     for x in (d.get('lineas') or [])[:40]:
         ins = InsumoBodegaPro.query.get(int((x or {}).get('insumo_id') or 0))
-        cant = _num(x.get('cantidad'), maximo=100000.0, decimales=4)   # recetas: 0.018 kg de café
+        cant = _num(x.get('cantidad'), maximo=100000.0, decimales=6)   # recetas: 0.018 kg de café; 0.25 g = 0.00025 kg
         if not ins or cant <= 0:
             return jsonify({'ok': False, 'msg': 'Cada renglón necesita un insumo y una cantidad mayor a 0.'}), 400
         if ins.id in vistos:

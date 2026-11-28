@@ -166,11 +166,11 @@
           <div class="card" id="cardReceta">
             <h3><i class="fa-solid fa-scale-balanced"></i> Receta <small>(lo que se descuenta del stock de la sucursal cada vez que se cobra uno)</small></h3>
             <div class="resumen-pasos" id="resumenReceta"></div>
-            <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:80px;">Unidad</th><th style="width:100px;text-align:right;">Costo</th><th style="width:44px;"></th></tr></thead>
+            <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:90px;">Unidad</th><th style="width:100px;text-align:right;">Costo</th><th style="width:44px;"></th></tr></thead>
               <tbody id="tbodyReceta"></tbody></table>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;">
               <button type="button" class="btn gris" onclick="agregarRenglonReceta()"><i class="fa-solid fa-plus"></i> Agregar insumo</button>
-              <small style="color:#64748b;">La cantidad va en la unidad del insumo: 18 g de café = <b>0.018</b> si el café está en KG.</small>
+              <small style="color:#64748b;">Si el insumo está en KG o LT, escribe en <b>gramos</b> o <b>mililitros</b> (18 g de café = 18): el sistema lo convierte solo.</small>
               <button type="button" class="btn verde" style="margin-left:auto;" onclick="guardarReceta()"><i class="fa-solid fa-floppy-disk"></i> Guardar receta</button>
             </div>
           </div>
@@ -226,7 +226,7 @@
   <div class="card" style="width:640px;max-width:96vw;margin:0;">
     <h3><i class="fa-solid fa-scale-balanced"></i> Receta de <span id="tituloRecetaMod"></span></h3>
     <p style="font-size:12.5px;color:#64748b;margin:0 0 8px;">Lo que se descuenta cuando se cobra esta opción (ej. LECHE DE AVENA: 0.25 LT de leche de avena).</p>
-    <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:80px;">Unidad</th><th style="width:44px;"></th></tr></thead><tbody id="tbodyRecetaMod"></tbody></table>
+    <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:90px;">Unidad</th><th style="width:44px;"></th></tr></thead><tbody id="tbodyRecetaMod"></tbody></table>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button type="button" class="btn gris" onclick="recetaModEd.push({insumo_id:0,insumo:'',unidad:'',cantidad:''});pintarRecetaMod()"><i class="fa-solid fa-plus"></i> Agregar insumo</button>
       <button type="button" class="btn verde" style="margin-left:auto;" onclick="guardarRecetaMod()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
@@ -422,13 +422,30 @@
   const insumoPorNombre = n => (D.insumos || []).find(i => i.nombre.toLowerCase() === String(n || '').trim().toLowerCase());
   const insumoPorId = id => (D.insumos || []).find(i => i.id === Number(id));
 
+  // Se captura en g / ml aunque el insumo esté en KG / LT (18 g → se guarda 0.018 KG). Se guarda siempre en la unidad del insumo.
+  const UNIDAD_CHICA = { KG: 'G', LT: 'ML' };
+  function capturaDe(x, ins) {
+    const u = ins ? String(ins.unidad || '').toUpperCase() : '';
+    if (!UNIDAD_CHICA[u]) return { u, f: 1, opciones: null };
+    if (!x.cap) x.cap = UNIDAD_CHICA[u];
+    return { u: x.cap, f: x.cap === u ? 1 : 1000, opciones: [UNIDAD_CHICA[u], u] };
+  }
+  function cambiarCaptura(lista, i, cap, repintar) {
+    const arr = lista === 'recetaEd' ? recetaEd : recetaModEd; arr[i].cap = cap;
+    (repintar === 'pintarReceta' ? pintarReceta : pintarRecetaMod)();
+  }
   function filaReceta(x, i, lista, repintar, conCosto) {
     const ins = insumoPorId(x.insumo_id);
     const costo = ins ? ins.costo_unitario * Number(x.cantidad || 0) : 0;
+    const c = capturaDe(x, ins);
+    const vista = x.cantidad === '' || x.cantidad == null ? '' : +(Number(x.cantidad) * c.f).toFixed(4);
+    const unidadHtml = c.opciones
+      ? `<select class="inp" onchange="cambiarCaptura('${lista}', ${i}, this.value, '${repintar}')">${c.opciones.map(o => `<option ${o === c.u ? 'selected' : ''}>${o}</option>`).join('')}</select>`
+      : `<b>${esc(ins ? ins.unidad : '')}</b>`;
     return `<tr>
       <td><input class="inp" list="dlInsumos" value="${esc(x.insumo)}" placeholder="Escribe para buscar..." onchange="elegirInsumoReceta('${lista}', ${i}, this.value, '${repintar}')"></td>
-      <td><input class="inp" type="number" step="0.001" min="0" value="${x.cantidad}" oninput="${lista}[${i}].cantidad=this.value; ${conCosto ? 'resumenReceta()' : ''}"></td>
-      <td><b>${esc(ins ? ins.unidad : '')}</b></td>
+      <td><input class="inp" type="number" step="any" min="0" value="${vista}" oninput="${lista}[${i}].cantidad = this.value === '' ? '' : Number(this.value) / ${c.f}; ${conCosto ? 'resumenReceta()' : ''}"></td>
+      <td>${unidadHtml}</td>
       ${conCosto ? `<td style="text-align:right;">${ins && ins.costo_unitario ? dinero(costo) : '<small style="color:#b45309;">sin costo</small>'}</td>` : ''}
       <td><button type="button" class="btn rojo sm" onclick="${lista}.splice(${i},1); ${repintar}()"><i class="fa-solid fa-xmark"></i></button></td></tr>`;
   }
@@ -437,7 +454,7 @@
     const arr = lista === 'recetaEd' ? recetaEd : recetaModEd;
     const ins = insumoPorNombre(nombre);
     if (!ins) { toast('Elige un insumo de la lista.', true); arr[i].insumo_id = 0; arr[i].insumo = nombre; return; }
-    Object.assign(arr[i], { insumo_id: ins.id, insumo: ins.nombre, unidad: ins.unidad });
+    Object.assign(arr[i], { insumo_id: ins.id, insumo: ins.nombre, unidad: ins.unidad, cap: undefined });
     (repintar === 'pintarReceta' ? pintarReceta : pintarRecetaMod)();
   }
 

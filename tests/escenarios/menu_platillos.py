@@ -123,3 +123,28 @@ with app.app_context():
     check(_leche is not None and abs(_leche.stock_actual - (0.1 - 0.5)) < 0.0001,
           f'la leche queda en negativo si se vendió más de lo registrado ({_leche and _leche.stock_actual})')
 check('NEGATIVO: falta registrar entrada' in admin.get('/pedidos_sucursal').get_data(as_text=True), 'Mi stock avisa cuando queda en negativo')
+
+# ---------- Corregir insumo: unidad con conversión (KG→G) y sin conversión (PZA→ML) ----------
+r = admin.put('/api/almacen/insumo', json={'id': _CAFE, 'nombre': 'Cafe Grano Receta', 'unidad': 'G', 'convertir': True,
+                                           'categoria': 'BARRA | Insumos'}, headers=_T)
+check(r.status_code == 200 and r.json['unidad'] == 'G', f'corregir insumo de KG a G ({r.get_data(as_text=True)[:100]})')
+with app.app_context():
+    _i = _InM.query.get(_CAFE)
+    _rc = _ReM.query.filter_by(platillo_nombre='CAFE RECETA PRUEBA', insumo_id=_CAFE).first()
+    _sc = _StM.query.filter_by(sucursal=_suc, insumo_id=_CAFE).first()
+    check(abs(_i.stock_actual - 10000) < 0.01 and abs(_i.costo_unitario - 0.3) < 1e-6 and abs(_rc.cantidad_descontar - 18) < 1e-6
+          and abs(_sc.stock_actual - (-36)) < 1e-6 and _i.nombre == 'CAFE GRANO RECETA',
+          f'KG→G convierte stock (10 kg = 10000 g), costo ($300/kg = $0.30/g), receta (0.018 → 18) y stock de sucursal ({_i.stock_actual}, {_i.costo_unitario}, {_rc.cantidad_descontar}, {_sc.stock_actual})')
+r = admin.put('/api/almacen/insumo', json={'id': _LECHE, 'unidad': 'ml', 'convertir': True}, headers=_T)
+with app.app_context():
+    check(_InM.query.get(_LECHE).unidad == 'ML' and abs(_InM.query.get(_LECHE).stock_actual - 10000) < 0.01, 'LT→ML con conversión (10 lt = 10000 ml)')
+_pz = _InM(nombre='JARABE PZ PRUEBA', categoria='GENERAL', unidad='pz1', stock_actual=3, costo_unitario=10, activo=True)
+with app.app_context():
+    db.session.add(_pz); db.session.commit(); _PZ = _pz.id
+r = admin.put('/api/almacen/insumo', json={'id': _PZ, 'unidad': 'ML'}, headers=_T)
+with app.app_context():
+    _p = _InM.query.get(_PZ)
+    check(_p.unidad == 'ML' and _p.stock_actual == 3, 'PZA→ML solo corrige el nombre de la unidad (no inventa conversión)')
+check(admin.put('/api/almacen/insumo', json={'id': _PZ, 'nombre': 'leche receta'}, headers=_T).status_code == 400, 'no deja dos insumos con el mismo nombre')
+check(clientes['brayan'].put('/api/almacen/insumo', json={'id': _PZ, 'unidad': 'KG'}, headers={'X-CSRFToken': token_de(clientes['brayan'].get('/pos').get_data(as_text=True))}).status_code == 403,
+      'la caja no puede editar insumos')

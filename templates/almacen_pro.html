@@ -212,7 +212,7 @@
             <option value="COCINA | Desechables">COCINA | Desechables</option>
             <option value="COCINA | Otros">COCINA | Otros</option>
           </select>
-          <input type="text" id="ins_unidad" class="inp" placeholder="Unidad (kg/lt/pz)" value="pz">
+          <select id="ins_unidad" class="inp" title="Unidad en que se cuenta en bodega"><option value="KG">KG · kilos (recomendado sólidos)</option><option value="LT">LT · litros (recomendado líquidos)</option><option value="PZA">PZA · piezas</option><option value="G">G · gramos</option><option value="ML">ML · mililitros</option><option value="PQTE">PQTE · paquete</option><option value="CAJA">CAJA</option><option value="BOLSA">BOLSA</option></select>
           <input type="number" step="0.1" id="ins_stock" class="inp" placeholder="Stock inicial" value="0">
           <input type="number" step="0.1" id="ins_minimo" class="inp" placeholder="Stock mínimo" value="2">
           <button type="button" class="btn" onclick="crearInsumo()">+ Crear Insumo</button>
@@ -497,6 +497,7 @@
         <td><span class="pill ${agot ? 'err' : (bajo ? 'warn' : 'ok')}">${agot ? 'AGOTADO' : (bajo ? 'BAJO' : 'OK')}</span></td>
         <td style="display:flex;gap:4px;">
           <button type="button" class="btn sm wa" onclick="irEntradaRapida(${i.id})">+ Surtir</button>
+          <button type="button" class="btn sm gris" title="Corregir nombre, categoría o unidad" onclick="abrirEditarInsumo(${Number(i.id)})">✏️</button>
           <button type="button" class="btn sm rojo" onclick="borrarInsumo(${Number(i.id)})">✕</button>
         </td>
       </tr>`;
@@ -517,13 +518,48 @@
     const res = await fetch('/api/almacen/insumo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nombre, categoria: $('ins_categoria').value, unidad: $('ins_unidad').value || 'pz',
+        nombre, categoria: $('ins_categoria').value, unidad: $('ins_unidad').value || 'PZA',
         stock_actual: parseFloat($('ins_stock').value || 0),
         stock_minimo: parseFloat($('ins_minimo').value || 2)
       })
     });
     const d = await res.json();
     if (d.ok) { $('ins_nombre').value = ''; toast('✓ Insumo agregado'); cargarDatosAlmacen(); }
+  }
+
+  // ---------- Editar insumo (corregir nombre, categoría, unidad, mínimo y costo) ----------
+  const CONVIERTE = { 'KG>G': 1000, 'G>KG': 0.001, 'LT>ML': 1000, 'ML>LT': 0.001 };
+  let insEditId = null;
+  function abrirEditarInsumo(id) {
+    const i = cacheInsumos.find(x => x.id === id);
+    if (!i) return;
+    insEditId = id;
+    $('ed_nombre').value = i.nombre;
+    const cat = $('ed_categoria');
+    if (![...cat.options].some(o => o.value === i.categoria)) cat.add(new Option(i.categoria, i.categoria));
+    cat.value = i.categoria;
+    const u = (i.unidad || '').toUpperCase();
+    $('ed_unidad').dataset.antes = [...$('ed_unidad').options].some(o => o.value === u) ? u : 'PZA';
+    $('ed_unidad').value = $('ed_unidad').dataset.antes;
+    $('ed_minimo').value = i.stock_minimo;
+    $('ed_costo').value = i.costo_unitario || 0;
+    $('ed_unidad_antes').textContent = i.unidad || '—';
+    avisoUnidadEdit();
+    $('modalEditarInsumo').style.display = 'flex';
+  }
+  function avisoUnidadEdit() {
+    const antes = $('ed_unidad').dataset.antes, nueva = $('ed_unidad').value, f = CONVIERTE[antes + '>' + nueva];
+    $('ed_conv_box').style.display = f ? 'block' : 'none';
+    $('ed_conv_txt').textContent = f ? `1 ${antes} = ${f >= 1 ? f : 1 / f} ${f >= 1 ? nueva : ''}`.trim() : '';
+    $('ed_aviso').textContent = (!f && antes !== nueva) ? 'Solo se cambia el nombre de la unidad: las cantidades quedan igual (úsalo si te equivocaste al darlo de alta).' : '';
+  }
+  async function guardarEditarInsumo() {
+    const body = { id: insEditId, nombre: $('ed_nombre').value.trim(), categoria: $('ed_categoria').value, unidad: $('ed_unidad').value,
+                   stock_minimo: $('ed_minimo').value, costo_unitario: $('ed_costo').value, convertir: $('ed_convertir').checked };
+    const d = await (await fetch('/api/almacen/insumo', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+    if (!d.ok) return alert(d.msg || 'No se pudo guardar.');
+    $('modalEditarInsumo').style.display = 'none';
+    toast('✓ Insumo corregido'); cargarDatosAlmacen();
   }
 
   // Los botones solo pasan el id: el nombre se toma del caché (meter nombres en onclick permitía inyectar JS).
@@ -723,5 +759,42 @@
     }, 20000);
   });
 </script>
+
+<div id="modalEditarInsumo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:950;align-items:center;justify-content:center;padding:14px;">
+  <div class="card" style="max-width:440px;width:100%;margin:0;">
+    <h3 style="margin:0 0 10px;color:var(--verde);">✏️ Corregir insumo</h3>
+    <label style="font-size:12px;font-weight:700;">Nombre</label>
+    <input type="text" id="ed_nombre" class="inp" style="width:100%;margin-bottom:8px;">
+    <label style="font-size:12px;font-weight:700;">Categoría</label>
+    <select id="ed_categoria" class="inp" style="width:100%;margin-bottom:8px;">
+            <option value="BARRA | Insumos">BARRA | Insumos</option>
+            <option value="BARRA | Frutas y verduras">BARRA | Frutas y verduras</option>
+            <option value="BARRA | Refrescos y leche">BARRA | Refrescos y leche</option>
+            <option value="BARRA | Desechables">BARRA | Desechables</option>
+            <option value="BARRA | Postres">BARRA | Postres</option>
+            <option value="BARRA | Otros">BARRA | Otros</option>
+            <option value="COCINA | Frutas y verduras">COCINA | Frutas y verduras</option>
+            <option value="COCINA | Aderezos y más">COCINA | Aderezos y más</option>
+            <option value="COCINA | Embutidos y más">COCINA | Embutidos y más</option>
+            <option value="COCINA | Preparados">COCINA | Preparados</option>
+            <option value="COCINA | Desechables">COCINA | Desechables</option>
+            <option value="COCINA | Otros">COCINA | Otros</option>
+          </select>
+    <label style="font-size:12px;font-weight:700;">Unidad (antes: <span id="ed_unidad_antes"></span>)</label>
+    <select id="ed_unidad" class="inp" style="width:100%;" onchange="avisoUnidadEdit()"><option value="KG">KG · kilos (recomendado sólidos)</option><option value="LT">LT · litros (recomendado líquidos)</option><option value="PZA">PZA · piezas</option><option value="G">G · gramos</option><option value="ML">ML · mililitros</option><option value="PQTE">PQTE · paquete</option><option value="CAJA">CAJA</option><option value="BOLSA">BOLSA</option></select>
+    <div id="ed_conv_box" style="display:none;margin:6px 0;padding:8px;border-radius:8px;background:#f0fdf4;font-size:12.5px;">
+      <label><input type="checkbox" id="ed_convertir" checked> Convertir stock, recetas y pedidos (<span id="ed_conv_txt"></span>)</label>
+    </div>
+    <div id="ed_aviso" style="font-size:12px;color:#9a3412;margin:4px 0 8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;"><label style="font-size:12px;font-weight:700;">Stock mínimo</label><input type="number" step="0.01" id="ed_minimo" class="inp" style="width:100%;"></div>
+      <div style="flex:1;"><label style="font-size:12px;font-weight:700;">Costo por unidad $</label><input type="number" step="0.01" id="ed_costo" class="inp" style="width:100%;"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button type="button" class="btn gris" onclick="$('modalEditarInsumo').style.display='none'">Cancelar</button>
+      <button type="button" class="btn" onclick="guardarEditarInsumo()">Guardar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

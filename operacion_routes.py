@@ -14,7 +14,7 @@ from models import (
     db, ahora_local, inicio_hoy_local, SUCURSALES_OFICIALES,
     obtener_sucursal_activa, registrar_bitacora, sumar_stock_sucursal,
     Producto, ModificadorPOS, CuentaPOS, DetallePOS, BitacoraPOS, ArqueoTurnoPOS,
-    InsumoBodegaPro, StockSucursal, RecetaPOS, RequerimientoBodega,
+    InsumoBodegaPro, StockSucursal, RecetaPOS, RequerimientoBodega, RecetaElaborado,
     MovimientoAlmacen, ProveedorAlmacen, RegistroAsistencia, RegistroMerma,
     EmpleadoNominaPOS, ConsumoEmpleadoPOS, ReciboNominaPOS, MovimientoProveedorPOS,
     ClienteCredito, MovimientoCredito, TurnoPOS, MovimientoCajaPOS,
@@ -649,19 +649,95 @@ def api_almacen_confirmar_caja():
     return jsonify({'ok': True})
 
 
-@operacion_bp.route('/api/almacen/insumo', methods=['POST', 'DELETE'])
+# Unidades del catálogo. Recomendado: KG, LT o PZA (las recetas se capturan en g/ml y se convierten solas).
+UNIDADES_INSUMO = ('KG', 'G', 'LT', 'ML', 'PZA', 'PQTE', 'CAJA', 'BOLSA')
+_ALIAS_UNIDAD = {'PZ': 'PZA', 'PZS': 'PZA', 'PIEZA': 'PZA', 'PIEZAS': 'PZA', 'PZ1': 'PZA', 'L': 'LT', 'LTS': 'LT',
+                 'LITRO': 'LT', 'LITROS': 'LT', 'KGS': 'KG', 'KILO': 'KG', 'KILOS': 'KG', 'GR': 'G', 'GRS': 'G',
+                 'GRAMO': 'G', 'GRAMOS': 'G', 'MLS': 'ML', 'MILILITROS': 'ML', 'PAQUETE': 'PQTE', 'PAQ': 'PQTE'}
+# Cambiar entre estas unidades convierte las cantidades (1 KG = 1000 G; 1 LT = 1000 ML).
+_FACTOR_UNIDAD = {('KG', 'G'): 1000.0, ('G', 'KG'): 0.001, ('LT', 'ML'): 1000.0, ('ML', 'LT'): 0.001}
+
+
+def normalizar_unidad(txt):
+    u = str(txt or '').strip().upper().rstrip('.')
+    u = _ALIAS_UNIDAD.get(u, u)
+    return u if u in UNIDADES_INSUMO else 'PZA'
+
+
+def _editar_insumo(ins, data):
+    """Corrige nombre, categoría, unidad, mínimo y costo. Si la unidad cambia entre KG/G o LT/ML y se pide convertir,
+    se convierten stock (bodega y sucursales), mínimos, costo, recetas, presentaciones y pedidos sin entregar."""
+    nom = str(data.get('nombre', ins.nombre)).strip().upper()
+    if not nom:
+        return 'El nombre no puede quedar vacío.'
+    otro = InsumoBodegaPro.query.filter(db.func.upper(InsumoBodegaPro.nombre) == nom, InsumoBodegaPro.id != ins.id,
+                                        InsumoBodegaPro.activo.is_(True)).first()
+    if otro:
+        return f'Ya existe otro insumo llamado {nom}.'
+    antes = normalizar_unidad(ins.unidad)
+    nueva = normalizar_unidad(data.get('unidad', ins.unidad))
+    f = _FACTOR_UNIDAD.get((antes, nueva)) if data.get('convertir', True) else None
+    cambios = []
+    if f:
+        ins.stock_actual = round(float(ins.stock_actual or 0) * f, 4)
+        ins.stock_minimo = round(float(ins.stock_minimo or 0) * f, 4)
+        ins.costo_unitario = round(float(ins.costo_unitario or 0) / f, 6)
+        for st in StockSucursal.query.filter_by(insumo_id=ins.id).all():
+            st.stock_actual = round(float(st.stock_actual or 0) * f, 4)
+            st.stock_minimo = round(float(st.stock_minimo or 0) * f, 4)
+        for r in RecetaPOS.query.filter_by(insumo_id=ins.id).all():
+            r.cantidad_descontar = round(float(r.cantidad_descontar) * f, 6)
+        for r in RecetaElaborado.query.filter_by(insumo_id=ins.id).all():
+            r.cantidad = round(float(r.cantidad) * f, 6)
+        for p in PresentacionInsumo.query.filter_by(insumo_id=ins.id).all():
+            p.factor = round(float(p.factor) * f, 6)
+        for rq in RequerimientoBodega.query.filter_by(insumo_id=ins.id, confirmado_caja=False).all():
+            rq.cantidad = round(float(rq.cantidad or 0) * f, 4)
+            if rq.cantidad_entregada is not None:
+                rq.cantidad_entregada = round(float(rq.cantidad_entregada) * f, 4)
+        cambios.append(f'{antes}→{nueva} (cantidades convertidas x{f:g})')
+    elif nueva != antes:
+        cambios.append(f'unidad {antes}→{nueva} (solo el nombre de la unidad)')
+    if nom != ins.nombre:
+        for rq in RequerimientoBodega.query.filter_by(insumo_id=ins.id, confirmado_caja=False).all():
+            rq.insumo_nombre = nom
+        cambios.append(f'nombre {ins.nombre}→{nom}')
+    ins.nombre, ins.unidad = nom, nueva
+    for rq in RequerimientoBodega.query.filter_by(insumo_id=ins.id, confirmado_caja=False).all():
+        rq.unidad = nueva
+    cat = str(data.get('categoria', ins.categoria)).strip()
+    if cat and cat != ins.categoria:
+        cambios.append(f'categoría {ins.categoria}→{cat}')
+        ins.categoria = cat
+    if data.get('stock_minimo') not in (None, '') and not f:
+        ins.stock_minimo = _num(data['stock_minimo'])
+    if data.get('costo_unitario') not in (None, '') and not f:
+        ins.costo_unitario = _num(data['costo_unitario'], maximo=1_000_000.0)
+    db.session.commit()
+    registrar_bitacora('EDITAR_INSUMO', nom, 0.0, '; '.join(cambios) or 'sin cambios')
+    return None
+
+
+@operacion_bp.route('/api/almacen/insumo', methods=['POST', 'PUT', 'DELETE'])
 @login_required
 def api_almacen_insumo():
     if current_user.role not in ['admin', 'almacen']:
         return jsonify({'ok': False, 'msg': 'Acceso denegado'}), 403
     data = request.json or {}
+    if request.method == 'PUT':
+        ins = InsumoBodegaPro.query.filter_by(id=int(data['id'])).with_for_update().first_or_404()
+        error = _editar_insumo(ins, data)
+        if error:
+            db.session.rollback()
+            return jsonify({'ok': False, 'msg': error}), 400
+        return jsonify({'ok': True, 'unidad': ins.unidad, 'stock_actual': ins.stock_actual})
     if request.method == 'POST':
         nom = str(data.get('nombre', '')).strip()
         if not nom:
             return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
         db.session.add(InsumoBodegaPro(
             nombre=nom, categoria=str(data.get('categoria', 'BARRA | Otros')).strip(),
-            unidad=str(data.get('unidad', 'pz')).strip(),
+            unidad=normalizar_unidad(data.get('unidad', 'PZA')),
             stock_actual=_num(data.get('stock_actual', 0)),
             stock_minimo=_num(data.get('stock_minimo', 2)),
             costo_unitario=_num(data.get('costo_unitario', 0)), activo=True
