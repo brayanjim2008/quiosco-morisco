@@ -162,6 +162,19 @@
           </div>
 
           <!-- C. PRECIO POR SUCURSAL -->
+          <!-- D. RECETA -->
+          <div class="card" id="cardReceta">
+            <h3><i class="fa-solid fa-scale-balanced"></i> Receta <small>(lo que se descuenta del stock de la sucursal cada vez que se cobra uno)</small></h3>
+            <div class="resumen-pasos" id="resumenReceta"></div>
+            <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:80px;">Unidad</th><th style="width:100px;text-align:right;">Costo</th><th style="width:44px;"></th></tr></thead>
+              <tbody id="tbodyReceta"></tbody></table>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;">
+              <button type="button" class="btn gris" onclick="agregarRenglonReceta()"><i class="fa-solid fa-plus"></i> Agregar insumo</button>
+              <small style="color:#64748b;">La cantidad va en la unidad del insumo: 18 g de café = <b>0.018</b> si el café está en KG.</small>
+              <button type="button" class="btn verde" style="margin-left:auto;" onclick="guardarReceta()"><i class="fa-solid fa-floppy-disk"></i> Guardar receta</button>
+            </div>
+          </div>
+
           <div class="card" id="cardPrecios">
             <h3><i class="fa-solid fa-store"></i> Precio por sucursal <small>(vacío = precio general; se guarda solo al cambiarlo)</small></h3>
             <table><thead><tr><th>Sucursal</th><th style="width:150px;">Precio aquí</th><th style="width:120px;text-align:center;">Se vende aquí</th></tr></thead><tbody id="tbodyPrecios"></tbody></table>
@@ -208,6 +221,19 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<datalist id="dlInsumos"></datalist>
+<div id="modalRecetaMod" style="display:none;position:fixed;inset:0;background:rgba(11,41,36,.6);z-index:800;align-items:center;justify-content:center;padding:14px;">
+  <div class="card" style="width:640px;max-width:96vw;margin:0;">
+    <h3><i class="fa-solid fa-scale-balanced"></i> Receta de <span id="tituloRecetaMod"></span></h3>
+    <p style="font-size:12.5px;color:#64748b;margin:0 0 8px;">Lo que se descuenta cuando se cobra esta opción (ej. LECHE DE AVENA: 0.25 LT de leche de avena).</p>
+    <table><thead><tr><th>Insumo</th><th style="width:130px;">Cantidad</th><th style="width:80px;">Unidad</th><th style="width:44px;"></th></tr></thead><tbody id="tbodyRecetaMod"></tbody></table>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" class="btn gris" onclick="recetaModEd.push({insumo_id:0,insumo:'',unidad:'',cantidad:''});pintarRecetaMod()"><i class="fa-solid fa-plus"></i> Agregar insumo</button>
+      <button type="button" class="btn verde" style="margin-left:auto;" onclick="guardarRecetaMod()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <button type="button" class="btn gris" onclick="$('modalRecetaMod').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <script>
   const ICONOS = {{ iconos|tojson }};
@@ -232,7 +258,9 @@
     D = d;
     const opts = D.categorias.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('');
     const filtro = $('filtroCat').value;
-    $('filtroCat').innerHTML = '<option value="">Todas las categorías</option>' + opts; $('filtroCat').value = filtro;
+    const sinReceta = D.platillos.filter(p => !p.receta.length).length;
+    $('filtroCat').innerHTML = '<option value="">Todas las categorías</option>' + (sinReceta ? `<option value="__sinreceta">⚠️ Sin receta (${sinReceta})</option>` : '') + opts; $('filtroCat').value = filtro;
+    $('dlInsumos').innerHTML = (D.insumos || []).map(i => `<option value="${esc(i.nombre)}">${esc(i.unidad)}</option>`).join('');
     $('p_categoria').innerHTML = opts;
     const grupos = Object.keys(D.grupos).sort();
     $('nuevoPasoGrupo').innerHTML = grupos.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
@@ -256,13 +284,14 @@
 
   function pintarLista() {
     const q = $('buscar').value.trim().toLowerCase(), cat = $('filtroCat').value;
-    const lista = D.platillos.filter(p => (!cat || p.categoria === cat) && (!q || p.nombre.toLowerCase().includes(q)));
+    const lista = D.platillos.filter(p => (cat === '__sinreceta' ? !p.receta.length : (!cat || p.categoria === cat)) && (!q || p.nombre.toLowerCase().includes(q)));
     let html = '', ultima = null;
     lista.forEach(p => {
       if (p.categoria !== ultima) { html += `<div class="cat-sep">${esc(p.categoria)}</div>`; ultima = p.categoria; }
       const badges = [p.agotado ? '<span class="pill rojo">Agotado</span>' : '',
         p.area === 'BARRA' ? '<span class="pill azul">☕ Barra</span>' : (p.area === 'COCINA' ? '<span class="pill cafe">🍳 Cocina</span>' : ''),
-        p.pasos.length ? `<span class="pill azul">${p.pasos.length} pregunta${p.pasos.length > 1 ? 's' : ''}</span>` : ''].join(' ');
+        p.pasos.length ? `<span class="pill azul">${p.pasos.length} pregunta${p.pasos.length > 1 ? 's' : ''}</span>` : '',
+        p.receta.length ? '' : '<span class="pill cafe">Sin receta</span>'].join(' ');
       html += `<div class="item${p.id === selId ? ' sel' : ''}" onclick="abrirPlatillo(${p.id})">
         ${p.imagen_url ? `<img src="${esc(p.imagen_url)}" alt="" loading="lazy">` : `<div class="ph">${iconoDe(p.categoria)}</div>`}
         <div><div class="nom">${esc(p.nombre)}</div><div class="sub">${badges}</div></div>
@@ -290,7 +319,7 @@
     if ($('filtroCat').value) $('p_categoria').value = $('filtroCat').value;
     $('p_destacado').checked = false; $('p_agotado').checked = false; $('p_foto').value = ''; $('p_quitar_foto').checked = false;
     $('lblQuitarFoto').style.display = 'none'; mostrarFoto('', '🍽️'); elegirArea('');
-    $('btnEliminar').style.display = 'none'; $('cardPasos').style.display = 'none'; $('cardPrecios').style.display = 'none';
+    $('btnEliminar').style.display = 'none'; $('cardPasos').style.display = 'none'; $('cardPrecios').style.display = 'none'; $('cardReceta').style.display = 'none';
     $('p_nombre').focus();
   }
 
@@ -304,8 +333,9 @@
     $('p_destacado').checked = p.destacado; $('p_agotado').checked = p.agotado; $('p_foto').value = ''; $('p_quitar_foto').checked = false;
     $('lblQuitarFoto').style.display = p.imagen_url ? 'block' : 'none'; mostrarFoto(p.imagen_url, iconoDe(p.categoria));
     elegirArea(p.area || '');
-    $('btnEliminar').style.display = ''; $('cardPasos').style.display = ''; $('cardPrecios').style.display = '';
+    $('btnEliminar').style.display = ''; $('cardPasos').style.display = ''; $('cardPrecios').style.display = ''; $('cardReceta').style.display = '';
     pasosEd = p.pasos.map(x => Object.assign({}, x)); pintarPasos(); pintarPrecios(p);
+    $('cardReceta').style.display = ''; recetaEd = p.receta.map(x => Object.assign({}, x)); pintarReceta();
     if (!sinScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -387,6 +417,80 @@
     toast('✓ Preguntas guardadas'); cargar();
   }
 
+  // ---------------- RECETA ----------------
+  let recetaEd = [], recetaModEd = [], recetaModId = null;
+  const insumoPorNombre = n => (D.insumos || []).find(i => i.nombre.toLowerCase() === String(n || '').trim().toLowerCase());
+  const insumoPorId = id => (D.insumos || []).find(i => i.id === Number(id));
+
+  function filaReceta(x, i, lista, repintar, conCosto) {
+    const ins = insumoPorId(x.insumo_id);
+    const costo = ins ? ins.costo_unitario * Number(x.cantidad || 0) : 0;
+    return `<tr>
+      <td><input class="inp" list="dlInsumos" value="${esc(x.insumo)}" placeholder="Escribe para buscar..." onchange="elegirInsumoReceta('${lista}', ${i}, this.value, '${repintar}')"></td>
+      <td><input class="inp" type="number" step="0.001" min="0" value="${x.cantidad}" oninput="${lista}[${i}].cantidad=this.value; ${conCosto ? 'resumenReceta()' : ''}"></td>
+      <td><b>${esc(ins ? ins.unidad : '')}</b></td>
+      ${conCosto ? `<td style="text-align:right;">${ins && ins.costo_unitario ? dinero(costo) : '<small style="color:#b45309;">sin costo</small>'}</td>` : ''}
+      <td><button type="button" class="btn rojo sm" onclick="${lista}.splice(${i},1); ${repintar}()"><i class="fa-solid fa-xmark"></i></button></td></tr>`;
+  }
+
+  function elegirInsumoReceta(lista, i, nombre, repintar) {
+    const arr = lista === 'recetaEd' ? recetaEd : recetaModEd;
+    const ins = insumoPorNombre(nombre);
+    if (!ins) { toast('Elige un insumo de la lista.', true); arr[i].insumo_id = 0; arr[i].insumo = nombre; return; }
+    Object.assign(arr[i], { insumo_id: ins.id, insumo: ins.nombre, unidad: ins.unidad });
+    (repintar === 'pintarReceta' ? pintarReceta : pintarRecetaMod)();
+  }
+
+  function pintarReceta() {
+    $('tbodyReceta').innerHTML = recetaEd.map((x, i) => filaReceta(x, i, 'recetaEd', 'pintarReceta', true)).join('')
+      || '<tr><td colspan="5" style="text-align:center;color:#b45309;padding:12px;">Sin receta: al venderlo no se descuenta nada del stock ni se sabe cuánto cuesta.</td></tr>';
+    resumenReceta();
+  }
+
+  function resumenReceta() {
+    const p = D.platillos.find(x => x.id === selId); if (!p) return;
+    const costo = recetaEd.reduce((a, x) => { const ins = insumoPorId(x.insumo_id); return a + (ins ? ins.costo_unitario * Number(x.cantidad || 0) : 0); }, 0);
+    const sinIva = p.precio / 1.16, margen = sinIva > 0 ? (sinIva - costo) / sinIva * 100 : 0;
+    $('resumenReceta').innerHTML = recetaEd.length
+      ? `<b>Costo:</b> ${dinero(costo)} · <b>Precio sin IVA:</b> ${dinero(sinIva)} · <b>Ganancia:</b> ${dinero(sinIva - costo)} (${margen.toFixed(0)}%)`
+      : '<b>Agrega los insumos que gasta un(a) ' + esc(p.nombre) + '.</b>';
+  }
+
+  function agregarRenglonReceta() { recetaEd.push({ insumo_id: 0, insumo: '', unidad: '', cantidad: '' }); pintarReceta(); }
+
+  function lineasValidas(arr) {
+    const malas = arr.filter(x => !x.insumo_id || !(Number(x.cantidad) > 0));
+    if (malas.length) { toast('Cada renglón necesita un insumo de la lista y una cantidad mayor a 0.', true); return null; }
+    return arr.map(x => ({ insumo_id: x.insumo_id, cantidad: Number(x.cantidad) }));
+  }
+
+  async function guardarReceta() {
+    const lineas = lineasValidas(recetaEd); if (!lineas || !selId) return;
+    const d = await (await fetch('/api/menu/receta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ producto_id: selId, lineas }) })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    toast('✓ Receta guardada: desde ahora se descuenta al vender'); cargar();
+  }
+
+  function abrirRecetaMod(id) {
+    const g = Object.keys(D.grupos).find(k => D.grupos[k].some(m => m.id === id));
+    const m = D.grupos[g].find(x => x.id === id);
+    recetaModId = id; recetaModEd = (m.receta || []).map(x => Object.assign({}, x));
+    $('tituloRecetaMod').innerText = `${m.nombre} (${g})`;
+    pintarRecetaMod(); $('modalRecetaMod').style.display = 'flex';
+  }
+
+  function pintarRecetaMod() {
+    $('tbodyRecetaMod').innerHTML = recetaModEd.map((x, i) => filaReceta(x, i, 'recetaModEd', 'pintarRecetaMod', false)).join('')
+      || '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:12px;">Sin receta (no descuenta nada).</td></tr>';
+  }
+
+  async function guardarRecetaMod() {
+    const lineas = lineasValidas(recetaModEd); if (!lineas) return;
+    const d = await (await fetch('/api/menu/receta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modificador_id: recetaModId, lineas }) })).json();
+    if (!d.ok) return toast(d.msg || 'No se pudo guardar.', true);
+    $('modalRecetaMod').style.display = 'none'; toast('✓ Receta guardada'); cargar();
+  }
+
   // ---------------- PRECIO POR SUCURSAL ----------------
   function pintarPrecios(p) {
     $('tbodyPrecios').innerHTML = D.sucursales.map((s, i) => {
@@ -462,13 +566,14 @@
       const usan = usanGrupo(g);
       return `<div class="grupo-card">
         <div class="gh"><span>${esc(g)}</span><small>${usan.length ? 'Lo preguntan: ' + esc(usan.slice(0, 6).join(', ')) + (usan.length > 6 ? ` y ${usan.length - 6} más` : '') : 'Ningún platillo lo pregunta todavía'}</small></div>
-        <table><thead><tr><th style="width:90px;">Clave</th><th>Opción</th><th style="width:120px;">Extra ($)</th><th style="width:160px;">Impresora</th><th style="width:150px;"></th></tr></thead><tbody>
+        <table><thead><tr><th style="width:90px;">Clave</th><th>Opción</th><th style="width:120px;">Extra ($)</th><th style="width:160px;">Impresora</th><th style="width:210px;"></th></tr></thead><tbody>
         ${D.grupos[g].map(m => `<tr>
           <td><input class="inp" id="mc_${m.id}" value="${esc(m.clave)}" maxlength="20"></td>
           <td><input class="inp" id="mn_${m.id}" value="${esc(m.nombre)}" maxlength="100"></td>
           <td><input class="inp" id="mp_${m.id}" type="number" step="0.5" min="0" value="${m.precio}"></td>
           <td><select class="inp" id="ma_${m.id}"><option value="">La del platillo</option><option value="COCINA"${m.area === 'COCINA' ? ' selected' : ''}>Cocina</option><option value="BARRA"${m.area === 'BARRA' ? ' selected' : ''}>Barra</option></select></td>
-          <td style="white-space:nowrap;"><button type="button" class="btn verde sm" onclick="guardarModificador(${m.id})"><i class="fa-solid fa-check"></i></button>
+          <td style="white-space:nowrap;"><button type="button" class="btn sm ${m.receta && m.receta.length ? '' : 'gris'}" onclick="abrirRecetaMod(${m.id})" title="Receta: lo que descuenta del stock">${m.receta && m.receta.length ? '<i class="fa-solid fa-scale-balanced"></i>' : 'Receta'}</button>
+            <button type="button" class="btn verde sm" onclick="guardarModificador(${m.id})"><i class="fa-solid fa-check"></i></button>
             <button type="button" class="btn rojo sm" onclick="apagarModificador(${m.id})" title="Quitar"><i class="fa-solid fa-trash"></i></button></td>
         </tr>`).join('')}
         </tbody></table></div>`;

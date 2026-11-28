@@ -81,3 +81,45 @@ with app.app_context():
           'al eliminar el platillo se quitan sus preguntas')
 check(admin.post(f'/api/menu/categoria/{_cat_id}/eliminar', headers=_T).status_code == 200, 'eliminar categoría vacía')
 check('/platillos' in admin.get('/admin_dashboard').get_data(as_text=True), 'el menú de módulos lleva a Menú y Platillos')
+
+# ---------- Receta desde Menú: al cobrar descuenta del stock local de la sucursal (puede quedar negativo) ----------
+from models import StockSucursal as _StM
+with app.app_context():
+    _pr = _PrM(nombre='Cafe Receta Prueba', precio=58.0, categoria='Postres')
+    _ic = _InM(nombre='CAFE GRANO RECETA', categoria='GENERAL', unidad='KG', stock_actual=10, costo_unitario=300, activo=True)
+    _il = _InM(nombre='LECHE RECETA', categoria='GENERAL', unidad='LT', stock_actual=10, costo_unitario=20, activo=True)
+    db.session.add_all([_pr, _ic, _il])
+    db.session.commit()
+    _PRC, _CAFE, _LECHE = _pr.id, _ic.id, _il.id
+    db.session.add(_StM(sucursal='Quiosco Morisco (Matriz)', insumo_id=_LECHE, stock_actual=0.1, stock_minimo=1))
+    db.session.commit()
+r = admin.post('/api/menu/receta', json={'producto_id': _PRC, 'lineas': [{'insumo_id': _CAFE, 'cantidad': 0.018}, {'insumo_id': _LECHE, 'cantidad': 0.25}]}, headers=_T)
+check(r.status_code == 200 and r.json['renglones'] == 2, f'guardar receta desde Menú ({r.get_data(as_text=True)[:100]})')
+_pd = next(p for p in admin.get('/api/menu/datos').json['platillos'] if p['id'] == _PRC)
+check(len(_pd['receta']) == 2 and _pd['receta'][0]['unidad'] == 'KG', 'el platillo trae su receta con unidades')
+check(admin.post('/api/menu/receta', json={'producto_id': _PRC, 'lineas': [{'insumo_id': _CAFE, 'cantidad': 0}]}, headers=_T).status_code == 400,
+      'no acepta cantidades en 0')
+check(clientes['brayan'].post('/api/menu/receta', json={'producto_id': _PRC, 'lineas': []}).status_code in (400, 403), 'la caja no cambia recetas')
+
+# vender 2 en la Matriz y cobrar
+abrir_turnos()
+from models import CuentaPOS as _CtaR2
+admin.post('/api/pos/abrir_mesa', json={'mesa': 'RX1', 'personas': 1}, headers=H)
+with app.app_context():
+    _c = _CtaR2.query.filter_by(mesa='RX1', estado='ABIERTA').first()
+    _cid, _suc = _c.id, _c.sucursal
+    db.session.add(_StM(sucursal=_suc, insumo_id=_LECHE, stock_actual=0.1, stock_minimo=1)) if _suc != 'Quiosco Morisco (Matriz)' else None
+    db.session.commit()
+r = admin.post('/api/pos/capturar_item', json={'cuenta_id': _cid, 'producto_id': _PRC, 'descripcion': 'CAFE RECETA PRUEBA', 'precio': 58,
+                                                'cantidad': 2, 'clave': f'0{_PRC}', 'categoria': 'Postres'}, headers=H)
+check(r.status_code == 200, f'capturar el platillo con receta ({r.get_data(as_text=True)[:100]})')
+imprimir_cuenta(admin, _cid, H)
+r = admin.post('/api/pos/pagar_cuenta', json={'cuenta_id': _cid, 'efectivo': 200}, headers=H)
+check(r.status_code == 200, f'cobrar la venta con receta ({r.get_data(as_text=True)[:120]})')
+with app.app_context():
+    _cafe = _StM.query.filter_by(sucursal=_suc, insumo_id=_CAFE).first()
+    _leche = _StM.query.filter_by(sucursal=_suc, insumo_id=_LECHE).first()
+    check(_cafe is not None and abs(_cafe.stock_actual - (-0.036)) < 0.0001, f'al cobrar descuenta el café de la sucursal (2 × 0.018) ({_cafe and _cafe.stock_actual})')
+    check(_leche is not None and abs(_leche.stock_actual - (0.1 - 0.5)) < 0.0001,
+          f'la leche queda en negativo si se vendió más de lo registrado ({_leche and _leche.stock_actual})')
+check('NEGATIVO: falta registrar entrada' in admin.get('/pedidos_sucursal').get_data(as_text=True), 'Mi stock avisa cuando queda en negativo')

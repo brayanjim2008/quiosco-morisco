@@ -1586,7 +1586,9 @@ def descontar_recetas_local(cuenta_obj):
             if not st:
                 st = StockSucursal(sucursal=suc, insumo_id=r.insumo_id, stock_actual=0.0, stock_minimo=2.0)
                 db.session.add(st)
-            st.stock_actual = round(max(0.0, st.stock_actual - (r.cantidad_descontar * det.cantidad)), 3)
+            # Puede quedar en negativo (como en el Soft): significa que se vendió más de lo que se registró que llegó.
+            # Así el faltante se ve en rojo en "Mi stock" en lugar de esconderse en un 0; el conteo físico lo corrige.
+            st.stock_actual = round(float(st.stock_actual or 0.0) - (r.cantidad_descontar * det.cantidad), 3)
 
     cuenta_obj.recetas_descontadas = True
 

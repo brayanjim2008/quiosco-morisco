@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 
 from models import (
-    db, Producto, CategoriaMenu, ModificadorPOS, ProductoGrupoMod, RecetaPOS, PrecioSucursalPOS, PromocionPOS,
+    db, Producto, CategoriaMenu, ModificadorPOS, ProductoGrupoMod, RecetaPOS, PrecioSucursalPOS, PromocionPOS, InsumoBodegaPro,
     SUCURSALES_OFICIALES, invalidar_cache_publico, registrar_bitacora, cfg_cargar, cfg_guardar,
 )
 
@@ -24,11 +24,11 @@ def _solo_admin():
     return None
 
 
-def _num(valor, maximo=100000.0):
+def _num(valor, maximo=100000.0, decimales=2):
     x = float(valor or 0)
     if not math.isfinite(x) or x < 0 or x > maximo:
         raise ValueError('Número fuera de rango')
-    return round(x, 2)
+    return round(x, decimales)
 
 
 def _texto(valor, largo):
@@ -49,8 +49,21 @@ def _pasos_de(nombre):
         ProductoGrupoMod.orden.asc(), ProductoGrupoMod.id.asc()).all()
 
 
-def _platillo_json(p, areas, precios, pasos):
+def _recetas_por_clave():
+    """{NOMBRE o >MODIFICADOR: [líneas de receta]} con el costo de cada insumo."""
+    ins = {i.id: i for i in InsumoBodegaPro.query.all()}
+    salida = {}
+    for r in RecetaPOS.query.order_by(RecetaPOS.id.asc()).all():
+        i = ins.get(r.insumo_id)
+        salida.setdefault(_clave_nombre(r.platillo_nombre), []).append({
+            'insumo_id': r.insumo_id, 'insumo': i.nombre if i else f'#{r.insumo_id}', 'unidad': i.unidad if i else '',
+            'cantidad': float(r.cantidad_descontar or 0), 'costo_unitario': float(i.costo_unitario or 0) if i else 0.0})
+    return salida
+
+
+def _platillo_json(p, areas, precios, pasos, recetas=None):
     return {
+        'receta': (recetas or {}).get(_clave_nombre(p.nombre), []),
         'id': p.id, 'nombre': p.nombre, 'nombre_en': p.nombre_en or '', 'descripcion': p.descripcion or '',
         'descripcion_en': p.descripcion_en or '', 'precio': float(p.precio or 0), 'categoria': p.categoria,
         'imagen_url': p.imagen_url or '', 'destacado': bool(p.destacado), 'agotado': bool(p.agotado),
@@ -92,9 +105,17 @@ def api_menu_datos():
     cuenta = {}
     for p in Producto.query.all():
         cuenta[p.categoria] = cuenta.get(p.categoria, 0) + 1
+    recetas = _recetas_por_clave()
+    for lista in grupos.values():
+        for m in lista:
+            m['receta'] = recetas.get('>' + _clave_nombre(m['nombre']), [])
     return jsonify({
         'ok': True,
-        'platillos': [_platillo_json(p, areas, precios, pasos)
+        'insumos': [{'id': i.id, 'nombre': i.nombre, 'unidad': i.unidad, 'categoria': i.categoria,
+                     'costo_unitario': float(i.costo_unitario or 0)}
+                    for i in InsumoBodegaPro.query.filter(InsumoBodegaPro.activo.is_not(False))
+                    .order_by(InsumoBodegaPro.nombre.asc()).all() if 'EXTRA / FUERA DE LISTA' not in i.nombre],
+        'platillos': [_platillo_json(p, areas, precios, pasos, recetas)
                       for p in Producto.query.order_by(Producto.categoria.asc(), Producto.nombre.asc()).all()],
         'categorias': [{'id': c.id, 'nombre': c.nombre, 'nombre_en': c.nombre_en or '', 'icono': c.icono or '',
                         'imagen_url': c.imagen_url or '', 'platillos': cuenta.get(c.nombre, 0)} for c in cats],
@@ -219,6 +240,40 @@ def api_menu_pasos(pid):
         db.session.add(ProductoGrupoMod(platillo_nombre=clave, **l))
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@menu_bp.route('/api/menu/receta', methods=['POST'])
+@login_required
+def api_menu_receta():
+    """Guarda la receta COMPLETA de un platillo (clave = su nombre) o de un modificador (clave = >NOMBRE):
+    lo que se descuenta del stock de la sucursal cada vez que se cobra uno. Reemplaza la receta anterior."""
+    err = _solo_admin()
+    if err:
+        return err
+    d = request.get_json(silent=True) or {}
+    if d.get('producto_id'):
+        clave = _clave_nombre(Producto.query.get_or_404(int(d['producto_id'])).nombre)
+    elif d.get('modificador_id'):
+        clave = '>' + _clave_nombre(ModificadorPOS.query.get_or_404(int(d['modificador_id'])).nombre)
+    else:
+        return jsonify({'ok': False, 'msg': 'Falta el platillo.'}), 400
+    lineas, vistos = [], set()
+    for x in (d.get('lineas') or [])[:40]:
+        ins = InsumoBodegaPro.query.get(int((x or {}).get('insumo_id') or 0))
+        cant = _num(x.get('cantidad'), maximo=100000.0, decimales=4)   # recetas: 0.018 kg de café
+        if not ins or cant <= 0:
+            return jsonify({'ok': False, 'msg': 'Cada renglón necesita un insumo y una cantidad mayor a 0.'}), 400
+        if ins.id in vistos:
+            return jsonify({'ok': False, 'msg': f'{ins.nombre} está repetido en la receta.'}), 400
+        vistos.add(ins.id)
+        lineas.append((ins.id, round(cant, 4)))
+    for r in RecetaPOS.query.all():
+        if _clave_nombre(r.platillo_nombre) == clave:
+            db.session.delete(r)
+    for ins_id, cant in lineas:
+        db.session.add(RecetaPOS(platillo_nombre=clave, insumo_id=ins_id, cantidad_descontar=cant))
+    db.session.commit()
+    return jsonify({'ok': True, 'renglones': len(lineas)})
 
 
 @menu_bp.route('/api/menu/categoria', methods=['POST'])

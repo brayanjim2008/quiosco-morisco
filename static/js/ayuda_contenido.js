@@ -13,6 +13,10 @@ window.AYUDAS = {
         'En "Al pedirlo, preguntar" agrega las preguntas en orden: por ejemplo 1. Tipo de leche, 2. Sabor, 3. Temperatura.',
         'Obligatorio = el mesero no puede seguir sin elegir. Una = solo una opción; Varias = puede marcar varias.',
         'Debajo de cada pregunta ves sus opciones y lo que cobran extra. Toca "Guardar preguntas".'] },
+      { t: 'Receta (para que se descuente el stock)', pasos: [
+        'Abre el platillo y en "Receta" agrega cada insumo que gasta y cuánto, en la unidad del insumo (18 g de café = 0.018 si está en KG). Toca "Guardar receta".',
+        'Cada vez que se COBRA uno, se resta del stock de esa sucursal. Sin receta no se descuenta nada.',
+        'En la lista, "⚠️ Sin receta" muestra los que faltan. Los modificadores (ej. LECHE DE AVENA) también tienen su botón "Receta".'] },
       { t: 'Precio por sucursal', pasos: [
         'Escribe el precio de esa sucursal (vacío = precio general) o quita la palomita si ahí no se vende. Se guarda solo.'] },
       { t: 'Categorías y modificadores', pasos: [
