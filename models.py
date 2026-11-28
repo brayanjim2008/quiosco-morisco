@@ -1939,8 +1939,17 @@ def inicializar_sistema(app_obj):
                 db.session.add(EmpleadoNominaPOS(nombre=nom, puesto=pue, sueldo_base=sue, periodo=per, activo=True))
             db.session.commit()
 
+        corregir_datos_al_arrancar()
+
+        if ProductoGrupoMod.query.count() == 0 or not cfg_cargar('modificadores_soft_v1', False):
+            sincronizar_modificadores_guiados_quiosco()
+            cfg_guardar('modificadores_soft_v1', True)
+
+def corregir_datos_al_arrancar():
+    """Correcciones de datos de una sola vez; corre en cada arranque (Render no siempre corre inicializar_sistema)."""
+    try:
         # Las cuentas caminante1/2/3 ya existían cuando se agregó la columna sucursal y quedaron en la Matriz
-        # (vendían, descontaban stock y cortaban como Matriz). Se corrige una sola vez.
+        # (vendían, descontaban stock y cortaban como Matriz).
         if not cfg_cargar('sucursal_usuarios_v1', False):
             for usr, suc in MAPA_SUCURSAL_USUARIO.items():
                 u = User.query.filter_by(username=usr).first()
@@ -1949,10 +1958,10 @@ def inicializar_sistema(app_obj):
                     u.sucursal = suc
             db.session.commit()
             cfg_guardar('sucursal_usuarios_v1', True)
+    except Exception as e:
+        db.session.rollback()
+        print('Aviso: no se pudieron aplicar correcciones de datos:', e)
 
-        if ProductoGrupoMod.query.count() == 0 or not cfg_cargar('modificadores_soft_v1', False):
-            sincronizar_modificadores_guiados_quiosco()
-            cfg_guardar('modificadores_soft_v1', True)
 
 def sincronizar_modificadores_guiados_quiosco():
     """Asegura modificadores y flujos guiados paso a paso para Quiosco Morisco (con ruteo Cocina/Barra)."""

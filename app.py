@@ -25,7 +25,7 @@ from models import (
     SUCURSALES_OFICIALES, generar_pin_unico, obtener_sucursal_activa,
     cache_get, cache_set, invalidar_cache_publico, cargar_menu_quiosco_oficial, quitar_caracteres_html,
     PREFIJO_SUCURSAL, SUCURSAL_DEFAULT, sucursal_desde_codigo, sucursal_filtro, obtener_datos_ticket,
-    esquema_faltante, CAMPOS_DATOS_TICKET, CLAVE_CFG_DATOS_TICKET, cfg_cargar, cfg_guardar, registrar_bitacora,
+    esquema_faltante, corregir_datos_al_arrancar, CAMPOS_DATOS_TICKET, CLAVE_CFG_DATOS_TICKET, cfg_cargar, cfg_guardar, registrar_bitacora,
     User, CategoriaMenu, Producto, Premio, HistorialPremio, Galeria,
     Cliente, PinCaja, Evaluacion, Anuncio, PreOrden
 )
@@ -1419,6 +1419,7 @@ else:
                 _siguen = esquema_faltante(db.engine)
                 if _siguen:
                     app.logger.error('Tras migrar siguen faltando: %s', ', '.join(_siguen))
+            corregir_datos_al_arrancar()
     except Exception as _e_init:
         print('Aviso: no se pudo verificar el esquema al arrancar:', _e_init)
 
